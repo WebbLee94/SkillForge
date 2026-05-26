@@ -59,7 +59,7 @@ export const ipc = {
   // Distribution - Rust uses scene_id, snake_case
   syncScene: (
     sceneId: string,
-    platforms: string[],
+    platforms: string[] | null,
     scope: string,
     projectId?: string,
   ) =>

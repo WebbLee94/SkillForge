@@ -1,13 +1,12 @@
 use crate::engine;
 use crate::error::AppError;
-use crate::plugins::platform;
 use crate::types::{Distribution, SyncResult, SyncStatusDTO};
 use crate::AppState;
 
 #[tauri::command]
 pub fn sync_scene(
     scene_id: String,
-    platforms: Vec<String>,
+    platforms: Option<Vec<String>>,
     scope: String,
     project_id: Option<String>,
     state: tauri::State<'_, AppState>,
@@ -15,16 +14,17 @@ pub fn sync_scene(
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     // Create platform plugin instances
-    let plugin_instances: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = platforms
-        .iter()
-        .filter_map(|p| platform::create_platform_plugin(p).ok())
-        .collect();
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = vec![
+        Box::new(crate::plugins::platform::claude_code::ClaudeCodeAdapter::new()),
+        Box::new(crate::plugins::platform::open_code::OpenCodeAdapter::new()),
+        Box::new(crate::plugins::platform::cursor::CursorAdapter::new()),
+    ];
 
     engine::dist_engine::sync_scene(
         &conn,
-        &plugin_instances,
+        &all_plugins,
         &scene_id,
-        &platforms,
+        platforms.as_deref(),
         &scope,
         project_id.as_deref(),
     )

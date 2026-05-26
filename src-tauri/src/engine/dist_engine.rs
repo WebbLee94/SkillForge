@@ -17,12 +17,25 @@ pub fn sync_scene(
     conn: &rusqlite::Connection,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     scene_id: &str,
-    platform_ids: &[String],
+    platform_ids: Option<&[String]>,
     scope: &str,
     project_id: Option<&str>,
 ) -> Result<SyncResult, AppError> {
     // Verify scene exists
     let _scene = crate::engine::scene_engine::get_scene_detail(conn, scene_id)?;
+
+    // If no platforms specified, auto-resolve from scene_platforms
+    let resolved_platform_ids: Vec<String>;
+    let platform_ids = match platform_ids {
+        Some(ids) if !ids.is_empty() => ids,
+        _ => {
+            resolved_platform_ids = crate::engine::scene_engine::get_scene_platforms(conn, scene_id)?;
+            if resolved_platform_ids.is_empty() {
+                return Err(AppError::Platform("场景未关联任何平台，请先在场景编辑中配置目标平台".to_string()));
+            }
+            &resolved_platform_ids
+        }
+    };
 
     let mut result = SyncResult {
         installed: Vec::new(),
@@ -1042,6 +1055,17 @@ mod tests {
     fn setup_db() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         schema::create_tables(&conn).unwrap();
+        // Create scene_platforms table (normally created by migration v4)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS scene_platforms (
+                scene_id TEXT NOT NULL,
+                platform_id TEXT NOT NULL,
+                PRIMARY KEY (scene_id, platform_id),
+                FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
+                FOREIGN KEY (platform_id) REFERENCES platforms(id) ON DELETE CASCADE
+            )",
+            [],
+        ).unwrap();
         conn
     }
 
@@ -1087,7 +1111,7 @@ mod tests {
         let conn = setup_db();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
 
-        let result = sync_scene(&conn, &plugins, "nonexistent-scene", &[], "global", None);
+        let result = sync_scene(&conn, &plugins, "nonexistent-scene", None, "global", None);
         assert!(result.is_err());
 
         match result.unwrap_err() {
@@ -1101,16 +1125,20 @@ mod tests {
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
 
-        // Create a scene
+        // Create a scene with a platform association
         conn.execute(
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
             params!["test-scene", "Test Scene", "A test", now, now],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO scene_platforms (scene_id, platform_id) VALUES (?1, ?2)",
+            params!["test-scene", "claude-code"],
         ).unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
 
         // Sync with project scope but no project_id should fail
-        let result = sync_scene(&conn, &plugins, "test-scene", &[], "project", None);
+        let result = sync_scene(&conn, &plugins, "test-scene", None, "project", None);
         assert!(result.is_err());
 
         match result.unwrap_err() {
