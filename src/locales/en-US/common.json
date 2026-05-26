@@ -87,5 +87,16 @@
     "opencode": "OpenCode",
     "cursor": "Cursor",
     "syncStatus": "Platform Sync Status"
+  },
+  "tag": {
+    "name": "Name",
+    "color": "Color",
+    "namePlaceholder": "Enter tag name",
+    "selectColor": "Select color",
+    "skillType": "Skill Tags",
+    "ruleType": "Rule Tags",
+    "selectType": "Select tag type",
+    "associatedCount": "Count",
+    "deleteConfirm": "This tag is associated with {{count}} {{type}}. Delete?"
   }
 }
