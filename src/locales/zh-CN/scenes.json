@@ -1,0 +1,29 @@
+{
+  "title": "场景编排",
+  "subtitle": "组合技能和规则创建场景",
+  "createScene": "新建场景",
+  "editScene": "编辑场景",
+  "sceneName": "场景名称",
+  "sceneDescription": "场景描述",
+  "selectScene": "选择场景",
+  "availableSkills": "可用技能",
+  "availableRules": "可用规则",
+  "sceneSkills": "场景技能",
+  "sceneRules": "场景规则",
+  "targetPlatforms": "目标平台",
+  "dragHint": "从左侧拖拽技能或规则到右侧",
+  "noScene": "请先选择或创建一个场景",
+  "saveScene": "保存场景",
+  "syncScene": "一键同步",
+  "exportScene": "导出分享",
+  "create": {
+    "title": "新建场景",
+    "namePlaceholder": "输入场景名称",
+    "descriptionPlaceholder": "输入场景描述"
+  },
+  "empty": "还没有创建任何场景",
+  "count": "共 {{count}} 个场景",
+  "skillTab": "技能",
+  "ruleTab": "规则",
+  "systemSceneHint": "系统场景不可编辑"
+}

@@ -1,0 +1,33 @@
+{
+  "title": "Rules",
+  "subtitle": "Create and manage rule files",
+  "searchPlaceholder": "Search rules...",
+  "createRule": "New Rule",
+  "editRule": "Edit Rule",
+  "format": "Format",
+  "platform": "Target Platform",
+  "scope": "Scope",
+  "content": "Content",
+  "version": "Version",
+  "updatedAt": "Updated At",
+  "versionHistory": "Version History",
+  "formats": {
+    "mdc": ".mdc",
+    "md": ".md",
+    "yaml": ".yaml"
+  },
+  "scopes": {
+    "global": "Global",
+    "project": "Project"
+  },
+  "create": {
+    "title": "New Rule",
+    "namePlaceholder": "Enter rule name",
+    "descriptionPlaceholder": "Enter rule description",
+    "contentPlaceholder": "Write rule content...",
+    "selectFormat": "Select format",
+    "selectPlatform": "Select target platform"
+  },
+  "empty": "No rules created yet",
+  "count": "{{count}} rules total"
+}

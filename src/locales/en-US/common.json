@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "SkillForge",
+    "subtitle": "Skill Forge"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "skills": "Skill Library",
+    "rules": "Rules",
+    "tags": "Tags",
+    "scenes": "Scene Editor",
+    "globalDistribution": "Global Distribution",
+    "projectDistribution": "Project Distribution",
+    "settings": "Settings"
+  },
+  "navGroups": {
+    "overview": "Overview",
+    "resources": "Resources",
+    "orchestration": "Orchestration",
+    "distribution": "Distribution"
+  },
+  "actions": {
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "install": "Install",
+    "uninstall": "Uninstall",
+    "update": "Update",
+    "sync": "Sync",
+    "syncAll": "Sync All",
+    "search": "Search",
+    "import": "Import",
+    "create": "Create",
+    "remove": "Remove",
+    "enable": "Enable",
+    "disable": "Disable",
+    "close": "Close",
+    "back": "Back",
+    "refresh": "Refresh",
+    "export": "Export",
+    "copy": "Copy"
+  },
+  "status": {
+    "synced": "Synced",
+    "outdated": "Outdated",
+    "partial": "Partial",
+    "error": "Error",
+    "pending": "Pending",
+    "success": "Success",
+    "failed": "Failed",
+    "installed": "Installed",
+    "notInstalled": "Not Installed",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "messages": {
+    "confirmDelete": "Confirm delete? This action cannot be undone.",
+    "confirmUninstall": "Local files will be deleted. Continue?",
+    "skillInUse": "Skill is used by {{count}} scene(s)",
+    "sceneInUse": "Scene is used by {{count}} project(s)",
+    "projectExists": "Project already exists",
+    "skillExists": "Skill already installed",
+    "syncSuccess": "Sync successful",
+    "syncFailed": "Sync failed",
+    "installSuccess": "Install successful",
+    "uninstallSuccess": "Uninstall successful",
+    "updateSuccess": "Update successful",
+    "saveSuccess": "Save successful",
+    "deleteSuccess": "Delete successful",
+    "dependencyHint": "This skill requires {{name}}. Add automatically?",
+    "addManually": "Skip for now",
+    "addAuto": "Add automatically",
+    "noData": "No data",
+    "loading": "Loading...",
+    "operationFailed": "Operation failed",
+    "requiredField": "This field is required",
+    "nameRequired": "Name is required",
+    "recentActivity": "Recent Activity",
+    "comingSoon": "Coming Soon"
+  },
+  "platforms": {
+    "claude-code": "Claude Code",
+    "opencode": "OpenCode",
+    "cursor": "Cursor",
+    "syncStatus": "Platform Sync Status"
+  }
+}

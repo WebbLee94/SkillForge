@@ -1,0 +1,90 @@
+{
+  "app": {
+    "name": "SkillForge",
+    "subtitle": "技能锻造厂"
+  },
+  "nav": {
+    "dashboard": "看板",
+    "skills": "技能库",
+    "rules": "规则管理",
+    "tags": "标签管理",
+    "scenes": "场景编排",
+    "globalDistribution": "全局分发",
+    "projectDistribution": "项目分发",
+    "settings": "设置"
+  },
+  "navGroups": {
+    "overview": "概览",
+    "resources": "资源",
+    "orchestration": "编排",
+    "distribution": "分发"
+  },
+  "actions": {
+    "add": "添加",
+    "edit": "编辑",
+    "delete": "删除",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "install": "安装",
+    "uninstall": "卸载",
+    "update": "更新",
+    "sync": "同步",
+    "syncAll": "一键同步全部",
+    "search": "搜索",
+    "import": "导入",
+    "create": "新建",
+    "remove": "移除",
+    "enable": "启用",
+    "disable": "禁用",
+    "close": "关闭",
+    "back": "返回",
+    "refresh": "刷新",
+    "export": "导出",
+    "copy": "复制"
+  },
+  "status": {
+    "synced": "已同步",
+    "outdated": "需更新",
+    "partial": "部分同步",
+    "error": "同步失败",
+    "pending": "待同步",
+    "success": "成功",
+    "failed": "失败",
+    "installed": "已安装",
+    "notInstalled": "未安装",
+    "enabled": "已启用",
+    "disabled": "已禁用"
+  },
+  "messages": {
+    "confirmDelete": "确认删除？此操作不可撤销。",
+    "confirmUninstall": "将删除本地文件，是否继续？",
+    "skillInUse": "技能被 {{count}} 个场景使用",
+    "sceneInUse": "场景被 {{count}} 个项目使用",
+    "projectExists": "该项目已存在",
+    "skillExists": "技能已安装",
+    "syncSuccess": "同步成功",
+    "syncFailed": "同步失败",
+    "installSuccess": "安装成功",
+    "uninstallSuccess": "卸载成功",
+    "updateSuccess": "更新成功",
+    "saveSuccess": "保存成功",
+    "deleteSuccess": "删除成功",
+    "dependencyHint": "此技能需要 {{name}}，是否自动添加？",
+    "addManually": "暂不添加",
+    "addAuto": "自动添加",
+    "noData": "暂无数据",
+    "loading": "加载中...",
+    "operationFailed": "操作失败",
+    "requiredField": "此字段为必填项",
+    "nameRequired": "名称不能为空",
+    "recentActivity": "最近活动",
+    "comingSoon": "即将推出"
+  },
+  "platforms": {
+    "claude-code": "Claude Code",
+    "opencode": "OpenCode",
+    "cursor": "Cursor",
+    "syncStatus": "平台同步状态"
+  }
+}

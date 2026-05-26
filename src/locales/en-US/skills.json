@@ -1,0 +1,43 @@
+{
+  "title": "Skill Library",
+  "subtitle": "Manage and install AI skills",
+  "searchPlaceholder": "Search skills...",
+  "filterSource": "Source Filter",
+  "filterTag": "Tag Filter",
+  "sourceTypes": {
+    "local": "Local",
+    "git": "Git",
+    "registry": "Registry",
+    "local-fs": "Local FS",
+    "git-repo": "Git Repo"
+  },
+  "detail": {
+    "title": "Skill Detail",
+    "name": "Name",
+    "version": "Version",
+    "description": "Description",
+    "author": "Author",
+    "license": "License",
+    "source": "Source",
+    "localPath": "Local Path",
+    "installedAt": "Installed At",
+    "dependencies": "Dependencies",
+    "platformStatus": "Platform Sync Status",
+    "noSkillSelected": "Select a skill to view details"
+  },
+  "install": {
+    "title": "Install Skill",
+    "sourceType": "Source Type",
+    "localPath": "Local Path",
+    "gitUrl": "Git Repository URL",
+    "registryId": "Registry Skill ID",
+    "browse": "Browse...",
+    "placeholder": {
+      "local": "Select local skill directory",
+      "git": "Enter Git repository URL",
+      "registry": "Enter skill ID or search"
+    }
+  },
+  "empty": "No skills installed yet",
+  "count": "{{count}} skills total"
+}

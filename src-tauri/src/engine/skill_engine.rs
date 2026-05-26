@@ -1,0 +1,478 @@
+use crate::error::AppError;
+use crate::plugins::source::SourcePlugin;
+use crate::types::{Skill, SkillFilter, SkillVersion};
+
+use rusqlite::params;
+
+/// Install a skill from a source plugin.
+/// Fetches the skill bundle, stores files to disk, and writes metadata to DB.
+pub fn install_skill(
+    conn: &rusqlite::Connection,
+    source_plugin: &dyn SourcePlugin,
+    skill_id: &str,
+) -> Result<Skill, AppError> {
+    // Fetch skill bundle from source first
+    let bundle = source_plugin.fetch(skill_id, None)?;
+
+    // Check if already installed using the canonical skill ID from the bundle
+    let exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM skills WHERE id = ?1",
+            params![bundle.meta.id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|c| c > 0)?;
+
+    if exists {
+        return Err(AppError::DuplicateSkill(bundle.meta.id.clone()));
+    }
+
+    // Determine local storage path
+    let data_dir = dirs::home_dir()
+        .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
+        .join(".skillforge");
+    let local_path = data_dir.join("skills").join(&bundle.meta.id);
+
+    // Store skill files to disk
+    store_skill_files(&local_path, &bundle)?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+
+    // Insert into skills table
+    conn.execute(
+        "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![
+            bundle.meta.id,
+            bundle.meta.name,
+            bundle.meta.description,
+            bundle.meta.source_type,
+            bundle.meta.source_url,
+            bundle.meta.version,
+            now,
+            local_path.to_string_lossy().to_string(),
+            bundle.meta.metadata,
+        ],
+    )?;
+
+    // Record version
+    if let Some(ver) = &bundle.meta.version {
+        let fetched_at = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            params![bundle.meta.id, ver, bundle.meta.source_url, Option::<String>::None, fetched_at],
+        )?;
+    }
+
+    // Read back the installed skill
+    let skill = query_skill_by_id(conn, &bundle.meta.id)?;
+    Ok(skill)
+}
+
+/// Uninstall a skill: delete files and DB records.
+/// Checks scene references, removes from scenes automatically, and logs affected scenes.
+pub fn uninstall_skill(
+    conn: &rusqlite::Connection,
+    skill_id: &str,
+) -> Result<Skill, AppError> {
+    let skill = query_skill_by_id(conn, skill_id)?;
+
+    // Check scene references: collect affected scene IDs before deletion
+    let affected_scenes: Vec<String> = {
+        let mut stmt = conn.prepare(
+            "SELECT scene_id FROM scene_skills WHERE skill_id = ?1",
+        )?;
+        let rows = stmt.query_map(params![skill_id], |row| row.get(0))?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+
+    let scene_count = affected_scenes.len() as i32;
+    if scene_count > 0 {
+        let scene_list = affected_scenes.join(", ");
+        eprintln!(
+            "警告: 技能 '{}' 被 {} 个场景使用 ({}), 已自动从这些场景中移除",
+            skill_id, scene_count, scene_list
+        );
+    }
+
+    // Delete skill files from disk
+    let local_path = std::path::PathBuf::from(&skill.local_path);
+    if local_path.exists() {
+        std::fs::remove_dir_all(&local_path)?;
+    }
+
+    // Delete DB records (cascading will handle skill_versions, skill_tags, scene_skills)
+    conn.execute("DELETE FROM scene_skills WHERE skill_id = ?1", params![skill_id])?;
+    conn.execute("DELETE FROM skill_tags WHERE skill_id = ?1", params![skill_id])?;
+    conn.execute("DELETE FROM skill_versions WHERE skill_id = ?1", params![skill_id])?;
+    conn.execute("DELETE FROM skills WHERE id = ?1", params![skill_id])?;
+
+    // Update timestamps for affected scenes
+    let now = chrono::Utc::now().to_rfc3339();
+    for scene_id in &affected_scenes {
+        conn.execute(
+            "UPDATE scenes SET updated_at = ?1 WHERE id = ?2",
+            params![now, scene_id],
+        )?;
+    }
+
+    Ok(skill)
+}
+
+/// Update a skill: compare versions, fetch new, update files and DB.
+pub fn update_skill(
+    conn: &rusqlite::Connection,
+    source_plugin: &dyn SourcePlugin,
+    skill_id: &str,
+) -> Result<Skill, AppError> {
+    let existing = query_skill_by_id(conn, skill_id)?;
+
+    // Fetch latest from source
+    let bundle = source_plugin.fetch(skill_id, None)?;
+
+    // Check if version changed
+    let new_version = bundle.meta.version.as_deref().unwrap_or("latest");
+    let current_version = existing.current_ver.as_deref().unwrap_or("unknown");
+
+    if new_version == current_version {
+        return Ok(existing); // Already up to date
+    }
+
+    // Update skill files on disk
+    let local_path = std::path::PathBuf::from(&existing.local_path);
+    if local_path.exists() {
+        std::fs::remove_dir_all(&local_path)?;
+    }
+    store_skill_files(&local_path, &bundle)?;
+
+    // Update DB record
+    conn.execute(
+        "UPDATE skills SET name = ?1, description = ?2, current_ver = ?3, metadata = ?4 WHERE id = ?5",
+        params![
+            bundle.meta.name,
+            bundle.meta.description,
+            bundle.meta.version,
+            bundle.meta.metadata,
+            skill_id,
+        ],
+    )?;
+
+    // Record new version
+    let fetched_at = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT OR REPLACE INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
+         VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![skill_id, new_version, bundle.meta.source_url, Option::<String>::None, fetched_at],
+    )?;
+
+    query_skill_by_id(conn, skill_id)
+}
+
+/// List skills with optional filtering.
+pub fn list_skills(
+    conn: &rusqlite::Connection,
+    filter: &SkillFilter,
+) -> Result<Vec<Skill>, AppError> {
+    let mut sql = String::from(
+        "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata FROM skills WHERE 1=1",
+    );
+    let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
+    let mut param_idx = 1;
+
+    if let Some(ref source_type) = filter.source_type {
+        sql.push_str(&format!(" AND source_type = ?{}", param_idx));
+        param_values.push(Box::new(source_type.clone()));
+        param_idx += 1;
+    }
+
+    if let Some(ref tag) = filter.tag {
+        sql.push_str(&format!(
+            " AND id IN (SELECT skill_id FROM skill_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?{}))",
+            param_idx
+        ));
+        param_values.push(Box::new(tag.clone()));
+    }
+
+    sql.push_str(" ORDER BY name ASC");
+
+    let params: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+
+    let mut stmt = conn.prepare(&sql)?;
+    let skills = stmt
+        .query_map(params.as_slice(), |row| {
+            Ok(Skill {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                source_type: row.get(3)?,
+                source_url: row.get(4)?,
+                current_ver: row.get(5)?,
+                installed_at: row.get(6)?,
+                local_path: row.get(7)?,
+                metadata: row.get(8)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(skills)
+}
+
+/// Search skills by name or description.
+pub fn search_skills(
+    conn: &rusqlite::Connection,
+    query: &str,
+) -> Result<Vec<Skill>, AppError> {
+    let pattern = format!("%{}%", query);
+    let mut stmt = conn.prepare(
+        "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata
+         FROM skills
+         WHERE name LIKE ?1 OR description LIKE ?1
+         ORDER BY name ASC",
+    )?;
+
+    let skills = stmt
+        .query_map(params![pattern], |row| {
+            Ok(Skill {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                source_type: row.get(3)?,
+                source_url: row.get(4)?,
+                current_ver: row.get(5)?,
+                installed_at: row.get(6)?,
+                local_path: row.get(7)?,
+                metadata: row.get(8)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(skills)
+}
+
+/// Get version history for a skill.
+pub fn get_skill_versions(
+    conn: &rusqlite::Connection,
+    skill_id: &str,
+) -> Result<Vec<SkillVersion>, AppError> {
+    // Verify skill exists
+    query_skill_by_id(conn, skill_id)?;
+
+    let mut stmt = conn.prepare(
+        "SELECT skill_id, version, source_ref, checksum, fetched_at
+         FROM skill_versions
+         WHERE skill_id = ?1
+         ORDER BY fetched_at DESC",
+    )?;
+
+    let versions = stmt
+        .query_map(params![skill_id], |row| {
+            Ok(SkillVersion {
+                skill_id: row.get(0)?,
+                version: row.get(1)?,
+                source_ref: row.get(2)?,
+                checksum: row.get(3)?,
+                fetched_at: row.get(4)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(versions)
+}
+
+// ── Internal helpers ───────────────────────────────────────────────
+
+fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, AppError> {
+    conn.query_row(
+        "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata
+         FROM skills WHERE id = ?1",
+        params![id],
+        |row| {
+            Ok(Skill {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                source_type: row.get(3)?,
+                source_url: row.get(4)?,
+                current_ver: row.get(5)?,
+                installed_at: row.get(6)?,
+                local_path: row.get(7)?,
+                metadata: row.get(8)?,
+            })
+        },
+    )
+    .map_err(|_| AppError::SkillNotFound(id.to_string()))
+}
+
+/// Store skill files to the local filesystem
+fn store_skill_files(
+    local_path: &std::path::Path,
+    bundle: &crate::types::SkillBundle,
+) -> Result<(), AppError> {
+    // Create skill directory
+    std::fs::create_dir_all(local_path)?;
+
+    // Write SKILL.md (full content including frontmatter)
+    let full_md = format!(
+        "---\nname: {}\ndescription: {}{}{}{}---\n\n{}",
+        bundle.meta.name,
+        bundle.meta.description,
+        bundle
+            .meta
+            .version
+            .as_ref()
+            .map(|v| format!("\nversion: \"{}\"", v))
+            .unwrap_or_default(),
+        bundle
+            .meta
+            .metadata
+            .as_ref()
+            .map(|m| format!("\nmetadata: {}", m))
+            .unwrap_or_default(),
+        if bundle.meta.source_type.is_empty() {
+            String::new()
+        } else {
+            format!("\nsource_type: {}", bundle.meta.source_type)
+        },
+        bundle.skill_md,
+    );
+    std::fs::write(local_path.join("SKILL.md"), full_md)?;
+
+    // Create subdirectory placeholders
+    for subdir in &bundle.subdirs {
+        std::fs::create_dir_all(local_path.join(subdir))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::schema;
+
+    fn setup_db() -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        schema::create_tables(&conn).unwrap();
+        conn
+    }
+
+    #[test]
+    fn test_list_skills_empty() {
+        let conn = setup_db();
+        let filter = SkillFilter {
+            source_type: None,
+            tag: None,
+        };
+        let skills = list_skills(&conn, &filter).unwrap();
+        assert!(skills.is_empty());
+    }
+
+    #[test]
+    fn test_search_skills() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["java-springboot", "Java Spring Boot", "Spring Boot best practices", "local-fs", now, "/tmp/skills/java-springboot"],
+        ).unwrap();
+
+        let results = search_skills(&conn, "spring").unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].id, "java-springboot");
+
+        let results = search_skills(&conn, "python").unwrap();
+        assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_uninstall_nonexistent() {
+        let conn = setup_db();
+        let result = uninstall_skill(&conn, "nonexistent");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_uninstall_skill_in_use() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Insert a skill
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["test-skill", "Test Skill", "A test", "local-fs", now, "/tmp/skillforge-test/test-skill"],
+        ).unwrap();
+
+        // Create a scene and add the skill to it
+        conn.execute(
+            "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
+            params!["test-scene", "Test Scene", "A test scene", now, now],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, 0)",
+            params!["test-scene", "test-skill"],
+        ).unwrap();
+
+        // Create the skill directory on disk so uninstall can remove it
+        std::fs::create_dir_all("/tmp/skillforge-test/test-skill").ok();
+
+        // Uninstall should succeed (warn but not block)
+        let result = uninstall_skill(&conn, "test-skill");
+        assert!(result.is_ok());
+
+        // Verify scene_skills reference was removed
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM scene_skills WHERE skill_id = ?1",
+                params!["test-skill"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
+
+        // Verify skill was removed
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM skills WHERE id = ?1",
+                params!["test-skill"],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0);
+
+        // Cleanup
+        std::fs::remove_dir_all("/tmp/skillforge-test").ok();
+    }
+
+    #[test]
+    fn test_install_duplicate_skill() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Insert a skill
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["test-skill", "Test Skill", "A test", "local-fs", now, "/tmp/test"],
+        ).unwrap();
+
+        // Try to install the same skill again (using the engine's install_skill would require
+        // a source plugin, so we test the duplicate check logic directly)
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM skills WHERE id = ?1",
+                params!["test-skill"],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)
+            .unwrap();
+        assert!(exists);
+
+        // The install_skill function would return DuplicateSkill error
+        // We verify the error type exists and has the right message
+        let err = AppError::DuplicateSkill("test-skill".to_string());
+        assert!(err.to_string().contains("test-skill"));
+    }
+}

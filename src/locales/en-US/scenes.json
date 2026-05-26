@@ -1,0 +1,29 @@
+{
+  "title": "Scene Editor",
+  "subtitle": "Combine skills and rules into scenes",
+  "createScene": "New Scene",
+  "editScene": "Edit Scene",
+  "sceneName": "Scene Name",
+  "sceneDescription": "Scene Description",
+  "selectScene": "Select Scene",
+  "availableSkills": "Available Skills",
+  "availableRules": "Available Rules",
+  "sceneSkills": "Scene Skills",
+  "sceneRules": "Scene Rules",
+  "targetPlatforms": "Target Platforms",
+  "dragHint": "Drag skills or rules from the left panel",
+  "noScene": "Select or create a scene first",
+  "saveScene": "Save Scene",
+  "syncScene": "Sync Now",
+  "exportScene": "Export",
+  "create": {
+    "title": "New Scene",
+    "namePlaceholder": "Enter scene name",
+    "descriptionPlaceholder": "Enter scene description"
+  },
+  "empty": "No scenes created yet",
+  "count": "{{count}} scenes total",
+  "skillTab": "Skills",
+  "ruleTab": "Rules",
+  "systemSceneHint": "System scene cannot be edited"
+}

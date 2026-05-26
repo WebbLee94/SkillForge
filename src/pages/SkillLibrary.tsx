@@ -1,0 +1,535 @@
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { useAppStore } from "../stores/appStore";
+import { cn } from "../lib/utils";
+import { InlineTagEditor } from "../components/InlineTagEditor";
+import { Search, Download, Trash2, RefreshCw, X, Package, FolderOpen, ChevronRight, Clock, CheckSquare } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
+
+export function SkillLibrary() {
+  const { t } = useTranslation("skills");
+  const { t: tc } = useTranslation("common");
+  const skills = useAppStore((s) => s.skills);
+  const tags = useAppStore((s) => s.tags);
+  const selectedSkill = useAppStore((s) => s.selectedSkill);
+  const searchQuery = useAppStore((s) => s.searchQuery);
+  const tagFilter = useAppStore((s) => s.tagFilter);
+  const loading = useAppStore((s) => s.loading);
+  const fetchSkills = useAppStore((s) => s.fetchSkills);
+  const fetchTags = useAppStore((s) => s.fetchTags);
+  const selectSkill = useAppStore((s) => s.selectSkill);
+  const setSearchQuery = useAppStore((s) => s.setSearchQuery);
+  const setTagFilter = useAppStore((s) => s.setTagFilter);
+  const uninstallSkill = useAppStore((s) => s.uninstallSkill);
+  const updateSkill = useAppStore((s) => s.updateSkill);
+  const assignTag = useAppStore((s) => s.assignTag);
+  const removeTagAction = useAppStore((s) => s.removeTag);
+
+  const [showInstallDialog, setShowInstallDialog] = useState(false);
+  const [installSource, setInstallSource] = useState<"local" | "git">("local");
+  const [installInput, setInstallInput] = useState("");
+  const [localSearch, setLocalSearch] = useState("");
+  const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const tagScrollRef = useRef<HTMLDivElement>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchMode, setBatchMode] = useState(false);
+  const [untaggedFilter, setUntaggedFilter] = useState(false);
+
+  useEffect(() => {
+    fetchSkills();
+    fetchTags();
+  }, [fetchSkills, fetchTags]);
+
+  const handleSearch = useCallback((value: string) => {
+    setLocalSearch(value);
+    if (debounceTimer) clearTimeout(debounceTimer);
+    const timer = setTimeout(() => setSearchQuery(value), 300);
+    setDebounceTimer(timer);
+  }, [debounceTimer, setSearchQuery]);
+
+  const filteredSkills = useMemo(() => {
+    return skills.filter((skill) => {
+      if (searchQuery && !skill.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
+          !(skill.description || "").toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (untaggedFilter) {
+        if (skill.tags && skill.tags.length > 0) return false;
+      } else if (tagFilter.length > 0) {
+        if (!skill.tags || skill.tags.length === 0) return false;
+        const skillTagIds = skill.tags.map((tag) => tag.id);
+        if (!tagFilter.some((id) => skillTagIds.includes(id))) return false;
+      }
+      return true;
+    });
+  }, [skills, searchQuery, tagFilter, untaggedFilter]);
+
+  const toggleTag = (tagId: number) => {
+    setTagFilter(
+      tagFilter.includes(tagId)
+        ? tagFilter.filter((id) => id !== tagId)
+        : [...tagFilter, tagId],
+    );
+  };
+
+  const parseMetadata = (meta: string | null | undefined): Record<string, unknown> => {
+    if (!meta) return {};
+    try { return JSON.parse(meta); } catch { return {}; }
+  };
+
+  const formatTime = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+    } catch {
+      return iso;
+    }
+  };
+
+  const handleAssignTag = useCallback(async (skillId: string, tagId: number) => {
+    await assignTag("skill", skillId, tagId);
+    await fetchSkills();
+  }, [assignTag, fetchSkills]);
+
+  const handleRemoveTag = useCallback(async (skillId: string, tagId: number) => {
+    await removeTagAction("skill", skillId, tagId);
+    await fetchSkills();
+  }, [removeTagAction, fetchSkills]);
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    if (!window.confirm(`确定删除 ${selectedIds.size} 个技能？此操作不可恢复`)) return;
+    for (const id of selectedIds) {
+      await uninstallSkill(id);
+    }
+    setSelectedIds(new Set());
+    setBatchMode(false);
+  }, [selectedIds, uninstallSkill]);
+
+  // Esc to exit batch mode
+  useEffect(() => {
+    if (!batchMode) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setBatchMode(false);
+        setSelectedIds(new Set());
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [batchMode]);
+
+  const toggleSelect = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Top Bar: Search + Tag Pills */}
+      <div className="shrink-0 border-b border-border">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => handleSearch(e.target.value)}
+              placeholder={t("searchPlaceholder")}
+              className={cn(
+                "w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm",
+                "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+              )}
+            />
+          </div>
+          <button
+            className={cn(
+              "flex items-center gap-2 rounded-lg border border-border px-3 py-2",
+              "text-sm font-medium text-foreground hover:bg-accent transition-colors",
+              batchMode && "bg-primary/10 border-primary/30",
+            )}
+            onClick={() => {
+              setBatchMode(!batchMode);
+              if (batchMode) setSelectedIds(new Set());
+            }}
+          >
+            <CheckSquare className="h-4 w-4" />
+            {batchMode ? "退出选择" : "批量选择"}
+          </button>
+          <button
+            className={cn(
+              "flex items-center gap-2 rounded-lg bg-primary px-3 py-2",
+              "text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors",
+            )}
+            onClick={() => setShowInstallDialog(true)}
+          >
+            <Download className="h-4 w-4" />
+            {tc("actions.install")}
+          </button>
+        </div>
+        {/* Tag pill horizontal scroll */}
+        {(tags.length > 0 || true) && (
+          <div className="flex items-center gap-1.5 overflow-x-auto px-4 pb-2" ref={tagScrollRef}>
+            <button
+              className={cn(
+                "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                tagFilter.length === 0 && !untaggedFilter
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+              )}
+              onClick={() => { setTagFilter([]); setUntaggedFilter(false); }}
+            >
+              全部
+            </button>
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                className={cn(
+                  "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+                  tagFilter.includes(tag.id)
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                )}
+                style={!tagFilter.includes(tag.id) && tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
+                onClick={() => toggleTag(tag.id)}
+              >
+                {tag.name}
+              </button>
+            ))}
+            <button
+              className={cn(
+                "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border border-dashed",
+                untaggedFilter
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "border-muted-foreground/40 text-muted-foreground hover:bg-secondary",
+              )}
+              onClick={() => setUntaggedFilter(!untaggedFilter)}
+            >
+              未分类
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Batch Action Bar */}
+      {batchMode && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 border-b border-border bg-primary/5 px-4 py-2">
+          <span className="text-sm font-medium text-foreground">已选 {selectedIds.size} 项</span>
+          <button
+            className="flex items-center gap-1.5 rounded-md bg-error/10 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/20 transition-colors"
+            onClick={handleBatchDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            删除
+          </button>
+          <button
+            className="ml-auto text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              setBatchMode(false);
+              setSelectedIds(new Set());
+            }}
+          >
+            取消选择
+          </button>
+        </div>
+      )}
+
+      {/* Card Grid */}
+      <div className="flex-1 overflow-hidden flex">
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-lg border border-border bg-card p-4">
+                  <div className="h-4 w-32 rounded bg-muted" />
+                  <div className="mt-2 h-3 w-full rounded bg-muted" />
+                  <div className="mt-1 h-3 w-3/4 rounded bg-muted" />
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="h-5 w-12 rounded-full bg-muted" />
+                    <div className="h-5 w-12 rounded-full bg-muted" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredSkills.length > 0 ? (
+            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+              {filteredSkills.map((skill) => (
+                <div
+                  key={skill.id}
+                  className={cn(
+                    "rounded-lg border p-4 text-left transition-all relative",
+                    selectedSkill?.id === skill.id
+                      ? "border-primary bg-primary/5 shadow-sm"
+                      : "border-border bg-card hover:border-primary/30 hover:shadow-sm",
+                    batchMode && selectedIds.has(skill.id) && "border-primary/50 bg-primary/5",
+                  )}
+                  onClick={() => {
+                    if (batchMode) {
+                      toggleSelect(skill.id);
+                    } else {
+                      selectSkill(skill);
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  {batchMode && (
+                    <div className="absolute left-3 top-3 z-10">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(skill.id)}
+                        onChange={() => toggleSelect(skill.id)}
+                        className="rounded border-border h-4 w-4 cursor-pointer"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  )}
+                  <div className={cn("flex items-start justify-between gap-2", batchMode && "pl-6")}>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{skill.name}</h3>
+                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
+                        {skill.description || ""}
+                      </p>
+                    </div>
+                    {!batchMode && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}
+                  </div>
+                  <div className={cn("mt-3 flex items-center gap-2 flex-wrap", batchMode && "pl-6")}>
+                    <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                      v{skill.current_ver || "?"}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      {formatTime(skill.installed_at)}
+                    </span>
+                  </div>
+                  <div className={cn("mt-1.5", batchMode && "pl-6")} onClick={(e) => e.stopPropagation()}>
+                    <InlineTagEditor
+                      targetType="skill"
+                      targetId={skill.id}
+                      tags={skill.tags || []}
+                      allTags={tags}
+                      onAssign={(tagId) => handleAssignTag(skill.id, tagId)}
+                      onRemove={(tagId) => handleRemoveTag(skill.id, tagId)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Package className="mb-3 h-12 w-12 text-muted-foreground/30" />
+              <p className="mb-1 text-sm font-medium text-muted-foreground">
+                {t("empty")}
+              </p>
+              <button
+                className="mt-2 text-sm text-primary hover:underline"
+                onClick={() => setShowInstallDialog(true)}
+              >
+                {tc("actions.install")}{tc("nav.skills")}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Right Slide-out Detail Panel */}
+        <div
+          className={cn(
+            "shrink-0 border-l border-border overflow-y-auto transition-all duration-300",
+            selectedSkill ? "w-[360px]" : "w-0",
+          )}
+        >
+          {selectedSkill && (
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-semibold text-foreground">{selectedSkill.name}</h2>
+                <button
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => selectSkill(null)}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">v{selectedSkill.current_ver || "?"}</p>
+              <p className="mt-3 text-sm text-foreground">{selectedSkill.description || ""}</p>
+
+              <div className="mt-4 space-y-2">
+                {(() => {
+                  const meta = parseMetadata(selectedSkill.metadata);
+                  return (
+                    <>
+                      {meta.author && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{t("detail.author")}</span>
+                          <span className="text-foreground">{meta.author as string}</span>
+                        </div>
+                      )}
+                      {meta.license && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{t("detail.license")}</span>
+                          <span className="text-foreground">{meta.license as string}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t("detail.source")}</span>
+                  <span className="text-foreground">{t(`sourceTypes.${selectedSkill.source_type}`)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t("detail.localPath")}</span>
+                  <span className="max-w-[200px] truncate text-xs text-foreground">{selectedSkill.local_path}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">{t("detail.installedAt")}</span>
+                  <span className="text-xs text-foreground">{formatTime(selectedSkill.installed_at)}</span>
+                </div>
+              </div>
+
+              {/* Detail panel tags: read-only */}
+              {selectedSkill.tags && selectedSkill.tags.length > 0 && (
+                <div className="mt-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{tc("nav.tags")}</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedSkill.tags.map((tag) => (
+                      <span
+                        key={tag.id}
+                        className="rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
+                      >
+                        {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 space-y-2">
+                <button
+                  className={cn(
+                    "flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2",
+                    "text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors",
+                  )}
+                  onClick={() => updateSkill(selectedSkill.id)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {tc("actions.update")}
+                </button>
+                <button
+                  className={cn(
+                    "flex w-full items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2",
+                    "text-sm font-medium text-error hover:bg-error/10 transition-colors",
+                  )}
+                  onClick={() => {
+                    if (window.confirm(tc("messages.confirmUninstall"))) {
+                      uninstallSkill(selectedSkill.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {tc("actions.uninstall")}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Install Dialog */}
+      {showInstallDialog && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
+          <div className="w-[440px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-foreground">{t("install.title")}</h2>
+              <button onClick={() => setShowInstallDialog(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("install.sourceType")}</label>
+                <div className="flex gap-2">
+                  {(["local", "git"] as const).map((source) => (
+                    <button
+                      key={source}
+                      className={cn(
+                        "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                        installSource === source
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                      )}
+                      onClick={() => setInstallSource(source)}
+                    >
+                      {t(`sourceTypes.${source}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  {installSource === "local" ? t("install.localPath") :
+                   installSource === "git" ? t("install.gitUrl") : t("install.registryId")}
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={installInput}
+                    onChange={(e) => setInstallInput(e.target.value)}
+                    placeholder={t(`install.placeholder.${installSource}`)}
+                    className={cn(
+                      "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
+                      "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+                    )}
+                  />
+                  {installSource === "local" && (
+                    <button
+                      type="button"
+                      className={cn(
+                        "shrink-0 flex items-center gap-1.5 rounded-lg border border-input bg-background px-3 py-2",
+                        "text-sm font-medium text-foreground hover:bg-accent transition-colors",
+                      )}
+                      onClick={async () => {
+                        const selected = await open({ directory: true, multiple: false });
+                        if (selected) {
+                          setInstallInput(selected);
+                        }
+                      }}
+                    >
+                      <FolderOpen className="h-4 w-4" />
+                      {t("install.browse")}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
+                  onClick={() => setShowInstallDialog(false)}
+                >
+                  {tc("actions.cancel")}
+                </button>
+                <button
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                  onClick={async () => {
+                    if (!installInput.trim()) return;
+                    const installSkill = useAppStore.getState().installSkill;
+                    await installSkill(installSource, installInput.trim());
+                    setShowInstallDialog(false);
+                    setInstallInput("");
+                  }}
+                >
+                  {tc("actions.install")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

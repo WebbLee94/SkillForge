@@ -1,0 +1,43 @@
+{
+  "title": "技能库",
+  "subtitle": "管理和安装 AI 技能",
+  "searchPlaceholder": "搜索技能...",
+  "filterSource": "来源筛选",
+  "filterTag": "标签筛选",
+  "sourceTypes": {
+    "local": "本地",
+    "git": "Git",
+    "registry": "技能市场",
+    "local-fs": "本地文件",
+    "git-repo": "Git 仓库"
+  },
+  "detail": {
+    "title": "技能详情",
+    "name": "名称",
+    "version": "版本",
+    "description": "描述",
+    "author": "作者",
+    "license": "许可证",
+    "source": "来源",
+    "localPath": "本地路径",
+    "installedAt": "安装时间",
+    "dependencies": "依赖",
+    "platformStatus": "平台同步状态",
+    "noSkillSelected": "选择一个技能查看详情"
+  },
+  "install": {
+    "title": "安装技能",
+    "sourceType": "来源类型",
+    "localPath": "本地路径",
+    "gitUrl": "Git 仓库地址",
+    "registryId": "技能市场 ID",
+    "browse": "浏览...",
+    "placeholder": {
+      "local": "选择本地技能目录",
+      "git": "输入 Git 仓库 URL",
+      "registry": "输入技能 ID 或搜索"
+    }
+  },
+  "empty": "还没有安装任何技能",
+  "count": "共 {{count}} 个技能"
+}

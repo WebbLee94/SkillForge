@@ -1,0 +1,33 @@
+{
+  "title": "规则管理",
+  "subtitle": "创建和管理规则文件",
+  "searchPlaceholder": "搜索规则...",
+  "createRule": "新建规则",
+  "editRule": "编辑规则",
+  "format": "格式",
+  "platform": "目标平台",
+  "scope": "作用范围",
+  "content": "内容",
+  "version": "版本",
+  "updatedAt": "更新时间",
+  "versionHistory": "版本历史",
+  "formats": {
+    "mdc": ".mdc",
+    "md": ".md",
+    "yaml": ".yaml"
+  },
+  "scopes": {
+    "global": "全局",
+    "project": "项目"
+  },
+  "create": {
+    "title": "新建规则",
+    "namePlaceholder": "输入规则名称",
+    "descriptionPlaceholder": "输入规则描述",
+    "contentPlaceholder": "编写规则内容...",
+    "selectFormat": "选择格式",
+    "selectPlatform": "选择目标平台"
+  },
+  "empty": "还没有创建任何规则",
+  "count": "共 {{count}} 条规则"
+}

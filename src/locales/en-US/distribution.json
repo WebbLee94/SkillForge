@@ -1,0 +1,37 @@
+{
+  "title": "Distribution",
+  "globalTitle": "Global Distribution",
+  "projectTitle": "Project Distribution",
+  "globalSubtitle": "Sync skills and rules to global platform configs",
+  "projectSubtitle": "Distribute scenes to specific projects",
+  "selectScene": "Select Scene",
+  "platformStatus": "Platform Status",
+  "installPath": "Install Path",
+  "syncProgress": "Sync Progress",
+  "lastSynced": "Last Synced",
+  "syncNow": "Sync Now",
+  "addProject": "Add Project",
+  "projectName": "Project Name",
+  "projectPath": "Project Path",
+  "bindScene": "Bind Scene",
+  "switchScene": "Switch Scene",
+  "removeProject": "Remove Project",
+  "sceneSummary": "Scene Summary",
+  "skillCount": "{{count}} skills",
+  "ruleCount": "{{count}} rules",
+  "addProjectDialog": {
+    "title": "Add Project",
+    "selectFolder": "Select project directory",
+    "selectScene": "Select scene",
+    "selectPlatforms": "Select target platforms",
+    "confirm": "Confirm & Distribute"
+  },
+  "diffConfirm": {
+    "title": "Scene Switch Confirmation",
+    "added": "{{count}} items added",
+    "removed": "{{count}} items removed",
+    "confirm": "Confirm Switch"
+  },
+  "empty": "No projects added yet",
+  "emptyGlobal": "No global distribution records"
+}
