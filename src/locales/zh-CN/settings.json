@@ -19,6 +19,18 @@
     "columns": { "name": "名称", "path": "全局路径", "projectPath": "项目路径", "status": "状态" },
     "actions": { "enable": "启用", "disable": "禁用" },
     "hint": "管理已注册的 Agent 平台。启用/禁用平台将影响场景编辑和分发中的可见性。",
-    "comingSoon": "平台管理功能将在后续版本中开放，当前仅支持查看内置平台"
+    "comingSoon": "平台管理功能将在后续版本中开放，当前仅支持查看内置平台",
+    "capabilities": {
+      "title": "分发能力",
+      "skillsGlobal": "全局技能",
+      "skillsProject": "项目技能",
+      "rulesGlobal": "全局规则",
+      "rulesProject": "项目规则",
+      "supported": "支持",
+      "notSupported": "不支持",
+      "modeDirectory": "目录模式",
+      "modeSingleFile": "单文件模式",
+      "hint": "部分平台对规则分发有特殊限制，详见上方能力表"
+    }
   }
 }

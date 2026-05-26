@@ -25,5 +25,11 @@
   "count": "共 {{count}} 个场景",
   "skillTab": "技能",
   "ruleTab": "规则",
-  "systemSceneHint": "系统场景不可编辑"
+  "systemSceneHint": "系统场景不可编辑",
+  "capabilities": {
+    "no_global_rules": "全局规则不支持",
+    "no_project_rules": "项目规则不支持",
+    "no_rules": "规则不支持",
+    "full": "完整支持"
+  }
 }

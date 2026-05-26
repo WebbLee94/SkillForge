@@ -79,7 +79,8 @@
     "requiredField": "此字段为必填项",
     "nameRequired": "名称不能为空",
     "recentActivity": "最近活动",
-    "comingSoon": "即将推出"
+    "comingSoon": "即将推出",
+    "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
   },
   "platforms": {
     "claude-code": "Claude Code",

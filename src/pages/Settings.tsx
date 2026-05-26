@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
-import { Globe, Server, ExternalLink, Database, Folder, Info } from "lucide-react";
+import { Globe, Server, ExternalLink, Database, Folder, Info, CheckCircle2, XCircle } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
-import type { Platform } from "../types";
+import type { Platform, PlatformCapabilities } from "../types";
 
 type SettingsTab = "general" | "platforms";
 
@@ -33,6 +33,7 @@ export function Settings() {
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [capabilitiesMap, setCapabilitiesMap] = useState<Record<string, PlatformCapabilities>>({});
 
   // Resolve the effective language for the <select> value
   const effectiveLang = (() => {
@@ -68,6 +69,17 @@ export function Settings() {
       });
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const fetchCaps = async () => {
+      const map: Record<string, PlatformCapabilities> = {};
+      for (const p of platforms) {
+        try { map[p.id] = await ipc.getCapabilities(p.id); } catch { /* skip */ }
+      }
+      setCapabilitiesMap(map);
+    };
+    if (platforms.length > 0) fetchCaps();
+  }, [platforms]);
 
   const handleLanguageChange = useCallback((lng: string) => {
     localStorage.setItem(LANG_STORAGE_KEY, lng);
@@ -238,6 +250,7 @@ export function Settings() {
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.name")}</th>
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.path")}</th>
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.projectPath")}</th>
+                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">{t("settings:platforms.capabilities.title")}</th>
                         <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">{t("settings:platforms.columns.status")}</th>
                       </tr>
                     </thead>
@@ -262,6 +275,35 @@ export function Settings() {
                             </td>
                             <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground max-w-[200px] truncate">
                               {platform.project_path || "-"}
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              {(() => {
+                                const caps = capabilitiesMap[platform.id];
+                                if (!caps) return <span className="text-xs text-muted-foreground">-</span>;
+                                const CapIcon = ({ supported, label }: { supported: boolean; label: string }) => supported
+                                  ? <CheckCircle2 className="h-3.5 w-3.5 text-success inline-block" />
+                                  : <span title={label}><XCircle className="h-3.5 w-3.5 text-error inline-block" /></span>;
+                                return (
+                                  <div className="inline-grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+                                    <div className="flex items-center gap-0.5">
+                                      <CapIcon supported={caps.skills_global} label={t("settings:platforms.capabilities.notSupported")} />
+                                      <span>{t("settings:platforms.capabilities.skillsGlobal")}</span>
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
+                                      <CapIcon supported={caps.skills_project} label={t("settings:platforms.capabilities.notSupported")} />
+                                      <span>{t("settings:platforms.capabilities.skillsProject")}</span>
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
+                                      <CapIcon supported={caps.rules_global} label={t("settings:platforms.capabilities.notSupported")} />
+                                      <span>{t("settings:platforms.capabilities.rulesGlobal")}</span>
+                                    </div>
+                                    <div className="flex items-center gap-0.5">
+                                      <CapIcon supported={caps.rules_project} label={t("settings:platforms.capabilities.notSupported")} />
+                                      <span>{t("settings:platforms.capabilities.rulesProject")}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               <button
@@ -295,6 +337,9 @@ export function Settings() {
               {/* Hint */}
               <p className="text-xs text-muted-foreground/70 px-1">
                 {t("settings:platforms.hint")}
+              </p>
+              <p className="text-xs text-muted-foreground/70 px-1">
+                {t("settings:platforms.capabilities.hint")}
               </p>
             </div>
           )}

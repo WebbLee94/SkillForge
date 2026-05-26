@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
+import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
 import { SortableSkillList } from "../components/SortableSkillList";
 import { SortableRuleList } from "../components/SortableRuleList";
@@ -8,6 +9,7 @@ import {
   Search, Plus, Save, RefreshCw, Film,
   Package, FileText, X,
 } from "lucide-react";
+import type { PlatformCapabilities } from "../types";
 
 export function SceneEditor() {
   const { t } = useTranslation("scenes");
@@ -42,6 +44,7 @@ export function SceneEditor() {
   const [newSceneDesc, setNewSceneDesc] = useState("");
   const [sceneName, setSceneName] = useState("");
   const [sceneDesc, setSceneDesc] = useState("");
+  const [capabilitiesMap, setCapabilitiesMap] = useState<Record<string, PlatformCapabilities>>({});
 
   useEffect(() => {
     fetchScenes();
@@ -49,6 +52,19 @@ export function SceneEditor() {
     fetchRules();
     fetchPlatforms();
   }, [fetchScenes, fetchSkills, fetchRules, fetchPlatforms]);
+
+  useEffect(() => {
+    const fetchCaps = async () => {
+      const map: Record<string, PlatformCapabilities> = {};
+      for (const p of platforms) {
+        if (!capabilitiesMap[p.id]) {
+          try { map[p.id] = await ipc.getCapabilities(p.id); } catch { /* skip */ }
+        }
+      }
+      if (Object.keys(map).length > 0) setCapabilitiesMap(prev => ({ ...prev, ...map }));
+    };
+    fetchCaps();
+  }, [platforms]);
 
   useEffect(() => {
     if (currentScene) {
@@ -360,17 +376,30 @@ export function SceneEditor() {
               <div className="mb-4">
                 <h3 className="mb-2 text-sm font-semibold text-foreground">{t("targetPlatforms")}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {platforms.filter((p) => p.enabled).map((platform) => (
-                    <label key={platform.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={selectedPlatforms.includes(platform.id)}
-                        onChange={() => togglePlatform(platform.id)}
-                        className="rounded border-border"
-                      />
-                      <span className="text-sm text-foreground">{platform.name}</span>
-                    </label>
-                  ))}
+                  {platforms.filter((p) => p.enabled).map((platform) => {
+                    const caps = capabilitiesMap[platform.id];
+                    return (
+                      <label key={platform.id} className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedPlatforms.includes(platform.id)}
+                          onChange={() => togglePlatform(platform.id)}
+                          className="rounded border-border"
+                        />
+                        <span className="text-sm text-foreground">{platform.name}</span>
+                        {caps && !caps.rules_global && (
+                          <span className="text-xs text-warning ml-1" title={t("capabilities.no_global_rules")}>
+                            ⚠️ {t("capabilities.no_global_rules")}
+                          </span>
+                        )}
+                        {caps && !caps.rules_project && caps.rules_global && (
+                          <span className="text-xs text-warning ml-1" title={t("capabilities.no_project_rules")}>
+                            ⚠️ {t("capabilities.no_project_rules")}
+                          </span>
+                        )}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             )}

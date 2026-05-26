@@ -79,7 +79,8 @@
     "requiredField": "This field is required",
     "nameRequired": "Name is required",
     "recentActivity": "Recent Activity",
-    "comingSoon": "Coming Soon"
+    "comingSoon": "Coming Soon",
+    "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
   },
   "platforms": {
     "claude-code": "Claude Code",
