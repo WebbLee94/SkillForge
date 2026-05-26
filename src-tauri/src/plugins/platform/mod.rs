@@ -1,7 +1,3 @@
-pub mod claude_code;
-pub mod open_code;
-pub mod cursor;
-
 use crate::error::AppError;
 use crate::types::{
     PlatformInstance, PlatformPaths, Skill, SkillPlatformStatus, SyncResult,
@@ -34,6 +30,219 @@ pub trait PlatformPlugin: Send + Sync {
     /// Get the default installation paths for this platform
     fn default_paths(&self) -> PlatformPaths;
 }
+
+/// Macro to define a symlink-based platform adapter.
+///
+/// Generates a struct with `new()` + `Default` impl + full `PlatformPlugin` trait impl.
+/// The install/sync/remove/status logic is symlink-based, identical across all adapters.
+///
+/// Parameters:
+/// - `$struct_name`:       Name of the adapter struct (e.g. `ClaudeCodeAdapter`)
+/// - `$platform_id`:       Unique platform identifier string (e.g. `"claude-code"`)
+/// - `$display_name`:      Human-readable name string (e.g. `"Claude Code"`)
+/// - `$global_skills_dir`: Global skills directory path (e.g. `"~/.claude/skills"`)
+/// - `$project_skills_pattern`: Project-level skills dir without `{project}/` prefix (e.g. `".claude/skills"`)
+/// - `$global_rules_dir`:  Optional global rules directory (e.g. `Some("~/.claude/rules")` or `None`)
+macro_rules! define_symlink_adapter {
+    (
+        $struct_name:ident,
+        $platform_id:literal,
+        $display_name:literal,
+        $global_skills_dir:literal,
+        $project_skills_pattern:literal,
+        $global_rules_dir:expr
+    ) => {
+        pub struct $struct_name;
+
+        impl $struct_name {
+            pub fn new() -> Self {
+                Self
+            }
+
+            fn global_skills_dir() -> std::path::PathBuf {
+                expand_home($global_skills_dir)
+            }
+
+            fn skill_target_path(skill_id: &str, instance: &PlatformInstance) -> std::path::PathBuf {
+                if instance.scope == "global" {
+                    Self::global_skills_dir().join(skill_id)
+                } else {
+                    std::path::PathBuf::from(&instance.path).join(skill_id)
+                }
+            }
+
+            fn skill_source_path(skill: &Skill) -> std::path::PathBuf {
+                std::path::PathBuf::from(&skill.local_path)
+            }
+        }
+
+        impl Default for $struct_name {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl PlatformPlugin for $struct_name {
+            fn platform_name(&self) -> &'static str {
+                $platform_id
+            }
+
+            fn display_name(&self) -> &'static str {
+                $display_name
+            }
+
+            fn detect(&self) -> Result<Vec<PlatformInstance>, AppError> {
+                let mut instances = Vec::new();
+
+                let global_dir = Self::global_skills_dir();
+                let detect_dir = expand_home($global_skills_dir)
+                    .parent()
+                    .map(|p| p.to_path_buf())
+                    .unwrap_or_else(|| global_dir.clone());
+
+                if global_dir.exists() || detect_dir.exists() {
+                    instances.push(PlatformInstance {
+                        platform_id: $platform_id.to_string(),
+                        platform_name: $display_name.to_string(),
+                        path: global_dir.to_string_lossy().to_string(),
+                        scope: "global".to_string(),
+                    });
+                }
+
+                Ok(instances)
+            }
+
+            fn install(&self, skill: &Skill, instance: &PlatformInstance) -> Result<(), AppError> {
+                let target = Self::skill_target_path(&skill.id, instance);
+                let source = Self::skill_source_path(skill);
+
+                // Ensure target directory exists
+                if let Some(parent) = target.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+
+                // Remove existing symlink or directory if present
+                if target.exists() || target.symlink_metadata().is_ok() {
+                    if target.is_symlink() {
+                        std::fs::remove_file(&target)?;
+                    } else if target.is_dir() {
+                        std::fs::remove_dir_all(&target)?;
+                    }
+                }
+
+                // Create symlink: target -> source
+                #[cfg(unix)]
+                {
+                    std::os::unix::fs::symlink(&source, &target).map_err(|e| {
+                        AppError::Platform(format!(
+                            "创建符号链接 {} -> {} 失败: {}",
+                            target.display(),
+                            source.display(),
+                            e
+                        ))
+                    })?;
+                }
+
+                #[cfg(not(unix))]
+                {
+                    copy_dir_recursive(&source, &target)?;
+                }
+
+                Ok(())
+            }
+
+            fn sync(&self, skill: &Skill, instance: &PlatformInstance) -> Result<SyncResult, AppError> {
+                let mut result = SyncResult {
+                    installed: Vec::new(),
+                    updated: Vec::new(),
+                    removed: Vec::new(),
+                    errors: Vec::new(),
+                };
+
+                let target = Self::skill_target_path(&skill.id, instance);
+
+                if target.exists() {
+                    // Check if symlink points to correct target
+                    let current_target = target.read_link().ok();
+                    let source = Self::skill_source_path(skill);
+
+                    if current_target.as_ref() != Some(&source) {
+                        // Re-install with correct symlink
+                        self.install(skill, instance)?;
+                        result.updated.push(skill.id.clone());
+                    }
+                } else {
+                    // Fresh install
+                    self.install(skill, instance)?;
+                    result.installed.push(skill.id.clone());
+                }
+
+                Ok(result)
+            }
+
+            fn remove(&self, skill_id: &str, instance: &PlatformInstance) -> Result<(), AppError> {
+                let target = Self::skill_target_path(skill_id, instance);
+
+                if !target.exists() && target.symlink_metadata().is_err() {
+                    return Ok(()); // Already removed
+                }
+
+                if target.is_symlink() {
+                    std::fs::remove_file(&target)?;
+                } else if target.is_dir() {
+                    std::fs::remove_dir_all(&target)?;
+                } else {
+                    std::fs::remove_file(&target)?;
+                }
+
+                Ok(())
+            }
+
+            fn status(&self, skill_id: &str, instance: &PlatformInstance) -> Result<SkillPlatformStatus, AppError> {
+                let target = Self::skill_target_path(skill_id, instance);
+
+                if !target.exists() && target.symlink_metadata().is_err() {
+                    return Ok(SkillPlatformStatus {
+                        installed: false,
+                        path: None,
+                        version: None,
+                        checksum: None,
+                    });
+                }
+
+                let is_valid_symlink = target.is_symlink()
+                    && target
+                        .read_link()
+                        .map(|link| link.exists())
+                        .unwrap_or(false);
+
+                Ok(SkillPlatformStatus {
+                    installed: is_valid_symlink || (target.exists() && target.is_dir()),
+                    path: Some(target.to_string_lossy().to_string()),
+                    version: None,
+                    checksum: None,
+                })
+            }
+
+            fn default_paths(&self) -> PlatformPaths {
+                PlatformPaths {
+                    global_skills_dir: $global_skills_dir.to_string(),
+                    project_skills_pattern: concat!("{project}/", $project_skills_pattern).to_string(),
+                    global_rules_dir: $global_rules_dir.map(|s: &str| s.to_string()),
+                    project_rules_pattern: Some($project_skills_pattern.replace("skills", "rules")),
+                }
+            }
+        }
+    };
+}
+
+// ── Platform adapter instances ──────────────────────────────────────
+
+define_symlink_adapter!(ClaudeCodeAdapter, "claude-code", "Claude Code", "~/.claude/skills", ".claude/skills", Some("~/.claude/rules"));
+define_symlink_adapter!(OpenCodeAdapter, "opencode", "OpenCode", "~/.config/opencode/skills", ".opencode/skills", Some("~/.config/opencode/rules"));
+define_symlink_adapter!(CursorAdapter, "cursor", "Cursor", "~/.cursor/skills", ".cursor/skills", Some("~/.cursor/rules"));
+
+// ── Registry ────────────────────────────────────────────────────────
 
 /// Registry that holds all registered platform plugins
 pub struct PlatformRegistry {
@@ -70,9 +279,9 @@ impl Default for PlatformRegistry {
 /// Create a platform plugin instance by name
 pub fn create_platform_plugin(name: &str) -> Result<Box<dyn PlatformPlugin>, AppError> {
     match name {
-        "claude-code" => Ok(Box::new(claude_code::ClaudeCodeAdapter::new())),
-        "opencode" => Ok(Box::new(open_code::OpenCodeAdapter::new())),
-        "cursor" => Ok(Box::new(cursor::CursorAdapter::new())),
+        "claude-code" => Ok(Box::new(ClaudeCodeAdapter::new())),
+        "opencode" => Ok(Box::new(OpenCodeAdapter::new())),
+        "cursor" => Ok(Box::new(CursorAdapter::new())),
         _ => Err(AppError::Platform(format!(
             "未知的平台插件: {}",
             name
@@ -83,11 +292,22 @@ pub fn create_platform_plugin(name: &str) -> Result<Box<dyn PlatformPlugin>, App
 /// Create all built-in platform plugins
 pub fn create_all_platform_plugins() -> PlatformRegistry {
     let mut registry = PlatformRegistry::new();
-    registry.register(Box::new(claude_code::ClaudeCodeAdapter::new()));
-    registry.register(Box::new(open_code::OpenCodeAdapter::new()));
-    registry.register(Box::new(cursor::CursorAdapter::new()));
+    registry.register(Box::new(ClaudeCodeAdapter::new()));
+    registry.register(Box::new(OpenCodeAdapter::new()));
+    registry.register(Box::new(CursorAdapter::new()));
     registry
 }
+
+/// Create all built-in platform plugins as a Vec (convenience for command handlers)
+pub fn create_all_platform_plugins_vec() -> Vec<Box<dyn PlatformPlugin>> {
+    vec![
+        Box::new(ClaudeCodeAdapter::new()),
+        Box::new(OpenCodeAdapter::new()),
+        Box::new(CursorAdapter::new()),
+    ]
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────
 
 /// Expand tilde (~) in paths to home directory
 pub fn expand_home(path: &str) -> std::path::PathBuf {
@@ -97,4 +317,64 @@ pub fn expand_home(path: &str) -> std::path::PathBuf {
         }
     }
     std::path::PathBuf::from(path)
+}
+
+/// Recursively copy a directory (fallback for non-Unix systems or when symlink fails)
+pub fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), AppError> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        if src_path.is_dir() {
+            copy_dir_recursive(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+// ── Tests ───────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_claude_code_default_paths() {
+        let adapter = ClaudeCodeAdapter::new();
+        let paths = adapter.default_paths();
+        assert_eq!(paths.global_skills_dir, "~/.claude/skills");
+        assert_eq!(paths.project_skills_pattern, "{project}/.claude/skills");
+        assert_eq!(paths.global_rules_dir, Some("~/.claude/rules".to_string()));
+        assert_eq!(paths.project_rules_pattern, Some(".claude/rules".to_string()));
+    }
+
+    #[test]
+    fn test_opencode_default_paths() {
+        let adapter = OpenCodeAdapter::new();
+        let paths = adapter.default_paths();
+        assert_eq!(paths.global_skills_dir, "~/.config/opencode/skills");
+        assert_eq!(paths.project_skills_pattern, "{project}/.opencode/skills");
+        assert_eq!(paths.global_rules_dir, Some("~/.config/opencode/rules".to_string()));
+        assert_eq!(paths.project_rules_pattern, Some(".opencode/rules".to_string()));
+    }
+
+    #[test]
+    fn test_cursor_default_paths() {
+        let adapter = CursorAdapter::new();
+        let paths = adapter.default_paths();
+        assert_eq!(paths.global_skills_dir, "~/.cursor/skills");
+        assert_eq!(paths.project_skills_pattern, "{project}/.cursor/skills");
+        assert_eq!(paths.global_rules_dir, Some("~/.cursor/rules".to_string()));
+        assert_eq!(paths.project_rules_pattern, Some(".cursor/rules".to_string()));
+    }
+
+    #[test]
+    fn test_detect() {
+        let adapter = ClaudeCodeAdapter::new();
+        // Detection depends on local environment; just ensure no error
+        let _ = adapter.detect();
+    }
 }

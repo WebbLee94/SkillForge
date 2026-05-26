@@ -162,6 +162,8 @@ export interface Platform {
   adapter: string;
   global_path: string | null;
   project_path: string | null;
+  enabled: boolean;
+  icon: string | null;
 }
 
 export interface PlatformInstance {

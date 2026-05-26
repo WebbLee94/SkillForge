@@ -13,6 +13,8 @@ pub struct Skill {
     pub installed_at: String,
     pub local_path: String,
     pub metadata: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +49,8 @@ pub struct Rule {
     pub scope: Option<String>,
     pub version: i32,
     pub updated_at: String,
+    #[serde(default)]
+    pub tags: Vec<Tag>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +109,8 @@ pub struct Platform {
     pub adapter: String,
     pub global_path: Option<String>,
     pub project_path: Option<String>,
+    pub enabled: bool,
+    pub icon: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

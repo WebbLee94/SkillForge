@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 4;
+const CURRENT_VERSION: u32 = 5;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -32,6 +32,9 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     }
     if current < 4 {
         apply_v4(conn)?;
+    }
+    if current < 5 {
+        apply_v5(conn)?;
     }
 
     Ok(())
@@ -139,6 +142,48 @@ fn apply_v4(conn: &rusqlite::Connection) -> Result<(), AppError> {
     conn.execute(
         "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
         rusqlite::params![4, now],
+    )?;
+
+    Ok(())
+}
+
+fn apply_v5(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    // Add enabled column to platforms if not exists
+    let has_enabled: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(platforms)")?;
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(|r| r.ok())
+            .collect();
+        columns.iter().any(|c| c == "enabled")
+    };
+
+    if !has_enabled {
+        conn.execute_batch(
+            "ALTER TABLE platforms ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1;"
+        )?;
+    }
+
+    // Add icon column to platforms if not exists
+    let has_icon: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(platforms)")?;
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(|r| r.ok())
+            .collect();
+        columns.iter().any(|c| c == "icon")
+    };
+
+    if !has_icon {
+        conn.execute_batch(
+            "ALTER TABLE platforms ADD COLUMN icon TEXT;"
+        )?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![5, now],
     )?;
 
     Ok(())

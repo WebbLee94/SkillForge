@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::plugins::source::SourcePlugin;
-use crate::types::{Skill, SkillFilter, SkillVersion};
+use crate::types::{Skill, SkillFilter, SkillVersion, Tag};
 
 use rusqlite::params;
 
@@ -175,32 +175,38 @@ pub fn list_skills(
     filter: &SkillFilter,
 ) -> Result<Vec<Skill>, AppError> {
     let mut sql = String::from(
-        "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata FROM skills WHERE 1=1",
+        "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         FROM skills s \
+         LEFT JOIN skill_tags st ON s.id = st.skill_id \
+         LEFT JOIN tags t ON st.tag_id = t.id \
+         WHERE 1=1",
     );
     let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
     let mut param_idx = 1;
 
     if let Some(ref source_type) = filter.source_type {
-        sql.push_str(&format!(" AND source_type = ?{}", param_idx));
+        sql.push_str(&format!(" AND s.source_type = ?{}", param_idx));
         param_values.push(Box::new(source_type.clone()));
         param_idx += 1;
     }
 
     if let Some(ref tag) = filter.tag {
         sql.push_str(&format!(
-            " AND id IN (SELECT skill_id FROM skill_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?{}))",
+            " AND s.id IN (SELECT skill_id FROM skill_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?{}))",
             param_idx
         ));
         param_values.push(Box::new(tag.clone()));
     }
 
-    sql.push_str(" ORDER BY name ASC");
+    sql.push_str(" GROUP BY s.id ORDER BY s.name ASC");
 
     let params: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
 
     let mut stmt = conn.prepare(&sql)?;
     let skills = stmt
         .query_map(params.as_slice(), |row| {
+            let tags_json: String = row.get(9)?;
             Ok(Skill {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -211,6 +217,7 @@ pub fn list_skills(
                 installed_at: row.get(6)?,
                 local_path: row.get(7)?,
                 metadata: row.get(8)?,
+                tags: parse_tags_json(&tags_json),
             })
         })?
         .filter_map(|r| r.ok())
@@ -226,14 +233,19 @@ pub fn search_skills(
 ) -> Result<Vec<Skill>, AppError> {
     let pattern = format!("%{}%", query);
     let mut stmt = conn.prepare(
-        "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata
-         FROM skills
-         WHERE name LIKE ?1 OR description LIKE ?1
-         ORDER BY name ASC",
+        "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         FROM skills s \
+         LEFT JOIN skill_tags st ON s.id = st.skill_id \
+         LEFT JOIN tags t ON st.tag_id = t.id \
+         WHERE s.name LIKE ?1 OR s.description LIKE ?1 \
+         GROUP BY s.id \
+         ORDER BY s.name ASC",
     )?;
 
     let skills = stmt
         .query_map(params![pattern], |row| {
+            let tags_json: String = row.get(9)?;
             Ok(Skill {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -244,6 +256,7 @@ pub fn search_skills(
                 installed_at: row.get(6)?,
                 local_path: row.get(7)?,
                 metadata: row.get(8)?,
+                tags: parse_tags_json(&tags_json),
             })
         })?
         .filter_map(|r| r.ok())
@@ -285,12 +298,28 @@ pub fn get_skill_versions(
 
 // ── Internal helpers ───────────────────────────────────────────────
 
+/// Parse the JSON string produced by `json_group_array` into `Vec<Tag>`.
+/// Handles the edge case where LEFT JOIN yields `[""]` (no matching tags).
+fn parse_tags_json(json: &str) -> Vec<Tag> {
+    // json_group_array with LEFT JOIN on no matches produces `[""]`
+    if json == "[\"\"]" || json == "[]" {
+        return Vec::new();
+    }
+    serde_json::from_str(json).unwrap_or_default()
+}
+
 fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, AppError> {
     conn.query_row(
-        "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata
-         FROM skills WHERE id = ?1",
+        "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         FROM skills s \
+         LEFT JOIN skill_tags st ON s.id = st.skill_id \
+         LEFT JOIN tags t ON st.tag_id = t.id \
+         WHERE s.id = ?1 \
+         GROUP BY s.id",
         params![id],
         |row| {
+            let tags_json: String = row.get(9)?;
             Ok(Skill {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -301,6 +330,7 @@ fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, App
                 installed_at: row.get(6)?,
                 local_path: row.get(7)?,
                 metadata: row.get(8)?,
+                tags: parse_tags_json(&tags_json),
             })
         },
     )

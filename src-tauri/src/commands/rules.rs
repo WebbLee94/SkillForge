@@ -1,8 +1,17 @@
 use crate::error::AppError;
-use crate::types::{CreateRuleDTO, Rule, RuleHistory, UpdateRuleDTO};
+use crate::types::{CreateRuleDTO, Rule, RuleHistory, Tag, UpdateRuleDTO};
 use crate::AppState;
 
 use rusqlite::params;
+
+/// Parse the JSON string produced by `json_group_array` into `Vec<Tag>`.
+/// Handles the edge case where LEFT JOIN yields `[""]` (no matching tags).
+fn parse_tags_json(json: &str) -> Vec<Tag> {
+    if json == "[\"\"]" || json == "[]" {
+        return Vec::new();
+    }
+    serde_json::from_str(json).unwrap_or_default()
+}
 
 #[tauri::command]
 pub fn list_rules(
@@ -13,17 +22,29 @@ pub fn list_rules(
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     let sql = if platform.is_some() {
-        "SELECT id, name, description, format, content, platform, scope, version, updated_at
-         FROM rules WHERE platform = ?1 ORDER BY name ASC"
+        "SELECT r.id, r.name, r.description, r.format, r.content, r.platform, r.scope, r.version, r.updated_at, \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         FROM rules r \
+         LEFT JOIN rule_tags rt ON r.id = rt.rule_id \
+         LEFT JOIN tags t ON rt.tag_id = t.id \
+         WHERE r.platform = ?1 \
+         GROUP BY r.id \
+         ORDER BY r.name ASC"
     } else {
-        "SELECT id, name, description, format, content, platform, scope, version, updated_at
-         FROM rules ORDER BY name ASC"
+        "SELECT r.id, r.name, r.description, r.format, r.content, r.platform, r.scope, r.version, r.updated_at, \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         FROM rules r \
+         LEFT JOIN rule_tags rt ON r.id = rt.rule_id \
+         LEFT JOIN tags t ON rt.tag_id = t.id \
+         GROUP BY r.id \
+         ORDER BY r.name ASC"
     };
 
     let mut stmt = conn.prepare(sql)?;
 
     let rules: Vec<Rule> = if let Some(ref p) = platform {
         stmt.query_map(params![p], |row| {
+            let tags_json: String = row.get(9)?;
             Ok(Rule {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -34,12 +55,14 @@ pub fn list_rules(
                 scope: row.get(6)?,
                 version: row.get(7)?,
                 updated_at: row.get(8)?,
+                tags: parse_tags_json(&tags_json),
             })
         })?
         .filter_map(|r| r.ok())
         .collect()
     } else {
         stmt.query_map([], |row| {
+            let tags_json: String = row.get(9)?;
             Ok(Rule {
                 id: row.get(0)?,
                 name: row.get(1)?,
@@ -50,6 +73,7 @@ pub fn list_rules(
                 scope: row.get(6)?,
                 version: row.get(7)?,
                 updated_at: row.get(8)?,
+                tags: parse_tags_json(&tags_json),
             })
         })?
         .filter_map(|r| r.ok())
@@ -124,6 +148,7 @@ pub fn create_rule(
                 scope: row.get(6)?,
                 version: row.get(7)?,
                 updated_at: row.get(8)?,
+                tags: Vec::new(),
             })
         },
     )
@@ -159,6 +184,7 @@ pub fn update_rule(
                     scope: row.get(6)?,
                     version: row.get(7)?,
                     updated_at: row.get(8)?,
+                    tags: Vec::new(),
                 })
             },
         )

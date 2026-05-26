@@ -451,6 +451,7 @@ fn get_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppEr
                 installed_at: row.get(6)?,
                 local_path: row.get(7)?,
                 metadata: row.get(8)?,
+                tags: vec![],
             })
         },
     )
@@ -1142,11 +1143,7 @@ pub fn startup_integrity_check(conn: &rusqlite::Connection) -> Result<(), AppErr
     let scene_id = scene_id.unwrap();
 
     // Build all platform plugins
-    let all_plugins: Vec<Box<dyn PlatformPlugin>> = vec![
-        Box::new(crate::plugins::platform::claude_code::ClaudeCodeAdapter::new()),
-        Box::new(crate::plugins::platform::open_code::OpenCodeAdapter::new()),
-        Box::new(crate::plugins::platform::cursor::CursorAdapter::new()),
-    ];
+    let all_plugins: Vec<Box<dyn PlatformPlugin>> = crate::plugins::platform::create_all_platform_plugins_vec();
 
     let report = verify_distribution(conn, &all_plugins, &scene_id, "global")?;
     let drift_count = report.drifted.len() as i64;

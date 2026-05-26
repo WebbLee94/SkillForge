@@ -140,7 +140,9 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             name         TEXT NOT NULL,
             adapter      TEXT NOT NULL,
             global_path  TEXT,
-            project_path TEXT
+            project_path TEXT,
+            enabled      INTEGER NOT NULL DEFAULT 1,
+            icon         TEXT
         );"
     )?;
 
@@ -201,7 +203,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
 
     for (id, name, adapter, global_path, project_path) in &platforms {
         conn.execute(
-            "INSERT OR IGNORE INTO platforms (id, name, adapter, global_path, project_path) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT OR IGNORE INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
             rusqlite::params![id, name, adapter, global_path, project_path],
         )?;
     }

@@ -14,11 +14,7 @@ pub fn sync_scene(
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     // Create platform plugin instances
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = vec![
-        Box::new(crate::plugins::platform::claude_code::ClaudeCodeAdapter::new()),
-        Box::new(crate::plugins::platform::open_code::OpenCodeAdapter::new()),
-        Box::new(crate::plugins::platform::cursor::CursorAdapter::new()),
-    ];
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = crate::plugins::platform::create_all_platform_plugins_vec();
 
     engine::dist_engine::sync_scene(
         &conn,
@@ -53,11 +49,7 @@ pub fn switch_global_scene(
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncResult, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = vec![
-        Box::new(crate::plugins::platform::claude_code::ClaudeCodeAdapter::new()),
-        Box::new(crate::plugins::platform::open_code::OpenCodeAdapter::new()),
-        Box::new(crate::plugins::platform::cursor::CursorAdapter::new()),
-    ];
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = crate::plugins::platform::create_all_platform_plugins_vec();
     engine::dist_engine::switch_global_scene(&conn, &all_plugins, &new_scene_id)
 }
 
@@ -85,11 +77,7 @@ pub fn verify_distribution(
     state: tauri::State<'_, AppState>,
 ) -> Result<VerifyReport, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = vec![
-        Box::new(crate::plugins::platform::claude_code::ClaudeCodeAdapter::new()),
-        Box::new(crate::plugins::platform::open_code::OpenCodeAdapter::new()),
-        Box::new(crate::plugins::platform::cursor::CursorAdapter::new()),
-    ];
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = crate::plugins::platform::create_all_platform_plugins_vec();
     engine::dist_engine::verify_distribution(&conn, &all_plugins, &scene_id, &scope)
 }
 

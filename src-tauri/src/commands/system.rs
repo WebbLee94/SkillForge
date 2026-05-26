@@ -119,7 +119,7 @@ pub fn get_recent_activity(
 pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, adapter, global_path, project_path FROM platforms ORDER BY name ASC",
+        "SELECT id, name, adapter, global_path, project_path, enabled, icon FROM platforms ORDER BY name ASC",
     )?;
     let platforms = stmt
         .query_map([], |row| {
@@ -129,6 +129,8 @@ pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>
                 adapter: row.get(2)?,
                 global_path: row.get(3)?,
                 project_path: row.get(4)?,
+                enabled: row.get::<_, i32>(5)? != 0,
+                icon: row.get(6)?,
             })
         })?
         .filter_map(|r| r.ok())
@@ -273,4 +275,33 @@ pub fn get_drift_status(state: tauri::State<'_, AppState>) -> Result<serde_json:
         .unwrap_or(None);
     let drift_count: i64 = count.and_then(|v| v.parse().ok()).unwrap_or(0);
     Ok(serde_json::json!({ "drift_count": drift_count }))
+}
+
+#[tauri::command]
+pub fn toggle_platform_enabled(
+    id: String,
+    enabled: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
+    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    conn.execute(
+        "UPDATE platforms SET enabled = ?1 WHERE id = ?2",
+        params![enabled as i32, id],
+    )?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_db_size(state: tauri::State<'_, AppState>) -> Result<String, AppError> {
+    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let db_path: String = conn.query_row("PRAGMA database_list", [], |row| row.get(2))?;
+    let metadata = std::fs::metadata(&db_path).map_err(|e| AppError::Database(e.to_string()))?;
+    let size = metadata.len();
+    if size >= 1_073_741_824 {
+        Ok(format!("{:.1} GB", size as f64 / 1_073_741_824.0))
+    } else if size >= 1_048_576 {
+        Ok(format!("{:.1} MB", size as f64 / 1_048_576.0))
+    } else {
+        Ok(format!("{:.1} KB", size as f64 / 1024.0))
+    }
 }

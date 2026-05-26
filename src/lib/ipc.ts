@@ -104,6 +104,9 @@ export const ipc = {
   getRecentActivity: (limit?: number) =>
     invoke<SyncLog[]>("get_recent_activity", { limit }),
   listPlatforms: () => invoke<Platform[]>("list_platforms"),
+  togglePlatformEnabled: (id: string, enabled: boolean) =>
+    invoke<void>("toggle_platform_enabled", { id, enabled }),
+  getDbSize: () => invoke<string>("get_db_size"),
 
   // Global Distribution
   getGlobalDistributionStatus: () => invoke<GlobalDistStatus>("get_global_distribution_status"),
