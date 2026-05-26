@@ -74,11 +74,30 @@ export function GlobalDistribution() {
   const [customOverride, setCustomOverride] = useState(false);
   const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
 
-  // Reset custom override when scene changes
+  // Scene-bound platform IDs for filtering
+  const [scenePlatformIds, setScenePlatformIds] = useState<string[]>([]);
+
+  // Reset custom override and fetch scene platforms when scene changes
   useEffect(() => {
     setCustomOverride(false);
     setSelectedPlatformIds([]);
+    if (currentScene?.id) {
+      ipc.getScenePlatforms(currentScene.id).then(setScenePlatformIds).catch(() => setScenePlatformIds([]));
+    } else {
+      setScenePlatformIds([]);
+    }
   }, [currentScene?.id]);
+
+  // Filtered platforms: scene-bound by default, all when custom override is on
+  const filteredPlatforms = useMemo(() => {
+    if (customOverride) {
+      // When override is on, show selected platforms (or all if none selected)
+      const ids = selectedPlatformIds.length > 0 ? selectedPlatformIds : allPlatformIds;
+      return (syncStatus?.platforms || []).filter((p) => ids.includes(p.platform_id));
+    }
+    if (scenePlatformIds.length === 0) return [];
+    return (syncStatus?.platforms || []).filter((p) => scenePlatformIds.includes(p.platform_id));
+  }, [customOverride, selectedPlatformIds, allPlatformIds, syncStatus?.platforms, scenePlatformIds]);
 
   // T3: Default to global scene from globalDistStatus
   useEffect(() => {
@@ -318,9 +337,10 @@ export function GlobalDistribution() {
         )}
       </div>
 
-      {/* T4: Platform Grid - read-only status indicators, no checkboxes */}
-      <div className="grid grid-cols-2 gap-4">
-        {syncStatus?.platforms.map((platform) => {
+      {/* Platform Grid - filtered by scene-bound platforms */}
+      {filteredPlatforms.length > 0 ? (
+        <div className="grid grid-cols-2 gap-4">
+          {filteredPlatforms.map((platform) => {
           const ps = (platform.status || "pending") as SyncStatus;
           return (
           <div
@@ -389,8 +409,12 @@ export function GlobalDistribution() {
           );
         })}
       </div>
-
-      {(!syncStatus?.platforms || syncStatus.platforms.length === 0) && (
+      ) : currentScene ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <Globe className="mb-3 h-12 w-12 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">当前场景未配置目标平台，请在场景编排中为该场景选择目标平台</p>
+        </div>
+      ) : (
         <div className="flex flex-col items-center justify-center py-12">
           <Globe className="mb-3 h-12 w-12 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">{t("emptyGlobal")}</p>
