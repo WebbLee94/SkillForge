@@ -303,7 +303,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   createTag: async (data) => {
     try {
       await ipc.createTag(data.name, data.color, data.category, data.tag_type);
-      await get().fetchTags();
+      await get().fetchTags(data.tag_type);
       get().addToast("创建标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -314,7 +314,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   updateTag: async (id, name, color, category) => {
     try {
       await ipc.updateTag(id, name, color, category);
-      await get().fetchTags();
+      // Re-fetch with current filter context — find the tag's type
+      const tag = get().tags.find(t => t.id === id);
+      await get().fetchTags(tag?.tag_type);
       get().addToast("更新标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -324,8 +326,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   deleteTag: async (id) => {
     try {
+      const tag = get().tags.find(t => t.id === id);
+      const tagType = tag?.tag_type;
       await ipc.deleteTag(id);
-      await get().fetchTags();
+      await get().fetchTags(tagType);
       get().addToast("删除标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
