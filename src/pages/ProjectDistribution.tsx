@@ -1,11 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
+import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
 import { AddProjectDialog } from "../components/AddProjectDialog";
 import {
   Plus, FolderOpen, Trash2, RefreshCw,
-  CheckCircle, AlertCircle, Clock, AlertTriangle, Search,
+  CheckCircle, AlertCircle, Clock, AlertTriangle, Search, Globe,
 } from "lucide-react";
 import type { SyncStatus } from "../types";
 
@@ -35,6 +36,30 @@ export function ProjectDistribution() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Scene-bound platform IDs map: sceneId -> platformId[]
+  const [scenePlatformsMap, setScenePlatformsMap] = useState<Record<string, string[]>>({});
+
+  // Fetch scene platforms for all projects with bound scenes
+  useEffect(() => {
+    const fetchScenePlatforms = async () => {
+      const sceneIds = [...new Set(projects.filter((p) => p.scene_id).map((p) => p.scene_id!))];
+      const map: Record<string, string[]> = {};
+      for (const sid of sceneIds) {
+        if (!scenePlatformsMap[sid]) {
+          try {
+            map[sid] = await ipc.getScenePlatforms(sid);
+          } catch {
+            map[sid] = [];
+          }
+        }
+      }
+      if (Object.keys(map).length > 0) {
+        setScenePlatformsMap((prev) => ({ ...prev, ...map }));
+      }
+    };
+    fetchScenePlatforms();
+  }, [projects]);
 
   useEffect(() => {
     fetchProjects();
@@ -151,9 +176,22 @@ export function ProjectDistribution() {
                 </div>
               </div>
 
-              {/* Platform Status Grid */}
-              <div className="grid grid-cols-4 gap-2">
-                {platforms.map((platform) => {
+              {/* Platform Status Grid - filtered by scene-bound platforms */}
+              {!project.scene_id ? (
+                <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                  <Globe className="h-4 w-4 mr-2 text-muted-foreground/50" />
+                  请先绑定场景，平台由场景自动确定
+                </div>
+              ) : (scenePlatformsMap[project.scene_id] || []).length === 0 ? (
+                <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
+                  <Globe className="h-4 w-4 mr-2 text-muted-foreground/50" />
+                  该场景未配置目标平台，请在场景编排中配置
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-2">
+                  {platforms
+                    .filter((p) => (scenePlatformsMap[project.scene_id!] || []).includes(p.id))
+                    .map((platform) => {
                   const rawStatus = platformStatuses.get(platform.id) || "pending";
                   const status = rawStatus as SyncStatus;
                   return (
@@ -177,6 +215,7 @@ export function ProjectDistribution() {
                   );
                 })}
               </div>
+              )}
             </div>
           );
         })}
