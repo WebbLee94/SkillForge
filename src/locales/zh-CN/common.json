@@ -97,6 +97,12 @@
     "ruleType": "规则标签",
     "selectType": "选择标签类型",
     "associatedCount": "关联数",
-    "deleteConfirm": "该标签关联 {{count}} 个{{type}}，确定删除？"
+    "deleteConfirm": "该标签关联 {{count}} 个{{type}}，确定删除？",
+    "manageSkillsTitle": "管理技能标签",
+    "manageRulesTitle": "管理规则标签",
+    "searchPlaceholder": "搜索或输入标签名...",
+    "createNew": "创建",
+    "untagged": "未分类",
+    "allTags": "全部"
   }
 }

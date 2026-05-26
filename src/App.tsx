@@ -5,7 +5,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Dashboard } from "./pages/Dashboard";
 import { SkillLibrary } from "./pages/SkillLibrary";
 import { RulesManager } from "./pages/RulesManager";
-import { TagsManager } from "./pages/TagsManager";
 import { SceneEditor } from "./pages/SceneEditor";
 import { GlobalDistribution } from "./pages/GlobalDistribution";
 import { ProjectDistribution } from "./pages/ProjectDistribution";
@@ -16,7 +15,6 @@ const routeToNavMap: Record<string, string> = {
   "/": "dashboard",
   "/skills": "skills",
   "/rules": "rules",
-  "/tags": "tags",
   "/scenes": "scenes",
   "/global-distribution": "globalDistribution",
   "/project-distribution": "projectDistribution",
@@ -27,7 +25,6 @@ const navToRouteMap: Record<string, string> = {
   dashboard: "/",
   skills: "/skills",
   rules: "/rules",
-  tags: "/tags",
   scenes: "/scenes",
   globalDistribution: "/global-distribution",
   projectDistribution: "/project-distribution",
@@ -71,7 +68,6 @@ function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/skills" element={<SkillLibrary />} />
             <Route path="/rules" element={<RulesManager />} />
-            <Route path="/tags" element={<TagsManager />} />
             <Route path="/scenes" element={<SceneEditor />} />
             <Route path="/global-distribution" element={<GlobalDistribution />} />
             <Route path="/project-distribution" element={<ProjectDistribution />} />

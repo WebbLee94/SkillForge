@@ -97,6 +97,12 @@
     "ruleType": "Rule Tags",
     "selectType": "Select tag type",
     "associatedCount": "Count",
-    "deleteConfirm": "This tag is associated with {{count}} {{type}}. Delete?"
+    "deleteConfirm": "This tag is associated with {{count}} {{type}}. Delete?",
+    "manageSkillsTitle": "Manage Skill Tags",
+    "manageRulesTitle": "Manage Rule Tags",
+    "searchPlaceholder": "Search or type tag name...",
+    "createNew": "Create",
+    "untagged": "Untagged",
+    "allTags": "All"
   }
 }
