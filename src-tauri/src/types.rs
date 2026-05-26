@@ -212,6 +212,22 @@ pub struct SkillMeta {
 
 // ── Platform types ─────────────────────────────────────────────────
 
+/// Rules distribution format for a platform.
+///
+/// - `Directory`: each rule is written as `{rules_dir}/{rule_id}.{format}`
+/// - `SingleFile`: all rules are merged into one named file using SKILLFORGE markers
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RulesFormat {
+    Directory,
+    SingleFile { file_name: String },
+}
+
+impl Default for RulesFormat {
+    fn default() -> Self {
+        RulesFormat::Directory
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformInstance {
     pub platform_id: String,
@@ -226,6 +242,12 @@ pub struct PlatformPaths {
     pub project_skills_pattern: String,
     pub global_rules_dir: Option<String>,
     pub project_rules_pattern: Option<String>,
+    /// Rules format for global scope. `None` defaults to `RulesFormat::Directory`.
+    #[serde(default)]
+    pub global_rules_format: Option<RulesFormat>,
+    /// Rules format for project scope. `None` defaults to `RulesFormat::Directory`.
+    #[serde(default)]
+    pub project_rules_format: Option<RulesFormat>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

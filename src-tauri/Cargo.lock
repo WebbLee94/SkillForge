@@ -3314,6 +3314,7 @@ dependencies = [
  "chrono",
  "dirs 5.0.1",
  "git2",
+ "regex",
  "rusqlite",
  "serde",
  "serde_json",
