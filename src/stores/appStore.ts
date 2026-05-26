@@ -117,7 +117,7 @@ interface AppStore {
 
   // === Distribution Actions ===
   fetchDistributions: () => Promise<void>;
-  syncScene: (sceneId: string, platforms: string[], scope: string, projectId?: string) => Promise<SyncResult | null>;
+  syncScene: (sceneId: string, platforms: string[] | null, scope: string, projectId?: string) => Promise<SyncResult | null>;
   fetchSyncStatus: () => Promise<void>;
 
   // === Dashboard ===

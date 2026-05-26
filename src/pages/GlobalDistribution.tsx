@@ -70,6 +70,16 @@ export function GlobalDistribution() {
     [syncStatus?.platforms],
   );
 
+  // Custom override toggle (not persisted)
+  const [customOverride, setCustomOverride] = useState(false);
+  const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
+
+  // Reset custom override when scene changes
+  useEffect(() => {
+    setCustomOverride(false);
+    setSelectedPlatformIds([]);
+  }, [currentScene?.id]);
+
   // T3: Default to global scene from globalDistStatus
   useEffect(() => {
     if (globalDistStatus?.scene_id && !currentScene) {
@@ -114,7 +124,7 @@ export function GlobalDistribution() {
     }
   };
 
-  // T4: Sync uses ALL platforms
+  // Sync uses scene platforms (null) by default, or custom override
   const handleSyncPlatform = async (platformId: string) => {
     if (!currentScene) return;
     await syncScene(currentScene.id, [platformId], "global");
@@ -122,7 +132,8 @@ export function GlobalDistribution() {
 
   const handleSyncAll = async () => {
     if (!currentScene) return;
-    await syncScene(currentScene.id, allPlatformIds, "global");
+    const platforms = customOverride ? selectedPlatformIds : null;
+    await syncScene(currentScene.id, platforms, "global");
   };
 
   // T6: Verify & Repair
@@ -269,6 +280,43 @@ export function GlobalDistribution() {
           </div>
         </div>
       )}
+
+      {/* Custom Override Toggle + Platform Checkboxes */}
+      <div className="mb-4 flex items-center gap-4">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={customOverride}
+            onChange={(e) => {
+              setCustomOverride(e.target.checked);
+              if (e.target.checked) setSelectedPlatformIds(allPlatformIds);
+            }}
+            className="rounded border-border"
+          />
+          自定义覆盖平台
+        </label>
+        {customOverride && (
+          <div className="flex items-center gap-2">
+            {syncStatus?.platforms.map((p) => (
+              <label key={p.platform_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedPlatformIds.includes(p.platform_id)}
+                  onChange={(e) => {
+                    setSelectedPlatformIds((prev) =>
+                      e.target.checked
+                        ? [...prev, p.platform_id]
+                        : prev.filter((id) => id !== p.platform_id)
+                    );
+                  }}
+                  className="rounded border-border"
+                />
+                {p.platform_name}
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* T4: Platform Grid - read-only status indicators, no checkboxes */}
       <div className="grid grid-cols-2 gap-4">
