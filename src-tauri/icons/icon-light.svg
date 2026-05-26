@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="colorLeftL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </linearGradient>
+    <linearGradient id="colorRightL" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="colorArcL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <rect id="bgL" width="1024" height="1024" rx="222" fill="#f8fafc"/>
+  </defs>
+
+  <use href="#bgL"/>
+
+  <!-- Anvil left -->
+  <path d="M 290 780 L 290 540 L 180 540 L 180 420 L 370 300 L 370 420"
+        fill="none" stroke="url(#colorLeftL)" stroke-width="36"
+        stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Anvil right -->
+  <path d="M 370 300 L 370 420 L 654 420 L 654 540 L 544 540 L 544 780"
+        fill="none" stroke="url(#colorRightL)" stroke-width="36"
+        stroke-linejoin="round" stroke-linecap="round"/>
+
+  <!-- Connection arc -->
+  <path d="M 180 420 Q 370 200 654 420"
+        stroke="url(#colorArcL)" stroke-width="24"
+        fill="none" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Nodes -->
+  <circle cx="370" cy="300" r="48" fill="url(#colorLeftL)"/>
+  <circle cx="654" cy="420" r="40" fill="#0891b2"/>
+  <circle cx="290" cy="600" r="32" fill="#2563eb" opacity="0.6"/>
+  <circle cx="544" cy="600" r="32" fill="#0891b2" opacity="0.6"/>
+</svg>
