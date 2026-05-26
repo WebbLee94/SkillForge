@@ -28,9 +28,9 @@ export const TagChip = memo(function TagChip({ tag, selected, onClick, onRemove,
     >
       <span className="h-2 w-2 rounded-full" style={tag.color ? { backgroundColor: tag.color } : undefined} />
       <span>{tag.name}</span>
-      {(tag.skill_count !== undefined || tag.rule_count !== undefined) && (
+      {tag.count !== undefined && (
         <span className="opacity-60 text-xs">
-          {(tag.skill_count || 0) + (tag.rule_count || 0)}
+          {tag.count}
         </span>
       )}
       {onRemove && (

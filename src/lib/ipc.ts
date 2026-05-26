@@ -88,9 +88,9 @@ export const ipc = {
     invoke<RuleHistory[]>("get_rule_history", { id }),
 
   // Tags - Rust uses individual params, not DTO
-  listTags: (category?: string) => invoke<Tag[]>("list_tags", { category }),
-  createTag: (name: string, color?: string, category?: string) =>
-    invoke<Tag>("create_tag", { name, color, category }),
+  listTags: (category?: string, tagType?: string) => invoke<Tag[]>("list_tags", { category, tagType }),
+  createTag: (name: string, color?: string, category?: string, tagType?: string) =>
+    invoke<Tag>("create_tag", { name, color, category, tagType }),
   updateTag: (id: number, name?: string, color?: string, category?: string) =>
     invoke<void>("update_tag", { id, name, color, category }),
   deleteTag: (id: number) => invoke<void>("delete_tag", { id }),

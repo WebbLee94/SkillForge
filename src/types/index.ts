@@ -43,14 +43,15 @@ export interface Tag {
   name: string;
   color: string | null;
   category?: string | null;
-  skill_count?: number;
-  rule_count?: number;
+  tag_type: "skill" | "rule";
+  count?: number;
 }
 
 export interface CreateTagDTO {
   name: string;
   color: string;
   category?: string;
+  tag_type: "skill" | "rule";
 }
 
 // ===== Rule =====

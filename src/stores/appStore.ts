@@ -86,7 +86,7 @@ interface AppStore {
   deleteRule: (id: string) => Promise<void>;
 
   // === Tag Actions ===
-  fetchTags: () => Promise<void>;
+  fetchTags: (tagType?: string) => Promise<void>;
   createTag: (data: CreateTagDTO) => Promise<void>;
   updateTag: (id: number, name?: string, color?: string, category?: string) => Promise<void>;
   deleteTag: (id: number) => Promise<void>;
@@ -290,9 +290,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // === Tag Actions ===
-  fetchTags: async () => {
+  fetchTags: async (tagType?: string) => {
     try {
-      const tags = await ipc.listTags();
+      const tags = await ipc.listTags(undefined, tagType);
       set({ tags });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -302,7 +302,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   createTag: async (data) => {
     try {
-      await ipc.createTag(data.name, data.color, data.category);
+      await ipc.createTag(data.name, data.color, data.category, data.tag_type);
       await get().fetchTags();
       get().addToast("创建标签成功", "success");
     } catch (e) {
