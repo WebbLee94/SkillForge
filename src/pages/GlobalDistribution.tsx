@@ -59,9 +59,9 @@ export function GlobalDistribution() {
   // T14: Recent activity for distribution history
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
 
-  // T3: Filter out system scenes (__all_skills__)
-  const userScenes = useMemo(
-    () => scenes.filter((s) => !s.is_system),
+  // T3: Include system scenes in the selector
+  const selectableScenes = useMemo(
+    () => scenes,
     [scenes],
   );
 
@@ -266,7 +266,7 @@ export function GlobalDistribution() {
             className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="" disabled>请选择场景</option>
-            {userScenes.map((scene) => (
+            {selectableScenes.map((scene) => (
               <option key={scene.id} value={scene.id}>{scene.name}</option>
             ))}
           </select>
@@ -300,8 +300,8 @@ export function GlobalDistribution() {
         </div>
       )}
 
-      {/* Custom Override Toggle + Platform Checkboxes */}
-      <div className="mb-4 flex items-center gap-4">
+      {/* Custom Override Toggle */}
+      <div className="mb-4">
         <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
           <input
             type="checkbox"
@@ -314,44 +314,42 @@ export function GlobalDistribution() {
           />
           自定义覆盖平台
         </label>
-        {customOverride && (
-          <div className="flex items-center gap-2">
-            {syncStatus?.platforms.map((p) => (
-              <label key={p.platform_id} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedPlatformIds.includes(p.platform_id)}
-                  onChange={(e) => {
-                    setSelectedPlatformIds((prev) =>
-                      e.target.checked
-                        ? [...prev, p.platform_id]
-                        : prev.filter((id) => id !== p.platform_id)
-                    );
-                  }}
-                  className="rounded border-border"
-                />
-                {p.platform_name}
-              </label>
-            ))}
-          </div>
-        )}
       </div>
 
-      {/* Platform Grid - filtered by scene-bound platforms */}
-      {filteredPlatforms.length > 0 ? (
+      {/* Platform Grid - filtered by scene-bound platforms, or all platforms when custom override is on */}
+      {(customOverride ? (syncStatus?.platforms || []) : filteredPlatforms).length > 0 ? (
         <div className="grid grid-cols-2 gap-4">
-          {filteredPlatforms.map((platform) => {
+          {(customOverride ? (syncStatus?.platforms || []) : filteredPlatforms).map((platform) => {
           const ps = (platform.status || "pending") as SyncStatus;
+          const isSelected = selectedPlatformIds.includes(platform.platform_id);
+          const isDimmed = customOverride && !isSelected;
           return (
           <div
             key={platform.platform_id}
             className={cn(
-              "rounded-lg border bg-card p-4",
+              "relative rounded-lg border bg-card p-4 transition-opacity",
               statusBgMap[ps] || "border-border",
+              isDimmed && "opacity-50",
             )}
           >
+            {customOverride && (
+              <div className="absolute top-3 left-3 z-10">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={(e) => {
+                    setSelectedPlatformIds((prev) =>
+                      e.target.checked
+                        ? [...prev, platform.platform_id]
+                        : prev.filter((id) => id !== platform.platform_id)
+                    );
+                  }}
+                  className="rounded border-border"
+                />
+              </div>
+            )}
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
+              <div className={cn("flex items-center gap-2", customOverride && "ml-6")}>
                 {ps === "synced" ? (
                   <CheckCircle className="h-4 w-4 text-success" />
                 ) : (
