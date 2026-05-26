@@ -20,6 +20,7 @@ import type {
   GlobalDistStatus,
 } from "../types";
 import { ipc } from "../lib/ipc";
+import i18n from "../lib/i18n";
 
 interface Toast {
   id: string;
@@ -563,7 +564,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
           if (noGlobalRulesPlatforms.length > 0) {
             get().addToast(
-              `⚠️ ${noGlobalRulesPlatforms.join("、")} 不支持全局规则分发，这些平台将跳过规则同步`,
+              i18n.t("common:messages.capabilityWarning", { platforms: noGlobalRulesPlatforms.join("、") }),
               "warning",
             );
           }
