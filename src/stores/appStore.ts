@@ -20,6 +20,7 @@ import type {
   GlobalDistStatus,
 } from "../types";
 import { ipc } from "../lib/ipc";
+import i18n from "../lib/i18n";
 
 interface Toast {
   id: string;
@@ -85,7 +86,7 @@ interface AppStore {
   deleteRule: (id: string) => Promise<void>;
 
   // === Tag Actions ===
-  fetchTags: () => Promise<void>;
+  fetchTags: (tagType?: string) => Promise<void>;
   createTag: (data: CreateTagDTO) => Promise<void>;
   updateTag: (id: number, name?: string, color?: string, category?: string) => Promise<void>;
   deleteTag: (id: number) => Promise<void>;
@@ -289,9 +290,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // === Tag Actions ===
-  fetchTags: async () => {
+  fetchTags: async (tagType?: string) => {
     try {
-      const tags = await ipc.listTags();
+      const tags = await ipc.listTags(undefined, tagType);
       set({ tags });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -301,8 +302,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   createTag: async (data) => {
     try {
-      await ipc.createTag(data.name, data.color, data.category);
-      await get().fetchTags();
+      await ipc.createTag(data.name, data.color, data.category, data.tag_type);
+      await get().fetchTags(data.tag_type);
       get().addToast("创建标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -313,7 +314,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   updateTag: async (id, name, color, category) => {
     try {
       await ipc.updateTag(id, name, color, category);
-      await get().fetchTags();
+      // Re-fetch with current filter context — find the tag's type
+      const tag = get().tags.find(t => t.id === id);
+      await get().fetchTags(tag?.tag_type);
       get().addToast("更新标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -323,8 +326,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   deleteTag: async (id) => {
     try {
+      const tag = get().tags.find(t => t.id === id);
+      const tagType = tag?.tag_type;
       await ipc.deleteTag(id);
-      await get().fetchTags();
+      await get().fetchTags(tagType);
       get().addToast("删除标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -549,6 +554,29 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   syncScene: async (sceneId, platforms, scope, projectId) => {
     try {
+      // L2: 同步前能力检查 — 全局分发时检查是否有平台不支持全局规则
+      if (scope === "global") {
+        try {
+          const targetPlatformIds = platforms ?? (await ipc.getScenePlatforms(sceneId));
+          const noGlobalRulesPlatforms: string[] = [];
+          for (const pid of targetPlatformIds) {
+            const cap = await ipc.getCapabilities(pid);
+            if (!cap.rules_global) {
+              const p = get().platforms.find((pl) => pl.id === pid);
+              noGlobalRulesPlatforms.push(p?.name || pid);
+            }
+          }
+          if (noGlobalRulesPlatforms.length > 0) {
+            get().addToast(
+              i18n.t("common:messages.capabilityWarning", { platforms: noGlobalRulesPlatforms.join("、") }),
+              "warning",
+            );
+          }
+        } catch {
+          // 能力检查失败不阻断同步
+        }
+      }
+
       get().addToast("开始同步...", "info");
       const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
       await get().fetchDistributions();

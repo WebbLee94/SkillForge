@@ -36,3 +36,4 @@ dist-ssr
 # custom
 docs/
 AGENTS.md
+.worktrees/

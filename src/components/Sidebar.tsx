@@ -12,8 +12,8 @@ import {
   Settings,
   PanelLeftOpen,
   PanelLeftClose,
-  Anvil,
 } from "lucide-react";
+import { AppLogo } from "./AppLogo";
 import type { ReactNode } from "react";
 
 interface NavItem {
@@ -64,7 +64,7 @@ export function Sidebar() {
     >
       {/* Header */}
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <Anvil className="h-6 w-6 shrink-0 text-primary" />
+        <AppLogo className="h-6 w-6 shrink-0" />
         {!sidebarCollapsed && (
           <div className="flex flex-col overflow-hidden">
             <span className="text-sm font-bold text-foreground">{t("app.name")}</span>

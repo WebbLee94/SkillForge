@@ -79,12 +79,24 @@
     "requiredField": "此字段为必填项",
     "nameRequired": "名称不能为空",
     "recentActivity": "最近活动",
-    "comingSoon": "即将推出"
+    "comingSoon": "即将推出",
+    "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
   },
   "platforms": {
     "claude-code": "Claude Code",
     "opencode": "OpenCode",
     "cursor": "Cursor",
     "syncStatus": "平台同步状态"
+  },
+  "tag": {
+    "name": "名称",
+    "color": "颜色",
+    "namePlaceholder": "输入标签名称",
+    "selectColor": "选择颜色",
+    "skillType": "技能标签",
+    "ruleType": "规则标签",
+    "selectType": "选择标签类型",
+    "associatedCount": "关联数",
+    "deleteConfirm": "该标签关联 {{count}} 个{{type}}，确定删除？"
   }
 }

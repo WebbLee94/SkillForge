@@ -1,7 +1,7 @@
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
 use crate::types::{
-    Distribution, PlatformInstance, Skill, SyncResult, SyncStatusDTO,
+    Distribution, PlatformInstance, RulesFormat, Skill, SyncResult, SyncStatusDTO,
     PlatformSyncStatus,
 };
 
@@ -209,9 +209,14 @@ pub fn sync_scene(
             }
         }
 
-        // Sync rules for platforms that support rules (e.g., Cursor)
+        // Sync rules for platforms that support rules
         if plugin.default_paths().global_rules_dir.is_some() {
-            sync_rules_to_platform(conn, plugin, &instance, &rule_ids, &mut result)?;
+            let rules_format = if instance.scope == "global" {
+                plugin.default_paths().global_rules_format.clone()
+            } else {
+                plugin.default_paths().project_rules_format.clone()
+            }.unwrap_or(RulesFormat::Directory);
+            sync_rules_to_platform(conn, plugin, &instance, &rule_ids, &rules_format, &mut result)?;
         }
 
         // Update distribution record
@@ -498,18 +503,45 @@ fn compute_scene_checksum(conn: &rusqlite::Connection, scene_id: &str) -> String
     format!("{:x}", hasher.finalize())[..16].to_string()
 }
 
+/// Dispatch rules sync based on the platform's `RulesFormat`.
 fn sync_rules_to_platform(
     conn: &rusqlite::Connection,
     plugin: &Box<dyn PlatformPlugin>,
     instance: &PlatformInstance,
     rule_ids: &[String],
+    rules_format: &RulesFormat,
     result: &mut SyncResult,
 ) -> Result<(), AppError> {
-    let rules_dir = if instance.scope == "global" {
+    match rules_format {
+        RulesFormat::Directory => {
+            sync_rules_to_directory(conn, plugin, instance, rule_ids, result)
+        }
+        RulesFormat::SingleFile { .. } => {
+            let file_path = resolve_rules_path(conn, plugin, instance);
+            if let Some(file_path) = file_path {
+                sync_rules_to_single_file(conn, &file_path, rule_ids, result)
+            } else {
+                Ok(())
+            }
+        }
+    }
+}
+
+/// Resolve the rules path (directory or file) for the given platform instance.
+///
+/// - Directory mode: returns the rules directory path
+/// - SingleFile mode: returns the full file path
+fn resolve_rules_path(
+    _conn: &rusqlite::Connection,
+    plugin: &Box<dyn PlatformPlugin>,
+    instance: &PlatformInstance,
+) -> Option<std::path::PathBuf> {
+    if instance.scope == "global" {
         plugin
             .default_paths()
             .global_rules_dir
-            .map(|d| crate::plugins::platform::expand_home(&d))
+            .as_ref()
+            .map(|d| crate::plugins::platform::expand_home(d))
     } else {
         plugin
             .default_paths()
@@ -521,7 +553,18 @@ fn sync_rules_to_platform(
                     .map(|parent| parent.join(p.replace("{project}/", "")))
                     .unwrap_or_default()
             })
-    };
+    }
+}
+
+/// Directory mode: write each rule as `{rules_dir}/{rule_id}.{format}`.
+fn sync_rules_to_directory(
+    conn: &rusqlite::Connection,
+    plugin: &Box<dyn PlatformPlugin>,
+    instance: &PlatformInstance,
+    rule_ids: &[String],
+    result: &mut SyncResult,
+) -> Result<(), AppError> {
+    let rules_dir = resolve_rules_path(conn, plugin, instance);
 
     if let Some(rules_dir) = &rules_dir {
         std::fs::create_dir_all(rules_dir).map_err(|e| {
@@ -569,6 +612,123 @@ fn sync_rules_to_platform(
                 }
             }
         }
+    }
+
+    Ok(())
+}
+
+/// SingleFile mode: merge all rules into one file using SKILLFORGE markers.
+///
+/// File format:
+/// ```text
+/// <!-- SKILLFORGE:rule:{rule_id} -->
+/// {rule content}
+/// <!-- /SKILLFORGE:rule:{rule_id} -->
+/// ```
+///
+/// Algorithm:
+/// 1. Read existing file content (if exists)
+/// 2. Remove all SKILLFORGE-managed blocks via regex
+/// 3. Preserve remaining content (user's manual additions)
+/// 4. For each rule_id: query content + format from DB, append block
+/// 5. Write file
+fn sync_rules_to_single_file(
+    conn: &rusqlite::Connection,
+    file_path: &std::path::Path,
+    rule_ids: &[String],
+    result: &mut SyncResult,
+) -> Result<(), AppError> {
+    // Ensure parent directory exists
+    if let Some(parent) = file_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| {
+            AppError::Io(format!(
+                "无法创建规则文件父目录 '{}': {}",
+                parent.display(),
+                e
+            ))
+        })?;
+    }
+
+    // Read existing content
+    let existing_content = if file_path.exists() {
+        std::fs::read_to_string(file_path).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    // Remove all SKILLFORGE-managed blocks, preserving user content
+    let re = regex::Regex::new(r"<!-- SKILLFORGE:rule:.*? -->[\s\S]*?<!-- /SKILLFORGE:rule:.*? -->")
+        .map_err(|e| AppError::Platform(format!("正则编译失败: {}", e)))?;
+    let user_content = re.replace_all(&existing_content, "").trim().to_string();
+
+    // Build new SKILLFORGE blocks
+    let mut skillforge_blocks = String::new();
+    for rule_id in rule_ids {
+        let rule_content: Option<String> = conn
+            .query_row(
+                "SELECT content FROM rules WHERE id = ?1",
+                params![rule_id],
+                |row| row.get(0),
+            )
+            .ok();
+
+        if let Some(content) = rule_content {
+            skillforge_blocks.push_str(&format!(
+                "\n<!-- SKILLFORGE:rule:{} -->\n{}<!-- /SKILLFORGE:rule:{} -->\n",
+                rule_id, content, rule_id
+            ));
+            result.installed.push(format!("rule:{}", rule_id));
+        }
+    }
+
+    // Combine: user content first, then SKILLFORGE blocks
+    let mut final_content = String::new();
+    if !user_content.is_empty() {
+        final_content.push_str(&user_content);
+        if !user_content.ends_with('\n') {
+            final_content.push('\n');
+        }
+    }
+    final_content.push_str(&skillforge_blocks);
+
+    // Write file (or delete if empty)
+    if final_content.trim().is_empty() {
+        if file_path.exists() {
+            std::fs::remove_file(file_path)?;
+        }
+    } else {
+        std::fs::write(file_path, &final_content)?;
+    }
+
+    Ok(())
+}
+
+/// Remove a single rule from a SingleFile-managed file.
+///
+/// Removes the specific `<!-- SKILLFORGE:rule:{id} -->...<!-- /SKILLFORGE:rule:{id} -->` block.
+fn remove_rule_from_single_file(
+    file_path: &std::path::Path,
+    rule_id: &str,
+) -> Result<(), AppError> {
+    if !file_path.exists() {
+        return Ok(());
+    }
+
+    let existing_content = std::fs::read_to_string(file_path).unwrap_or_default();
+
+    let pattern = format!(
+        r"<!-- SKILLFORGE:rule:{} -->[\s\S]*?<!-- /SKILLFORGE:rule:{} -->",
+        regex::escape(rule_id),
+        regex::escape(rule_id)
+    );
+    let re = regex::Regex::new(&pattern)
+        .map_err(|e| AppError::Platform(format!("正则编译失败: {}", e)))?;
+    let new_content = re.replace_all(&existing_content, "").trim().to_string();
+
+    if new_content.is_empty() {
+        std::fs::remove_file(file_path)?;
+    } else {
+        std::fs::write(file_path, format!("{}\n", new_content))?;
     }
 
     Ok(())
@@ -768,8 +928,10 @@ pub fn switch_global_scene(
             let instances = plugin.detect().unwrap_or_default();
             for instance in instances {
                 if instance.scope != "global" { continue; }
+                let rules_format = plugin.default_paths().global_rules_format.clone()
+                    .unwrap_or(RulesFormat::Directory);
                 // Install new rules
-                sync_rules_to_platform(conn, plugin, &instance, &rules_to_install, &mut result)?;
+                sync_rules_to_platform(conn, plugin, &instance, &rules_to_install, &rules_format, &mut result)?;
             }
         }
     }
@@ -780,17 +942,40 @@ pub fn switch_global_scene(
             if plugin.default_paths().global_rules_dir.is_none() {
                 continue;
             }
-            let rules_dir = plugin
-                .default_paths()
-                .global_rules_dir
-                .as_ref()
-                .map(|d| crate::plugins::platform::expand_home(d));
-            if let Some(rules_dir) = &rules_dir {
-                for rule_id in &old_rules {
-                    for ext in &["md", "txt", "mdc"] {
-                        let file_path = rules_dir.join(format!("{}.{}", rule_id, ext));
-                        if file_path.exists() {
-                            let _ = std::fs::remove_file(&file_path);
+            let rules_format = plugin.default_paths().global_rules_format.clone()
+                .unwrap_or(RulesFormat::Directory);
+            match &rules_format {
+                RulesFormat::Directory => {
+                    let rules_dir = plugin
+                        .default_paths()
+                        .global_rules_dir
+                        .as_ref()
+                        .map(|d| crate::plugins::platform::expand_home(d));
+                    if let Some(rules_dir) = &rules_dir {
+                        for rule_id in &old_rules {
+                            for ext in &["md", "txt", "mdc"] {
+                                let file_path = rules_dir.join(format!("{}.{}", rule_id, ext));
+                                if file_path.exists() {
+                                    let _ = std::fs::remove_file(&file_path);
+                                }
+                            }
+                        }
+                    }
+                }
+                RulesFormat::SingleFile { .. } => {
+                    let file_path = plugin
+                        .default_paths()
+                        .global_rules_dir
+                        .as_ref()
+                        .map(|d| crate::plugins::platform::expand_home(d));
+                    if let Some(file_path) = &file_path {
+                        for rule_id in &old_rules {
+                            if let Err(e) = remove_rule_from_single_file(file_path, rule_id) {
+                                result.errors.push(format!(
+                                    "从 {} 移除规则 '{}' 失败: {}",
+                                    file_path.display(), rule_id, e
+                                ));
+                            }
                         }
                     }
                 }
@@ -804,17 +989,40 @@ pub fn switch_global_scene(
             if plugin.default_paths().global_rules_dir.is_none() {
                 continue;
             }
-            let rules_dir = plugin
-                .default_paths()
-                .global_rules_dir
-                .as_ref()
-                .map(|d| crate::plugins::platform::expand_home(d));
-            if let Some(rules_dir) = &rules_dir {
-                for rule_id in &rules_to_remove {
-                    for ext in &["md", "txt", "mdc"] {
-                        let file_path = rules_dir.join(format!("{}.{}", rule_id, ext));
-                        if file_path.exists() {
-                            let _ = std::fs::remove_file(&file_path);
+            let rules_format = plugin.default_paths().global_rules_format.clone()
+                .unwrap_or(RulesFormat::Directory);
+            match &rules_format {
+                RulesFormat::Directory => {
+                    let rules_dir = plugin
+                        .default_paths()
+                        .global_rules_dir
+                        .as_ref()
+                        .map(|d| crate::plugins::platform::expand_home(d));
+                    if let Some(rules_dir) = &rules_dir {
+                        for rule_id in &rules_to_remove {
+                            for ext in &["md", "txt", "mdc"] {
+                                let file_path = rules_dir.join(format!("{}.{}", rule_id, ext));
+                                if file_path.exists() {
+                                    let _ = std::fs::remove_file(&file_path);
+                                }
+                            }
+                        }
+                    }
+                }
+                RulesFormat::SingleFile { .. } => {
+                    let file_path = plugin
+                        .default_paths()
+                        .global_rules_dir
+                        .as_ref()
+                        .map(|d| crate::plugins::platform::expand_home(d));
+                    if let Some(file_path) = &file_path {
+                        for rule_id in &rules_to_remove {
+                            if let Err(e) = remove_rule_from_single_file(file_path, rule_id) {
+                                result.errors.push(format!(
+                                    "从 {} 移除规则 '{}' 失败: {}",
+                                    file_path.display(), rule_id, e
+                                ));
+                            }
                         }
                     }
                 }
@@ -938,56 +1146,115 @@ pub fn verify_distribution(
             }
 
             // Check rules
-            let rules_dir = if instance.scope == "global" {
-                plugin.default_paths().global_rules_dir.as_ref().map(|d| crate::plugins::platform::expand_home(d))
+            let rules_format = if instance.scope == "global" {
+                plugin.default_paths().global_rules_format.clone()
             } else {
-                plugin.default_paths().project_rules_pattern.as_ref().map(|p| {
-                    let base = std::path::Path::new(&instance.path);
-                    base.parent().map(|parent| parent.join(p.replace("{project}/", ""))).unwrap_or_default()
-                })
-            };
+                plugin.default_paths().project_rules_format.clone()
+            }.unwrap_or(RulesFormat::Directory);
 
-            if let Some(rules_dir) = &rules_dir {
-                for rule_id in &rule_ids {
-                    // Try to find the rule file
-                    let rule_format: Option<String> = conn
-                        .query_row("SELECT format FROM rules WHERE id = ?1", params![rule_id], |row| row.get(0))
-                        .ok();
+            let rules_path = resolve_rules_path(conn, plugin, &instance);
 
-                    let format = rule_format.unwrap_or_else(|| "md".to_string());
-                    let file_path = rules_dir.join(format!("{}.{}", rule_id, format));
+            if let Some(rules_path) = &rules_path {
+                match &rules_format {
+                    RulesFormat::Directory => {
+                        for rule_id in &rule_ids {
+                            let rule_format: Option<String> = conn
+                                .query_row("SELECT format FROM rules WHERE id = ?1", params![rule_id], |row| row.get(0))
+                                .ok();
 
-                    if !file_path.exists() {
-                        drifted.push(crate::commands::distribution::DriftedItem {
-                            item_type: "rule".to_string(),
-                            item_id: rule_id.clone(),
-                            platform_id: plugin.platform_name().to_string(),
-                            issue: "file_missing".to_string(),
-                        });
-                        continue;
-                    }
+                            let format = rule_format.unwrap_or_else(|| "md".to_string());
+                            let file_path = rules_path.join(format!("{}.{}", rule_id, format));
 
-                    // Check content hash
-                    let db_content: Option<String> = conn
-                        .query_row("SELECT content FROM rules WHERE id = ?1", params![rule_id], |row| row.get(0))
-                        .ok();
+                            if !file_path.exists() {
+                                drifted.push(crate::commands::distribution::DriftedItem {
+                                    item_type: "rule".to_string(),
+                                    item_id: rule_id.clone(),
+                                    platform_id: plugin.platform_name().to_string(),
+                                    issue: "file_missing".to_string(),
+                                });
+                                continue;
+                            }
 
-                    if let Some(ref db_content) = db_content {
-                        let fs_content = std::fs::read_to_string(&file_path).unwrap_or_default();
-                        if fs_content != *db_content {
-                            drifted.push(crate::commands::distribution::DriftedItem {
-                                item_type: "rule".to_string(),
-                                item_id: rule_id.clone(),
-                                platform_id: plugin.platform_name().to_string(),
-                                issue: "content_mismatch".to_string(),
-                            });
-                            continue;
+                            let db_content: Option<String> = conn
+                                .query_row("SELECT content FROM rules WHERE id = ?1", params![rule_id], |row| row.get(0))
+                                .ok();
+
+                            if let Some(ref db_content) = db_content {
+                                let fs_content = std::fs::read_to_string(&file_path).unwrap_or_default();
+                                if fs_content != *db_content {
+                                    drifted.push(crate::commands::distribution::DriftedItem {
+                                        item_type: "rule".to_string(),
+                                        item_id: rule_id.clone(),
+                                        platform_id: plugin.platform_name().to_string(),
+                                        issue: "content_mismatch".to_string(),
+                                    });
+                                    continue;
+                                }
+                            }
+                            ok_count += 1;
                         }
                     }
-                    ok_count += 1;
+                    RulesFormat::SingleFile { .. } => {
+                        // SingleFile mode: check if the file contains the SKILLFORGE block for each rule
+                        if !rules_path.exists() {
+                            // File doesn't exist at all — all rules are missing
+                            for rule_id in &rule_ids {
+                                drifted.push(crate::commands::distribution::DriftedItem {
+                                    item_type: "rule".to_string(),
+                                    item_id: rule_id.clone(),
+                                    platform_id: plugin.platform_name().to_string(),
+                                    issue: "file_missing".to_string(),
+                                });
+                            }
+                        } else {
+                            let file_content = std::fs::read_to_string(rules_path).unwrap_or_default();
+                            for rule_id in &rule_ids {
+                                let open_marker = format!("<!-- SKILLFORGE:rule:{} -->", rule_id);
+                                let close_marker = format!("<!-- /SKILLFORGE:rule:{} -->", rule_id);
+
+                                if !file_content.contains(&open_marker) || !file_content.contains(&close_marker) {
+                                    drifted.push(crate::commands::distribution::DriftedItem {
+                                        item_type: "rule".to_string(),
+                                        item_id: rule_id.clone(),
+                                        platform_id: plugin.platform_name().to_string(),
+                                        issue: "file_missing".to_string(),
+                                    });
+                                    continue;
+                                }
+
+                                // Extract block content and compare with DB
+                                let db_content: Option<String> = conn
+                                    .query_row("SELECT content FROM rules WHERE id = ?1", params![rule_id], |row| row.get(0))
+                                    .ok();
+
+                                if let Some(ref db_content) = db_content {
+                                    let pattern = format!(
+                                        r"<!-- SKILLFORGE:rule:{} -->\n([\s\S]*?)<!-- /SKILLFORGE:rule:{} -->",
+                                        regex::escape(rule_id),
+                                        regex::escape(rule_id)
+                                    );
+                                    if let Ok(re) = regex::Regex::new(&pattern) {
+                                        if let Some(caps) = re.captures(&file_content) {
+                                            let block_content = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                                            if block_content != db_content.as_str() {
+                                                drifted.push(crate::commands::distribution::DriftedItem {
+                                                    item_type: "rule".to_string(),
+                                                    item_id: rule_id.clone(),
+                                                    platform_id: plugin.platform_name().to_string(),
+                                                    issue: "content_mismatch".to_string(),
+                                                });
+                                                continue;
+                                            }
+                                        }
+                                    }
+                                }
+                                ok_count += 1;
+                            }
+                        }
+                    }
                 }
             } else {
-                // No rules dir for this platform, count all rules as ok
+                // No rules path for this platform, count all rules as ok
                 ok_count += rule_ids.len() as u32;
             }
         }
@@ -1043,59 +1310,145 @@ pub fn repair_drift(
             }
         }
         "rule" => {
+            let rules_format = plugin.default_paths().global_rules_format.clone()
+                .unwrap_or(RulesFormat::Directory);
+
             match action {
                 "from_db" => {
-                    // Re-write rule file from DB content
-                    let rules_dir = plugin
-                        .default_paths()
-                        .global_rules_dir
-                        .as_ref()
-                        .map(|d| crate::plugins::platform::expand_home(d));
+                    match &rules_format {
+                        RulesFormat::Directory => {
+                            // Re-write rule file from DB content
+                            let rules_dir = plugin
+                                .default_paths()
+                                .global_rules_dir
+                                .as_ref()
+                                .map(|d| crate::plugins::platform::expand_home(d));
 
-                    if let Some(rules_dir) = &rules_dir {
-                        std::fs::create_dir_all(rules_dir).map_err(|e| {
-                            AppError::Io(format!("无法创建规则目录: {}", e))
-                        })?;
+                            if let Some(rules_dir) = &rules_dir {
+                                std::fs::create_dir_all(rules_dir).map_err(|e| {
+                                    AppError::Io(format!("无法创建规则目录: {}", e))
+                                })?;
 
-                        let rule_content: String = conn
-                            .query_row("SELECT content FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
-                            .map_err(|_| AppError::RuleNotFound(item_id.to_string()))?;
-                        let rule_format: String = conn
-                            .query_row("SELECT format FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
-                            .unwrap_or_else(|_| "md".to_string());
+                                let rule_content: String = conn
+                                    .query_row("SELECT content FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
+                                    .map_err(|_| AppError::RuleNotFound(item_id.to_string()))?;
+                                let rule_format: String = conn
+                                    .query_row("SELECT format FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
+                                    .unwrap_or_else(|_| "md".to_string());
 
-                        let file_path = rules_dir.join(format!("{}.{}", item_id, rule_format));
-                        std::fs::write(&file_path, &rule_content)?;
-                        log_sync(conn, "repair", "rule", item_id, platform_id, "success", Some("from_db"));
+                                let file_path = rules_dir.join(format!("{}.{}", item_id, rule_format));
+                                std::fs::write(&file_path, &rule_content)?;
+                                log_sync(conn, "repair", "rule", item_id, platform_id, "success", Some("from_db"));
+                            }
+                        }
+                        RulesFormat::SingleFile { .. } => {
+                            // Re-sync the entire single file from DB
+                            let file_path = plugin
+                                .default_paths()
+                                .global_rules_dir
+                                .as_ref()
+                                .map(|d| crate::plugins::platform::expand_home(d));
+
+                            if let Some(file_path) = &file_path {
+                                // Get all rule_ids that should be in this file
+                                // For repair, we just re-sync the single rule by removing + re-adding
+                                remove_rule_from_single_file(file_path, item_id)?;
+
+                                // Now append the rule back
+                                let rule_content: String = conn
+                                    .query_row("SELECT content FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
+                                    .map_err(|_| AppError::RuleNotFound(item_id.to_string()))?;
+
+                                let existing_content = if file_path.exists() {
+                                    std::fs::read_to_string(file_path).unwrap_or_default()
+                                } else {
+                                    String::new()
+                                };
+
+                                let block = format!(
+                                    "\n<!-- SKILLFORGE:rule:{} -->\n{}<!-- /SKILLFORGE:rule:{} -->\n",
+                                    item_id, rule_content, item_id
+                                );
+                                let new_content = format!("{}{}", existing_content, block);
+                                std::fs::write(file_path, &new_content)?;
+
+                                log_sync(conn, "repair", "rule", item_id, platform_id, "success", Some("from_db_single_file"));
+                            }
+                        }
                     }
                 }
                 "from_fs" => {
-                    // Update DB content from filesystem
-                    let rules_dir = plugin
-                        .default_paths()
-                        .global_rules_dir
-                        .as_ref()
-                        .map(|d| crate::plugins::platform::expand_home(d));
+                    match &rules_format {
+                        RulesFormat::Directory => {
+                            // Update DB content from filesystem
+                            let rules_dir = plugin
+                                .default_paths()
+                                .global_rules_dir
+                                .as_ref()
+                                .map(|d| crate::plugins::platform::expand_home(d));
 
-                    if let Some(rules_dir) = &rules_dir {
-                        let rule_format: String = conn
-                            .query_row("SELECT format FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
-                            .unwrap_or_else(|_| "md".to_string());
+                            if let Some(rules_dir) = &rules_dir {
+                                let rule_format: String = conn
+                                    .query_row("SELECT format FROM rules WHERE id = ?1", params![item_id], |row| row.get(0))
+                                    .unwrap_or_else(|_| "md".to_string());
 
-                        let file_path = rules_dir.join(format!("{}.{}", item_id, rule_format));
-                        if file_path.exists() {
-                            let fs_content = std::fs::read_to_string(&file_path)?;
-                            let now = chrono::Utc::now().to_rfc3339();
-                            conn.execute(
-                                "UPDATE rules SET content = ?1, updated_at = ?2 WHERE id = ?3",
-                                params![fs_content, now, item_id],
-                            )?;
-                            log_sync(conn, "repair", "rule", item_id, platform_id, "success", Some("from_fs"));
-                        } else {
-                            return Err(AppError::Io(format!(
-                                "规则文件不存在: {}",
-                                file_path.display()
-                            )));
+                                let file_path = rules_dir.join(format!("{}.{}", item_id, rule_format));
+                                if file_path.exists() {
+                                    let fs_content = std::fs::read_to_string(&file_path)?;
+                                    let now = chrono::Utc::now().to_rfc3339();
+                                    conn.execute(
+                                        "UPDATE rules SET content = ?1, updated_at = ?2 WHERE id = ?3",
+                                        params![fs_content, now, item_id],
+                                    )?;
+                                    log_sync(conn, "repair", "rule", item_id, platform_id, "success", Some("from_fs"));
+                                } else {
+                                    return Err(AppError::Io(format!(
+                                        "规则文件不存在: {}",
+                                        file_path.display()
+                                    )));
+                                }
+                            }
+                        }
+                        RulesFormat::SingleFile { .. } => {
+                            // Extract rule content from single file and update DB
+                            let file_path = plugin
+                                .default_paths()
+                                .global_rules_dir
+                                .as_ref()
+                                .map(|d| crate::plugins::platform::expand_home(d));
+
+                            if let Some(file_path) = &file_path {
+                                if !file_path.exists() {
+                                    return Err(AppError::Io(format!(
+                                        "规则文件不存在: {}",
+                                        file_path.display()
+                                    )));
+                                }
+
+                                let file_content = std::fs::read_to_string(file_path)?;
+                                let pattern = format!(
+                                    r"<!-- SKILLFORGE:rule:{} -->\n([\s\S]*?)<!-- /SKILLFORGE:rule:{} -->",
+                                    regex::escape(item_id),
+                                    regex::escape(item_id)
+                                );
+                                if let Ok(re) = regex::Regex::new(&pattern) {
+                                    if let Some(caps) = re.captures(&file_content) {
+                                        if let Some(block_content) = caps.get(1) {
+                                            let now = chrono::Utc::now().to_rfc3339();
+                                            conn.execute(
+                                                "UPDATE rules SET content = ?1, updated_at = ?2 WHERE id = ?3",
+                                                params![block_content.as_str(), now, item_id],
+                                            )?;
+                                            log_sync(conn, "repair", "rule", item_id, platform_id, "success", Some("from_fs_single_file"));
+                                        }
+                                    } else {
+                                        return Err(AppError::Io(format!(
+                                            "在文件 {} 中未找到规则 '{}' 的 SKILLFORGE 区块",
+                                            file_path.display(), item_id
+                                        )));
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -1383,5 +1736,183 @@ mod tests {
         // Switching to the same scene should result in no installs/removes
         assert!(result.installed.is_empty());
         assert!(result.removed.is_empty());
+    }
+
+    #[test]
+    fn test_sync_rules_to_single_file_create() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Insert rules into DB
+        conn.execute(
+            "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+            params!["rule-1", "Rule 1", "md", "# Rule 1\nUse 2-space indent", now],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+            params!["rule-2", "Rule 2", "md", "# Rule 2\nNo hardcoded secrets", now],
+        ).unwrap();
+
+        let test_dir = format!("/tmp/skillforge-test-sf-{}", std::process::id());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
+
+        let rule_ids = vec!["rule-1".to_string(), "rule-2".to_string()];
+        let mut result = SyncResult {
+            installed: vec![],
+            updated: vec![],
+            removed: vec![],
+            errors: vec![],
+        };
+
+        sync_rules_to_single_file(&conn, &file_path, &rule_ids, &mut result).unwrap();
+
+        // File should exist
+        assert!(file_path.exists());
+
+        // Content should contain both SKILLFORGE blocks
+        let content = std::fs::read_to_string(&file_path).unwrap();
+        assert!(content.contains("<!-- SKILLFORGE:rule:rule-1 -->"));
+        assert!(content.contains("# Rule 1\nUse 2-space indent"));
+        assert!(content.contains("<!-- /SKILLFORGE:rule:rule-1 -->"));
+        assert!(content.contains("<!-- SKILLFORGE:rule:rule-2 -->"));
+        assert!(content.contains("# Rule 2\nNo hardcoded secrets"));
+        assert!(content.contains("<!-- /SKILLFORGE:rule:rule-2 -->"));
+
+        // Both rules should be in installed
+        assert!(result.installed.contains(&"rule:rule-1".to_string()));
+        assert!(result.installed.contains(&"rule:rule-2".to_string()));
+
+        // Cleanup
+        std::fs::remove_dir_all(&test_dir).ok();
+    }
+
+    #[test]
+    fn test_sync_rules_to_single_file_preserves_user_content() {
+        let test_dir = format!("/tmp/skillforge-test-sf-preserve-{}", std::process::id());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+        let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
+
+        // Pre-existing file with user content + old SKILLFORGE block
+        let pre_content = "# My custom header\n\nThis is user content.\n\n<!-- SKILLFORGE:rule:old-rule -->\nOld content\n<!-- /SKILLFORGE:rule:old-rule -->\n";
+        std::fs::write(&file_path, pre_content).unwrap();
+
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+            params!["new-rule", "New Rule", "md", "# New Rule\nBe excellent", now],
+        ).unwrap();
+
+        let rule_ids = vec!["new-rule".to_string()];
+        let mut result = SyncResult {
+            installed: vec![],
+            updated: vec![],
+            removed: vec![],
+            errors: vec![],
+        };
+
+        sync_rules_to_single_file(&conn, &file_path, &rule_ids, &mut result).unwrap();
+
+        let content = std::fs::read_to_string(&file_path).unwrap();
+
+        // User content should be preserved
+        assert!(content.contains("# My custom header"));
+        assert!(content.contains("This is user content."));
+
+        // Old SKILLFORGE block should be removed
+        assert!(!content.contains("<!-- SKILLFORGE:rule:old-rule -->"));
+        assert!(!content.contains("Old content"));
+
+        // New SKILLFORGE block should be present
+        assert!(content.contains("<!-- SKILLFORGE:rule:new-rule -->"));
+        assert!(content.contains("# New Rule\nBe excellent"));
+        assert!(content.contains("<!-- /SKILLFORGE:rule:new-rule -->"));
+
+        // Cleanup
+        std::fs::remove_dir_all(&test_dir).ok();
+    }
+
+    #[test]
+    fn test_sync_rules_to_single_file_empty_rules_removes_blocks() {
+        let test_dir = format!("/tmp/skillforge-test-sf-empty-{}", std::process::id());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+        let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
+
+        // Pre-existing file with SKILLFORGE block + user content
+        let pre_content = "# User header\n\n<!-- SKILLFORGE:rule:old-rule -->\nOld content\n<!-- /SKILLFORGE:rule:old-rule -->\n";
+        std::fs::write(&file_path, pre_content).unwrap();
+
+        let conn = setup_db();
+        let rule_ids: Vec<String> = vec![];
+        let mut result = SyncResult {
+            installed: vec![],
+            updated: vec![],
+            removed: vec![],
+            errors: vec![],
+        };
+
+        sync_rules_to_single_file(&conn, &file_path, &rule_ids, &mut result).unwrap();
+
+        let content = std::fs::read_to_string(&file_path).unwrap();
+
+        // SKILLFORGE block should be removed
+        assert!(!content.contains("SKILLFORGE"));
+
+        // User content should be preserved
+        assert!(content.contains("# User header"));
+
+        // Cleanup
+        std::fs::remove_dir_all(&test_dir).ok();
+    }
+
+    #[test]
+    fn test_remove_rule_from_single_file() {
+        let test_dir = format!("/tmp/skillforge-test-rm-sf-{}", std::process::id());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+        let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
+
+        let content = "# User header\n\n<!-- SKILLFORGE:rule:rule-a -->\nContent A\n<!-- /SKILLFORGE:rule:rule-a -->\n\n<!-- SKILLFORGE:rule:rule-b -->\nContent B\n<!-- /SKILLFORGE:rule:rule-b -->\n";
+        std::fs::write(&file_path, content).unwrap();
+
+        remove_rule_from_single_file(&file_path, "rule-a").unwrap();
+
+        let new_content = std::fs::read_to_string(&file_path).unwrap();
+
+        // rule-a should be removed
+        assert!(!new_content.contains("SKILLFORGE:rule:rule-a"));
+        assert!(!new_content.contains("Content A"));
+
+        // rule-b should remain
+        assert!(new_content.contains("SKILLFORGE:rule:rule-b"));
+        assert!(new_content.contains("Content B"));
+
+        // User content should remain
+        assert!(new_content.contains("# User header"));
+
+        // Cleanup
+        std::fs::remove_dir_all(&test_dir).ok();
+    }
+
+    #[test]
+    fn test_remove_rule_from_single_file_deletes_empty_file() {
+        let test_dir = format!("/tmp/skillforge-test-rm-empty-{}", std::process::id());
+        let _ = std::fs::remove_dir_all(&test_dir);
+        std::fs::create_dir_all(&test_dir).unwrap();
+        let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
+
+        let content = "<!-- SKILLFORGE:rule:only-rule -->\nOnly content\n<!-- /SKILLFORGE:rule:only-rule -->\n";
+        std::fs::write(&file_path, content).unwrap();
+
+        remove_rule_from_single_file(&file_path, "only-rule").unwrap();
+
+        // File should be deleted since it's now empty
+        assert!(!file_path.exists());
+
+        // Cleanup
+        std::fs::remove_dir_all(&test_dir).ok();
     }
 }

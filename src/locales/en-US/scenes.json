@@ -25,5 +25,11 @@
   "count": "{{count}} scenes total",
   "skillTab": "Skills",
   "ruleTab": "Rules",
-  "systemSceneHint": "System scene cannot be edited"
+  "systemSceneHint": "System scene cannot be edited",
+  "capabilities": {
+    "no_global_rules": "No global rules support",
+    "no_project_rules": "No project rules support",
+    "no_rules": "No rules support",
+    "full": "Full support"
+  }
 }

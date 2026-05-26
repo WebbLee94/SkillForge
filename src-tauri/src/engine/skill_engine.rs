@@ -193,7 +193,7 @@ pub fn list_skills(
 
     if let Some(ref tag) = filter.tag {
         sql.push_str(&format!(
-            " AND s.id IN (SELECT skill_id FROM skill_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?{}))",
+            " AND s.id IN (SELECT skill_id FROM skill_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?{} AND tag_type = 'skill'))",
             param_idx
         ));
         param_values.push(Box::new(tag.clone()));

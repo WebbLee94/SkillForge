@@ -7,50 +7,90 @@ use rusqlite::params;
 #[tauri::command]
 pub fn list_tags(
     category: Option<String>,
+    tag_type: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Tag>, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
-    let sql = if category.is_some() {
-        "SELECT t.id, t.name, t.color, t.category,
-                (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id) as skill_count,
-                (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id) as rule_count
-         FROM tags t WHERE t.category = ?1 ORDER BY t.name ASC"
-    } else {
-        "SELECT t.id, t.name, t.color, t.category,
-                (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id) as skill_count,
-                (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id) as rule_count
-         FROM tags t ORDER BY t.name ASC"
+    // Build SQL based on filters
+    let (sql, use_category, use_tag_type) = match (&category, &tag_type) {
+        (Some(_), Some(_)) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.category = ?1 AND t.tag_type = ?2 ORDER BY t.name ASC",
+            true, true,
+        ),
+        (Some(_), None) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.category = ?1 ORDER BY t.name ASC",
+            true, false,
+        ),
+        (None, Some(_)) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.tag_type = ?1 ORDER BY t.name ASC",
+            false, true,
+        ),
+        (None, None) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t ORDER BY t.name ASC",
+            false, false,
+        ),
     };
 
     let mut stmt = conn.prepare(sql)?;
 
-    let tags: Vec<Tag> = if let Some(ref cat) = category {
-        stmt.query_map(params![cat], |row| {
+    let tags: Vec<Tag> = match (use_category, use_tag_type) {
+        (true, true) => stmt.query_map(params![category, tag_type], |row| {
             Ok(Tag {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 color: row.get(2)?,
                 category: row.get(3)?,
-                skill_count: row.get(4)?,
-                rule_count: row.get(5)?,
+                tag_type: row.get(4)?,
+                count: row.get(5)?,
             })
-        })?
-        .filter_map(|r| r.ok())
-        .collect()
-    } else {
-        stmt.query_map([], |row| {
+        })?.filter_map(|r| r.ok()).collect(),
+        (true, false) => stmt.query_map(params![category], |row| {
             Ok(Tag {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 color: row.get(2)?,
                 category: row.get(3)?,
-                skill_count: row.get(4)?,
-                rule_count: row.get(5)?,
+                tag_type: row.get(4)?,
+                count: row.get(5)?,
             })
-        })?
-        .filter_map(|r| r.ok())
-        .collect()
+        })?.filter_map(|r| r.ok()).collect(),
+        (false, true) => stmt.query_map(params![tag_type], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                category: row.get(3)?,
+                tag_type: row.get(4)?,
+                count: row.get(5)?,
+            })
+        })?.filter_map(|r| r.ok()).collect(),
+        (false, false) => stmt.query_map([], |row| {
+            Ok(Tag {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                color: row.get(2)?,
+                category: row.get(3)?,
+                tag_type: row.get(4)?,
+                count: row.get(5)?,
+            })
+        })?.filter_map(|r| r.ok()).collect(),
     };
 
     Ok(tags)
@@ -61,26 +101,35 @@ pub fn create_tag(
     name: String,
     color: Option<String>,
     category: Option<String>,
+    tag_type: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Tag, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
-    // Check for duplicate
+    // Validate tag_type
+    if tag_type != "skill" && tag_type != "rule" {
+        return Err(AppError::Validation(format!(
+            "无效的标签类型 '{}': 必须为 'skill' 或 'rule'",
+            tag_type
+        )));
+    }
+
+    // Check for duplicate (name + tag_type)
     let exists: bool = conn
         .query_row(
-            "SELECT COUNT(*) FROM tags WHERE name = ?1",
-            params![name],
+            "SELECT COUNT(*) FROM tags WHERE name = ?1 AND tag_type = ?2",
+            params![name, tag_type],
             |row| row.get::<_, i64>(0),
         )
         .map(|c| c > 0)?;
 
     if exists {
-        return Err(AppError::DuplicateTag(name));
+        return Err(AppError::DuplicateTag(format!("{}({})", name, tag_type)));
     }
 
     conn.execute(
-        "INSERT INTO tags (name, color, category) VALUES (?1, ?2, ?3)",
-        params![name, color, category],
+        "INSERT INTO tags (name, color, category, tag_type) VALUES (?1, ?2, ?3, ?4)",
+        params![name, color, category, tag_type],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -90,8 +139,8 @@ pub fn create_tag(
         name,
         color,
         category,
-        skill_count: Some(0),
-        rule_count: Some(0),
+        tag_type,
+        count: Some(0),
     })
 }
 
@@ -133,17 +182,33 @@ pub fn update_tag(
 ) -> Result<(), AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
-    // Verify tag exists
-    let exists: bool = conn
+    // Verify tag exists and get its tag_type
+    let tag_info: Option<(String,)> = conn
         .query_row(
-            "SELECT COUNT(*) FROM tags WHERE id = ?1",
+            "SELECT tag_type FROM tags WHERE id = ?1",
             params![id],
-            |row| row.get::<_, i64>(0),
+            |row| Ok((row.get(0)?,)),
         )
-        .map(|c| c > 0)?;
+        .ok();
 
-    if !exists {
-        return Err(AppError::TagNotFound(id));
+    let (tag_type,) = match tag_info {
+        Some(info) => info,
+        None => return Err(AppError::TagNotFound(id)),
+    };
+
+    // If renaming, check uniqueness within the same tag_type
+    if let Some(ref new_name) = name {
+        let exists: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM tags WHERE name = ?1 AND tag_type = ?2 AND id != ?3",
+                params![new_name, tag_type, id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)?;
+
+        if exists {
+            return Err(AppError::DuplicateTag(format!("{}({})", new_name, tag_type)));
+        }
     }
 
     conn.execute(
@@ -163,17 +228,28 @@ pub fn assign_tag(
 ) -> Result<(), AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
-    // Verify tag exists
-    let tag_exists: bool = conn
+    // Verify tag exists and get its tag_type
+    let tag_info: Option<(String,)> = conn
         .query_row(
-            "SELECT COUNT(*) FROM tags WHERE id = ?1",
+            "SELECT tag_type FROM tags WHERE id = ?1",
             params![tag_id],
-            |row| row.get::<_, i64>(0),
+            |row| Ok((row.get(0)?,)),
         )
-        .map(|c| c > 0)?;
+        .ok();
 
-    if !tag_exists {
-        return Err(AppError::TagNotFound(tag_id));
+    let (tag_type_val,) = match tag_info {
+        Some(info) => info,
+        None => return Err(AppError::TagNotFound(tag_id)),
+    };
+
+    // Validate tag_type matches target_type
+    if target_type != tag_type_val {
+        let msg = if target_type == "skill" {
+            "不能将规则标签分配给技能"
+        } else {
+            "不能将技能标签分配给规则"
+        };
+        return Err(AppError::Validation(msg.to_string()));
     }
 
     match target_type.as_str() {

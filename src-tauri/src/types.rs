@@ -32,10 +32,9 @@ pub struct Tag {
     pub name: String,
     pub color: Option<String>,
     pub category: Option<String>,
+    pub tag_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_count: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rule_count: Option<i64>,
+    pub count: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,6 +187,7 @@ pub struct CreateTagDTO {
     pub name: String,
     pub color: Option<String>,
     pub category: Option<String>,
+    pub tag_type: String,
 }
 
 // ── Skill bundle (from source) ─────────────────────────────────────
@@ -212,6 +212,22 @@ pub struct SkillMeta {
 
 // ── Platform types ─────────────────────────────────────────────────
 
+/// Rules distribution format for a platform.
+///
+/// - `Directory`: each rule is written as `{rules_dir}/{rule_id}.{format}`
+/// - `SingleFile`: all rules are merged into one named file using SKILLFORGE markers
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum RulesFormat {
+    Directory,
+    SingleFile { file_name: String },
+}
+
+impl Default for RulesFormat {
+    fn default() -> Self {
+        RulesFormat::Directory
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformInstance {
     pub platform_id: String,
@@ -221,11 +237,29 @@ pub struct PlatformInstance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlatformCapabilities {
+    pub skills_global: bool,
+    pub skills_project: bool,
+    pub rules_global: bool,
+    pub rules_project: bool,
+    pub rules_format_global: Option<RulesFormat>,
+    pub rules_format_project: Option<RulesFormat>,
+    /// i18n keys like "no_global_rules", "no_project_rules"
+    pub limitation_notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformPaths {
     pub global_skills_dir: String,
     pub project_skills_pattern: String,
     pub global_rules_dir: Option<String>,
     pub project_rules_pattern: Option<String>,
+    /// Rules format for global scope. `None` defaults to `RulesFormat::Directory`.
+    #[serde(default)]
+    pub global_rules_format: Option<RulesFormat>,
+    /// Rules format for project scope. `None` defaults to `RulesFormat::Directory`.
+    #[serde(default)]
+    pub project_rules_format: Option<RulesFormat>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

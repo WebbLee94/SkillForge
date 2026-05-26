@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="colorLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="colorRight" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="colorArc" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <rect id="bg" width="1024" height="1024" rx="222" fill="#0f172a"/>
+  </defs>
+  <use href="#bg"/>
+  <path d="M 385 780 L 385 540 L 275 540 L 275 420 L 465 300 L 465 420"
+        fill="none" stroke="url(#colorLeft)" stroke-width="36"
+        stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M 465 300 L 465 420 L 749 420 L 749 540 L 639 540 L 639 780"
+        fill="none" stroke="url(#colorRight)" stroke-width="36"
+        stroke-linejoin="round" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M 275 420 Q 465 200 749 420"
+        stroke="url(#colorArc)" stroke-width="24"
+        fill="none" stroke-linecap="round" filter="url(#glow)" opacity="0.7"/>
+  <circle cx="465" cy="300" r="48" fill="url(#colorLeft)" filter="url(#glow)"/>
+  <circle cx="749" cy="420" r="40" fill="#06b6d4" filter="url(#glow)"/>
+  <circle cx="385" cy="600" r="32" fill="#3b82f6" filter="url(#glow)" opacity="0.7"/>
+  <circle cx="639" cy="600" r="32" fill="#06b6d4" filter="url(#glow)" opacity="0.7"/>
+  <circle cx="465" cy="300" r="16" fill="white" opacity="0.9"/>
+  <circle cx="749" cy="420" r="14" fill="white" opacity="0.9"/>
+  <circle cx="385" cy="600" r="10" fill="white" opacity="0.7"/>
+  <circle cx="639" cy="600" r="10" fill="white" opacity="0.7"/>
+</svg>

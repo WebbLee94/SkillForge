@@ -19,6 +19,18 @@
     "columns": { "name": "Name", "path": "Global Path", "projectPath": "Project Path", "status": "Status" },
     "actions": { "enable": "Enable", "disable": "Disable" },
     "hint": "Manage registered Agent platforms. Enabling/disabling platforms affects visibility in scene editing and distribution.",
-    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed."
+    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed.",
+    "capabilities": {
+      "title": "Distribution Capabilities",
+      "skillsGlobal": "Global Skills",
+      "skillsProject": "Project Skills",
+      "rulesGlobal": "Global Rules",
+      "rulesProject": "Project Rules",
+      "supported": "Supported",
+      "notSupported": "Not Supported",
+      "modeDirectory": "Directory Mode",
+      "modeSingleFile": "Single File Mode",
+      "hint": "Some platforms have special limitations on rules distribution, see the capability table above"
+    }
   }
 }
