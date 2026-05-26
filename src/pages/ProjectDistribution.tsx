@@ -4,6 +4,7 @@ import { useAppStore } from "../stores/appStore";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
 import { AddProjectDialog } from "../components/AddProjectDialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   Plus, FolderOpen, Trash2, RefreshCw,
   CheckCircle, AlertCircle, Clock, AlertTriangle, Search, Globe,
@@ -149,7 +150,16 @@ export function ProjectDistribution() {
                   <FolderOpen className="h-5 w-5 text-primary" />
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">{project.name}</h3>
-                    <p className="text-xs text-muted-foreground">{project.path}</p>
+                    <div className="flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground">{project.path}</p>
+                      <button
+                        className="text-muted-foreground/50 hover:text-primary transition-colors"
+                        onClick={() => revealItemInDir(project.path)}
+                        title="在文件管理器中打开"
+                      >
+                        <FolderOpen className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

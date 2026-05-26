@@ -283,9 +283,11 @@ export function SkillLibrary() {
                     {!batchMode && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}
                   </div>
                   <div className={cn("mt-3 flex items-center gap-2 flex-wrap", batchMode && "pl-6")}>
-                    <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                      v{skill.current_ver || "?"}
-                    </span>
+                    {skill.current_ver && (
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+                        v{skill.current_ver}
+                      </span>
+                    )}
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-3 w-3" />
                       {formatTime(skill.installed_at)}
@@ -359,7 +361,7 @@ export function SkillLibrary() {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <p className="text-xs text-muted-foreground">v{selectedSkill.current_ver || "?"}</p>
+              {selectedSkill.current_ver && <p className="text-xs text-muted-foreground">v{selectedSkill.current_ver}</p>}
               <p className="mt-3 text-sm text-foreground">{selectedSkill.description || ""}</p>
 
               <div className="mt-4 space-y-2">
@@ -415,6 +417,7 @@ export function SkillLibrary() {
               )}
 
               <div className="mt-6 space-y-2">
+                {(selectedSkill.source_type === "git" || selectedSkill.source_type === "skills.sh") && (
                 <button
                   className={cn(
                     "flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2",
@@ -425,6 +428,7 @@ export function SkillLibrary() {
                   <RefreshCw className="h-4 w-4" />
                   {tc("actions.update")}
                 </button>
+                )}
                 <button
                   className={cn(
                     "flex w-full items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2",
@@ -501,9 +505,11 @@ export function SkillLibrary() {
                         "text-sm font-medium text-foreground hover:bg-accent transition-colors",
                       )}
                       onClick={async () => {
-                        const selected = await open({ directory: true, multiple: false });
-                        if (selected) {
-                          setInstallInput(selected);
+                        const selected = await open({ directory: true, multiple: true });
+                        if (selected && selected.length > 0) {
+                          for (const dir of selected) {
+                            setInstallInput(dir);
+                          }
                         }
                       }}
                     >
