@@ -49,13 +49,12 @@ export function ProjectDistribution() {
       const projects = useAppStore.getState().projects;
       const newProject = projects[projects.length - 1];
       if (newProject) {
-        // T8: Use ALL platforms from the scene, not user-selected subset
-        const allPlatformIds = platforms.map((p) => p.id);
-        await syncScene(data.sceneId, allPlatformIds, "project", newProject.id);
+        // Use scene-associated platforms (null = auto-resolve from scene_platforms)
+        await syncScene(data.sceneId, null, "project", newProject.id);
       }
     }
     setShowAddDialog(false);
-  }, [addProject, syncScene, platforms]);
+  }, [addProject, syncScene]);
 
   const handleRemoveProject = useCallback(async (id: string) => {
     if (window.confirm(tc("messages.confirmDelete"))) {
