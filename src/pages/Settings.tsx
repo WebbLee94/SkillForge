@@ -7,7 +7,7 @@ import type { Platform } from "../types";
 
 type SettingsTab = "general" | "platforms" | "marketplace";
 
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "1.0.0";
 const GITHUB_URL = "https://github.com/JieYueGo/SkillForge";
 
 export function Settings() {

@@ -1,6 +1,6 @@
 [package]
 name = "skillforge"
-version = "0.1.0"
+version = "1.0.0"
 description = "SkillForge - AI Agent Skill & Rule Orchestration Tool"
 authors = ["SkillForge Team"]
 edition = "2021"
