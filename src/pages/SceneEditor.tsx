@@ -5,6 +5,7 @@ import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
 import { SortableSkillList } from "../components/SortableSkillList";
 import { SortableRuleList } from "../components/SortableRuleList";
+import { TagFilterBar } from "../components/TagFilterBar";
 import {
   Search, Plus, Save, RefreshCw, Film,
   Package, FileText, X,
@@ -45,6 +46,8 @@ export function SceneEditor() {
   const [sceneName, setSceneName] = useState("");
   const [sceneDesc, setSceneDesc] = useState("");
   const [capabilitiesMap, setCapabilitiesMap] = useState<Record<string, PlatformCapabilities>>({});
+  const [sceneTagFilter, setSceneTagFilter] = useState<number[]>([]);
+  const [sceneTags, setSceneTags] = useState<import("../types").Tag[]>([]);
 
   useEffect(() => {
     fetchScenes();
@@ -52,6 +55,17 @@ export function SceneEditor() {
     fetchRules();
     fetchPlatforms();
   }, [fetchScenes, fetchSkills, fetchRules, fetchPlatforms]);
+
+  // Fetch tags for current tab and clear filter on tab switch
+  useEffect(() => {
+    const loadTags = async () => {
+      const tagType = leftTab === "skills" ? "skill" : "rule";
+      const result = await ipc.listTags(undefined, tagType);
+      setSceneTags(result);
+    };
+    setSceneTagFilter([]);
+    loadTags();
+  }, [leftTab]);
 
   useEffect(() => {
     const fetchCaps = async () => {
@@ -91,8 +105,14 @@ export function SceneEditor() {
         (s) => s.name.toLowerCase().includes(q) || (s.description || "").toLowerCase().includes(q),
       );
     }
+    if (sceneTagFilter.length > 0) {
+      filtered = filtered.filter((s) => {
+        if (!s.tags || s.tags.length === 0) return false;
+        return sceneTagFilter.some((id) => s.tags!.some((t) => t.id === id));
+      });
+    }
     return filtered;
-  }, [skills, currentSceneDetail, leftSearch]);
+  }, [skills, currentSceneDetail, leftSearch, sceneTagFilter]);
 
   const availableRules = useMemo(() => {
     const sceneRuleIds = new Set(currentSceneDetail?.rules.map((r) => r.rule_id) || []);
@@ -103,8 +123,14 @@ export function SceneEditor() {
         (r) => r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q),
       );
     }
+    if (sceneTagFilter.length > 0) {
+      filtered = filtered.filter((r) => {
+        if (!r.tags || r.tags.length === 0) return false;
+        return sceneTagFilter.some((id) => r.tags!.some((t) => t.id === id));
+      });
+    }
     return filtered;
-  }, [rules, currentSceneDetail, leftSearch]);
+  }, [rules, currentSceneDetail, leftSearch, sceneTagFilter]);
 
   const handleAddSkill = useCallback(async (skillId: string) => {
     if (!currentScene) return;
@@ -265,6 +291,22 @@ export function SceneEditor() {
                   {t("ruleTab")}
                 </button>
               </div>
+              {/* Tag filter bar */}
+              {sceneTags.length > 0 && (
+                <div className="mt-2">
+                  <TagFilterBar
+                    tags={sceneTags}
+                    selectedTagIds={sceneTagFilter}
+                    onToggleTag={(tagId) => setSceneTagFilter(
+                      sceneTagFilter.includes(tagId)
+                        ? sceneTagFilter.filter((id) => id !== tagId)
+                        : [...sceneTagFilter, tagId],
+                    )}
+                    onClearAll={() => setSceneTagFilter([])}
+                    showUntagged={false}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-y-auto p-2">

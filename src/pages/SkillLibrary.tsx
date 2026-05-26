@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
-import { InlineTagEditor } from "../components/InlineTagEditor";
-import { Search, Download, Trash2, RefreshCw, X, Package, FolderOpen, ChevronRight, Clock, CheckSquare } from "lucide-react";
+import { TagPopover } from "../components/TagPopover";
+import { TagFilterBar } from "../components/TagFilterBar";
+import { TagManagerDialog } from "../components/TagManagerDialog";
+import { Search, Download, Trash2, RefreshCw, X, Package, FolderOpen, ChevronRight, Clock, CheckSquare, Tags } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 
 export function SkillLibrary() {
@@ -24,16 +26,17 @@ export function SkillLibrary() {
   const updateSkill = useAppStore((s) => s.updateSkill);
   const assignTag = useAppStore((s) => s.assignTag);
   const removeTagAction = useAppStore((s) => s.removeTag);
+  const createTag = useAppStore((s) => s.createTag);
 
   const [showInstallDialog, setShowInstallDialog] = useState(false);
   const [installSource, setInstallSource] = useState<"local" | "git">("local");
   const [installInput, setInstallInput] = useState("");
   const [localSearch, setLocalSearch] = useState("");
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
-  const tagScrollRef = useRef<HTMLDivElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
   const [untaggedFilter, setUntaggedFilter] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
 
   useEffect(() => {
     fetchSkills();
@@ -170,45 +173,29 @@ export function SkillLibrary() {
             {tc("actions.install")}
           </button>
         </div>
-        {/* Tag pill horizontal scroll */}
+        {/* Tag filter bar + manage button */}
         {(tags.length > 0 || true) && (
-          <div className="flex items-center gap-1.5 overflow-x-auto px-4 pb-2" ref={tagScrollRef}>
+          <div className="flex items-center gap-2 px-4 pb-2">
+            <div className="flex-1 overflow-hidden">
+              <TagFilterBar
+                tags={tags}
+                selectedTagIds={tagFilter}
+                onToggleTag={toggleTag}
+                onClearAll={() => { setTagFilter([]); setUntaggedFilter(false); }}
+                showUntagged
+                untaggedFilter={untaggedFilter}
+                onToggleUntagged={() => setUntaggedFilter(!untaggedFilter)}
+              />
+            </div>
             <button
               className={cn(
-                "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                tagFilter.length === 0 && !untaggedFilter
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+                "shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1",
+                "text-xs font-medium text-foreground hover:bg-accent transition-colors",
               )}
-              onClick={() => { setTagFilter([]); setUntaggedFilter(false); }}
+              onClick={() => setShowTagManager(true)}
             >
-              全部
-            </button>
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                  tagFilter.includes(tag.id)
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                )}
-                style={!tagFilter.includes(tag.id) && tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
-                onClick={() => toggleTag(tag.id)}
-              >
-                {tag.name}
-              </button>
-            ))}
-            <button
-              className={cn(
-                "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border border-dashed",
-                untaggedFilter
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-muted-foreground/40 text-muted-foreground hover:bg-secondary",
-              )}
-              onClick={() => setUntaggedFilter(!untaggedFilter)}
-            >
-              未分类
+              <Tags className="h-3.5 w-3.5" />
+              管理标签
             </button>
           </div>
         )}
@@ -305,14 +292,35 @@ export function SkillLibrary() {
                     </span>
                   </div>
                   <div className={cn("mt-1.5", batchMode && "pl-6")} onClick={(e) => e.stopPropagation()}>
-                    <InlineTagEditor
-                      targetType="skill"
-                      targetId={skill.id}
-                      tags={skill.tags || []}
-                      allTags={tags}
-                      onAssign={(tagId) => handleAssignTag(skill.id, tagId)}
-                      onRemove={(tagId) => handleRemoveTag(skill.id, tagId)}
-                    />
+                    <div className="flex flex-wrap items-center gap-1">
+                      {(skill.tags || []).map((tag) => (
+                        <span
+                          key={tag.id}
+                          className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium"
+                          style={tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
+                        >
+                          {tag.name}
+                          <button
+                            className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); handleRemoveTag(skill.id, tag.id); }}
+                          >
+                            <X className="h-2.5 w-2.5" />
+                          </button>
+                        </span>
+                      ))}
+                      <TagPopover
+                        tagType="skill"
+                        targetId={skill.id}
+                        assignedTags={skill.tags || []}
+                        allTags={tags}
+                        onAssign={(tagId) => handleAssignTag(skill.id, tagId)}
+                        onRemove={(tagId) => handleRemoveTag(skill.id, tagId)}
+                        onCreate={async (name, color) => {
+                          await createTag({ name, color, tag_type: "skill" });
+                          await fetchSkills();
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -530,6 +538,13 @@ export function SkillLibrary() {
           </div>
         </div>
       )}
+
+      {/* Tag Manager Dialog */}
+      <TagManagerDialog
+        tagType="skill"
+        isOpen={showTagManager}
+        onClose={() => setShowTagManager(false)}
+      />
     </div>
   );
 }

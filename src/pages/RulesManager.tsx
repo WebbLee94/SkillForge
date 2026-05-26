@@ -3,8 +3,10 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
 import { RuleEditor } from "../components/RuleEditor";
-import { InlineTagEditor } from "../components/InlineTagEditor";
-import { Search, Plus, Trash2, History, FileText, X, ChevronRight, Clock, CheckSquare, Upload } from "lucide-react";
+import { TagPopover } from "../components/TagPopover";
+import { TagFilterBar } from "../components/TagFilterBar";
+import { TagManagerDialog } from "../components/TagManagerDialog";
+import { Search, Plus, Trash2, History, FileText, X, ChevronRight, Clock, CheckSquare, Upload, Tags } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import type { CreateRuleDTO, UpdateRuleDTO } from "../types";
@@ -39,6 +41,7 @@ export function RulesManager() {
   const setTagFilter = useAppStore((s) => s.setTagFilter);
   const assignTag = useAppStore((s) => s.assignTag);
   const removeTagAction = useAppStore((s) => s.removeTag);
+  const createTag = useAppStore((s) => s.createTag);
   const addToast = useAppStore((s) => s.addToast);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,6 +61,7 @@ export function RulesManager() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchMode, setBatchMode] = useState(false);
   const [untaggedFilter, setUntaggedFilter] = useState(false);
+  const [showTagManager, setShowTagManager] = useState(false);
 
   // Import preview state
   const [importFiles, setImportFiles] = useState<Array<{ name: string; size: number; format: string; path: string }>>([]);
@@ -293,34 +297,29 @@ export function RulesManager() {
             {t("createRule")}
           </button>
         </div>
-        {/* Tag pill horizontal scroll */}
+        {/* Tag filter bar + manage button */}
         {(tags.length > 0 || true) && (
-          <div className="flex items-center gap-1.5 overflow-x-auto px-4 pb-2">
-            {tags.map((tag) => (
-              <button
-                key={tag.id}
-                className={cn(
-                  "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
-                  tagFilter.includes(tag.id)
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-                )}
-                style={!tagFilter.includes(tag.id) && tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
-                onClick={() => toggleTag(tag.id)}
-              >
-                {tag.name}
-              </button>
-            ))}
+          <div className="flex items-center gap-2 px-4 pb-2">
+            <div className="flex-1 overflow-hidden">
+              <TagFilterBar
+                tags={tags}
+                selectedTagIds={tagFilter}
+                onToggleTag={toggleTag}
+                onClearAll={() => { setTagFilter([]); setUntaggedFilter(false); }}
+                showUntagged
+                untaggedFilter={untaggedFilter}
+                onToggleUntagged={() => setUntaggedFilter(!untaggedFilter)}
+              />
+            </div>
             <button
               className={cn(
-                "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border border-dashed",
-                untaggedFilter
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-muted-foreground/40 text-muted-foreground hover:bg-secondary",
+                "shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1",
+                "text-xs font-medium text-foreground hover:bg-accent transition-colors",
               )}
-              onClick={() => setUntaggedFilter(!untaggedFilter)}
+              onClick={() => setShowTagManager(true)}
             >
-              未分类
+              <Tags className="h-3.5 w-3.5" />
+              管理标签
             </button>
           </div>
         )}
@@ -411,16 +410,37 @@ export function RulesManager() {
                       {!batchMode && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}
                     </div>
                     <div className={cn("mt-3 flex items-center gap-2 flex-wrap", batchMode && "pl-6")}>
-                      {/* Inline tag editor on card */}
+                      {/* Tag popover on card */}
                       <div onClick={(e) => e.stopPropagation()}>
-                        <InlineTagEditor
-                          targetType="rule"
-                          targetId={rule.id}
-                          tags={rule.tags || []}
-                          allTags={tags}
-                          onAssign={(tagId) => handleAssignTag(rule.id, tagId)}
-                          onRemove={(tagId) => handleRemoveTag(rule.id, tagId)}
-                        />
+                        <div className="flex flex-wrap items-center gap-1">
+                          {(rule.tags || []).map((tag) => (
+                            <span
+                              key={tag.id}
+                              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium"
+                              style={tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
+                            >
+                              {tag.name}
+                              <button
+                                className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); handleRemoveTag(rule.id, tag.id); }}
+                              >
+                                <X className="h-2.5 w-2.5" />
+                              </button>
+                            </span>
+                          ))}
+                          <TagPopover
+                            tagType="rule"
+                            targetId={rule.id}
+                            assignedTags={rule.tags || []}
+                            allTags={tags}
+                            onAssign={(tagId) => handleAssignTag(rule.id, tagId)}
+                            onRemove={(tagId) => handleRemoveTag(rule.id, tagId)}
+                            onCreate={async (name, color) => {
+                              await createTag({ name, color, tag_type: "rule" });
+                              await fetchRules();
+                            }}
+                          />
+                        </div>
                       </div>
                       <span className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="h-3 w-3" />
@@ -647,6 +667,13 @@ export function RulesManager() {
           </div>
         </div>
       )}
+
+      {/* Tag Manager Dialog */}
+      <TagManagerDialog
+        tagType="rule"
+        isOpen={showTagManager}
+        onClose={() => setShowTagManager(false)}
+      />
     </div>
   );
 }
