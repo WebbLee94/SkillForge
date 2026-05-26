@@ -250,7 +250,7 @@ export function Settings() {
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.name")}</th>
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.path")}</th>
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.projectPath")}</th>
-                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">{t("settings:platforms.capabilities.title")}</th>
+                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">能力</th>
                         <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">{t("settings:platforms.columns.status")}</th>
                       </tr>
                     </thead>
@@ -280,27 +280,19 @@ export function Settings() {
                               {(() => {
                                 const caps = capabilitiesMap[platform.id];
                                 if (!caps) return <span className="text-xs text-muted-foreground">-</span>;
-                                const CapIcon = ({ supported, label }: { supported: boolean; label: string }) => supported
-                                  ? <CheckCircle2 className="h-3.5 w-3.5 text-success inline-block" />
-                                  : <span title={label}><XCircle className="h-3.5 w-3.5 text-error inline-block" /></span>;
+                                const CapBadge = ({ supported, label }: { supported: boolean; label: string }) => (
+                                  <span title={`${label}: ${supported ? "✓" : "✗"}`}>
+                                    {supported
+                                      ? <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                      : <XCircle className="h-3.5 w-3.5 text-error" />}
+                                  </span>
+                                );
                                 return (
-                                  <div className="inline-grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-                                    <div className="flex items-center gap-0.5">
-                                      <CapIcon supported={caps.skills_global} label={t("settings:platforms.capabilities.notSupported")} />
-                                      <span>{t("settings:platforms.capabilities.skillsGlobal")}</span>
-                                    </div>
-                                    <div className="flex items-center gap-0.5">
-                                      <CapIcon supported={caps.skills_project} label={t("settings:platforms.capabilities.notSupported")} />
-                                      <span>{t("settings:platforms.capabilities.skillsProject")}</span>
-                                    </div>
-                                    <div className="flex items-center gap-0.5">
-                                      <CapIcon supported={caps.rules_global} label={t("settings:platforms.capabilities.notSupported")} />
-                                      <span>{t("settings:platforms.capabilities.rulesGlobal")}</span>
-                                    </div>
-                                    <div className="flex items-center gap-0.5">
-                                      <CapIcon supported={caps.rules_project} label={t("settings:platforms.capabilities.notSupported")} />
-                                      <span>{t("settings:platforms.capabilities.rulesProject")}</span>
-                                    </div>
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <CapBadge supported={caps.skills_global} label={t("settings:platforms.capabilities.skillsGlobal")} />
+                                    <CapBadge supported={caps.skills_project} label={t("settings:platforms.capabilities.skillsProject")} />
+                                    <CapBadge supported={caps.rules_global} label={t("settings:platforms.capabilities.rulesGlobal")} />
+                                    <CapBadge supported={caps.rules_project} label={t("settings:platforms.capabilities.rulesProject")} />
                                   </div>
                                 );
                               })()}

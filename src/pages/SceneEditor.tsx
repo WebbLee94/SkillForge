@@ -8,8 +8,9 @@ import { SortableRuleList } from "../components/SortableRuleList";
 import { TagFilterBar } from "../components/TagFilterBar";
 import {
   Search, Plus, Save, RefreshCw, Film,
-  Package, FileText, X,
+  Package, FileText, X, Monitor, Info, Trash2,
 } from "lucide-react";
+import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import type { PlatformCapabilities } from "../types";
 
 export function SceneEditor() {
@@ -36,6 +37,8 @@ export function SceneEditor() {
   const syncScene = useAppStore((s) => s.syncScene);
   const getScenePlatforms = useAppStore((s) => s.getScenePlatforms);
   const setScenePlatforms = useAppStore((s) => s.setScenePlatforms);
+  const deleteScene = useAppStore((s) => s.deleteScene);
+  const addToast = useAppStore((s) => s.addToast);
 
   const [leftTab, setLeftTab] = useState<"skills" | "rules">("skills");
   const [leftSearch, setLeftSearch] = useState("");
@@ -55,6 +58,13 @@ export function SceneEditor() {
     fetchRules();
     fetchPlatforms();
   }, [fetchScenes, fetchSkills, fetchRules, fetchPlatforms]);
+
+  // Auto-select first scene when currentScene is null on mount
+  useEffect(() => {
+    if (!currentScene && scenes.length > 0) {
+      setCurrentScene(scenes[0]);
+    }
+  }, [scenes, currentScene, setCurrentScene]);
 
   // Fetch tags for current tab and clear filter on tab switch
   useEffect(() => {
@@ -213,11 +223,30 @@ export function SceneEditor() {
           }}
           className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="">{t("selectScene")}</option>
           {scenes.map((scene) => (
             <option key={scene.id} value={scene.id}>{scene.name}</option>
           ))}
         </select>
+        {currentScene && !currentScene.is_system && (
+          <button
+            className="flex items-center gap-1 rounded-lg border border-error/30 bg-error/5 px-2 py-1.5 text-sm text-error hover:bg-error/10 transition-colors"
+            onClick={async () => {
+              if (!currentScene) return;
+              const confirmed = window.confirm(`确定要删除场景「${currentScene.name}」吗？此操作不可撤销。`);
+              if (!confirmed) return;
+              try {
+                await deleteScene(currentScene.id);
+                setCurrentScene(scenes[0] || null);
+                fetchScenes();
+              } catch (e: any) {
+                addToast(e?.toString?.() || "删除场景失败", "error");
+              }
+            }}
+            title="删除场景"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
         <button
           className={cn(
             "flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5",
@@ -416,30 +445,38 @@ export function SceneEditor() {
             {/* Platform Selector - hidden for system scenes */}
             {!currentScene.is_system && (
               <div className="mb-4">
-                <h3 className="mb-2 text-sm font-semibold text-foreground">{t("targetPlatforms")}</h3>
-                <div className="flex flex-wrap gap-2">
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Monitor className="h-4 w-4 text-primary" />
+                  Agent 平台
+                  <span className="text-xs font-normal text-muted-foreground">
+                    ({selectedPlatforms.length}/{platforms.filter((p) => p.enabled).length})
+                  </span>
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
                   {platforms.filter((p) => p.enabled).map((platform) => {
                     const caps = capabilitiesMap[platform.id];
+                    const isSelected = selectedPlatforms.includes(platform.id);
+                    const IconComp = getPlatformIcon(platform.id);
+                    const limitations: string[] = [];
+                    if (caps && !caps.rules_global) limitations.push("不支持全局规则");
+                    if (caps && !caps.rules_project && caps.rules_global) limitations.push("不支持项目规则");
                     return (
-                      <label key={platform.id} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedPlatforms.includes(platform.id)}
-                          onChange={() => togglePlatform(platform.id)}
-                          className="rounded border-border"
-                        />
-                        <span className="text-sm text-foreground">{platform.name}</span>
-                        {caps && !caps.rules_global && (
-                          <span className="text-xs text-warning ml-1" title={t("capabilities.no_global_rules")}>
-                            ⚠️ {t("capabilities.no_global_rules")}
+                      <div
+                        key={platform.id}
+                        onClick={() => togglePlatform(platform.id)}
+                        className={cn(
+                          "relative flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors",
+                          isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50",
+                        )}
+                      >
+                        <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
+                        <span className="text-sm font-medium text-foreground">{platform.name}</span>
+                        {limitations.length > 0 && (
+                          <span className="ml-auto" title={limitations.join("；")}>
+                            <Info className="h-3.5 w-3.5 text-warning" />
                           </span>
                         )}
-                        {caps && !caps.rules_project && caps.rules_global && (
-                          <span className="text-xs text-warning ml-1" title={t("capabilities.no_project_rules")}>
-                            ⚠️ {t("capabilities.no_project_rules")}
-                          </span>
-                        )}
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
