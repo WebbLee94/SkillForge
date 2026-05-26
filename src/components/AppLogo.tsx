@@ -32,46 +32,34 @@ export const AppLogo = forwardRef<SVGSVGElement, AppLogoProps>(
             <stop offset="100%" stopColor="#8b5cf6" />
           </linearGradient>
         </defs>
-
-        {/* Anvil left */}
         <path
-          d="M 7 19 L 7 14 L 4 14 L 4 10 L 10 6 L 10 10"
+          d="M 9 19 L 9 14 L 6 14 L 6 10 L 12 6 L 12 10"
           stroke="url(#logoLeft)"
           strokeWidth="1.5"
           strokeLinejoin="round"
           strokeLinecap="round"
           fill="none"
         />
-
-        {/* Anvil right */}
         <path
-          d="M 10 6 L 10 10 L 17 10 L 17 14 L 14 14 L 14 19"
+          d="M 12 6 L 12 10 L 19 10 L 19 14 L 16 14 L 16 19"
           stroke="url(#logoRight)"
           strokeWidth="1.5"
           strokeLinejoin="round"
           strokeLinecap="round"
           fill="none"
         />
-
-        {/* Connection arc */}
         <path
-          d="M 4 10 Q 9 4 17 10"
+          d="M 6 10 Q 11 4 19 10"
           stroke="url(#logoArc)"
           strokeWidth="1.2"
           strokeLinecap="round"
           fill="none"
           opacity="0.6"
         />
-
-        {/* Top node (purple, center) */}
-        <circle cx="10" cy="6" r="1.8" fill="#8b5cf6" />
-
-        {/* Right node (cyan) */}
-        <circle cx="17" cy="10" r="1.4" fill="#06b6d4" />
-
-        {/* Lower nodes (small) */}
-        <circle cx="7" cy="15.5" r="1.1" fill="#3b82f6" opacity="0.7" />
-        <circle cx="14" cy="15.5" r="1.1" fill="#06b6d4" opacity="0.7" />
+        <circle cx="12" cy="6" r="1.8" fill="#8b5cf6" />
+        <circle cx="19" cy="10" r="1.4" fill="#06b6d4" />
+        <circle cx="9" cy="15.5" r="1.1" fill="#3b82f6" opacity="0.7" />
+        <circle cx="16" cy="15.5" r="1.1" fill="#06b6d4" opacity="0.7" />
       </svg>
     );
   }

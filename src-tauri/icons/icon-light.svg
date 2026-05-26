@@ -14,27 +14,18 @@
     </linearGradient>
     <rect id="bgL" width="1024" height="1024" rx="222" fill="#f8fafc"/>
   </defs>
-
   <use href="#bgL"/>
-
-  <!-- Anvil left -->
-  <path d="M 290 780 L 290 540 L 180 540 L 180 420 L 370 300 L 370 420"
+  <path d="M 385 780 L 385 540 L 275 540 L 275 420 L 465 300 L 465 420"
         fill="none" stroke="url(#colorLeftL)" stroke-width="36"
         stroke-linejoin="round" stroke-linecap="round"/>
-
-  <!-- Anvil right -->
-  <path d="M 370 300 L 370 420 L 654 420 L 654 540 L 544 540 L 544 780"
+  <path d="M 465 300 L 465 420 L 749 420 L 749 540 L 639 540 L 639 780"
         fill="none" stroke="url(#colorRightL)" stroke-width="36"
         stroke-linejoin="round" stroke-linecap="round"/>
-
-  <!-- Connection arc -->
-  <path d="M 180 420 Q 370 200 654 420"
+  <path d="M 275 420 Q 465 200 749 420"
         stroke="url(#colorArcL)" stroke-width="24"
         fill="none" stroke-linecap="round" opacity="0.5"/>
-
-  <!-- Nodes -->
-  <circle cx="370" cy="300" r="48" fill="url(#colorLeftL)"/>
-  <circle cx="654" cy="420" r="40" fill="#0891b2"/>
-  <circle cx="290" cy="600" r="32" fill="#2563eb" opacity="0.6"/>
-  <circle cx="544" cy="600" r="32" fill="#0891b2" opacity="0.6"/>
+  <circle cx="465" cy="300" r="48" fill="url(#colorLeftL)"/>
+  <circle cx="749" cy="420" r="40" fill="#0891b2"/>
+  <circle cx="385" cy="600" r="32" fill="#2563eb" opacity="0.6"/>
+  <circle cx="639" cy="600" r="32" fill="#0891b2" opacity="0.6"/>
 </svg>
