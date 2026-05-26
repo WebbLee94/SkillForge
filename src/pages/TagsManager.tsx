@@ -9,6 +9,8 @@ const PRESET_COLORS = [
   "#EAB308", "#22C55E", "#14B8A6", "#06B6D4", "#6366F1",
 ];
 
+type TagTabType = "skill" | "rule";
+
 export function TagsManager() {
   const { t } = useTranslation("common");
   const tags = useAppStore((s) => s.tags);
@@ -17,6 +19,7 @@ export function TagsManager() {
   const updateTag = useAppStore((s) => s.updateTag);
   const deleteTag = useAppStore((s) => s.deleteTag);
 
+  const [activeTab, setActiveTab] = useState<TagTabType>("skill");
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
@@ -30,8 +33,8 @@ export function TagsManager() {
   const colorPickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchTags();
-  }, [fetchTags]);
+    fetchTags(activeTab);
+  }, [fetchTags, activeTab]);
 
   // Focus input when editing starts
   useEffect(() => {
@@ -56,23 +59,23 @@ export function TagsManager() {
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
-    await createTag({ name: newName.trim(), color: newColor });
+    await createTag({ name: newName.trim(), color: newColor, tag_type: activeTab });
     setShowCreate(false);
     setNewName("");
     setNewColor(PRESET_COLORS[0]);
-  }, [newName, newColor, createTag]);
+  }, [newName, newColor, activeTab, createTag]);
 
   const handleDelete = useCallback(async (id: number) => {
     const tag = tags.find((t) => t.id === id);
-    const skillCount = tag?.skill_count || 0;
-    const ruleCount = tag?.rule_count || 0;
-    const msg = skillCount > 0 || ruleCount > 0
-      ? `该标签关联 ${skillCount} 个技能、${ruleCount} 个规则，确定删除？`
+    const count = tag?.count || 0;
+    const typeName = activeTab === "skill" ? t("tag.skillType") : t("tag.ruleType");
+    const msg = count > 0
+      ? t("tag.deleteConfirm", { count, type: typeName })
       : t("messages.confirmDelete");
     if (window.confirm(msg)) {
       await deleteTag(id);
     }
-  }, [tags, t, deleteTag]);
+  }, [tags, activeTab, t, deleteTag]);
 
   const startEditName = (tagId: number, currentName: string) => {
     setEditingTagId(tagId);
@@ -116,17 +119,38 @@ export function TagsManager() {
         </button>
       </div>
 
+      {/* Tab Switcher */}
+      <div className="mb-4 flex rounded-lg bg-muted p-0.5 w-fit">
+        <button
+          className={cn(
+            "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+            activeTab === "skill" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => setActiveTab("skill")}
+        >
+          {t("tag.skillType")}
+        </button>
+        <button
+          className={cn(
+            "rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+            activeTab === "rule" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+          )}
+          onClick={() => setActiveTab("rule")}
+        >
+          {t("tag.ruleType")}
+        </button>
+      </div>
+
       {/* Tag Table */}
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/50">
               <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-12">#</th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-16">颜色</th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">标签名</th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-20">技能数</th>
-              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-20">规则数</th>
-              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground w-20">操作</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-16">{t("tag.color")}</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("tag.name")}</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-20">{t("tag.associatedCount")}</th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground w-20">{t("actions.delete")}</th>
             </tr>
           </thead>
           <tbody>
@@ -139,7 +163,7 @@ export function TagsManager() {
                       className="h-5 w-5 rounded-full shrink-0 border border-white/30 hover:scale-125 transition-transform"
                       style={tag.color ? { backgroundColor: tag.color } : { backgroundColor: "hsl(var(--muted-foreground))" }}
                       onClick={() => setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)}
-                      title="选择颜色"
+                      title={t("tag.selectColor")}
                     />
                     {colorPickerTagId === tag.id && (
                       <div
@@ -183,8 +207,7 @@ export function TagsManager() {
                     </button>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-muted-foreground">{tag.skill_count || 0}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">{tag.rule_count || 0}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{tag.count || 0}</td>
                 <td className="px-4 py-2.5 text-right">
                   <button
                     className="text-muted-foreground hover:text-error transition-colors"
@@ -198,7 +221,7 @@ export function TagsManager() {
             ))}
             {tags.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   {t("messages.noData")}
                 </td>
               </tr>
@@ -212,7 +235,7 @@ export function TagsManager() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
           <div className="w-[400px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">{t("actions.create")}{t("nav.tags")}</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("actions.create")}{activeTab === "skill" ? t("tag.skillType") : t("tag.ruleType")}</h2>
               <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -220,12 +243,35 @@ export function TagsManager() {
 
             <div className="space-y-4">
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">名称</label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("tag.selectType")}</label>
+                <div className="flex rounded-lg bg-muted p-0.5">
+                  <button
+                    className={cn(
+                      "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      activeTab === "skill" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setActiveTab("skill")}
+                  >
+                    {t("tag.skillType")}
+                  </button>
+                  <button
+                    className={cn(
+                      "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                      activeTab === "rule" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                    onClick={() => setActiveTab("rule")}
+                  >
+                    {t("tag.ruleType")}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("tag.name")}</label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="输入标签名称"
+                  placeholder={t("tag.namePlaceholder")}
                   className={cn(
                     "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
                     "focus:outline-none focus:ring-2 focus:ring-ring",
@@ -234,7 +280,7 @@ export function TagsManager() {
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  <Palette className="mr-1 inline h-4 w-4" /> 颜色
+                  <Palette className="mr-1 inline h-4 w-4" /> {t("tag.color")}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {PRESET_COLORS.map((color) => (
