@@ -37,7 +37,7 @@ export function SkillLibrary() {
 
   useEffect(() => {
     fetchSkills();
-    fetchTags();
+    fetchTags('skill');
   }, [fetchSkills, fetchTags]);
 
   const handleSearch = useCallback((value: string) => {

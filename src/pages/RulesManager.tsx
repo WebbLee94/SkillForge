@@ -66,7 +66,7 @@ export function RulesManager() {
 
   useEffect(() => {
     fetchRules();
-    fetchTags();
+    fetchTags('rule');
   }, [fetchRules, fetchTags]);
 
   useEffect(() => {
