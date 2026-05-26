@@ -8,6 +8,7 @@ import type {
   Tag,
   Project,
   Platform,
+  PlatformCapabilities,
   Distribution,
   SyncLog,
   DashboardStats,
@@ -107,6 +108,8 @@ export const ipc = {
   togglePlatformEnabled: (id: string, enabled: boolean) =>
     invoke<void>("toggle_platform_enabled", { id, enabled }),
   getDbSize: () => invoke<string>("get_db_size"),
+  getCapabilities: (platformId: string) =>
+    invoke<PlatformCapabilities>("get_platform_capabilities", { platformId }),
 
   // Global Distribution
   getGlobalDistributionStatus: () => invoke<GlobalDistStatus>("get_global_distribution_status"),

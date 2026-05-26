@@ -164,7 +164,22 @@ export interface Platform {
   project_path: string | null;
   enabled: boolean;
   icon: string | null;
+  capabilities?: PlatformCapabilities;
 }
+
+export interface PlatformCapabilities {
+  skills_global: boolean;
+  skills_project: boolean;
+  rules_global: boolean;
+  rules_project: boolean;
+  rules_format_global: RulesFormat | null;
+  rules_format_project: RulesFormat | null;
+  limitation_notes: string[];
+}
+
+export type RulesFormat =
+  | { Directory: null }
+  | { SingleFile: { file_name: string } };
 
 export interface PlatformInstance {
   platform_id: string;

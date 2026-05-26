@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::types::{
-    PlatformInstance, PlatformPaths, RulesFormat, Skill, SkillPlatformStatus, SyncResult,
+    PlatformCapabilities, PlatformInstance, PlatformPaths, RulesFormat, Skill, SkillPlatformStatus, SyncResult,
 };
 
 /// Trait for Agent platform adapter plugins.
@@ -29,6 +29,9 @@ pub trait PlatformPlugin: Send + Sync {
 
     /// Get the default installation paths for this platform
     fn default_paths(&self) -> PlatformPaths;
+
+    /// Get the capabilities of this platform (which scopes/rules formats are supported)
+    fn capabilities(&self) -> PlatformCapabilities;
 }
 
 /// Macro to define a symlink-based platform adapter.
@@ -238,6 +241,28 @@ macro_rules! define_symlink_adapter {
                     project_rules_pattern: $project_rules_pattern.map(|s: &str| s.to_string()),
                     global_rules_format: $global_rules_format,
                     project_rules_format: $project_rules_format,
+                }
+            }
+
+            fn capabilities(&self) -> PlatformCapabilities {
+                let paths = self.default_paths();
+                let rules_global = paths.global_rules_dir.is_some();
+                let rules_project = paths.project_rules_pattern.is_some();
+                let mut limitation_notes = Vec::new();
+                if !rules_global {
+                    limitation_notes.push("no_global_rules".to_string());
+                }
+                if !rules_project {
+                    limitation_notes.push("no_project_rules".to_string());
+                }
+                PlatformCapabilities {
+                    skills_global: true,
+                    skills_project: true,
+                    rules_global,
+                    rules_project,
+                    rules_format_global: paths.global_rules_format,
+                    rules_format_project: paths.project_rules_format,
+                    limitation_notes,
                 }
             }
         }
@@ -519,5 +544,40 @@ mod tests {
         let adapter = ClaudeCodeAdapter::new();
         // Detection depends on local environment; just ensure no error
         let _ = adapter.detect();
+    }
+
+    #[test]
+    fn test_claude_code_full_capabilities() {
+        let adapter = ClaudeCodeAdapter::new();
+        let caps = adapter.capabilities();
+        assert!(caps.skills_global, "Claude Code should support global skills");
+        assert!(caps.skills_project, "Claude Code should support project skills");
+        assert!(caps.rules_global, "Claude Code should support global rules");
+        assert!(caps.rules_project, "Claude Code should support project rules");
+        assert!(caps.limitation_notes.is_empty(), "Claude Code should have no limitation notes");
+    }
+
+    #[test]
+    fn test_windsurf_no_global_rules_capability() {
+        let adapter = WindsurfAdapter::new();
+        let caps = adapter.capabilities();
+        assert!(caps.skills_global);
+        assert!(caps.skills_project);
+        assert!(!caps.rules_global, "Windsurf should NOT support global rules");
+        assert!(caps.rules_project, "Windsurf should support project rules");
+        assert!(caps.limitation_notes.contains(&"no_global_rules".to_string()),
+            "Windsurf limitation_notes should contain 'no_global_rules'");
+    }
+
+    #[test]
+    fn test_openclaw_no_global_rules_capability() {
+        let adapter = OpenclawAdapter::new();
+        let caps = adapter.capabilities();
+        assert!(caps.skills_global);
+        assert!(caps.skills_project);
+        assert!(!caps.rules_global, "OpenClaw should NOT support global rules");
+        assert!(caps.rules_project, "OpenClaw should support project rules");
+        assert!(caps.limitation_notes.contains(&"no_global_rules".to_string()),
+            "OpenClaw limitation_notes should contain 'no_global_rules'");
     }
 }

@@ -237,6 +237,18 @@ pub struct PlatformInstance {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlatformCapabilities {
+    pub skills_global: bool,
+    pub skills_project: bool,
+    pub rules_global: bool,
+    pub rules_project: bool,
+    pub rules_format_global: Option<RulesFormat>,
+    pub rules_format_project: Option<RulesFormat>,
+    /// i18n keys like "no_global_rules", "no_project_rules"
+    pub limitation_notes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlatformPaths {
     pub global_skills_dir: String,
     pub project_skills_pattern: String,

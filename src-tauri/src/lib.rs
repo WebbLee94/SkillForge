@@ -67,6 +67,7 @@ pub fn run() {
             commands::system::get_drift_status,
             commands::system::toggle_platform_enabled,
             commands::system::get_db_size,
+            commands::platform::get_platform_capabilities,
         ])
         .setup(|app| {
             // Initialize database on startup
