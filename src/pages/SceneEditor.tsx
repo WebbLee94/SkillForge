@@ -292,21 +292,19 @@ export function SceneEditor() {
                 </button>
               </div>
               {/* Tag filter bar */}
-              {sceneTags.length > 0 && (
-                <div className="mt-2">
-                  <TagFilterBar
-                    tags={sceneTags}
-                    selectedTagIds={sceneTagFilter}
-                    onToggleTag={(tagId) => setSceneTagFilter(
-                      sceneTagFilter.includes(tagId)
-                        ? sceneTagFilter.filter((id) => id !== tagId)
-                        : [...sceneTagFilter, tagId],
-                    )}
-                    onClearAll={() => setSceneTagFilter([])}
-                    showUntagged={false}
-                  />
-                </div>
-              )}
+              <div className="mt-2">
+                <TagFilterBar
+                  tags={sceneTags}
+                  selectedTagIds={sceneTagFilter}
+                  onToggleTag={(tagId) => setSceneTagFilter(
+                    sceneTagFilter.includes(tagId)
+                      ? sceneTagFilter.filter((id) => id !== tagId)
+                      : [...sceneTagFilter, tagId],
+                  )}
+                  onClearAll={() => setSceneTagFilter([])}
+                  showUntagged={false}
+                />
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-2">
