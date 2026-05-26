@@ -32,10 +32,9 @@ pub struct Tag {
     pub name: String,
     pub color: Option<String>,
     pub category: Option<String>,
+    pub tag_type: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub skill_count: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub rule_count: Option<i64>,
+    pub count: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -188,6 +187,7 @@ pub struct CreateTagDTO {
     pub name: String,
     pub color: Option<String>,
     pub category: Option<String>,
+    pub tag_type: String,
 }
 
 // ── Skill bundle (from source) ─────────────────────────────────────
