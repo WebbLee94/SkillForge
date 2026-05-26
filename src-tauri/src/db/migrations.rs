@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -35,6 +35,9 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     }
     if current < 5 {
         apply_v5(conn)?;
+    }
+    if current < 6 {
+        apply_v6(conn)?;
     }
 
     Ok(())
@@ -184,6 +187,40 @@ fn apply_v5(conn: &rusqlite::Connection) -> Result<(), AppError> {
     conn.execute(
         "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
         rusqlite::params![5, now],
+    )?;
+
+    Ok(())
+}
+
+fn apply_v6(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    // Full refresh of all 12 built-in platforms using INSERT OR REPLACE
+    // to ensure old data is overwritten and new platforms are added
+    let platforms = [
+        ("claude-code", "Claude Code", "claude-code", "~/.claude/skills", ".claude/skills"),
+        ("opencode", "OpenCode", "opencode", "~/.config/opencode/skills", ".opencode/skills"),
+        ("cursor", "Cursor", "cursor", "~/.cursor/skills", ".cursor/skills"),
+        ("trae", "Trae", "trae", "~/.trae/skills", ".trae/skills"),
+        ("trae-cn", "Trae CN", "trae-cn", "~/.trae-cn/skills", ".trae-cn/skills"),
+        ("codebuddy", "CodeBuddy", "codebuddy", "~/.codebuddy/skills", ".codebuddy/skills"),
+        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn", "~/.codebuddy-cn/skills", ".codebuddy-cn/skills"),
+        ("codex", "Codex", "codex", "~/.codex/skills", ".codex/skills"),
+        ("hermes", "Hermes Agent", "hermes", "~/.hermes/skills", ".hermes/skills"),
+        ("openclaw", "OpenClaw", "openclaw", "~/.openclaw/skills", ".openclaw/skills"),
+        ("antigravity", "Antigravity", "antigravity", "~/.antigravity/skills", ".antigravity/skills"),
+        ("windsurf", "Windsurf", "windsurf", "~/.windsurf/skills", ".windsurf/skills"),
+    ];
+
+    for (id, name, adapter, global_path, project_path) in &platforms {
+        conn.execute(
+            "INSERT OR REPLACE INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
+            rusqlite::params![id, name, adapter, global_path, project_path],
+        )?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![6, now],
     )?;
 
     Ok(())
