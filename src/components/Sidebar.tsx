@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Package,
   FileText,
-  Tags,
   Film,
   Globe,
   FolderOpen,
@@ -42,7 +41,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { key: "skills", icon: <Package className="h-4 w-4" /> },
       { key: "rules", icon: <FileText className="h-4 w-4" /> },
-      { key: "tags", icon: <Tags className="h-4 w-4" /> },
     ],
   },
 ];

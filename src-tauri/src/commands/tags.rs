@@ -8,89 +8,101 @@ use rusqlite::params;
 pub fn list_tags(
     category: Option<String>,
     tag_type: Option<String>,
+    search: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Tag>, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     // Build SQL based on filters
-    let (sql, use_category, use_tag_type) = match (&category, &tag_type) {
-        (Some(_), Some(_)) => (
+    let (sql, use_category, use_tag_type, use_search) = match (&category, &tag_type, &search) {
+        (Some(_), Some(_), Some(_)) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.category = ?1 AND t.tag_type = ?2 AND t.name LIKE '%' || ?3 || '%' COLLATE NOCASE ORDER BY t.name ASC",
+            true, true, true,
+        ),
+        (Some(_), Some(_), None) => (
             "SELECT t.id, t.name, t.color, t.category, t.tag_type,
                     CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
                          WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
                          ELSE 0 END as count
              FROM tags t WHERE t.category = ?1 AND t.tag_type = ?2 ORDER BY t.name ASC",
-            true, true,
+            true, true, false,
         ),
-        (Some(_), None) => (
+        (Some(_), None, Some(_)) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.category = ?1 AND t.name LIKE '%' || ?2 || '%' COLLATE NOCASE ORDER BY t.name ASC",
+            true, false, true,
+        ),
+        (Some(_), None, None) => (
             "SELECT t.id, t.name, t.color, t.category, t.tag_type,
                     CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
                          WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
                          ELSE 0 END as count
              FROM tags t WHERE t.category = ?1 ORDER BY t.name ASC",
-            true, false,
+            true, false, false,
         ),
-        (None, Some(_)) => (
+        (None, Some(_), Some(_)) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.tag_type = ?1 AND t.name LIKE '%' || ?2 || '%' COLLATE NOCASE ORDER BY t.name ASC",
+            false, true, true,
+        ),
+        (None, Some(_), None) => (
             "SELECT t.id, t.name, t.color, t.category, t.tag_type,
                     CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
                          WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
                          ELSE 0 END as count
              FROM tags t WHERE t.tag_type = ?1 ORDER BY t.name ASC",
-            false, true,
+            false, true, false,
         ),
-        (None, None) => (
+        (None, None, Some(_)) => (
+            "SELECT t.id, t.name, t.color, t.category, t.tag_type,
+                    CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
+                         WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
+                         ELSE 0 END as count
+             FROM tags t WHERE t.name LIKE '%' || ?1 || '%' COLLATE NOCASE ORDER BY t.name ASC",
+            false, false, true,
+        ),
+        (None, None, None) => (
             "SELECT t.id, t.name, t.color, t.category, t.tag_type,
                     CASE WHEN t.tag_type = 'skill' THEN (SELECT COUNT(*) FROM skill_tags WHERE tag_id = t.id)
                          WHEN t.tag_type = 'rule' THEN (SELECT COUNT(*) FROM rule_tags WHERE tag_id = t.id)
                          ELSE 0 END as count
              FROM tags t ORDER BY t.name ASC",
-            false, false,
+            false, false, false,
         ),
     };
 
     let mut stmt = conn.prepare(sql)?;
 
-    let tags: Vec<Tag> = match (use_category, use_tag_type) {
-        (true, true) => stmt.query_map(params![category, tag_type], |row| {
-            Ok(Tag {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                color: row.get(2)?,
-                category: row.get(3)?,
-                tag_type: row.get(4)?,
-                count: row.get(5)?,
-            })
-        })?.filter_map(|r| r.ok()).collect(),
-        (true, false) => stmt.query_map(params![category], |row| {
-            Ok(Tag {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                color: row.get(2)?,
-                category: row.get(3)?,
-                tag_type: row.get(4)?,
-                count: row.get(5)?,
-            })
-        })?.filter_map(|r| r.ok()).collect(),
-        (false, true) => stmt.query_map(params![tag_type], |row| {
-            Ok(Tag {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                color: row.get(2)?,
-                category: row.get(3)?,
-                tag_type: row.get(4)?,
-                count: row.get(5)?,
-            })
-        })?.filter_map(|r| r.ok()).collect(),
-        (false, false) => stmt.query_map([], |row| {
-            Ok(Tag {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                color: row.get(2)?,
-                category: row.get(3)?,
-                tag_type: row.get(4)?,
-                count: row.get(5)?,
-            })
-        })?.filter_map(|r| r.ok()).collect(),
+    let row_mapper = |row: &rusqlite::Row| -> Result<Tag, rusqlite::Error> {
+        Ok(Tag {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
+            category: row.get(3)?,
+            tag_type: row.get(4)?,
+            count: row.get(5)?,
+        })
+    };
+
+    let tags: Vec<Tag> = match (use_category, use_tag_type, use_search) {
+        (true, true, true) => stmt.query_map(params![category, tag_type, search], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (true, true, false) => stmt.query_map(params![category, tag_type], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (true, false, true) => stmt.query_map(params![category, search], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (true, false, false) => stmt.query_map(params![category], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (false, true, true) => stmt.query_map(params![tag_type, search], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (false, true, false) => stmt.query_map(params![tag_type], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (false, false, true) => stmt.query_map(params![search], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (false, false, false) => stmt.query_map([], row_mapper)?.filter_map(|r| r.ok()).collect(),
     };
 
     Ok(tags)
