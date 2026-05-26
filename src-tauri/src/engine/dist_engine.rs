@@ -575,7 +575,9 @@ fn sync_rules_to_platform(
 /// Switch the global scene with diff-based install/remove.
 ///
 /// Computes the diff between the old scene's skills/rules and the new scene's,
-/// then installs new items and removes old items across all platform plugins.
+/// then installs new items and removes old items across scene-associated platforms.
+/// Platforms only in the old scene get full cleanup; shared platforms get diff;
+/// platforms only in the new scene get full install.
 pub fn switch_global_scene(
     conn: &rusqlite::Connection,
     platform_plugins: &[Box<dyn PlatformPlugin>],
@@ -593,6 +595,31 @@ pub fn switch_global_scene(
         )
         .unwrap_or(None);
 
+    // Get platform associations for old and new scenes
+    let old_platform_ids: Vec<String> = if let Some(ref old_id) = old_scene_id {
+        crate::engine::scene_engine::get_scene_platforms(conn, old_id)?
+    } else {
+        vec![]
+    };
+    let new_platform_ids = crate::engine::scene_engine::get_scene_platforms(conn, new_scene_id)?;
+
+    // Compute platform diff
+    let platforms_only_old: Vec<String> = old_platform_ids
+        .iter()
+        .filter(|p| !new_platform_ids.contains(p))
+        .cloned()
+        .collect();
+    let platforms_only_new: Vec<String> = new_platform_ids
+        .iter()
+        .filter(|p| !old_platform_ids.contains(p))
+        .cloned()
+        .collect();
+    let platforms_shared: Vec<String> = old_platform_ids
+        .iter()
+        .filter(|p| new_platform_ids.contains(p))
+        .cloned()
+        .collect();
+
     // Get old scene skills (if any)
     let old_skills: Vec<String> = if let Some(ref old_id) = old_scene_id {
         resolve_scene_skills(conn, old_id)?
@@ -603,13 +630,13 @@ pub fn switch_global_scene(
     // Get new scene skills
     let new_skills = resolve_scene_skills(conn, new_scene_id)?;
 
-    // Compute diff
-    let to_remove: Vec<String> = old_skills
+    // Compute skill diff
+    let skills_to_remove: Vec<String> = old_skills
         .iter()
         .filter(|s| !new_skills.contains(s))
         .cloned()
         .collect();
-    let to_install: Vec<String> = new_skills
+    let skills_to_install: Vec<String> = new_skills
         .iter()
         .filter(|s| !old_skills.contains(s))
         .cloned()
@@ -622,40 +649,89 @@ pub fn switch_global_scene(
         errors: vec![],
     };
 
-    // For each platform: install new skills first (avoid gap), then remove old
-    for plugin in platform_plugins {
-        let instances = plugin.detect().unwrap_or_default();
-        for instance in instances {
-            if instance.scope != "global" {
-                continue;
-            }
+    // Helper: find plugin by platform_id
+    let find_plugin = |pid: &str| -> Option<&Box<dyn PlatformPlugin>> {
+        platform_plugins.iter().find(|p| p.platform_name() == pid)
+    };
 
-            // Install new skills first
-            for skill_id in &to_install {
-                if let Ok(skill) = get_skill(conn, skill_id) {
-                    match plugin.install(&skill, &instance) {
+    // 1. Platforms only in old scene: remove ALL old skills
+    for pid in &platforms_only_old {
+        if let Some(plugin) = find_plugin(pid) {
+            let instances = plugin.detect().unwrap_or_default();
+            for instance in instances {
+                if instance.scope != "global" { continue; }
+                for skill_id in &old_skills {
+                    match plugin.remove(skill_id, &instance) {
                         Ok(_) => {
-                            result.installed.push(skill_id.clone());
-                            log_sync(conn, "install", "skill", skill_id, plugin.platform_name(), "success", None);
+                            result.removed.push(skill_id.clone());
+                            log_sync(conn, "remove", "skill", skill_id, pid, "success", None);
                         }
                         Err(e) => {
-                            result.errors.push(format!("{}: {}", skill_id, e));
-                            log_sync(conn, "install", "skill", skill_id, plugin.platform_name(), "error", Some(&e.to_string()));
+                            result.errors.push(format!("remove {} from {}: {}", skill_id, pid, e));
+                            log_sync(conn, "remove", "skill", skill_id, pid, "error", Some(&e.to_string()));
                         }
                     }
                 }
             }
+        }
+    }
 
-            // Remove old skills
-            for skill_id in &to_remove {
-                match plugin.remove(skill_id, &instance) {
-                    Ok(_) => {
-                        result.removed.push(skill_id.clone());
-                        log_sync(conn, "remove", "skill", skill_id, plugin.platform_name(), "success", None);
+    // 2. Shared platforms: install new skills first, then remove old
+    for pid in &platforms_shared {
+        if let Some(plugin) = find_plugin(pid) {
+            let instances = plugin.detect().unwrap_or_default();
+            for instance in instances {
+                if instance.scope != "global" { continue; }
+                // Install new skills first (avoid gap)
+                for skill_id in &skills_to_install {
+                    if let Ok(skill) = get_skill(conn, skill_id) {
+                        match plugin.install(&skill, &instance) {
+                            Ok(_) => {
+                                result.installed.push(skill_id.clone());
+                                log_sync(conn, "install", "skill", skill_id, pid, "success", None);
+                            }
+                            Err(e) => {
+                                result.errors.push(format!("{}: {}", skill_id, e));
+                                log_sync(conn, "install", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                            }
+                        }
                     }
-                    Err(e) => {
-                        result.errors.push(format!("remove {}: {}", skill_id, e));
-                        log_sync(conn, "remove", "skill", skill_id, plugin.platform_name(), "error", Some(&e.to_string()));
+                }
+                // Remove old skills
+                for skill_id in &skills_to_remove {
+                    match plugin.remove(skill_id, &instance) {
+                        Ok(_) => {
+                            result.removed.push(skill_id.clone());
+                            log_sync(conn, "remove", "skill", skill_id, pid, "success", None);
+                        }
+                        Err(e) => {
+                            result.errors.push(format!("remove {}: {}", skill_id, e));
+                            log_sync(conn, "remove", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 3. Platforms only in new scene: install ALL new skills
+    for pid in &platforms_only_new {
+        if let Some(plugin) = find_plugin(pid) {
+            let instances = plugin.detect().unwrap_or_default();
+            for instance in instances {
+                if instance.scope != "global" { continue; }
+                for skill_id in &new_skills {
+                    if let Ok(skill) = get_skill(conn, skill_id) {
+                        match plugin.install(&skill, &instance) {
+                            Ok(_) => {
+                                result.installed.push(skill_id.clone());
+                                log_sync(conn, "install", "skill", skill_id, pid, "success", None);
+                            }
+                            Err(e) => {
+                                result.errors.push(format!("{}: {}", skill_id, e));
+                                log_sync(conn, "install", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                            }
+                        }
                     }
                 }
             }
@@ -680,18 +756,52 @@ pub fn switch_global_scene(
         .cloned()
         .collect();
 
-    for plugin in platform_plugins {
-        if plugin.default_paths().global_rules_dir.is_none() {
-            continue;
-        }
-        let instances = plugin.detect().unwrap_or_default();
-        for instance in instances {
-            if instance.scope != "global" {
+    // Rules: only shared and new platforms
+    let all_target_platforms: Vec<&String> = platforms_shared.iter().chain(platforms_only_new.iter()).collect();
+    for pid in all_target_platforms {
+        if let Some(plugin) = find_plugin(pid) {
+            if plugin.default_paths().global_rules_dir.is_none() {
                 continue;
             }
-            // Install new rules
-            sync_rules_to_platform(conn, plugin, &instance, &rules_to_install, &mut result)?;
-            // Remove old rules (delete files directly)
+            let instances = plugin.detect().unwrap_or_default();
+            for instance in instances {
+                if instance.scope != "global" { continue; }
+                // Install new rules
+                sync_rules_to_platform(conn, plugin, &instance, &rules_to_install, &mut result)?;
+            }
+        }
+    }
+
+    // Remove old rules from platforms only in old scene
+    for pid in &platforms_only_old {
+        if let Some(plugin) = find_plugin(pid) {
+            if plugin.default_paths().global_rules_dir.is_none() {
+                continue;
+            }
+            let rules_dir = plugin
+                .default_paths()
+                .global_rules_dir
+                .as_ref()
+                .map(|d| crate::plugins::platform::expand_home(d));
+            if let Some(rules_dir) = &rules_dir {
+                for rule_id in &old_rules {
+                    for ext in &["md", "txt", "mdc"] {
+                        let file_path = rules_dir.join(format!("{}.{}", rule_id, ext));
+                        if file_path.exists() {
+                            let _ = std::fs::remove_file(&file_path);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove old rules from shared platforms
+    for pid in &platforms_shared {
+        if let Some(plugin) = find_plugin(pid) {
+            if plugin.default_paths().global_rules_dir.is_none() {
+                continue;
+            }
             let rules_dir = plugin
                 .default_paths()
                 .global_rules_dir
@@ -699,7 +809,6 @@ pub fn switch_global_scene(
                 .map(|d| crate::plugins::platform::expand_home(d));
             if let Some(rules_dir) = &rules_dir {
                 for rule_id in &rules_to_remove {
-                    // Try common rule formats
                     for ext in &["md", "txt", "mdc"] {
                         let file_path = rules_dir.join(format!("{}.{}", rule_id, ext));
                         if file_path.exists() {
@@ -717,19 +826,22 @@ pub fn switch_global_scene(
         params![new_scene_id],
     )?;
 
-    // Update distribution records for all platforms
+    // Update distribution records for new scene's platforms only
     let now = chrono::Utc::now().to_rfc3339();
     let checksum = compute_scene_checksum(conn, new_scene_id);
-    let platform_ids: Vec<String> = conn
-        .prepare("SELECT id FROM platforms")?
-        .query_map([], |row| row.get(0))?
-        .filter_map(|r| r.ok())
-        .collect();
-    for pid in &platform_ids {
+    for pid in &new_platform_ids {
         conn.execute(
             "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, synced_at, checksum)
              VALUES (?1, ?2, 'global', NULL, NULL, 'synced', ?3, ?4)",
             params![new_scene_id, pid, now, checksum],
+        )?;
+    }
+
+    // Clean up distribution records for platforms no longer associated
+    for pid in &platforms_only_old {
+        conn.execute(
+            "DELETE FROM distributions WHERE scene_id = ?1 AND platform_id = ?2 AND scope = 'global'",
+            params![new_scene_id, pid],
         )?;
     }
 
