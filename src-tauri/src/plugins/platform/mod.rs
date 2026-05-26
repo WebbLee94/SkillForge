@@ -241,6 +241,15 @@ macro_rules! define_symlink_adapter {
 define_symlink_adapter!(ClaudeCodeAdapter, "claude-code", "Claude Code", "~/.claude/skills", ".claude/skills", Some("~/.claude/rules"));
 define_symlink_adapter!(OpenCodeAdapter, "opencode", "OpenCode", "~/.config/opencode/skills", ".opencode/skills", Some("~/.config/opencode/rules"));
 define_symlink_adapter!(CursorAdapter, "cursor", "Cursor", "~/.cursor/skills", ".cursor/skills", Some("~/.cursor/rules"));
+define_symlink_adapter!(TraeAdapter, "trae", "Trae", "~/.trae/skills", ".trae/skills", None);
+define_symlink_adapter!(TraeCnAdapter, "trae-cn", "Trae CN", "~/.trae-cn/skills", ".trae-cn/skills", None);
+define_symlink_adapter!(CodebuddyAdapter, "codebuddy", "CodeBuddy", "~/.codebuddy/skills", ".codebuddy/skills", None);
+define_symlink_adapter!(CodebuddyCnAdapter, "codebuddy-cn", "CodeBuddy CN", "~/.codebuddy-cn/skills", ".codebuddy-cn/skills", None);
+define_symlink_adapter!(CodexAdapter, "codex", "Codex", "~/.codex/skills", ".codex/skills", None);
+define_symlink_adapter!(HermesAdapter, "hermes", "Hermes Agent", "~/.hermes/skills", ".hermes/skills", None);
+define_symlink_adapter!(OpenclawAdapter, "openclaw", "OpenClaw", "~/.openclaw/skills", ".openclaw/skills", None);
+define_symlink_adapter!(AntigravityAdapter, "antigravity", "Antigravity", "~/.antigravity/skills", ".antigravity/skills", None);
+define_symlink_adapter!(WindsurfAdapter, "windsurf", "Windsurf", "~/.windsurf/skills", ".windsurf/skills", None);
 
 // ── Registry ────────────────────────────────────────────────────────
 
@@ -282,6 +291,15 @@ pub fn create_platform_plugin(name: &str) -> Result<Box<dyn PlatformPlugin>, App
         "claude-code" => Ok(Box::new(ClaudeCodeAdapter::new())),
         "opencode" => Ok(Box::new(OpenCodeAdapter::new())),
         "cursor" => Ok(Box::new(CursorAdapter::new())),
+        "trae" => Ok(Box::new(TraeAdapter::new())),
+        "trae-cn" => Ok(Box::new(TraeCnAdapter::new())),
+        "codebuddy" => Ok(Box::new(CodebuddyAdapter::new())),
+        "codebuddy-cn" => Ok(Box::new(CodebuddyCnAdapter::new())),
+        "codex" => Ok(Box::new(CodexAdapter::new())),
+        "hermes" => Ok(Box::new(HermesAdapter::new())),
+        "openclaw" => Ok(Box::new(OpenclawAdapter::new())),
+        "antigravity" => Ok(Box::new(AntigravityAdapter::new())),
+        "windsurf" => Ok(Box::new(WindsurfAdapter::new())),
         _ => Err(AppError::Platform(format!(
             "未知的平台插件: {}",
             name
@@ -295,6 +313,15 @@ pub fn create_all_platform_plugins() -> PlatformRegistry {
     registry.register(Box::new(ClaudeCodeAdapter::new()));
     registry.register(Box::new(OpenCodeAdapter::new()));
     registry.register(Box::new(CursorAdapter::new()));
+    registry.register(Box::new(TraeAdapter::new()));
+    registry.register(Box::new(TraeCnAdapter::new()));
+    registry.register(Box::new(CodebuddyAdapter::new()));
+    registry.register(Box::new(CodebuddyCnAdapter::new()));
+    registry.register(Box::new(CodexAdapter::new()));
+    registry.register(Box::new(HermesAdapter::new()));
+    registry.register(Box::new(OpenclawAdapter::new()));
+    registry.register(Box::new(AntigravityAdapter::new()));
+    registry.register(Box::new(WindsurfAdapter::new()));
     registry
 }
 
@@ -304,6 +331,15 @@ pub fn create_all_platform_plugins_vec() -> Vec<Box<dyn PlatformPlugin>> {
         Box::new(ClaudeCodeAdapter::new()),
         Box::new(OpenCodeAdapter::new()),
         Box::new(CursorAdapter::new()),
+        Box::new(TraeAdapter::new()),
+        Box::new(TraeCnAdapter::new()),
+        Box::new(CodebuddyAdapter::new()),
+        Box::new(CodebuddyCnAdapter::new()),
+        Box::new(CodexAdapter::new()),
+        Box::new(HermesAdapter::new()),
+        Box::new(OpenclawAdapter::new()),
+        Box::new(AntigravityAdapter::new()),
+        Box::new(WindsurfAdapter::new()),
     ]
 }
 

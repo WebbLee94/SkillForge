@@ -199,6 +199,15 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
         ("claude-code", "Claude Code", "claude-code", "~/.claude/skills", ".claude/skills"),
         ("opencode", "OpenCode", "opencode", "~/.config/opencode/skills", ".opencode/skills"),
         ("cursor", "Cursor", "cursor", "~/.cursor/skills", ".cursor/skills"),
+        ("trae", "Trae", "trae", "~/.trae/skills", ".trae/skills"),
+        ("trae-cn", "Trae CN", "trae-cn", "~/.trae-cn/skills", ".trae-cn/skills"),
+        ("codebuddy", "CodeBuddy", "codebuddy", "~/.codebuddy/skills", ".codebuddy/skills"),
+        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn", "~/.codebuddy-cn/skills", ".codebuddy-cn/skills"),
+        ("codex", "Codex", "codex", "~/.codex/skills", ".codex/skills"),
+        ("hermes", "Hermes Agent", "hermes", "~/.hermes/skills", ".hermes/skills"),
+        ("openclaw", "OpenClaw", "openclaw", "~/.openclaw/skills", ".openclaw/skills"),
+        ("antigravity", "Antigravity", "antigravity", "~/.antigravity/skills", ".antigravity/skills"),
+        ("windsurf", "Windsurf", "windsurf", "~/.windsurf/skills", ".windsurf/skills"),
     ];
 
     for (id, name, adapter, global_path, project_path) in &platforms {
@@ -256,7 +265,7 @@ mod tests {
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM platforms", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, 3);
+        assert_eq!(count, 12);
 
         // Verify __all_skills__ scene
         let scene_name: String = conn

@@ -1182,7 +1182,7 @@ mod tests {
     fn test_get_sync_status() {
         let conn = setup_db();
         let status = get_sync_status(&conn).unwrap();
-        assert_eq!(status.platforms.len(), 3); // 3 built-in platforms
+        assert_eq!(status.platforms.len(), 12); // 12 built-in platforms
     }
 
     #[test]
