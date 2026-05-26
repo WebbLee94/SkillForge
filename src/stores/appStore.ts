@@ -549,6 +549,29 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
   syncScene: async (sceneId, platforms, scope, projectId) => {
     try {
+      // L2: 同步前能力检查 — 全局分发时检查是否有平台不支持全局规则
+      if (scope === "global") {
+        try {
+          const targetPlatformIds = platforms ?? (await ipc.getScenePlatforms(sceneId));
+          const noGlobalRulesPlatforms: string[] = [];
+          for (const pid of targetPlatformIds) {
+            const cap = await ipc.getCapabilities(pid);
+            if (!cap.rules_global) {
+              const p = get().platforms.find((pl) => pl.id === pid);
+              noGlobalRulesPlatforms.push(p?.name || pid);
+            }
+          }
+          if (noGlobalRulesPlatforms.length > 0) {
+            get().addToast(
+              `⚠️ ${noGlobalRulesPlatforms.join("、")} 不支持全局规则分发，这些平台将跳过规则同步`,
+              "warning",
+            );
+          }
+        } catch {
+          // 能力检查失败不阻断同步
+        }
+      }
+
       get().addToast("开始同步...", "info");
       const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
       await get().fetchDistributions();
