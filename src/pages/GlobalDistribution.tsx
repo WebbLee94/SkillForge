@@ -59,9 +59,9 @@ export function GlobalDistribution() {
   // T14: Recent activity for distribution history
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
 
-  // T3: Filter out system scenes (__all_skills__)
-  const userScenes = useMemo(
-    () => scenes.filter((s) => !s.is_system),
+  // T3: Include system scenes in the selector
+  const selectableScenes = useMemo(
+    () => scenes,
     [scenes],
   );
 
@@ -266,7 +266,7 @@ export function GlobalDistribution() {
             className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="" disabled>请选择场景</option>
-            {userScenes.map((scene) => (
+            {selectableScenes.map((scene) => (
               <option key={scene.id} value={scene.id}>{scene.name}</option>
             ))}
           </select>

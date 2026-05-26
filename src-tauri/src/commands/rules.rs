@@ -10,7 +10,9 @@ fn parse_tags_json(json: &str) -> Vec<Tag> {
     if json == "[\"\"]" || json == "[]" {
         return Vec::new();
     }
-    serde_json::from_str(json).unwrap_or_default()
+    let tags: Vec<Tag> = serde_json::from_str(json).unwrap_or_default();
+    // Filter out null-id entries from LEFT JOIN with no matching tags
+    tags.into_iter().filter(|t| t.id != 0).collect()
 }
 
 #[tauri::command]
@@ -23,7 +25,7 @@ pub fn list_rules(
 
     let sql = if platform.is_some() {
         "SELECT r.id, r.name, r.description, r.format, r.content, r.platform, r.scope, r.version, r.updated_at, \
-         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
          FROM rules r \
          LEFT JOIN rule_tags rt ON r.id = rt.rule_id \
          LEFT JOIN tags t ON rt.tag_id = t.id \
@@ -32,7 +34,7 @@ pub fn list_rules(
          ORDER BY r.name ASC"
     } else {
         "SELECT r.id, r.name, r.description, r.format, r.content, r.platform, r.scope, r.version, r.updated_at, \
-         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
          FROM rules r \
          LEFT JOIN rule_tags rt ON r.id = rt.rule_id \
          LEFT JOIN tags t ON rt.tag_id = t.id \

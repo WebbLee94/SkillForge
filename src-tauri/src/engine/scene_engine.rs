@@ -123,7 +123,7 @@ pub fn update_scene(
     Ok(())
 }
 
-/// Delete a scene. Blocks if the scene is in use by projects.
+/// Delete a scene. Blocks if the scene is in use by projects or global distribution.
 /// Returns SceneInUse error with project count and names.
 pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppError> {
     if id == "__all_skills__" {
@@ -132,7 +132,29 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
         ));
     }
 
-    let _scene = query_scene_by_id(conn, id)?;
+    let scene = query_scene_by_id(conn, id)?;
+
+    // Block deletion of system scenes
+    if scene.is_system {
+        return Err(AppError::Validation(
+            "无法删除系统场景".to_string(),
+        ));
+    }
+
+    // Check global distribution reference
+    let global_scene_id: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_config WHERE key = 'global_scene_id'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(None);
+
+    if global_scene_id.as_deref() == Some(id) {
+        return Err(AppError::Validation(
+            "该场景正被全局分发使用，请先切换".to_string(),
+        ));
+    }
 
     // Check project references: collect project names for error message
     let project_count: i32 = conn
@@ -150,6 +172,7 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
     // Delete associations (cascading should handle this, but be explicit)
     conn.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
+    conn.execute("DELETE FROM scene_platforms WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM distributions WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
 

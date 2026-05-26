@@ -176,7 +176,7 @@ pub fn list_skills(
 ) -> Result<Vec<Skill>, AppError> {
     let mut sql = String::from(
         "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
-         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
          FROM skills s \
          LEFT JOIN skill_tags st ON s.id = st.skill_id \
          LEFT JOIN tags t ON st.tag_id = t.id \
@@ -234,7 +234,7 @@ pub fn search_skills(
     let pattern = format!("%{}%", query);
     let mut stmt = conn.prepare(
         "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
-         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
          FROM skills s \
          LEFT JOIN skill_tags st ON s.id = st.skill_id \
          LEFT JOIN tags t ON st.tag_id = t.id \
@@ -301,17 +301,19 @@ pub fn get_skill_versions(
 /// Parse the JSON string produced by `json_group_array` into `Vec<Tag>`.
 /// Handles the edge case where LEFT JOIN yields `[""]` (no matching tags).
 fn parse_tags_json(json: &str) -> Vec<Tag> {
-    // json_group_array with LEFT JOIN on no matches produces `[""]`
+    // json_group_array with LEFT JOIN on no matches produces `[""]` or `[{"id":null,...}]`
     if json == "[\"\"]" || json == "[]" {
         return Vec::new();
     }
-    serde_json::from_str(json).unwrap_or_default()
+    let tags: Vec<Tag> = serde_json::from_str(json).unwrap_or_default();
+    // Filter out null-id entries from LEFT JOIN with no matching tags
+    tags.into_iter().filter(|t| t.id != 0).collect()
 }
 
 fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, AppError> {
     conn.query_row(
         "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
-         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color)), '[]') \
+         IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
          FROM skills s \
          LEFT JOIN skill_tags st ON s.id = st.skill_id \
          LEFT JOIN tags t ON st.tag_id = t.id \
@@ -504,5 +506,54 @@ mod tests {
         // We verify the error type exists and has the right message
         let err = AppError::DuplicateSkill("test-skill".to_string());
         assert!(err.to_string().contains("test-skill"));
+    }
+
+    #[test]
+    fn test_list_skills_with_tags() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Insert a skill
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["tagged-skill", "Tagged Skill", "A skill with tags", "local-fs", now, "/tmp/test"],
+        ).unwrap();
+
+        // Insert a tag
+        conn.execute(
+            "INSERT INTO tags (name, color, tag_type) VALUES (?1, ?2, 'skill')",
+            params!["rust", "#ff6600"],
+        ).unwrap();
+        let tag_id: i64 = conn.query_row("SELECT last_insert_rowid()", [], |r| r.get(0)).unwrap();
+
+        // Associate tag with skill
+        conn.execute(
+            "INSERT INTO skill_tags (skill_id, tag_id) VALUES (?1, ?2)",
+            params!["tagged-skill", tag_id],
+        ).unwrap();
+
+        let filter = SkillFilter { source_type: None, tag: None };
+        let skills = list_skills(&conn, &filter).unwrap();
+        assert_eq!(skills.len(), 1);
+        assert_eq!(skills[0].tags.len(), 1);
+        assert_eq!(skills[0].tags[0].name, "rust");
+        assert_eq!(skills[0].tags[0].color, Some("#ff6600".to_string()));
+    }
+
+    #[test]
+    fn test_list_skills_without_tags() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+
+        // Insert a skill without tags
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["untagged-skill", "Untagged Skill", "No tags", "local-fs", now, "/tmp/test"],
+        ).unwrap();
+
+        let filter = SkillFilter { source_type: None, tag: None };
+        let skills = list_skills(&conn, &filter).unwrap();
+        assert_eq!(skills.len(), 1);
+        assert!(skills[0].tags.is_empty());
     }
 }
