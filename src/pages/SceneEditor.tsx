@@ -360,7 +360,7 @@ export function SceneEditor() {
               <div className="mb-4">
                 <h3 className="mb-2 text-sm font-semibold text-foreground">{t("targetPlatforms")}</h3>
                 <div className="flex flex-wrap gap-2">
-                  {platforms.map((platform) => (
+                  {platforms.filter((p) => p.enabled).map((platform) => (
                     <label key={platform.id} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"

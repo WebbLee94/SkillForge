@@ -1,0 +1,24 @@
+{
+  "title": "设置",
+  "tabs": {
+    "general": "通用",
+    "platforms": "Agent平台"
+  },
+  "general": {
+    "language": { "title": "语言 / Language", "desc": "选择界面显示语言" },
+    "languageSystem": "跟随系统",
+    "dataDir": { "title": "数据目录", "desc": "SkillForge 数据存储位置" },
+    "dbSize": { "title": "数据库大小", "desc": "SQLite 数据库文件占用空间" },
+    "version": { "title": "版本", "desc": "当前应用版本号" },
+    "github": { "title": "GitHub", "desc": "查看源码和提交反馈" },
+    "dbSizeCalculating": "计算中..."
+  },
+  "platforms": {
+    "title": "Agent平台列表",
+    "addButton": "添加平台",
+    "columns": { "name": "名称", "path": "全局路径", "projectPath": "项目路径", "status": "状态" },
+    "actions": { "enable": "启用", "disable": "禁用" },
+    "hint": "管理已注册的 Agent 平台。启用/禁用平台将影响场景编辑和分发中的可见性。",
+    "comingSoon": "平台管理功能将在后续版本中开放，当前仅支持查看内置平台"
+  }
+}

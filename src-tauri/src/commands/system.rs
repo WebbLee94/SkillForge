@@ -226,7 +226,7 @@ pub fn get_global_distribution_status(
             )
             .unwrap_or(0);
 
-        // Get per-platform status (only scene-associated platforms)
+        // Get per-platform status (only scene-associated, enabled platforms)
         let mut stmt = conn.prepare(
             "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.synced_at
              FROM platforms p
@@ -234,7 +234,8 @@ pub fn get_global_distribution_status(
              LEFT JOIN (
                 SELECT platform_id, COUNT(*) as synced_count, MAX(synced_at) as synced_at
                 FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
-             ) d ON p.id = d.platform_id",
+             ) d ON p.id = d.platform_id
+             WHERE p.enabled != 0",
         )?;
         let platforms: Vec<PlatformDistInfo> = stmt
             .query_map(params![sid, status.skill_count], |row| {

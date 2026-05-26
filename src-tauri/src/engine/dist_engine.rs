@@ -228,7 +228,7 @@ pub fn sync_scene(
     Ok(result)
 }
 
-/// Get the current sync status across all platforms.
+/// Get the current sync status across all enabled platforms.
 pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, AppError> {
     let mut stmt = conn.prepare(
         "SELECT p.id, p.name, COALESCE(d.status, 'never_synced') as status,
@@ -249,6 +249,7 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
              FROM distributions
              GROUP BY platform_id
          ) s ON p.id = s.platform_id
+         WHERE p.enabled != 0
          ORDER BY p.name ASC",
     )?;
 

@@ -1,0 +1,24 @@
+{
+  "title": "Settings",
+  "tabs": {
+    "general": "General",
+    "platforms": "Agent Platforms"
+  },
+  "general": {
+    "language": { "title": "Language", "desc": "Choose display language" },
+    "languageSystem": "Follow System",
+    "dataDir": { "title": "Data Directory", "desc": "SkillForge data storage location" },
+    "dbSize": { "title": "Database Size", "desc": "SQLite database file size" },
+    "version": { "title": "Version", "desc": "Current application version" },
+    "github": { "title": "GitHub", "desc": "View source code and submit feedback" },
+    "dbSizeCalculating": "Calculating..."
+  },
+  "platforms": {
+    "title": "Agent Platform List",
+    "addButton": "Add Platform",
+    "columns": { "name": "Name", "path": "Global Path", "projectPath": "Project Path", "status": "Status" },
+    "actions": { "enable": "Enable", "disable": "Disable" },
+    "hint": "Manage registered Agent platforms. Enabling/disabling platforms affects visibility in scene editing and distribution.",
+    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed."
+  }
+}

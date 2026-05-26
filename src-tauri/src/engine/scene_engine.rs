@@ -393,6 +393,7 @@ pub fn get_all_skills_scene(conn: &rusqlite::Connection) -> Result<SceneDetail, 
 }
 
 /// Get platform IDs associated with a scene.
+/// Only returns platforms that are enabled (p.enabled != 0).
 pub fn get_scene_platforms(
     conn: &rusqlite::Connection,
     scene_id: &str,
@@ -400,7 +401,9 @@ pub fn get_scene_platforms(
     let _scene = query_scene_by_id(conn, scene_id)?;
 
     let mut stmt = conn.prepare(
-        "SELECT platform_id FROM scene_platforms WHERE scene_id = ?1",
+        "SELECT sp.platform_id FROM scene_platforms sp
+         INNER JOIN platforms p ON sp.platform_id = p.id
+         WHERE sp.scene_id = ?1 AND p.enabled != 0",
     )?;
 
     let platform_ids: Vec<String> = stmt

@@ -3,12 +3,11 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
-import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe, AlertTriangle, ArrowDown, ArrowUp, X } from "lucide-react";
+import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe, AlertTriangle } from "lucide-react";
 
 export function Dashboard() {
   const { t } = useTranslation("common");
   const dashboardStats = useAppStore((s) => s.dashboardStats);
-  const recentActivity = useAppStore((s) => s.recentActivity);
   const globalDistStatus = useAppStore((s) => s.globalDistStatus);
   const driftCount = useAppStore((s) => s.driftCount);
   const fetchDashboardStats = useAppStore((s) => s.fetchDashboardStats);
@@ -85,8 +84,8 @@ export function Dashboard() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        {/* Global Distribution Status */}
+      <div>
+        {/* Global Distribution Status (full width) */}
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">全局分发状态</h2>
@@ -158,37 +157,6 @@ export function Dashboard() {
             </div>
           ) : (
             <p className="text-sm text-muted-foreground">{t("messages.noData")}</p>
-          )}
-        </div>
-
-        {/* Recent Activity */}
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h2 className="mb-4 text-sm font-semibold text-foreground">{t("messages.recentActivity", "最近活动")}</h2>
-          {recentActivity.length > 0 ? (
-            <div className="space-y-3">
-              {recentActivity.slice(0, 5).map((log) => {
-                const isRemove = log.action === "remove";
-                const isError = log.status === "error";
-                const icon = isError
-                  ? <X className="h-3.5 w-3.5 text-error" />
-                  : isRemove
-                    ? <ArrowUp className="h-3.5 w-3.5 text-error" />
-                    : <ArrowDown className="h-3.5 w-3.5 text-success" />;
-                return (
-                  <div key={log.id} className="flex items-start gap-2">
-                    <span className="mt-0.5 shrink-0">{icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground truncate">
-                        {log.target_type} → {log.message || log.platform_id || ""}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{formatDate(log.created_at)}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">暂无分发记录，完成一次全局分发后这里将显示活动日志</p>
           )}
         </div>
       </div>

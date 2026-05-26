@@ -116,85 +116,95 @@ export function TagsManager() {
         </button>
       </div>
 
-      {/* Tag Grid */}
-      <div className="flex flex-wrap gap-3">
-        {tags.map((tag) => (
-          <div key={tag.id} className="group relative">
-            {editingTagId === tag.id ? (
-              /* Inline name editing */
-              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-card p-2 shadow-sm">
-                <input
-                  ref={editInputRef}
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onBlur={saveEditName}
-                  onKeyDown={handleEditKeyDown}
-                  className="w-24 rounded border border-input px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                />
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                {/* Tag chip: click name to edit, click color to pick */}
-                <div className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium hover:shadow-sm transition-all"
-                  style={tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
-                >
-                  {/* Color swatch: click to open color picker */}
-                  <button
-                    className="h-3.5 w-3.5 rounded-full shrink-0 border border-white/30 hover:scale-125 transition-transform"
-                    style={tag.color ? { backgroundColor: tag.color } : { backgroundColor: "hsl(var(--muted-foreground))" }}
-                    onClick={() => setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)}
-                    title="选择颜色"
-                  />
-                  {/* Tag name: click to edit inline */}
-                  <button
-                    className="hover:underline cursor-text"
-                    onClick={() => startEditName(tag.id, tag.name)}
-                  >
-                    {tag.name}
-                  </button>
-                  {(tag.skill_count !== undefined || tag.rule_count !== undefined) && (
-                    <span className="opacity-60 text-xs">
-                      {(tag.skill_count || 0) + (tag.rule_count || 0)}
-                    </span>
-                  )}
-                </div>
-                <button
-                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-error transition-all"
-                  onClick={() => handleDelete(tag.id)}
-                  title={t("actions.delete")}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-
-            {/* Color Picker Popup */}
-            {colorPickerTagId === tag.id && (
-              <div
-                ref={colorPickerRef}
-                className="absolute z-30 mt-1 rounded-lg border border-border bg-card p-3 shadow-lg"
-              >
-                <div className="flex flex-wrap gap-2">
-                  {PRESET_COLORS.map((color) => (
+      {/* Tag Table */}
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted/50">
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-12">#</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-16">颜色</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">标签名</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-20">技能数</th>
+              <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-20">规则数</th>
+              <th className="px-4 py-2.5 text-right font-medium text-muted-foreground w-20">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tags.map((tag, index) => (
+              <tr key={tag.id} className="border-b border-border last:border-0 group">
+                <td className="px-4 py-2.5 text-muted-foreground">{index + 1}</td>
+                <td className="px-4 py-2.5">
+                  <div className="relative">
                     <button
-                      key={color}
-                      className={cn(
-                        "h-7 w-7 rounded-lg border-2 transition-all",
-                        tag.color === color ? "border-foreground scale-110" : "border-transparent hover:scale-105",
-                      )}
-                      style={{ backgroundColor: color }}
-                      onClick={() => handleColorSelect(tag.id, color)}
+                      className="h-5 w-5 rounded-full shrink-0 border border-white/30 hover:scale-125 transition-transform"
+                      style={tag.color ? { backgroundColor: tag.color } : { backgroundColor: "hsl(var(--muted-foreground))" }}
+                      onClick={() => setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)}
+                      title="选择颜色"
                     />
-                  ))}
-                </div>
-              </div>
+                    {colorPickerTagId === tag.id && (
+                      <div
+                        ref={colorPickerRef}
+                        className="absolute z-30 left-0 top-8 rounded-lg border border-border bg-card p-3 shadow-lg"
+                      >
+                        <div className="flex flex-wrap gap-2">
+                          {PRESET_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              className={cn(
+                                "h-7 w-7 rounded-lg border-2 transition-all",
+                                tag.color === color ? "border-foreground scale-110" : "border-transparent hover:scale-105",
+                              )}
+                              style={{ backgroundColor: color }}
+                              onClick={() => handleColorSelect(tag.id, color)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-2.5">
+                  {editingTagId === tag.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={saveEditName}
+                      onKeyDown={handleEditKeyDown}
+                      className="w-40 rounded border border-input px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                    />
+                  ) : (
+                    <button
+                      className="hover:underline cursor-text text-foreground"
+                      onClick={() => startEditName(tag.id, tag.name)}
+                    >
+                      {tag.name}
+                    </button>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-muted-foreground">{tag.skill_count || 0}</td>
+                <td className="px-4 py-2.5 text-muted-foreground">{tag.rule_count || 0}</td>
+                <td className="px-4 py-2.5 text-right">
+                  <button
+                    className="text-muted-foreground hover:text-error transition-colors"
+                    onClick={() => handleDelete(tag.id)}
+                    title={t("actions.delete")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {tags.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  {t("messages.noData")}
+                </td>
+              </tr>
             )}
-          </div>
-        ))}
-        {tags.length === 0 && (
-          <p className="text-sm text-muted-foreground">{t("messages.noData")}</p>
-        )}
+          </tbody>
+        </table>
       </div>
 
       {/* Create Dialog */}
