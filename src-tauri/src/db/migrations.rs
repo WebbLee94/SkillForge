@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -35,6 +35,9 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     }
     if current < 5 {
         apply_v5(conn)?;
+    }
+    if current < 6 {
+        apply_v6(conn)?;
     }
 
     Ok(())
@@ -189,6 +192,40 @@ fn apply_v5(conn: &rusqlite::Connection) -> Result<(), AppError> {
     Ok(())
 }
 
+fn apply_v6(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    // Full refresh of all 12 built-in platforms using INSERT OR REPLACE
+    // to ensure old data is overwritten and new platforms are added
+    let platforms = [
+        ("claude-code", "Claude Code", "claude-code", "~/.claude/skills", ".claude/skills"),
+        ("opencode", "OpenCode", "opencode", "~/.config/opencode/skills", ".opencode/skills"),
+        ("cursor", "Cursor", "cursor", "~/.cursor/skills", ".cursor/skills"),
+        ("trae", "Trae", "trae", "~/.trae/skills", ".trae/skills"),
+        ("trae-cn", "Trae CN", "trae-cn", "~/.trae-cn/skills", ".trae-cn/skills"),
+        ("codebuddy", "CodeBuddy", "codebuddy", "~/.codebuddy/skills", ".codebuddy/skills"),
+        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn", "~/.codebuddy-cn/skills", ".codebuddy-cn/skills"),
+        ("codex", "Codex", "codex", "~/.codex/skills", ".codex/skills"),
+        ("hermes", "Hermes Agent", "hermes", "~/.hermes/skills", ".hermes/skills"),
+        ("openclaw", "OpenClaw", "openclaw", "~/.openclaw/skills", ".openclaw/skills"),
+        ("antigravity", "Antigravity", "antigravity", "~/.antigravity/skills", ".antigravity/skills"),
+        ("windsurf", "Windsurf", "windsurf", "~/.windsurf/skills", ".windsurf/skills"),
+    ];
+
+    for (id, name, adapter, global_path, project_path) in &platforms {
+        conn.execute(
+            "INSERT OR REPLACE INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
+            rusqlite::params![id, name, adapter, global_path, project_path],
+        )?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![6, now],
+    )?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,5 +260,108 @@ mod tests {
             )
             .unwrap();
         assert_eq!(version, CURRENT_VERSION);
+    }
+
+    #[test]
+    fn test_v6_migration_overwrites_old_platforms() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+
+        // Simulate an old database with only 3 platforms and stale data
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS platforms (
+                id           TEXT PRIMARY KEY,
+                name         TEXT NOT NULL,
+                adapter      TEXT NOT NULL,
+                global_path  TEXT,
+                project_path TEXT,
+                enabled      INTEGER NOT NULL DEFAULT 1,
+                icon         TEXT
+            );
+            CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            );"
+        ).unwrap();
+
+        // Insert old/stale platform data
+        conn.execute(
+            "INSERT INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
+            rusqlite::params!["claude-code", "Claude Code Old", "claude-code", "~/.claude/old-skills", ".claude/old-skills"],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
+            rusqlite::params!["opencode", "OpenCode", "opencode", "~/.config/opencode/skills", ".opencode/skills"],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
+            rusqlite::params!["cursor", "Cursor", "cursor", "~/.cursor/skills", ".cursor/skills"],
+        ).unwrap();
+
+        // Mark schema as version 5 (old user)
+        let now = chrono::Utc::now().to_rfc3339();
+        for v in 1..=5 {
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                rusqlite::params![v, now],
+            ).unwrap();
+        }
+
+        // Run migrations — should apply v6
+        run_migrations(&mut conn).unwrap();
+
+        // Assert: 12 platforms total
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM platforms", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(count, 12);
+
+        // Assert: claude-code name overwritten from "Claude Code Old" to "Claude Code"
+        let name: String = conn
+            .query_row(
+                "SELECT name FROM platforms WHERE id = 'claude-code'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(name, "Claude Code");
+
+        // Assert: claude-code global_path overwritten
+        let global_path: String = conn
+            .query_row(
+                "SELECT global_path FROM platforms WHERE id = 'claude-code'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(global_path, "~/.claude/skills");
+
+        // Assert: new platforms exist
+        let trae_name: String = conn
+            .query_row(
+                "SELECT name FROM platforms WHERE id = 'trae'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(trae_name, "Trae");
+
+        let windsurf_name: String = conn
+            .query_row(
+                "SELECT name FROM platforms WHERE id = 'windsurf'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(windsurf_name, "Windsurf");
+
+        // Assert: schema_version max is 6
+        let version: u32 = conn
+            .query_row(
+                "SELECT MAX(version) FROM schema_version",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(version, 6);
     }
 }
