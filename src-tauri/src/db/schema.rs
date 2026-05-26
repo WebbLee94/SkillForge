@@ -32,9 +32,10 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS tags (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
-            name     TEXT UNIQUE NOT NULL,
+            name     TEXT NOT NULL,
             color    TEXT,
-            category TEXT
+            category TEXT,
+            tag_type TEXT NOT NULL DEFAULT 'skill' CHECK(tag_type IN ('skill','rule'))
         );"
     )?;
 
@@ -187,7 +188,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
     // ── Indexes ────────────────────────────────────────────────────
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_skills_source_type ON skills(source_type);
-         CREATE INDEX IF NOT EXISTS idx_tags_name ON tags(name);
+         CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_type ON tags(name, tag_type);
          CREATE INDEX IF NOT EXISTS idx_scene_skills_scene ON scene_skills(scene_id);
          CREATE INDEX IF NOT EXISTS idx_distributions_project ON distributions(project_id, platform_id);
          CREATE INDEX IF NOT EXISTS idx_distributions_scene ON distributions(scene_id, platform_id, scope);
