@@ -13,12 +13,6 @@
     "projectDistribution": "项目分发",
     "settings": "设置"
   },
-  "navGroups": {
-    "overview": "概览",
-    "resources": "资源",
-    "orchestration": "编排",
-    "distribution": "分发"
-  },
   "actions": {
     "add": "添加",
     "edit": "编辑",
@@ -47,7 +41,8 @@
     "cancelSelect": "取消选择",
     "confirmImport": "确认导入",
     "searchProjects": "搜索项目...",
-    "openInFileManager": "在文件管理器中打开"
+    "openInFileManager": "在文件管理器中打开",
+    "openDir": "打开目录"
   },
   "status": {
     "synced": "已同步",
@@ -77,8 +72,6 @@
     "totalFiles": "共 {{count}} 个文件",
     "skillInUse": "技能被 {{count}} 个场景使用",
     "sceneInUse": "场景被 {{count}} 个项目使用",
-    "projectExists": "该项目已存在",
-    "skillExists": "技能已安装",
     "syncSuccess": "同步成功",
     "syncFailed": "同步失败",
     "installSuccess": "安装成功",
@@ -87,23 +80,10 @@
     "updateSuccess": "更新成功",
     "saveSuccess": "保存成功",
     "deleteSuccess": "删除成功",
-    "dependencyHint": "此技能需要 {{name}}，是否自动添加？",
-    "addManually": "暂不添加",
-    "addAuto": "自动添加",
     "noData": "暂无数据",
     "loading": "加载中...",
     "operationFailed": "操作失败",
-    "requiredField": "此字段为必填项",
-    "nameRequired": "名称不能为空",
-    "recentActivity": "最近活动",
-    "comingSoon": "即将推出",
     "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
-  },
-  "platforms": {
-    "claude-code": "Claude Code",
-    "opencode": "OpenCode",
-    "cursor": "Cursor",
-    "syncStatus": "平台同步状态"
   },
   "tag": {
     "name": "名称",
@@ -127,7 +107,6 @@
     "globalDistStatus": "全局分发状态",
     "currentScene": "当前场景",
     "notConfigured": "未配置",
-    "configureGlobalScene": "请先配置全局场景",
-    "skillRuleCount": "技能 / 规则"
+    "configureGlobalScene": "请先配置全局场景"
   }
 }

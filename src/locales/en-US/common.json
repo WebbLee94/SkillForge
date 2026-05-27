@@ -13,12 +13,6 @@
     "projectDistribution": "Project Distribution",
     "settings": "Settings"
   },
-  "navGroups": {
-    "overview": "Overview",
-    "resources": "Resources",
-    "orchestration": "Orchestration",
-    "distribution": "Distribution"
-  },
   "actions": {
     "add": "Add",
     "edit": "Edit",
@@ -47,7 +41,8 @@
     "cancelSelect": "Cancel Selection",
     "confirmImport": "Confirm Import",
     "searchProjects": "Search projects...",
-    "openInFileManager": "Open in File Manager"
+    "openInFileManager": "Open in File Manager",
+    "openDir": "Open Directory"
   },
   "status": {
     "synced": "Synced",
@@ -77,8 +72,6 @@
     "totalFiles": "{{count}} file(s) total",
     "skillInUse": "Skill is used by {{count}} scene(s)",
     "sceneInUse": "Scene is used by {{count}} project(s)",
-    "projectExists": "Project already exists",
-    "skillExists": "Skill already installed",
     "syncSuccess": "Sync successful",
     "syncFailed": "Sync failed",
     "installSuccess": "Install successful",
@@ -87,23 +80,10 @@
     "updateSuccess": "Update successful",
     "saveSuccess": "Save successful",
     "deleteSuccess": "Delete successful",
-    "dependencyHint": "This skill requires {{name}}. Add automatically?",
-    "addManually": "Skip for now",
-    "addAuto": "Add automatically",
     "noData": "No data",
     "loading": "Loading...",
     "operationFailed": "Operation failed",
-    "requiredField": "This field is required",
-    "nameRequired": "Name is required",
-    "recentActivity": "Recent Activity",
-    "comingSoon": "Coming Soon",
     "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
-  },
-  "platforms": {
-    "claude-code": "Claude Code",
-    "opencode": "OpenCode",
-    "cursor": "Cursor",
-    "syncStatus": "Platform Sync Status"
   },
   "tag": {
     "name": "Name",
@@ -127,7 +107,6 @@
     "globalDistStatus": "Global Distribution Status",
     "currentScene": "Current Scene",
     "notConfigured": "Not Configured",
-    "configureGlobalScene": "Configure global scene first",
-    "skillRuleCount": "Skills / Rules"
+    "configureGlobalScene": "Configure global scene first"
   }
 }

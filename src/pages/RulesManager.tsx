@@ -572,7 +572,7 @@ export function RulesManager() {
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  {tc("nav.rules")} {t("create.namePlaceholder").split("入")[0]}
+                  {t("create.nameLabel")}
                 </label>
                 <input
                   type="text"
@@ -586,7 +586,7 @@ export function RulesManager() {
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("create.descriptionPlaceholder").split("入")[0]}</label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("create.descriptionLabel")}</label>
                 <input
                   type="text"
                   value={newDescription}

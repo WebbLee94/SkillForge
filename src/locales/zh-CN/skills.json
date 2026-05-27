@@ -23,7 +23,8 @@
     "installedAt": "安装时间",
     "dependencies": "依赖",
     "platformStatus": "平台同步状态",
-    "noSkillSelected": "选择一个技能查看详情"
+    "noSkillSelected": "选择一个技能查看详情",
+    "openInFinder": "在文件管理器中打开"
   },
   "install": {
     "title": "安装技能",

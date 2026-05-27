@@ -103,7 +103,7 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
                                                       ▼
                                               ~/.skillforge/  ← SQLite DB + 技能/规则存储
                                                       │
-                                                      ▼ (symlink push-only)
+                                                      ▼ (symlink, bidirectional sync)
                               claude-code/ opencode/ cursor/ trae/ windsurf/ ... (12 平台)
 ```
 

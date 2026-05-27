@@ -23,7 +23,8 @@
     "installedAt": "Installed At",
     "dependencies": "Dependencies",
     "platformStatus": "Platform Sync Status",
-    "noSkillSelected": "Select a skill to view details"
+    "noSkillSelected": "Select a skill to view details",
+    "openInFinder": "Open in File Manager"
   },
   "install": {
     "title": "Install Skill",

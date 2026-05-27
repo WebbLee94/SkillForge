@@ -279,9 +279,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   // === Tag Actions ===
-  fetchTags: async (tagType?: string, search?: string) => {
+  fetchTags: async (tagType?: string) => {
     try {
-      const tags = await ipc.listTags(undefined, tagType, search);
+      const tags = await ipc.listTags(undefined, tagType);
       set({ tags });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);

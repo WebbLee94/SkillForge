@@ -22,6 +22,8 @@
   },
   "create": {
     "title": "New Rule",
+    "nameLabel": "Rule Name",
+    "descriptionLabel": "Description",
     "namePlaceholder": "Enter rule name",
     "descriptionPlaceholder": "Enter rule description",
     "contentPlaceholder": "Write rule content...",

@@ -22,6 +22,8 @@
   },
   "create": {
     "title": "新建规则",
+    "nameLabel": "规则名称",
+    "descriptionLabel": "规则描述",
     "namePlaceholder": "输入规则名称",
     "descriptionPlaceholder": "输入规则描述",
     "contentPlaceholder": "编写规则内容...",

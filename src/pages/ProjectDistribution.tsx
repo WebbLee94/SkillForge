@@ -24,6 +24,7 @@ const statusIconMap: Record<SyncStatus, React.ReactNode> = {
 export function ProjectDistribution() {
   const { t } = useTranslation("distribution");
   const { t: tc } = useTranslation("common");
+  const { t: ts } = useTranslation("scenes");
   const projects = useAppStore((s) => s.projects);
   const scenes = useAppStore((s) => s.scenes);
   const distributions = useAppStore((s) => s.distributions);
@@ -156,7 +157,7 @@ export function ProjectDistribution() {
             onChange={(e) => setSceneFilter(e.target.value)}
             className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="">{tc("scenes:allScenes")}</option>
+            <option value="">{ts("allScenes")}</option>
             {scenes.map((scene) => (
               <option key={scene.id} value={scene.id}>{scene.name}</option>
             ))}
