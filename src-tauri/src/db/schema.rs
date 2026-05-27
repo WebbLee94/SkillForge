@@ -155,7 +155,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             project_id   TEXT REFERENCES projects(id) ON DELETE CASCADE,
             project_path TEXT,
             status       TEXT NOT NULL,
-            synced_at    TEXT,
+            last_synced_at TEXT,
             checksum     TEXT
         );"
     )?;

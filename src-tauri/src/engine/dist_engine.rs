@@ -224,8 +224,8 @@ pub fn sync_scene(
         let checksum = compute_scene_checksum(conn, scene_id);
 
         conn.execute(
-            "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, synced_at, checksum)
-             VALUES (?1, ?2, ?3, ?4, ?5, 'synced', ?6, ?7)",
+            "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'), ?7)",
             params![scene_id, platform_id, scope, project_id, project_path, now, checksum],
         )?;
     }
@@ -340,7 +340,7 @@ pub fn get_distribution_detail(
     scope: &str,
 ) -> Result<Vec<Distribution>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, synced_at, checksum
+        "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum
          FROM distributions
          WHERE scene_id = ?1 AND platform_id = ?2 AND scope = ?3",
     )?;
@@ -355,7 +355,7 @@ pub fn get_distribution_detail(
                 project_id: row.get(4)?,
                 project_path: row.get(5)?,
                 status: row.get(6)?,
-                synced_at: row.get(7)?,
+                last_synced_at: row.get(7)?,
                 checksum: row.get(8)?,
             })
         })?
@@ -371,11 +371,11 @@ pub fn get_distributions(
     scene_id: Option<&str>,
 ) -> Result<Vec<Distribution>, AppError> {
     let sql = if scene_id.is_some() {
-        "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, synced_at, checksum
-         FROM distributions WHERE scene_id = ?1 ORDER BY synced_at DESC"
+        "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum
+         FROM distributions WHERE scene_id = ?1 ORDER BY last_synced_at DESC"
     } else {
-        "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, synced_at, checksum
-         FROM distributions ORDER BY synced_at DESC"
+        "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum
+         FROM distributions ORDER BY last_synced_at DESC"
     };
 
     let mut stmt = conn.prepare(sql)?;
@@ -390,7 +390,7 @@ pub fn get_distributions(
                 project_id: row.get(4)?,
                 project_path: row.get(5)?,
                 status: row.get(6)?,
-                synced_at: row.get(7)?,
+                last_synced_at: row.get(7)?,
                 checksum: row.get(8)?,
             })
         })?
@@ -406,7 +406,7 @@ pub fn get_distributions(
                 project_id: row.get(4)?,
                 project_path: row.get(5)?,
                 status: row.get(6)?,
-                synced_at: row.get(7)?,
+                last_synced_at: row.get(7)?,
                 checksum: row.get(8)?,
             })
         })?

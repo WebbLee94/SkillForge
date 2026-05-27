@@ -258,20 +258,20 @@ pub fn get_global_distribution_status(
         let is_all_skills = sid == "__all_skills__";
         let mut stmt = conn.prepare(
             if is_all_skills {
-                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.synced_at
+                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
                  FROM platforms p
                  LEFT JOIN (
-                    SELECT platform_id, COUNT(*) as synced_count, MAX(synced_at) as synced_at
+                    SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
                     FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
                  ) d ON p.id = d.platform_id
                  WHERE p.enabled != 0
                  ORDER BY p.name ASC"
             } else {
-                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.synced_at
+                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
                  FROM platforms p
                  INNER JOIN scene_platforms sp ON sp.platform_id = p.id AND sp.scene_id = ?1
                  LEFT JOIN (
-                    SELECT platform_id, COUNT(*) as synced_count, MAX(synced_at) as synced_at
+                    SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
                     FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
                  ) d ON p.id = d.platform_id
                  WHERE p.enabled != 0"
@@ -313,7 +313,7 @@ pub fn get_global_distribution_status(
         // Last synced
         status.last_synced_at = conn
             .query_row(
-                "SELECT MAX(synced_at) FROM distributions WHERE scene_id = ?1 AND scope = 'global'",
+                "SELECT MAX(last_synced_at) FROM distributions WHERE scene_id = ?1 AND scope = 'global'",
                 params![sid],
                 |row| row.get(0),
             )

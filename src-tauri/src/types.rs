@@ -120,7 +120,7 @@ pub struct Distribution {
     pub project_id: Option<String>,
     pub project_path: Option<String>,
     pub status: String,
-    pub synced_at: Option<String>,
+    pub last_synced_at: Option<String>,
     pub checksum: Option<String>,
 }
 

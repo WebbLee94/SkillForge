@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 8;
+const CURRENT_VERSION: u32 = 9;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -44,6 +44,9 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     }
     if current < 8 {
         apply_v8(conn)?;
+    }
+    if current < 9 {
+        apply_v9(conn)?;
     }
 
     Ok(())
@@ -354,6 +357,33 @@ fn apply_v8(conn: &rusqlite::Connection) -> Result<(), AppError> {
     Ok(())
 }
 
+fn apply_v9(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    // v9: Rename distributions.synced_at → last_synced_at for API consistency
+    // Only apply if the old column name still exists
+    let has_synced_at: bool = {
+        let mut stmt = conn.prepare("PRAGMA table_info(distributions)")?;
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))?
+            .filter_map(|r| r.ok())
+            .collect();
+        columns.iter().any(|c| c == "synced_at")
+    };
+
+    if has_synced_at {
+        conn.execute_batch(
+            "ALTER TABLE distributions RENAME COLUMN synced_at TO last_synced_at;"
+        )?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![9, now],
+    )?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -496,7 +526,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
     }
 
     #[test]
