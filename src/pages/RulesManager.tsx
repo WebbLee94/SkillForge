@@ -140,12 +140,14 @@ export function RulesManager() {
   const handleAssignTag = useCallback(async (ruleId: string, tagId: number) => {
     await assignTag("rule", ruleId, tagId);
     await fetchRules();
-  }, [assignTag, fetchRules]);
+    await fetchTags('rule');
+  }, [assignTag, fetchRules, fetchTags]);
 
   const handleRemoveTag = useCallback(async (ruleId: string, tagId: number) => {
     await removeTagAction("rule", ruleId, tagId);
     await fetchRules();
-  }, [removeTagAction, fetchRules]);
+    await fetchTags('rule');
+  }, [removeTagAction, fetchRules, fetchTags]);
 
   const handleBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;

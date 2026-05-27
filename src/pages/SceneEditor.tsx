@@ -8,7 +8,7 @@ import { SortableRuleList } from "../components/SortableRuleList";
 import { TagFilterBar } from "../components/TagFilterBar";
 import {
   Search, Plus, Save, RefreshCw, Film,
-  Package, FileText, X, Monitor, Info, Trash2,
+  Package, FileText, X, Monitor, Info, Trash2, CheckCircle2,
 } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import type { PlatformCapabilities } from "../types";
@@ -464,9 +464,12 @@ export function SceneEditor() {
                         onClick={() => togglePlatform(platform.id)}
                         className={cn(
                           "relative flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors",
-                          isSelected ? "border-primary bg-primary/5" : "border-border hover:border-primary/50",
+                          isSelected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50",
                         )}
                       >
+                        {isSelected && (
+                          <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
+                        )}
                         <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
                         <span className="text-sm font-medium text-foreground">{platform.name}</span>
                         {limitations.length > 0 && (
