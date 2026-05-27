@@ -6,7 +6,7 @@ import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
 import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
-  Package, FileText, X, History,
+  Package, FileText, History,
 } from "lucide-react";
 import type { SyncStatus, SyncLog } from "../types";
 
