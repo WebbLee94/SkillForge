@@ -6,9 +6,9 @@ import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
 import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
-  ShieldCheck, Package, FileText, X, Zap, History,
+  Package, FileText, X, History,
 } from "lucide-react";
-import type { SyncStatus, VerifyReport, DriftedItem, SyncLog } from "../types";
+import type { SyncStatus, SyncLog } from "../types";
 
 const statusIconMap: Record<SyncStatus, React.ReactNode> = {
   synced: <CheckCircle className="h-4 w-4 text-success" />,
@@ -51,12 +51,7 @@ export function GlobalDistribution() {
   const fetchGlobalDistStatus = useAppStore((s) => s.fetchGlobalDistStatus);
   const addToast = useAppStore((s) => s.addToast);
 
-  // T6: Verify & Repair state
-  const [verifyReport, setVerifyReport] = useState<VerifyReport | null>(null);
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-
-  // T14: Recent activity for distribution history
+  // Recent activity for distribution history
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
 
   // T3: Include system scenes in the selector
@@ -155,73 +150,6 @@ export function GlobalDistribution() {
     await syncScene(currentScene.id, platforms, "global");
   };
 
-  // T6: Verify & Repair
-  const handleVerify = async () => {
-    if (!currentScene) return;
-    setVerifying(true);
-    try {
-      const report = await ipc.verifyDistribution(currentScene.id, "global");
-      setVerifyReport(report);
-      setShowVerifyModal(true);
-    } catch (e) {
-      console.error("Failed to verify distribution:", e);
-      addToast("验证同步失败", "error");
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const handleRepair = async (item: DriftedItem) => {
-    try {
-      await ipc.repairDrift(item.item_type, item.item_id, item.platform_id, "from_db");
-      addToast("修复成功", "success");
-      // Refresh verify report
-      if (currentScene) {
-        const report = await ipc.verifyDistribution(currentScene.id, "global");
-        setVerifyReport(report);
-      }
-    } catch (e) {
-      console.error("Failed to repair drift:", e);
-      addToast("修复失败", "error");
-    }
-  };
-
-  const handleRepairAll = async () => {
-    if (!verifyReport) return;
-    try {
-      for (const item of verifyReport.drifted) {
-        await ipc.repairDrift(item.item_type, item.item_id, item.platform_id, "from_db");
-      }
-      addToast("全部修复成功", "success");
-      if (currentScene) {
-        const report = await ipc.verifyDistribution(currentScene.id, "global");
-        setVerifyReport(report);
-      }
-    } catch (e) {
-      console.error("Failed to repair all drifts:", e);
-      addToast("批量修复失败", "error");
-    }
-  };
-
-  // T14: Quick distribute all skills (__all_skills__ virtual scene)
-  const handleQuickDistributeAll = async () => {
-    const allSkillsScene = scenes.find((s) => s.is_system);
-    if (!allSkillsScene) {
-      addToast("未找到全部技能虚拟场景", "error");
-      return;
-    }
-    try {
-      addToast("正在快速分发全部技能...", "info");
-      await syncScene(allSkillsScene.id, allPlatformIds, "global");
-      // Refresh recent logs
-      const logs = await ipc.getRecentActivity(5);
-      setRecentLogs(logs);
-    } catch (e) {
-      console.error("Failed to quick distribute all skills:", e);
-      addToast("快速分发失败", "error");
-    }
-  };
-
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
       <div className="flex items-center justify-between mb-6">
@@ -232,18 +160,6 @@ export function GlobalDistribution() {
         <div className="flex items-center gap-3">
           <button
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-border px-3 py-2.5",
-              "text-sm font-medium text-foreground hover:bg-accent transition-colors",
-              !currentScene && "opacity-50 pointer-events-none",
-            )}
-            onClick={handleVerify}
-            disabled={!currentScene || verifying}
-          >
-            <ShieldCheck className="h-4 w-4" />
-            {verifying ? "验证中..." : "验证同步"}
-          </button>
-          <button
-            className={cn(
               "flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5",
               "text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors",
               !currentScene && "opacity-50 pointer-events-none",
@@ -251,7 +167,7 @@ export function GlobalDistribution() {
             onClick={handleSyncAll}
           >
             <RefreshCw className="h-4 w-4" />
-            {tc("actions.syncAll")}
+            同步当前场景
           </button>
         </div>
       </div>
@@ -270,18 +186,6 @@ export function GlobalDistribution() {
               <option key={scene.id} value={scene.id}>{scene.name}</option>
             ))}
           </select>
-          <button
-            className={cn(
-              "flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2",
-              "text-sm font-medium text-warning hover:bg-warning/10 transition-colors",
-              allPlatformIds.length === 0 && "opacity-50 pointer-events-none",
-            )}
-            onClick={handleQuickDistributeAll}
-            title="将全部技能快速分发到所有平台（不改变当前全局场景）"
-          >
-            <Zap className="h-4 w-4" />
-            快速分发全部
-          </button>
         </div>
       </div>
 
@@ -459,102 +363,6 @@ export function GlobalDistribution() {
         </div>
       )}
 
-      {/* T6: Verify & Repair Modal */}
-      {showVerifyModal && verifyReport && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-          <div className="w-[560px] max-h-[80vh] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">同步验证报告</h2>
-              <button onClick={() => setShowVerifyModal(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="flex gap-4 mb-4">
-              <div className="flex items-center gap-2 rounded-md bg-success/10 px-3 py-1.5">
-                <CheckCircle className="h-4 w-4 text-success" />
-                <span className="text-sm font-medium text-success">已同步 ({verifyReport.ok} 项)</span>
-              </div>
-              {verifyReport.drifted.length > 0 && (
-                <div className="flex items-center gap-2 rounded-md bg-warning/10 px-3 py-1.5">
-                  <AlertTriangle className="h-4 w-4 text-warning" />
-                  <span className="text-sm font-medium text-warning">有漂移 ({verifyReport.drifted.length} 项)</span>
-                </div>
-              )}
-            </div>
-
-            {verifyReport.drifted.length > 0 && (
-              <div className="flex-1 overflow-y-auto space-y-2 mb-4">
-                {verifyReport.drifted.map((item, idx) => (
-                  <div key={idx} className="rounded-md border border-warning/20 bg-warning/5 p-3">
-                    <div className="flex items-start gap-2 mb-2">
-                      {item.item_type === "skill" ? (
-                        <Package className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      ) : (
-                        <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">{item.item_id}</span>
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{item.platform_id}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{item.issue}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                        onClick={() => handleRepair(item)}
-                      >
-                        从 DB 覆盖
-                      </button>
-                      <button
-                        className="rounded-md bg-secondary px-2.5 py-1 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
-                        onClick={() => {
-                          setVerifyReport((prev) => prev ? {
-                            ...prev,
-                            drifted: prev.drifted.filter((_, i) => i !== idx),
-                          } : null);
-                        }}
-                      >
-                        忽略
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {verifyReport.drifted.length > 0 && (
-              <div className="flex justify-end gap-2 pt-2 border-t border-border">
-                <button
-                  className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-                  onClick={() => setShowVerifyModal(false)}
-                >
-                  关闭
-                </button>
-                <button
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                  onClick={handleRepairAll}
-                >
-                  全部从 DB 覆盖
-                </button>
-              </div>
-            )}
-
-            {verifyReport.drifted.length === 0 && (
-              <div className="flex justify-end pt-2">
-                <button
-                  className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-                  onClick={() => setShowVerifyModal(false)}
-                >
-                  关闭
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
