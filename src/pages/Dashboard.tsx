@@ -119,6 +119,10 @@ export function Dashboard() {
                     const hasError = p.synced_count === 0 && p.total_count > 0;
                     const dotColor = allSynced ? "bg-success" : hasError ? "bg-error" : "bg-warning";
                     const PlatformIcon = getPlatformIcon(p.platform_id);
+                    // Use filesystem counts when available
+                    const skillProgress = (p.scene_skill_count ?? 0) > 0
+                      ? `${p.synced_skill_count ?? 0}/${p.scene_skill_count}`
+                      : `${p.synced_count}/${p.total_count}`;
                     return (
                       <button
                         key={p.platform_id}
@@ -128,7 +132,7 @@ export function Dashboard() {
                         {PlatformIcon && <PlatformIcon className="h-3.5 w-3.5" />}
                         <span className={cn("h-1.5 w-1.5 rounded-full", dotColor)} />
                         <span className="font-medium text-foreground">{p.platform_name}</span>
-                        <span className="text-muted-foreground">{p.synced_count}/{p.total_count}</span>
+                        <span className="text-muted-foreground">{skillProgress}</span>
                       </button>
                     );
                   })}

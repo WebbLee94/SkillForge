@@ -6,9 +6,10 @@ import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
 import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
-  Package, FileText, History,
+  Package, FileText, History, FolderOpen,
 } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { SyncStatus, SyncLog } from "../types";
 
@@ -80,7 +81,14 @@ export function GlobalDistribution() {
     setCustomOverride(false);
     setSelectedPlatformIds([]);
     if (currentScene?.id) {
-      ipc.getScenePlatforms(currentScene.id).then(setScenePlatformIds).catch(() => setScenePlatformIds([]));
+      // __all_skills__ system scene: use all enabled platforms
+      if (currentScene.is_system) {
+        ipc.listPlatforms().then((platforms) => {
+          setScenePlatformIds(platforms.filter((p) => p.enabled).map((p) => p.id));
+        }).catch(() => setScenePlatformIds([]));
+      } else {
+        ipc.getScenePlatforms(currentScene.id).then(setScenePlatformIds).catch(() => setScenePlatformIds([]));
+      }
     } else {
       setScenePlatformIds([]);
     }
@@ -268,7 +276,13 @@ export function GlobalDistribution() {
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
                 <span>{t("syncProgress")}</span>
-                <span>{platform.synced_count}/{platform.total_count}</span>
+                <span>{(() => {
+                  const pdi = globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id);
+                  if (pdi && (pdi.scene_skill_count ?? 0) > 0) {
+                    return `${pdi.synced_skill_count ?? 0}/${pdi.scene_skill_count}`;
+                  }
+                  return `${platform.synced_count}/${platform.total_count}`;
+                })()}</span>
               </div>
               <div className="h-1.5 rounded-full bg-muted overflow-hidden">
                 <div
@@ -279,9 +293,15 @@ export function GlobalDistribution() {
                     ps === "outdated" ? "bg-warning" : "bg-primary",
                   )}
                   style={{
-                    width: platform.total_count > 0
-                      ? `${(platform.synced_count / platform.total_count) * 100}%`
-                      : "0%",
+                    width: (() => {
+                      const pdi = globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id);
+                      if (pdi && (pdi.scene_skill_count ?? 0) > 0) {
+                        return `${((pdi.synced_skill_count ?? 0) / pdi.scene_skill_count!) * 100}%`;
+                      }
+                      return platform.total_count > 0
+                        ? `${(platform.synced_count / platform.total_count) * 100}%`
+                        : "0%";
+                    })()
                   }}
                 />
               </div>
@@ -308,6 +328,25 @@ export function GlobalDistribution() {
                 {t("syncNow")}
               </button>
             </div>
+            {/* Platform path with open button */}
+            {globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <FolderOpen className="h-3 w-3 shrink-0" />
+                <span className="truncate min-w-0">
+                  {globalDistStatus.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir}
+                </span>
+                <button
+                  className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
+                  onClick={() => {
+                    const dir = globalDistStatus.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir;
+                    if (dir) revealItemInDir(dir);
+                  }}
+                  title={tc("actions.openDir")}
+                >
+                  <FolderOpen className="h-3 w-3" />
+                </button>
+              </div>
+            )}
           </div>
           );
         })}
