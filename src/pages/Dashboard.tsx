@@ -115,22 +115,22 @@ export function Dashboard() {
               {globalDistStatus.platforms.length > 0 && (
                 <div className="flex flex-wrap gap-2 pt-1">
                   {globalDistStatus.platforms.map((p) => {
-                    const allSynced = p.synced_count === p.total_count && p.total_count > 0;
-                    const hasError = p.synced_count === 0 && p.total_count > 0;
-                    const dotColor = allSynced ? "bg-success" : hasError ? "bg-error" : "bg-warning";
                     const PlatformIcon = getPlatformIcon(p.platform_id);
                     // Use filesystem counts when available
                     const skillProgress = (p.scene_skill_count ?? 0) > 0
                       ? `${p.synced_skill_count ?? 0}/${p.scene_skill_count}`
+                      : `${p.synced_count}/${p.total_count}`;
+                    const tooltipText = (p.scene_skill_count ?? 0) > 0
+                      ? `已同步 ${p.synced_skill_count ?? 0} / 场景配置 ${p.scene_skill_count}`
                       : `${p.synced_count}/${p.total_count}`;
                     return (
                       <button
                         key={p.platform_id}
                         className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs hover:bg-muted transition-colors"
                         onClick={() => setActiveNav("globalDistribution")}
+                        title={tooltipText}
                       >
                         {PlatformIcon && <PlatformIcon className="h-3.5 w-3.5" />}
-                        <span className={cn("h-1.5 w-1.5 rounded-full", dotColor)} />
                         <span className="font-medium text-foreground">{p.platform_name}</span>
                         <span className="text-muted-foreground">{skillProgress}</span>
                       </button>
