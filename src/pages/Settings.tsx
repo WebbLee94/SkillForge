@@ -261,15 +261,12 @@ export function Settings() {
                         return (
                           <tr
                             key={platform.id}
-                            className={cn(
-                              "border-b border-border last:border-0 transition-opacity group",
-                              !platform.enabled && "opacity-60",
-                            )}
+                            className="border-b border-border last:border-0 group"
                           >
-                            <td className="px-4 py-2.5">
+                            <td className={cn("px-4 py-2.5", !platform.enabled && "opacity-60")}>
                               <IconComp className="h-5 w-5 text-muted-foreground" />
                             </td>
-                            <td className="px-4 py-2.5 text-foreground font-medium">{platform.name}</td>
+                            <td className={cn("px-4 py-2.5 text-foreground font-medium", !platform.enabled && "opacity-60")}>{platform.name}</td>
                             <td className="px-4 py-2.5 text-center">
                               {(() => {
                                 if (!caps) return <span className="text-xs text-muted-foreground">-</span>;
@@ -293,8 +290,8 @@ export function Settings() {
                                         <CapBadge key={c.key} supported={c.supported} label={c.label} />
                                       ))}
                                     </div>
-                                    {/* Tooltip on hover — opacity-100 overrides parent row opacity-60 */}
-                                    <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block opacity-100">
+                                    {/* Tooltip on hover — bg-popover 背景不受 row 透明度影响 */}
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
                                       <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px]">
                                         {capLabels.map((c) => (
                                           <div key={c.key} className="flex items-center gap-2 py-1 text-xs">
