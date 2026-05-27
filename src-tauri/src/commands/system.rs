@@ -294,15 +294,43 @@ pub fn toggle_platform_enabled(
 
 #[tauri::command]
 pub fn get_db_size(state: tauri::State<'_, AppState>) -> Result<String, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let db_path: String = conn.query_row("PRAGMA database_list", [], |row| row.get(2))?;
-    let metadata = std::fs::metadata(&db_path).map_err(|e| AppError::Database(e.to_string()))?;
-    let size = metadata.len();
-    if size >= 1_073_741_824 {
-        Ok(format!("{:.1} GB", size as f64 / 1_073_741_824.0))
-    } else if size >= 1_048_576 {
-        Ok(format!("{:.1} MB", size as f64 / 1_048_576.0))
+    let data_dir = dirs::home_dir()
+        .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
+        .join(".skillforge");
+
+    let mut total_size: u64 = 0;
+    if let Ok(entries) = std::fs::read_dir(&data_dir) {
+        fn dir_size(path: &std::path::Path) -> u64 {
+            let mut size = 0u64;
+            if let Ok(entries) = std::fs::read_dir(path) {
+                for entry in entries.flatten() {
+                    if let Ok(meta) = entry.metadata() {
+                        if meta.is_file() {
+                            size += meta.len();
+                        } else if meta.is_dir() {
+                            size += dir_size(&entry.path());
+                        }
+                    }
+                }
+            }
+            size
+        }
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.is_file() {
+                    total_size += meta.len();
+                } else if meta.is_dir() {
+                    total_size += dir_size(&entry.path());
+                }
+            }
+        }
+    }
+
+    if total_size >= 1_073_741_824 {
+        Ok(format!("{:.1} GB", total_size as f64 / 1_073_741_824.0))
+    } else if total_size >= 1_048_576 {
+        Ok(format!("{:.1} MB", total_size as f64 / 1_048_576.0))
     } else {
-        Ok(format!("{:.1} KB", size as f64 / 1024.0))
+        Ok(format!("{:.1} KB", total_size as f64 / 1024.0))
     }
 }

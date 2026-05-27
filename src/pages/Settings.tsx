@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
-import { Globe, Server, ExternalLink, Database, Folder, Info, CheckCircle2, XCircle } from "lucide-react";
+import { Globe, Server, ExternalLink, Database, Info, CheckCircle2, XCircle, FolderOpen } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { Platform, PlatformCapabilities } from "../types";
 
 type SettingsTab = "general" | "platforms";
@@ -29,6 +30,7 @@ export function Settings() {
   const { t, i18n } = useTranslation(["common", "settings"]);
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [dataDir, setDataDir] = useState("~/.skillforge/");
+  const [rawDataDir, setRawDataDir] = useState<string | null>(null);
   const [dbSize, setDbSize] = useState<string | null>(null);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(false);
@@ -44,7 +46,10 @@ export function Settings() {
 
   useEffect(() => {
     ipc.getAppConfig().then((config) => {
-      setDataDir(config.data_dir);
+      setRawDataDir(config.data_dir);
+      // T9: Replace absolute home path with ~
+      const homeDir = config.data_dir.split("/.skillforge")[0];
+      setDataDir(config.data_dir.replace(homeDir, "~"));
     }).catch(() => {
       // fallback to default
     });
@@ -172,7 +177,13 @@ export function Settings() {
                       <span>{dbSize ?? t("settings:general.dbSizeCalculating")}</span>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground">
-                      <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+                      <button
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                        onClick={() => rawDataDir && revealItemInDir(rawDataDir)}
+                        title="在文件管理器中打开"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                      </button>
                       <span className="font-mono text-xs">{dataDir}</span>
                     </div>
                   </div>
