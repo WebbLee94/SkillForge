@@ -33,6 +33,7 @@ export function SkillLibrary() {
   const [showInstallDialog, setShowInstallDialog] = useState(false);
   const [installSource, setInstallSource] = useState<"local" | "git">("local");
   const [installInput, setInstallInput] = useState("");
+  const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [localSearch, setLocalSearch] = useState("");
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -526,15 +527,28 @@ export function SkillLibrary() {
                       onClick={async () => {
                         const selected = await open({ directory: true, multiple: true });
                         if (selected && selected.length > 0) {
-                          for (const dir of selected) {
-                            setInstallInput(dir);
-                          }
+                          setSelectedDirs(selected);
+                          setInstallInput(selected.join("\n"));
                         }
                       }}
                     >
                       <FolderOpen className="h-4 w-4" />
                       {t("install.browse")}
                     </button>
+                  )}
+                  {installSource === "local" && selectedDirs.length > 1 && (
+                    <div className="mt-2 rounded-lg border border-border bg-muted/50 p-2">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">
+                        {tc("messages.selectedDirectories", { count: selectedDirs.length })}:
+                      </p>
+                      <ul className="space-y-0.5">
+                        {selectedDirs.map((dir) => (
+                          <li key={dir} className="text-xs font-mono text-foreground truncate">
+                            {dir.split("/").pop() || dir}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
                 </div>
               </div>
@@ -551,9 +565,28 @@ export function SkillLibrary() {
                   onClick={async () => {
                     if (!installInput.trim()) return;
                     const installSkill = useAppStore.getState().installSkill;
-                    await installSkill(installSource, installInput.trim());
+                    const addToast = useAppStore.getState().addToast;
+
+                    if (installSource === "local" && selectedDirs.length > 1) {
+                      // Batch install: iterate all selected directories
+                      let successCount = 0;
+                      let failCount = 0;
+                      for (const dir of selectedDirs) {
+                        try {
+                          await installSkill("local", dir);
+                          successCount++;
+                        } catch {
+                          failCount++;
+                        }
+                      }
+                      addToast(`${successCount}/${selectedDirs.length} ${tc("messages.installSuccess")}`, successCount === selectedDirs.length ? "success" : "warning");
+                    } else {
+                      // Single install (git source or single directory)
+                      await installSkill(installSource, installInput.trim());
+                    }
                     setShowInstallDialog(false);
                     setInstallInput("");
+                    setSelectedDirs([]);
                   }}
                 >
                   {tc("actions.install")}

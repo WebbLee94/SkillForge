@@ -82,6 +82,7 @@
     "syncSuccess": "Sync successful",
     "syncFailed": "Sync failed",
     "installSuccess": "Install successful",
+    "selectedDirectories": "{{count}} directories selected",
     "uninstallSuccess": "Uninstall successful",
     "updateSuccess": "Update successful",
     "saveSuccess": "Save successful",
