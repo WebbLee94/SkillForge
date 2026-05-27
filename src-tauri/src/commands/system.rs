@@ -24,6 +24,7 @@ pub struct PlatformDistInfo {
     total_count: u32,
     last_synced_at: Option<String>,
     skills_dir: Option<String>,
+    skills_dir_resolved: Option<String>,
     rules_dir: Option<String>,
     #[serde(default)]
     scene_skill_count: u32,
@@ -280,7 +281,7 @@ pub fn get_global_distribution_status(
         let platforms: Vec<PlatformDistInfo> = stmt
             .query_map(params![sid, status.skill_count], |row| {
                 let pid: String = row.get(0)?;
-                let (skills_dir, rules_dir, synced_skill_count, synced_rule_count) = match crate::plugins::platform::create_platform_plugin(&pid) {
+                let (skills_dir, skills_dir_resolved, rules_dir, synced_skill_count, synced_rule_count) = match crate::plugins::platform::create_platform_plugin(&pid) {
                     Ok(p) => {
                         let paths = p.default_paths();
                         let skills_dir_path = crate::plugins::platform::expand_home(&paths.global_skills_dir);
@@ -288,9 +289,9 @@ pub fn get_global_distribution_status(
                         let fs_rule_count = paths.global_rules_dir.as_ref()
                             .map(|d| count_files_in_dir(&crate::plugins::platform::expand_home(d)))
                             .unwrap_or(0);
-                        (Some(skills_dir_path.to_string_lossy().to_string()), paths.global_rules_dir, fs_skill_count, fs_rule_count)
+                        (Some(paths.global_skills_dir.clone()), Some(skills_dir_path.to_string_lossy().to_string()), paths.global_rules_dir, fs_skill_count, fs_rule_count)
                     }
-                    Err(_) => (None, None, 0, 0),
+                    Err(_) => (None, None, None, 0, 0),
                 };
                 Ok(PlatformDistInfo {
                     platform_id: pid,
@@ -299,6 +300,7 @@ pub fn get_global_distribution_status(
                     total_count: row.get(3)?,
                     last_synced_at: row.get(4)?,
                     skills_dir,
+                    skills_dir_resolved,
                     rules_dir,
                     scene_skill_count: status.skill_count,
                     synced_skill_count,
