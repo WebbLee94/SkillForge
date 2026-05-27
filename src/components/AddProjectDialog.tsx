@@ -56,6 +56,7 @@ export const AddProjectDialog = memo(function AddProjectDialog({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="输入项目名称"
+              autoFocus
               className={cn(
                 "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
                 "focus:outline-none focus:ring-2 focus:ring-ring",

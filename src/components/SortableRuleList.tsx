@@ -9,12 +9,14 @@ interface SortableRuleListProps {
   onRemove: (ruleId: string) => void;
   onToggle: (ruleId: string) => void;
   onReorder: (rules: SceneRule[]) => void;
+  disabled?: boolean;
 }
 
 export const SortableRuleList = memo(function SortableRuleList({
   rules,
   onRemove,
   onToggle,
+  disabled = false,
 }: SortableRuleListProps) {
   const { t } = useTranslation("scenes");
 
@@ -37,19 +39,20 @@ export const SortableRuleList = memo(function SortableRuleList({
               ? "border-border bg-card"
               : "border-border bg-muted/30 opacity-60",
           )}
-          draggable
+          draggable={!disabled}
           onDragStart={(e) => {
+            if (disabled) return;
             e.dataTransfer.setData("text/plain", index.toString());
             e.dataTransfer.effectAllowed = "move";
           }}
         >
-          <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground" />
+          <GripVertical className={cn("h-4 w-4 shrink-0 text-muted-foreground", disabled ? "cursor-not-allowed opacity-30" : "cursor-grab")} />
           <span className="flex-1 text-sm text-foreground truncate">
             {rule.rule_name || rule.rule_id}
           </span>
           <button
-            className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-            onClick={() => onToggle(rule.rule_id)}
+            className={cn("shrink-0 transition-colors", disabled ? "cursor-not-allowed opacity-30" : "text-muted-foreground hover:text-primary")}
+            onClick={() => !disabled && onToggle(rule.rule_id)}
             title={rule.enabled ? t("disable", "禁用") : t("enable", "启用")}
           >
             {rule.enabled ? (
@@ -58,12 +61,14 @@ export const SortableRuleList = memo(function SortableRuleList({
               <ToggleLeft className="h-4 w-4" />
             )}
           </button>
-          <button
-            className="shrink-0 text-muted-foreground hover:text-error transition-colors"
-            onClick={() => onRemove(rule.rule_id)}
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {!disabled && (
+            <button
+              className="shrink-0 text-muted-foreground hover:text-error transition-colors"
+              onClick={() => onRemove(rule.rule_id)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ))}
     </div>

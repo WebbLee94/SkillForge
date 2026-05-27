@@ -162,19 +162,33 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
               {filteredTags.map((tag) => (
                 <tr key={tag.id} className="border-b border-border last:border-0 group">
                   <td className="px-4 py-2">
-                    <div className="flex items-center gap-1">
-                      {PRESET_COLORS.map((color) => (
-                        <button
-                          key={color}
-                          className={cn(
-                            "h-4 w-4 rounded-full border-2 transition-all shrink-0",
-                            tag.color === color ? "border-foreground scale-125" : "border-transparent hover:scale-110",
-                          )}
-                          style={{ backgroundColor: color }}
-                          onClick={() => handleColorSelect(tag.id, color)}
-                          title={color}
-                        />
-                      ))}
+                    <div className="relative">
+                      <button
+                        className="h-5 w-5 rounded-full shrink-0 border border-white/30 hover:scale-125 transition-transform"
+                        style={{ backgroundColor: tag.color || "#888" }}
+                        onClick={() => setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)}
+                        title={t("tag.selectColor")}
+                      />
+                      {colorPickerTagId === tag.id && (
+                        <div
+                          ref={colorPickerRef}
+                          className="absolute z-50 left-0 top-7 rounded-lg border border-border bg-popover p-2 shadow-lg"
+                        >
+                          <div className="grid grid-cols-5 gap-1.5">
+                            {PRESET_COLORS.map((color) => (
+                              <button
+                                key={color}
+                                className={cn(
+                                  "h-6 w-6 rounded-md border-2 transition-all",
+                                  tag.color === color ? "border-foreground scale-110" : "border-transparent hover:scale-105",
+                                )}
+                                style={{ backgroundColor: color }}
+                                onClick={() => handleColorSelect(tag.id, color)}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-2">

@@ -5,6 +5,7 @@ import { cn } from "../lib/utils";
 import { Globe, Server, ExternalLink, Database, Info, CheckCircle2, XCircle, FolderOpen } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { useAppStore } from "../stores/appStore";
 import type { Platform, PlatformCapabilities } from "../types";
 
 type SettingsTab = "general" | "platforms";
@@ -28,6 +29,7 @@ function getStoredLanguage(): string {
 
 export function Settings() {
   const { t, i18n } = useTranslation(["common", "settings"]);
+  const addToast = useAppStore((s) => s.addToast);
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [dataDir, setDataDir] = useState("~/.skillforge/");
   const [rawDataDir, setRawDataDir] = useState<string | null>(null);
@@ -304,8 +306,8 @@ export function Settings() {
                                       ))}
                                     </div>
                                     {/* Tooltip on hover */}
-                                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
-                                      <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px]">
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
+                                      <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px]">
                                         {capLabels.map((c) => (
                                           <div key={c.key} className="flex items-center gap-2 py-1 text-xs">
                                             {c.supported
@@ -320,8 +322,11 @@ export function Settings() {
                                             )}
                                             {c.supported && c.path && (
                                               <button
-                                                className="shrink-0 text-muted-foreground hover:text-primary pointer-events-auto"
-                                                onClick={() => navigator.clipboard.writeText(c.path)}
+                                                className="shrink-0 text-muted-foreground hover:text-primary"
+                                                onClick={() => {
+                                                  navigator.clipboard.writeText(c.path);
+                                                  addToast("已复制", "success");
+                                                }}
                                                 title="复制路径"
                                               >
                                                 📋

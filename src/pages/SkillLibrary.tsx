@@ -7,6 +7,7 @@ import { TagFilterBar } from "../components/TagFilterBar";
 import { TagManagerDialog } from "../components/TagManagerDialog";
 import { Search, Download, Trash2, RefreshCw, X, Package, FolderOpen, ChevronRight, Clock, CheckSquare, Tags } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 export function SkillLibrary() {
   const { t } = useTranslation("skills");
@@ -390,9 +391,20 @@ export function SkillLibrary() {
                   <span className="text-muted-foreground">{t("detail.source")}</span>
                   <span className="text-foreground">{t(`sourceTypes.${selectedSkill.source_type}`)}</span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{t("detail.localPath")}</span>
-                  <span className="max-w-[200px] truncate text-xs text-foreground">{selectedSkill.local_path}</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="max-w-[180px] truncate text-xs text-foreground">{selectedSkill.local_path}</span>
+                    {selectedSkill.local_path && (
+                      <button
+                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                        onClick={() => revealItemInDir(selectedSkill.local_path!)}
+                        title={t("detail.openInFinder", "在文件管理器中打开")}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">{t("detail.installedAt")}</span>
