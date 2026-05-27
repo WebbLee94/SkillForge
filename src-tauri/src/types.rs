@@ -106,10 +106,9 @@ pub struct Platform {
     pub id: String,
     pub name: String,
     pub adapter: String,
-    pub global_path: Option<String>,
-    pub project_path: Option<String>,
     pub enabled: bool,
     pub icon: Option<String>,
+    pub paths: PlatformPaths,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
