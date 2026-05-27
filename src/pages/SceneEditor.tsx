@@ -8,7 +8,7 @@ import { SortableRuleList } from "../components/SortableRuleList";
 import { TagFilterBar } from "../components/TagFilterBar";
 import {
   Search, Plus, Save, RefreshCw, Film,
-  Package, FileText, X, Monitor, Info, Trash2, CheckCircle2,
+  Package, FileText, X, Monitor, Info, Trash2, CheckCircle2, Users,
 } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import type { PlatformCapabilities } from "../types";
@@ -39,6 +39,8 @@ export function SceneEditor() {
   const setScenePlatforms = useAppStore((s) => s.setScenePlatforms);
   const deleteScene = useAppStore((s) => s.deleteScene);
   const addToast = useAppStore((s) => s.addToast);
+  const projects = useAppStore((s) => s.projects);
+  const fetchProjects = useAppStore((s) => s.fetchProjects);
 
   const [leftTab, setLeftTab] = useState<"skills" | "rules">("skills");
   const [leftSearch, setLeftSearch] = useState("");
@@ -57,7 +59,8 @@ export function SceneEditor() {
     fetchSkills();
     fetchRules();
     fetchPlatforms();
-  }, [fetchScenes, fetchSkills, fetchRules, fetchPlatforms]);
+    fetchProjects();
+  }, [fetchScenes, fetchSkills, fetchRules, fetchPlatforms, fetchProjects]);
 
   // Auto-select first scene when currentScene is null on mount
   useEffect(() => {
@@ -227,6 +230,19 @@ export function SceneEditor() {
             <option key={scene.id} value={scene.id}>{scene.name}</option>
           ))}
         </select>
+        {currentScene && (() => {
+          const projectCount = projects.filter((p) => p.scene_id === currentScene.id).length;
+          return projectCount > 0 ? (
+            <a
+              href={`/project-distribution?scene_id=${currentScene.id}`}
+              className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              title="查看关联项目"
+            >
+              <Users className="h-3 w-3" />
+              已用于 {projectCount} 个项目
+            </a>
+          ) : null;
+        })()}
         {currentScene && !currentScene.is_system && (
           <button
             className="flex items-center gap-1 rounded-lg border border-error/30 bg-error/5 px-2 py-1.5 text-sm text-error hover:bg-error/10 transition-colors"

@@ -6,7 +6,7 @@ import { RuleEditor } from "../components/RuleEditor";
 import { TagPopover } from "../components/TagPopover";
 import { TagFilterBar } from "../components/TagFilterBar";
 import { TagManagerDialog } from "../components/TagManagerDialog";
-import { Search, Plus, Trash2, History, FileText, X, ChevronRight, Clock, CheckSquare, Upload, Tags } from "lucide-react";
+import { Search, Plus, Trash2, History, FileText, X, ChevronRight, Clock, CheckSquare, Upload, Tags, Maximize, Minimize } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import type { CreateRuleDTO, UpdateRuleDTO } from "../types";
@@ -62,6 +62,7 @@ export function RulesManager() {
   const [batchMode, setBatchMode] = useState(false);
   const [untaggedFilter, setUntaggedFilter] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Import preview state
   const [importFiles, setImportFiles] = useState<Array<{ name: string; size: number; format: string; path: string }>>([]);
@@ -494,6 +495,13 @@ export function RulesManager() {
                 </div>
                 <div className="flex items-center gap-2 ml-2">
                   <button
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => setIsFullscreen(true)}
+                    title="全屏编辑"
+                  >
+                    <Maximize className="h-4 w-4" />
+                  </button>
+                  <button
                     className="flex items-center gap-1 rounded-md bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:bg-secondary/80"
                     onClick={() => setShowHistory(!showHistory)}
                   >
@@ -676,6 +684,50 @@ export function RulesManager() {
         isOpen={showTagManager}
         onClose={() => setShowTagManager(false)}
       />
+
+      {/* Fullscreen Editor */}
+      {isFullscreen && editingRule && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full max-w-md bg-transparent text-lg font-semibold text-foreground focus:outline-none"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                onClick={async () => { await handleSaveEdit(); setIsFullscreen(false); }}
+              >
+                {tc("actions.save")}
+              </button>
+              <button
+                className="text-muted-foreground hover:text-foreground"
+                onClick={() => setIsFullscreen(false)}
+                title="退出全屏 (Esc)"
+              >
+                <Minimize className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4 border-r border-border">
+              <RuleEditor
+                content={editContent}
+                onChange={setEditContent}
+                format={(editingRule.format || "mdc") as "mdc" | "md" | "yaml"}
+              />
+            </div>
+            <div className="w-[40%] overflow-y-auto p-4">
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">预览</h3>
+              <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">{editContent}</pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
