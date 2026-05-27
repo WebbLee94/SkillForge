@@ -253,21 +253,33 @@ pub fn get_global_distribution_status(
             )
             .unwrap_or(0);
 
-        // Get per-platform status (only scene-associated, enabled platforms)
+        // Get per-platform status
+        // For __all_skills__ system scene, use all enabled platforms (no scene_platforms records)
+        let is_all_skills = sid == "__all_skills__";
         let mut stmt = conn.prepare(
-            "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.synced_at
-             FROM platforms p
-             INNER JOIN scene_platforms sp ON sp.platform_id = p.id AND sp.scene_id = ?1
-             LEFT JOIN (
-                SELECT platform_id, COUNT(*) as synced_count, MAX(synced_at) as synced_at
-                FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
-             ) d ON p.id = d.platform_id
-             WHERE p.enabled != 0",
+            if is_all_skills {
+                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.synced_at
+                 FROM platforms p
+                 LEFT JOIN (
+                    SELECT platform_id, COUNT(*) as synced_count, MAX(synced_at) as synced_at
+                    FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
+                 ) d ON p.id = d.platform_id
+                 WHERE p.enabled != 0
+                 ORDER BY p.name ASC"
+            } else {
+                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.synced_at
+                 FROM platforms p
+                 INNER JOIN scene_platforms sp ON sp.platform_id = p.id AND sp.scene_id = ?1
+                 LEFT JOIN (
+                    SELECT platform_id, COUNT(*) as synced_count, MAX(synced_at) as synced_at
+                    FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
+                 ) d ON p.id = d.platform_id
+                 WHERE p.enabled != 0"
+            },
         )?;
         let platforms: Vec<PlatformDistInfo> = stmt
             .query_map(params![sid, status.skill_count], |row| {
                 let pid: String = row.get(0)?;
-                // Resolve paths from platform plugin
                 let (skills_dir, rules_dir, synced_skill_count, synced_rule_count) = match crate::plugins::platform::create_platform_plugin(&pid) {
                     Ok(p) => {
                         let paths = p.default_paths();

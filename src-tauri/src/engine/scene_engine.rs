@@ -417,10 +417,23 @@ pub fn get_all_skills_scene(conn: &rusqlite::Connection) -> Result<SceneDetail, 
 
 /// Get platform IDs associated with a scene.
 /// Only returns platforms that are enabled (p.enabled != 0).
+/// For `__all_skills__` system scene, returns all enabled platforms.
 pub fn get_scene_platforms(
     conn: &rusqlite::Connection,
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
+    // Special handling for __all_skills__ system scene
+    if scene_id == "__all_skills__" {
+        let mut stmt = conn.prepare(
+            "SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC",
+        )?;
+        let platform_ids: Vec<String> = stmt
+            .query_map([], |row| row.get(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+        return Ok(platform_ids);
+    }
+
     let _scene = query_scene_by_id(conn, scene_id)?;
 
     let mut stmt = conn.prepare(

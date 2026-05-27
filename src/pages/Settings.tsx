@@ -361,9 +361,6 @@ export function Settings() {
               <p className="text-xs text-muted-foreground/70 px-1">
                 {t("settings:platforms.hint")}
               </p>
-              <p className="text-xs text-muted-foreground/70 px-1">
-                {t("settings:platforms.capabilities.hint")}
-              </p>
             </div>
           )}
         </div>

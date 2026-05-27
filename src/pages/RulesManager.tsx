@@ -611,7 +611,7 @@ export function RulesManager() {
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">{t("content")}</label>
                 <div className="h-[300px]">
-                  <RuleEditor content={newContent} onChange={setNewContent} format={newFormat} />
+                  <RuleEditor content={newContent} onChange={setNewContent} format={newFormat} defaultViewMode="edit" />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -726,6 +726,7 @@ export function RulesManager() {
                 content={editContent}
                 onChange={setEditContent}
                 format={(editingRule.format || "mdc") as "mdc" | "md" | "yaml"}
+                defaultViewMode="edit"
               />
             </div>
             <div className="w-[40%] overflow-y-auto p-4">

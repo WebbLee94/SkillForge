@@ -4,7 +4,7 @@ import { TagChip } from "./TagChip";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Tag } from "../types";
 
-const COLLAPSE_THRESHOLD = 8;
+const COLLAPSE_THRESHOLD = 4;
 
 interface TagFilterBarProps {
   tags: Tag[];

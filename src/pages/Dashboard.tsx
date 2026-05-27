@@ -23,6 +23,22 @@ export function Dashboard() {
 
   const statCards = [
     {
+      label: t("nav.projectDistribution"),
+      value: dashboardStats?.project_count ?? 0,
+      icon: <FolderOpen className="h-5 w-5" />,
+      color: "text-error",
+      bgColor: "bg-error/10",
+      navKey: "projectDistribution",
+    },
+    {
+      label: t("nav.scenes"),
+      value: dashboardStats?.user_scene_count ?? 0,
+      icon: <Film className="h-5 w-5" />,
+      color: "text-warning",
+      bgColor: "bg-warning/10",
+      navKey: "scenes",
+    },
+    {
       label: t("nav.skills"),
       value: dashboardStats?.skill_count ?? 0,
       icon: <Package className="h-5 w-5" />,
@@ -37,22 +53,6 @@ export function Dashboard() {
       color: "text-success",
       bgColor: "bg-success/10",
       navKey: "rules",
-    },
-    {
-      label: t("nav.scenes"),
-      value: dashboardStats?.user_scene_count ?? 0,
-      icon: <Film className="h-5 w-5" />,
-      color: "text-warning",
-      bgColor: "bg-warning/10",
-      navKey: "scenes",
-    },
-    {
-      label: t("nav.projectDistribution"),
-      value: dashboardStats?.project_count ?? 0,
-      icon: <FolderOpen className="h-5 w-5" />,
-      color: "text-error",
-      bgColor: "bg-error/10",
-      navKey: "projectDistribution",
     },
   ];
 
