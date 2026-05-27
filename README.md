@@ -127,6 +127,10 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
+## 🙏 致谢
+
+本项目设计参考了 [skills-manager](https://github.com/xingkongliang/skills-manager)，感谢 [@xingkongliang](https://github.com/xingkongliang) 的开源贡献。
+
 ## 📄 许可证
 
 本项目采用 [MIT License](LICENSE) 开源协议。
