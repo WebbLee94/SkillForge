@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { cn } from "../lib/utils";
 import { TagChip } from "./TagChip";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import type { Tag } from "../types";
+
+const COLLAPSE_THRESHOLD = 8;
 
 interface TagFilterBarProps {
   tags: Tag[];
@@ -22,12 +26,17 @@ export function TagFilterBar({
   onToggleUntagged,
 }: TagFilterBarProps) {
   const hasSelection = selectedTagIds.length > 0 || !!untaggedFilter;
+  const [expanded, setExpanded] = useState(false);
 
   // Sort tags by count descending
   const sortedTags = [...tags].sort((a, b) => (b.count || 0) - (a.count || 0));
+  const needsCollapse = sortedTags.length > COLLAPSE_THRESHOLD;
+  const visibleTags = needsCollapse && !expanded
+    ? sortedTags.slice(0, COLLAPSE_THRESHOLD)
+    : sortedTags;
 
   return (
-    <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+    <div className="flex items-center gap-1.5 flex-wrap">
       {/* "All" chip */}
       <button
         className={cn(
@@ -42,7 +51,7 @@ export function TagFilterBar({
       </button>
 
       {/* Tag chips */}
-      {sortedTags.map((tag) => {
+      {visibleTags.map((tag) => {
         const isSelected = selectedTagIds.includes(tag.id);
         return (
           <TagChip
@@ -67,6 +76,20 @@ export function TagFilterBar({
           onClick={onToggleUntagged}
         >
           未分类
+        </button>
+      )}
+
+      {/* Expand / Collapse toggle */}
+      {needsCollapse && (
+        <button
+          className="shrink-0 rounded-full px-2 py-1 text-xs text-muted-foreground hover:bg-secondary transition-colors flex items-center gap-0.5"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? (
+            <>收起 <ChevronUp className="h-3 w-3" /></>
+          ) : (
+            <>+{sortedTags.length - COLLAPSE_THRESHOLD} <ChevronDown className="h-3 w-3" /></>
+          )}
         </button>
       )}
     </div>

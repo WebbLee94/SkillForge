@@ -8,6 +8,7 @@ import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
   Package, FileText, History,
 } from "lucide-react";
+import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { SyncStatus, SyncLog } from "../types";
 
@@ -239,8 +240,15 @@ export function GlobalDistribution() {
               isDimmed && "opacity-50",
             )}
           >
-            {customOverride && (
-              <div className="absolute top-3 left-3 z-10">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const PlatformIcon = getPlatformIcon(platform.platform_id);
+                  return PlatformIcon ? <PlatformIcon className="h-5 w-5" /> : <Globe className="h-5 w-5 text-primary" />;
+                })()}
+                <span className="text-sm font-semibold text-foreground">{platform.platform_name}</span>
+              </div>
+              {customOverride ? (
                 <input
                   type="checkbox"
                   checked={isSelected}
@@ -253,19 +261,9 @@ export function GlobalDistribution() {
                   }}
                   className="rounded border-border"
                 />
-              </div>
-            )}
-            <div className="flex items-center justify-between mb-3">
-              <div className={cn("flex items-center gap-2", customOverride && "ml-6")}>
-                {ps === "synced" ? (
-                  <CheckCircle className="h-4 w-4 text-success" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                )}
-                <Globe className="h-5 w-5 text-primary" />
-                <span className="text-sm font-semibold text-foreground">{platform.platform_name}</span>
-              </div>
-              {statusIconMap[ps] || statusIconMap.pending}
+              ) : (
+                statusIconMap[ps] || statusIconMap.pending
+              )}
             </div>
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
@@ -326,8 +324,8 @@ export function GlobalDistribution() {
         </div>
       )}
 
-      {/* T14: Recent Distribution History */}
-      {recentLogs.length > 0 && (
+      {/* v1.17: Recent Distribution History — hidden until feature is polished */}
+      {false && recentLogs.length > 0 && (
         <div className="mt-6 rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-3">
             <History className="h-4 w-4 text-muted-foreground" />

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
-import { Globe, Server, ExternalLink, Database, Info, CheckCircle2, XCircle, FolderOpen } from "lucide-react";
+import { Globe, Server, ExternalLink, Database, CheckCircle2, XCircle, FolderOpen, Clipboard } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { useAppStore } from "../stores/appStore";
@@ -157,7 +157,7 @@ export function Settings() {
                   <select
                     value={effectiveLang}
                     onChange={(e) => handleLanguageChange(e.target.value)}
-                    className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                    className="w-36 rounded-lg border border-input bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="system">{t("settings:general.languageSystem")}</option>
                     <option value="zh-CN">简体中文</option>
@@ -230,22 +230,10 @@ export function Settings() {
             <div className="max-w-[800px] space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-foreground">{t("settings:platforms.title")}</h3>
-                <button
-                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground cursor-not-allowed opacity-50"
-                  disabled
-                  title={t("common:messages.comingSoon")}
-                >
-                  + {t("settings:platforms.addButton")}
-                </button>
+                {/* v1.17: hidden until feature ready */}
               </div>
 
-              {/* Notice */}
-              <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/5 p-3">
-                <Info className="h-4 w-4 shrink-0 mt-0.5 text-warning" />
-                <p className="text-xs text-muted-foreground">
-                  {t("settings:platforms.comingSoon")}
-                </p>
-              </div>
+              {/* v1.17: hidden until feature ready */}
 
               {/* Platform table */}
               {platformsLoading ? (
@@ -305,7 +293,7 @@ export function Settings() {
                                         <CapBadge key={c.key} supported={c.supported} label={c.label} />
                                       ))}
                                     </div>
-                                    {/* Tooltip on hover */}
+                                    {/* Tooltip on hover — outside group scope to avoid opacity */}
                                     <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
                                       <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px]">
                                         {capLabels.map((c) => (
@@ -329,7 +317,7 @@ export function Settings() {
                                                 }}
                                                 title="复制路径"
                                               >
-                                                📋
+                                                <Clipboard className="h-3 w-3" />
                                               </button>
                                             )}
                                           </div>

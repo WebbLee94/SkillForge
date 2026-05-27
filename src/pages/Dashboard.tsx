@@ -4,6 +4,7 @@ import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
 import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe } from "lucide-react";
+import { getPlatformIcon } from "../components/icons/PlatformIcons";
 
 export function Dashboard() {
   const { t } = useTranslation("common");
@@ -117,12 +118,14 @@ export function Dashboard() {
                     const allSynced = p.synced_count === p.total_count && p.total_count > 0;
                     const hasError = p.synced_count === 0 && p.total_count > 0;
                     const dotColor = allSynced ? "bg-success" : hasError ? "bg-error" : "bg-warning";
+                    const PlatformIcon = getPlatformIcon(p.platform_id);
                     return (
                       <button
                         key={p.platform_id}
                         className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs hover:bg-muted transition-colors"
                         onClick={() => setActiveNav("globalDistribution")}
                       >
+                        {PlatformIcon && <PlatformIcon className="h-3.5 w-3.5" />}
                         <span className={cn("h-1.5 w-1.5 rounded-full", dotColor)} />
                         <span className="font-medium text-foreground">{p.platform_name}</span>
                         <span className="text-muted-foreground">{p.synced_count}/{p.total_count}</span>

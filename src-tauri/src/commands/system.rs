@@ -23,6 +23,8 @@ pub struct PlatformDistInfo {
     synced_count: u32,
     total_count: u32,
     last_synced_at: Option<String>,
+    skills_dir: Option<String>,
+    rules_dir: Option<String>,
 }
 
 #[tauri::command]
@@ -256,12 +258,23 @@ pub fn get_global_distribution_status(
         )?;
         let platforms: Vec<PlatformDistInfo> = stmt
             .query_map(params![sid, status.skill_count], |row| {
+                let pid: String = row.get(0)?;
+                // Resolve paths from platform plugin
+                let (skills_dir, rules_dir) = match crate::plugins::platform::create_platform_plugin(&pid) {
+                    Ok(p) => {
+                        let paths = p.default_paths();
+                        (Some(paths.global_skills_dir), paths.global_rules_dir)
+                    }
+                    Err(_) => (None, None),
+                };
                 Ok(PlatformDistInfo {
-                    platform_id: row.get(0)?,
+                    platform_id: pid,
                     platform_name: row.get(1)?,
                     synced_count: row.get(2)?,
                     total_count: row.get(3)?,
                     last_synced_at: row.get(4)?,
+                    skills_dir,
+                    rules_dir,
                 })
             })?
             .filter_map(|r| r.ok())

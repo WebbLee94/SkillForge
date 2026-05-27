@@ -271,6 +271,8 @@ export interface PlatformDistInfo {
   synced_count: number;
   total_count: number;
   last_synced_at: string | null;
+  skills_dir?: string | null;
+  rules_dir?: string | null;
 }
 
 // ===== Sync Status =====
