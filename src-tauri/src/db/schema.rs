@@ -140,8 +140,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             id           TEXT PRIMARY KEY,
             name         TEXT NOT NULL,
             adapter      TEXT NOT NULL,
-            global_path  TEXT,
-            project_path TEXT,
             enabled      INTEGER NOT NULL DEFAULT 1,
             icon         TEXT
         );"
@@ -197,24 +195,24 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
 
     // ── Built-in data: platforms ───────────────────────────────────
     let platforms = [
-        ("claude-code", "Claude Code", "claude-code", "~/.claude/skills", ".claude/skills"),
-        ("opencode", "OpenCode", "opencode", "~/.config/opencode/skills", ".opencode/skills"),
-        ("cursor", "Cursor", "cursor", "~/.cursor/skills", ".cursor/skills"),
-        ("trae", "Trae", "trae", "~/.trae/skills", ".trae/skills"),
-        ("trae-cn", "Trae CN", "trae-cn", "~/.trae-cn/skills", ".trae-cn/skills"),
-        ("codebuddy", "CodeBuddy", "codebuddy", "~/.codebuddy/skills", ".codebuddy/skills"),
-        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn", "~/.codebuddy-cn/skills", ".codebuddy-cn/skills"),
-        ("codex", "Codex", "codex", "~/.codex/skills", ".codex/skills"),
-        ("hermes", "Hermes Agent", "hermes", "~/.hermes/skills", ".hermes/skills"),
-        ("openclaw", "OpenClaw", "openclaw", "~/.openclaw/skills", ".openclaw/skills"),
-        ("antigravity", "Antigravity", "antigravity", "~/.antigravity/skills", ".antigravity/skills"),
-        ("windsurf", "Windsurf", "windsurf", "~/.windsurf/skills", ".windsurf/skills"),
+        ("claude-code", "Claude Code", "claude-code"),
+        ("opencode", "OpenCode", "opencode"),
+        ("cursor", "Cursor", "cursor"),
+        ("trae", "Trae", "trae"),
+        ("trae-cn", "Trae CN", "trae-cn"),
+        ("codebuddy", "CodeBuddy", "codebuddy"),
+        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn"),
+        ("codex", "Codex", "codex"),
+        ("hermes", "Hermes Agent", "hermes"),
+        ("openclaw", "OpenClaw", "openclaw"),
+        ("antigravity", "Antigravity", "antigravity"),
+        ("windsurf", "Windsurf", "windsurf"),
     ];
 
-    for (id, name, adapter, global_path, project_path) in &platforms {
+    for (id, name, adapter) in &platforms {
         conn.execute(
-            "INSERT OR IGNORE INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
-            rusqlite::params![id, name, adapter, global_path, project_path],
+            "INSERT OR IGNORE INTO platforms (id, name, adapter, enabled, icon) VALUES (?1, ?2, ?3, 1, NULL)",
+            rusqlite::params![id, name, adapter],
         )?;
     }
 

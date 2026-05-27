@@ -119,18 +119,35 @@ pub fn get_recent_activity(
 pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>, AppError> {
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, adapter, global_path, project_path, enabled, icon FROM platforms ORDER BY name ASC",
+        "SELECT id, name, adapter, enabled, icon FROM platforms ORDER BY name ASC",
     )?;
     let platforms = stmt
         .query_map([], |row| {
+            let id: String = row.get(0)?;
+            let name: String = row.get(1)?;
+            let adapter: String = row.get(2)?;
+            let enabled: bool = row.get::<_, i32>(3)? != 0;
+            let icon: Option<String> = row.get(4)?;
+
+            // Merge with compile-time constant for paths
+            let paths = crate::plugins::platform::definitions::find_platform_def(&id)
+                .map(|def| crate::types::PlatformPaths::from(def))
+                .unwrap_or_else(|| crate::types::PlatformPaths {
+                    global_skills_dir: String::new(),
+                    project_skills_pattern: String::new(),
+                    global_rules_dir: None,
+                    project_rules_pattern: None,
+                    global_rules_format: None,
+                    project_rules_format: None,
+                });
+
             Ok(Platform {
-                id: row.get(0)?,
-                name: row.get(1)?,
-                adapter: row.get(2)?,
-                global_path: row.get(3)?,
-                project_path: row.get(4)?,
-                enabled: row.get::<_, i32>(5)? != 0,
-                icon: row.get(6)?,
+                id,
+                name,
+                adapter,
+                enabled,
+                icon,
+                paths,
             })
         })?
         .filter_map(|r| r.ok())

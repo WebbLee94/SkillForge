@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 7;
+const CURRENT_VERSION: u32 = 8;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -41,6 +41,9 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     }
     if current < 7 {
         apply_v7(conn)?;
+    }
+    if current < 8 {
+        apply_v8(conn)?;
     }
 
     Ok(())
@@ -199,25 +202,43 @@ fn apply_v6(conn: &rusqlite::Connection) -> Result<(), AppError> {
     // Full refresh of all 12 built-in platforms using INSERT OR REPLACE
     // to ensure old data is overwritten and new platforms are added
     let platforms = [
-        ("claude-code", "Claude Code", "claude-code", "~/.claude/skills", ".claude/skills"),
-        ("opencode", "OpenCode", "opencode", "~/.config/opencode/skills", ".opencode/skills"),
-        ("cursor", "Cursor", "cursor", "~/.cursor/skills", ".cursor/skills"),
-        ("trae", "Trae", "trae", "~/.trae/skills", ".trae/skills"),
-        ("trae-cn", "Trae CN", "trae-cn", "~/.trae-cn/skills", ".trae-cn/skills"),
-        ("codebuddy", "CodeBuddy", "codebuddy", "~/.codebuddy/skills", ".codebuddy/skills"),
-        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn", "~/.codebuddy-cn/skills", ".codebuddy-cn/skills"),
-        ("codex", "Codex", "codex", "~/.codex/skills", ".codex/skills"),
-        ("hermes", "Hermes Agent", "hermes", "~/.hermes/skills", ".hermes/skills"),
-        ("openclaw", "OpenClaw", "openclaw", "~/.openclaw/skills", ".openclaw/skills"),
-        ("antigravity", "Antigravity", "antigravity", "~/.antigravity/skills", ".antigravity/skills"),
-        ("windsurf", "Windsurf", "windsurf", "~/.windsurf/skills", ".windsurf/skills"),
+        ("claude-code", "Claude Code", "claude-code"),
+        ("opencode", "OpenCode", "opencode"),
+        ("cursor", "Cursor", "cursor"),
+        ("trae", "Trae", "trae"),
+        ("trae-cn", "Trae CN", "trae-cn"),
+        ("codebuddy", "CodeBuddy", "codebuddy"),
+        ("codebuddy-cn", "CodeBuddy CN", "codebuddy-cn"),
+        ("codex", "Codex", "codex"),
+        ("hermes", "Hermes Agent", "hermes"),
+        ("openclaw", "OpenClaw", "openclaw"),
+        ("antigravity", "Antigravity", "antigravity"),
+        ("windsurf", "Windsurf", "windsurf"),
     ];
 
-    for (id, name, adapter, global_path, project_path) in &platforms {
-        conn.execute(
-            "INSERT OR REPLACE INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, ?4, ?5, 1, NULL)",
-            rusqlite::params![id, name, adapter, global_path, project_path],
-        )?;
+    // Check if platforms table has path columns (pre-v8 schema)
+    let has_path_columns: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('platforms') WHERE name IN ('global_path', 'project_path')",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .unwrap_or(0) > 0;
+
+    for (id, name, adapter) in &platforms {
+        if has_path_columns {
+            // Legacy: include path columns
+            conn.execute(
+                "INSERT OR REPLACE INTO platforms (id, name, adapter, global_path, project_path, enabled, icon) VALUES (?1, ?2, ?3, '', '', 1, NULL)",
+                rusqlite::params![id, name, adapter],
+            )?;
+        } else {
+            // New schema: no path columns
+            conn.execute(
+                "INSERT OR REPLACE INTO platforms (id, name, adapter, enabled, icon) VALUES (?1, ?2, ?3, 1, NULL)",
+                rusqlite::params![id, name, adapter],
+            )?;
+        }
     }
 
     let now = chrono::Utc::now().to_rfc3339();
@@ -303,6 +324,31 @@ fn apply_v7(conn: &rusqlite::Connection) -> Result<(), AppError> {
     conn.execute(
         "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
         rusqlite::params![7, now],
+    )?;
+
+    Ok(())
+}
+
+fn apply_v8(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    // v8: Remove path columns from platforms table (paths now from compile-time constants)
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS platforms_new (
+            id      TEXT PRIMARY KEY,
+            name    TEXT NOT NULL,
+            adapter TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            icon    TEXT
+        );
+        INSERT INTO platforms_new (id, name, adapter, enabled, icon)
+            SELECT id, name, adapter, enabled, icon FROM platforms;
+        DROP TABLE platforms;
+        ALTER TABLE platforms_new RENAME TO platforms;"
+    )?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![8, now],
     )?;
 
     Ok(())
@@ -423,16 +469,6 @@ mod tests {
             .unwrap();
         assert_eq!(name, "Claude Code");
 
-        // Assert: claude-code global_path overwritten
-        let global_path: String = conn
-            .query_row(
-                "SELECT global_path FROM platforms WHERE id = 'claude-code'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(global_path, "~/.claude/skills");
-
         // Assert: new platforms exist
         let trae_name: String = conn
             .query_row(
@@ -452,7 +488,7 @@ mod tests {
             .unwrap();
         assert_eq!(windsurf_name, "Windsurf");
 
-        // Assert: schema_version max is 7 (v6 + v7 both applied)
+        // Assert: schema_version max is 8 (v6 + v7 + v8 all applied)
         let version: u32 = conn
             .query_row(
                 "SELECT MAX(version) FROM schema_version",
@@ -460,7 +496,7 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 7);
+        assert_eq!(version, 8);
     }
 
     #[test]
@@ -498,6 +534,11 @@ mod tests {
             CREATE TABLE IF NOT EXISTS schema_version (
                 version INTEGER PRIMARY KEY,
                 applied_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS platforms (
+                id TEXT PRIMARY KEY, name TEXT NOT NULL, adapter TEXT NOT NULL,
+                global_path TEXT, project_path TEXT,
+                enabled INTEGER NOT NULL DEFAULT 1, icon TEXT
             );"
         ).unwrap();
 
@@ -604,6 +645,6 @@ mod tests {
                 |row| row.get(0),
             )
             .unwrap();
-        assert_eq!(version, 7);
+        assert_eq!(version, CURRENT_VERSION);
     }
 }

@@ -3,6 +3,8 @@ use crate::types::{
     PlatformCapabilities, PlatformInstance, PlatformPaths, RulesFormat, Skill, SkillPlatformStatus, SyncResult,
 };
 
+pub mod definitions;
+
 /// Trait for Agent platform adapter plugins.
 /// Each platform (Claude Code, OpenCode, Cursor, etc.) implements this.
 pub trait PlatformPlugin: Send + Sync {
