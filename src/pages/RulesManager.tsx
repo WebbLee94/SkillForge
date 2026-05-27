@@ -695,6 +695,7 @@ export function RulesManager() {
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
                 className="w-full max-w-md bg-transparent text-lg font-semibold text-foreground focus:outline-none"
+                autoFocus
               />
             </div>
             <div className="flex items-center gap-2">
