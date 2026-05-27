@@ -573,7 +573,7 @@ export function SkillLibrary() {
                       let failCount = 0;
                       for (const dir of selectedDirs) {
                         try {
-                          await installSkill("local", dir);
+                          await installSkill("local", dir, { silent: true });
                           successCount++;
                         } catch {
                           failCount++;
