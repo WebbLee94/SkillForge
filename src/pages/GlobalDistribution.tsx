@@ -331,7 +331,7 @@ export function GlobalDistribution() {
                 {t("syncNow")}
               </button>
             </div>
-            {/* Platform global path — 整行可点击打开文件管理器 */}
+            {/* Platform global path: icon triggers reveal, text is copyable */}
             {(() => {
               const platformInfo = globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id);
               if (!platformInfo?.skills_dir) return null;
@@ -339,14 +339,29 @@ export function GlobalDistribution() {
               const parts = skillsDir.split("/");
               const globalDir = parts.slice(0, -1).join("/") || skillsDir;
               return (
-                <button
-                  className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-                  onClick={() => revealItemInDir(globalDir)}
-                  title={tc("actions.openInFileManager")}
-                >
-                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">{globalDir}</span>
-                </button>
+                <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <button
+                    className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
+                    onClick={() => {
+                      const resolved = platformInfo.skills_dir_resolved;
+                      if (resolved) {
+                        const rparts = resolved.split("/");
+                        const parent = rparts.slice(0, -1).join("/") || resolved;
+                        revealItemInDir(parent);
+                      }
+                    }}
+                    title={tc("actions.openInFileManager")}
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                  </button>
+                  <span
+                    className="truncate cursor-copy hover:text-foreground transition-colors"
+                    onClick={() => navigator.clipboard.writeText(globalDir)}
+                    title={tc("actions.copy")}
+                  >
+                    {globalDir}
+                  </span>
+                </div>
               );
             })()}
           </div>
