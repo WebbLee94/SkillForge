@@ -87,7 +87,7 @@ export function SceneEditor() {
       const map: Record<string, PlatformCapabilities> = {};
       for (const p of platforms) {
         if (!capabilitiesMap[p.id]) {
-          try { map[p.id] = await ipc.getCapabilities(p.id); } catch { /* skip */ }
+          try { map[p.id] = await ipc.getCapabilities(p.id); } catch (e) { console.error('getCapabilities failed:', e); }
         }
       }
       if (Object.keys(map).length > 0) setCapabilitiesMap(prev => ({ ...prev, ...map }));
@@ -483,7 +483,6 @@ export function SceneEditor() {
                 skills={currentSceneDetail?.skills || []}
                 onRemove={handleRemoveSkill}
                 onToggle={handleToggleSkill}
-                onReorder={() => {}}
                 disabled={currentScene.is_system}
               />
             </div>
@@ -501,7 +500,6 @@ export function SceneEditor() {
                 rules={currentSceneDetail?.rules || []}
                 onRemove={handleRemoveRule}
                 onToggle={handleToggleRule}
-                onReorder={() => {}}
                 disabled={currentScene.is_system}
               />
             </div>

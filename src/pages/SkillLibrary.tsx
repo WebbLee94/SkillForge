@@ -82,13 +82,14 @@ export function SkillLibrary() {
 
   const parseMetadata = (meta: string | null | undefined): Record<string, unknown> => {
     if (!meta) return {};
-    try { return JSON.parse(meta); } catch { return {}; }
+    try { return JSON.parse(meta); } catch (e) { console.error('parseMetadata failed:', e); return {}; }
   };
 
   const formatTime = (iso: string) => {
     try {
       return new Date(iso).toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
-    } catch {
+    } catch (e) {
+      console.error('formatTime failed:', e);
       return iso;
     }
   };

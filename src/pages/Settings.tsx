@@ -81,7 +81,7 @@ export function Settings() {
     const fetchCaps = async () => {
       const map: Record<string, PlatformCapabilities> = {};
       for (const p of platforms) {
-        try { map[p.id] = await ipc.getCapabilities(p.id); } catch { /* skip */ }
+        try { map[p.id] = await ipc.getCapabilities(p.id); } catch (e) { console.error('getCapabilities failed:', e); }
       }
       setCapabilitiesMap(map);
     };
@@ -103,8 +103,8 @@ export function Settings() {
       await ipc.togglePlatformEnabled(platform.id, !platform.enabled);
       const list = await ipc.listPlatforms();
       setPlatforms(list);
-    } catch {
-      // ignore errors
+    } catch (e) {
+      console.error('togglePlatformEnabled failed:', e);
     } finally {
       setTogglingId(null);
     }
@@ -230,10 +230,7 @@ export function Settings() {
             <div className="max-w-[800px] space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium text-foreground">{t("settings:platforms.title")}</h3>
-                {/* v1.17: hidden until feature ready */}
               </div>
-
-              {/* v1.17: hidden until feature ready */}
 
               {/* Platform table */}
               {platformsLoading ? (

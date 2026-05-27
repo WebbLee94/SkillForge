@@ -8,7 +8,6 @@ interface SortableRuleListProps {
   rules: SceneRule[];
   onRemove: (ruleId: string) => void;
   onToggle: (ruleId: string) => void;
-  onReorder: (rules: SceneRule[]) => void;
   disabled?: boolean;
 }
 

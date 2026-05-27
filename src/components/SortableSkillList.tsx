@@ -8,7 +8,6 @@ interface SortableSkillListProps {
   skills: SceneSkill[];
   onRemove: (skillId: string) => void;
   onToggle: (skillId: string) => void;
-  onReorder: (skills: SceneSkill[]) => void;
   disabled?: boolean;
 }
 

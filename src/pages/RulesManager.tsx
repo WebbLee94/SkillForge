@@ -192,7 +192,8 @@ export function RulesManager() {
   const formatTime = (iso: string) => {
     try {
       return new Date(iso).toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
-    } catch {
+    } catch (e) {
+      console.error('formatTime failed:', e);
       return iso;
     }
   };

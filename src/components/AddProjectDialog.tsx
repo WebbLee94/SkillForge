@@ -87,8 +87,8 @@ export const AddProjectDialog = memo(function AddProjectDialog({
                       setPath(selected);
                       if (!name) setName(selected.split("/").pop() || "");
                     }
-                  } catch {
-                    // Dialog not available in dev mode
+                  } catch (e) {
+                    console.error('dialog open failed:', e);
                   }
                 }}
               >

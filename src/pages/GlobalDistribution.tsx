@@ -3,15 +3,14 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
-import { formatDate } from "../lib/utils";
 import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
-  Package, FileText, History, FolderOpen, HelpCircle,
+  FolderOpen, HelpCircle,
 } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import type { SyncStatus, SyncLog } from "../types";
+import type { SyncStatus } from "../types";
 
 const statusIconMap: Record<SyncStatus, React.ReactNode> = {
   synced: <CheckCircle className="h-4 w-4 text-success" />,
@@ -54,8 +53,6 @@ export function GlobalDistribution() {
   const fetchGlobalDistStatus = useAppStore((s) => s.fetchGlobalDistStatus);
   const addToast = useAppStore((s) => s.addToast);
 
-  // Recent activity for distribution history
-  const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
   const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
 
   // T3: Include system scenes in the selector
@@ -118,8 +115,6 @@ export function GlobalDistribution() {
     fetchSyncStatus();
     fetchPlatforms();
     fetchGlobalDistStatus();
-    // T14: Fetch recent activity for distribution history
-    ipc.getRecentActivity(5).then(setRecentLogs).catch(() => {});
   }, [fetchScenes, fetchSyncStatus, fetchPlatforms, fetchGlobalDistStatus]);
 
   useEffect(() => {
@@ -367,46 +362,6 @@ export function GlobalDistribution() {
         <div className="flex flex-col items-center justify-center py-12">
           <Globe className="mb-3 h-12 w-12 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">{t("emptyGlobal")}</p>
-        </div>
-      )}
-
-      {/* v1.17: Recent Distribution History — hidden until feature is polished */}
-      {false && recentLogs.length > 0 && (
-        <div className="mt-6 rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <History className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">{t("recentDistribution")}</h3>
-          </div>
-          <div className="space-y-2">
-            {recentLogs.map((log) => (
-              <div key={log.id} className="flex items-center justify-between rounded-md px-3 py-2 bg-muted/30">
-                <div className="flex items-center gap-2 min-w-0">
-                  {log.target_type === "skill" ? (
-                    <Package className="h-3.5 w-3.5 text-primary shrink-0" />
-                  ) : (
-                    <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
-                  )}
-                  <span className="text-sm text-foreground truncate">{log.target_id}</span>
-                  {log.platform_id && (
-                    <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground shrink-0">
-                      {log.platform_id}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-medium",
-                    log.status === "success" && "bg-success/10 text-success",
-                    log.status === "error" && "bg-error/10 text-error",
-                    log.status !== "success" && log.status !== "error" && "bg-muted/50 text-muted-foreground",
-                  )}>
-                    {log.status === "success" ? tc("status.success") : log.status === "error" ? tc("status.failed") : log.status}
-                  </span>
-                  <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 

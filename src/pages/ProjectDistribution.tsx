@@ -54,7 +54,8 @@ export function ProjectDistribution() {
         if (!scenePlatformsMap[sid]) {
           try {
             map[sid] = await ipc.getScenePlatforms(sid);
-          } catch {
+          } catch (e) {
+            console.error('getScenePlatforms failed:', e);
             map[sid] = [];
           }
         }
