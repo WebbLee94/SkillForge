@@ -4,6 +4,7 @@ import { useAppStore } from "../stores/appStore";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
 import { AddProjectDialog } from "../components/AddProjectDialog";
+import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   Plus, FolderOpen, Trash2, RefreshCw,
@@ -167,19 +168,16 @@ export function ProjectDistribution() {
             <div key={project.id} className="rounded-lg border border-border bg-card p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-3">
-                  <FolderOpen className="h-5 w-5 text-primary" />
+                  <button
+                    className="text-primary hover:text-primary/80 transition-colors"
+                    onClick={() => revealItemInDir(project.path)}
+                    title="在文件管理器中打开"
+                  >
+                    <FolderOpen className="h-5 w-5" />
+                  </button>
                   <div>
                     <h3 className="text-sm font-semibold text-foreground">{project.name}</h3>
-                    <div className="flex items-center gap-1">
-                      <p className="text-xs text-muted-foreground">{project.path}</p>
-                      <button
-                        className="text-muted-foreground/50 hover:text-primary transition-colors"
-                        onClick={() => revealItemInDir(project.path)}
-                        title="在文件管理器中打开"
-                      >
-                        <FolderOpen className="h-3 w-3" />
-                      </button>
-                    </div>
+                    <p className="text-xs text-muted-foreground">{project.path}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -228,6 +226,7 @@ export function ProjectDistribution() {
                     <div key={platform.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
                       <div className="flex items-center gap-2">
                         {statusIconMap[status] || statusIconMap.pending}
+                        {(() => { const Icon = getPlatformIcon(platform.id); return <Icon className="h-4 w-4 text-muted-foreground" />; })()}
                         <span className="text-xs font-medium text-foreground">{platform.name}</span>
                       </div>
                       <button

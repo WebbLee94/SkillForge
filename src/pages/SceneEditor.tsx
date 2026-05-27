@@ -384,17 +384,24 @@ export function SceneEditor() {
               {leftTab === "skills" ? (
                 <div className="space-y-1">
                   {availableSkills.map((skill) => (
-                    <button
+                    <div
                       key={skill.id}
-                      className="w-full rounded-lg border border-border bg-card p-2 text-left hover:bg-accent transition-colors"
-                      onClick={() => handleAddSkill(skill.id)}
+                      className="w-full rounded-lg border border-border bg-card p-2 hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate">{skill.name}</span>
-                        <Plus className="h-4 w-4 shrink-0 text-primary" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-medium text-foreground truncate block">{skill.name}</span>
+                          <p className="mt-0.5 text-xs text-muted-foreground truncate">{skill.description}</p>
+                        </div>
+                        <button
+                          className="shrink-0 ml-2 text-primary hover:text-primary/80 transition-colors"
+                          onClick={() => handleAddSkill(skill.id)}
+                          title={t("addSkill", "添加技能")}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground truncate">{skill.description}</p>
-                    </button>
+                    </div>
                   ))}
                   {availableSkills.length === 0 && (
                     <p className="py-4 text-center text-xs text-muted-foreground">{tc("messages.noData")}</p>
@@ -403,19 +410,26 @@ export function SceneEditor() {
               ) : (
                 <div className="space-y-1">
                   {availableRules.map((rule) => (
-                    <button
+                    <div
                       key={rule.id}
-                      className="w-full rounded-lg border border-border bg-card p-2 text-left hover:bg-accent transition-colors"
-                      onClick={() => {
-                        if (currentScene) addRuleToScene(currentScene.id, rule.id);
-                      }}
+                      className="w-full rounded-lg border border-border bg-card p-2 hover:bg-accent/50 transition-colors"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-foreground truncate">{rule.name}</span>
-                        <Plus className="h-4 w-4 shrink-0 text-primary" />
+                        <div className="min-w-0 flex-1">
+                          <span className="text-sm font-medium text-foreground truncate block">{rule.name}</span>
+                          <p className="mt-0.5 text-xs text-muted-foreground truncate">.{rule.format}</p>
+                        </div>
+                        <button
+                          className="shrink-0 ml-2 text-primary hover:text-primary/80 transition-colors"
+                          onClick={() => {
+                            if (currentScene) addRuleToScene(currentScene.id, rule.id);
+                          }}
+                          title={t("addRule", "添加规则")}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
                       </div>
-                      <p className="mt-0.5 text-xs text-muted-foreground truncate">.{rule.format}</p>
-                    </button>
+                    </div>
                   ))}
                   {availableRules.length === 0 && (
                     <p className="py-4 text-center text-xs text-muted-foreground">{tc("messages.noData")}</p>
@@ -524,7 +538,7 @@ export function SceneEditor() {
                         <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
                         <span className="text-sm font-medium text-foreground">{platform.name}</span>
                         {limitations.length > 0 && (
-                          <span className="ml-auto" title={limitations.join("；")}>
+                          <span className="inline-flex items-center" title={limitations.join("；")}>
                             <Info className="h-3.5 w-3.5 text-warning" />
                           </span>
                         )}
@@ -548,7 +562,7 @@ export function SceneEditor() {
                       <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
                       <span className="text-sm font-medium text-foreground">{platform.name}</span>
                       {limitations.length > 0 && (
-                        <span className="ml-auto" title={limitations.join("；")}>
+                        <span className="inline-flex items-center" title={limitations.join("；")}>
                           <Info className="h-3.5 w-3.5 text-warning" />
                         </span>
                       )}
