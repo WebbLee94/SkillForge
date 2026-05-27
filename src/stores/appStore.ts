@@ -71,14 +71,14 @@ interface AppStore {
   // === Skill Actions ===
   fetchSkills: () => Promise<void>;
   selectSkill: (skill: Skill | null) => void;
-  installSkill: (source: string, id: string) => Promise<void>;
+  installSkill: (source: string, id: string, opts?: { silent?: boolean }) => Promise<void>;
   uninstallSkill: (id: string) => Promise<void>;
   updateSkill: (id: string) => Promise<void>;
 
   // === Rule Actions ===
   fetchRules: () => Promise<void>;
   setEditingRule: (rule: Rule | null) => void;
-  createRule: (data: CreateRuleDTO) => Promise<void>;
+  createRule: (data: CreateRuleDTO, opts?: { silent?: boolean }) => Promise<void>;
   updateRule: (id: string, data: UpdateRuleDTO) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
 
@@ -185,7 +185,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
   selectSkill: (skill) => set({ selectedSkill: skill }),
-  installSkill: async (source, id) => {
+  installSkill: async (source, id, opts?: { silent?: boolean }) => {
     // Map frontend source type to backend plugin name
     const sourceMap: Record<string, string> = {
       local: "local-fs",
@@ -195,7 +195,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     try {
       await ipc.installSkill(backendSource, id);
       await get().fetchSkills();
-      get().addToast("安装成功", "success");
+      if (!opts?.silent) {
+        get().addToast("安装成功", "success");
+      }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       get().addToast(`安装失败: ${errMsg}`, "error");
@@ -239,11 +241,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
   setEditingRule: (rule) => set({ editingRule: rule }),
-  createRule: async (data) => {
+  createRule: async (data, opts?: { silent?: boolean }) => {
     try {
       await ipc.createRule(data);
       await get().fetchRules();
-      get().addToast("创建规则成功", "success");
+      if (!opts?.silent) {
+        get().addToast("创建规则成功", "success");
+      }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       get().addToast(`创建规则失败: ${errMsg}`, "error");
@@ -542,6 +546,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
       await get().fetchDistributions();
       await get().fetchSyncStatus();
+      await get().fetchGlobalDistStatus();
       if (result.errors.length === 0) {
         get().addToast("同步成功", "success");
       } else {
