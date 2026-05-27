@@ -26,8 +26,8 @@ export const ipc = {
   // Skills - Rust uses skill_id, not id
   listSkills: (sourceType?: string, tag?: string) =>
     invoke<Skill[]>("list_skills", { sourceType, tag }),
-  installSkill: (source: string, skillId: string) =>
-    invoke<Skill>("install_skill", { source, skillId }),
+  installSkill: (source: string, skillId: string) => invoke<Skill>("install_skill", { source, skillId }),
+  installSkillsBatch: (source: string, skillIds: string[]) => invoke<Skill[]>("install_skills_batch", { source, skillIds }),
   uninstallSkill: (skillId: string) =>
     invoke<Skill>("uninstall_skill", { skillId }),
   updateSkill: (skillId: string) =>

@@ -329,8 +329,9 @@ export function SkillLibrary() {
                         onAssign={(tagId) => handleAssignTag(skill.id, tagId)}
                         onRemove={(tagId) => handleRemoveTag(skill.id, tagId)}
                         onCreate={async (name, color) => {
-                          await createTag({ name, color, tag_type: "skill" });
+                          const result = await createTag({ name, color, tag_type: "skill" });
                           await fetchSkills();
+                          return result;
                         }}
                       />
                     </div>

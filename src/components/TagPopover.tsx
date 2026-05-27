@@ -15,7 +15,7 @@ interface TagPopoverProps {
   allTags: Tag[];
   onAssign: (tagId: number) => void;
   onRemove: (tagId: number) => void;
-  onCreate: (name: string, color: string) => void;
+  onCreate: (name: string, color: string) => Promise<number | void>;
 }
 
 export function TagPopover({
@@ -66,9 +66,13 @@ export function TagPopover({
     }
   }, [open]);
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!search.trim()) return;
-    onCreate(search.trim(), newColor);
+    const newTagId = await onCreate(search.trim(), newColor);
+    // Auto-assign the newly created tag
+    if (typeof newTagId === "number" && !assignedIds.has(newTagId)) {
+      onAssign(newTagId);
+    }
     setSearch("");
     setNewColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
     setOpen(false);

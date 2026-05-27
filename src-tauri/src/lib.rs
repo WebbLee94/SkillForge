@@ -22,6 +22,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::skills::list_skills,
             commands::skills::install_skill,
+            commands::skills::install_skills_batch,
             commands::skills::uninstall_skill,
             commands::skills::update_skill,
             commands::skills::search_skills,

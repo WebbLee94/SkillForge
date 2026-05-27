@@ -444,8 +444,9 @@ export function RulesManager() {
                             onAssign={(tagId) => handleAssignTag(rule.id, tagId)}
                             onRemove={(tagId) => handleRemoveTag(rule.id, tagId)}
                             onCreate={async (name, color) => {
-                              await createTag({ name, color, tag_type: "rule" });
+                              const result = await createTag({ name, color, tag_type: "rule" });
                               await fetchRules();
+                              return result;
                             }}
                           />
                         </div>

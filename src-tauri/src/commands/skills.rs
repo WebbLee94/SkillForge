@@ -27,6 +27,24 @@ pub fn install_skill(
 }
 
 #[tauri::command]
+pub fn install_skills_batch(
+    source: String,
+    skill_ids: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<Skill>, AppError> {
+    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let source_plugin = source::create_source_plugin(&source)?;
+    let mut results = Vec::new();
+    for skill_id in &skill_ids {
+        match engine::skill_engine::install_skill(&conn, source_plugin.as_ref(), skill_id) {
+            Ok(skill) => results.push(skill),
+            Err(_) => continue, // skip failed installs
+        }
+    }
+    Ok(results)
+}
+
+#[tauri::command]
 pub fn uninstall_skill(
     skill_id: String,
     state: tauri::State<'_, AppState>,
