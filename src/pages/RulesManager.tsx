@@ -533,6 +533,7 @@ export function RulesManager() {
                   content={editContent}
                   onChange={setEditContent}
                   format={(editingRule.format || "mdc") as "mdc" | "md" | "yaml"}
+                  defaultViewMode="preview"
                 />
               </div>
 
