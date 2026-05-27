@@ -152,7 +152,7 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-2 text-left font-medium text-muted-foreground w-14">{t("tag.color")}</th>
+                <th className="px-4 py-2 text-left font-medium text-muted-foreground w-32">颜色</th>
                 <th className="px-4 py-2 text-left font-medium text-muted-foreground">{t("tag.name")}</th>
                 <th className="px-4 py-2 text-left font-medium text-muted-foreground w-20">{t("tag.associatedCount")}</th>
                 <th className="px-4 py-2 text-right font-medium text-muted-foreground w-16">{t("actions.delete")}</th>
@@ -162,33 +162,19 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
               {filteredTags.map((tag) => (
                 <tr key={tag.id} className="border-b border-border last:border-0 group">
                   <td className="px-4 py-2">
-                    <div className="relative">
-                      <button
-                        className="h-5 w-5 rounded-full shrink-0 border border-white/30 hover:scale-125 transition-transform"
-                        style={tag.color ? { backgroundColor: tag.color } : { backgroundColor: "hsl(var(--muted-foreground))" }}
-                        onClick={() => setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)}
-                        title={t("tag.selectColor")}
-                      />
-                      {colorPickerTagId === tag.id && (
-                        <div
-                          ref={colorPickerRef}
-                          className="absolute z-30 left-0 top-8 rounded-lg border border-border bg-card p-3 shadow-lg"
-                        >
-                          <div className="flex flex-wrap gap-2">
-                            {PRESET_COLORS.map((color) => (
-                              <button
-                                key={color}
-                                className={cn(
-                                  "h-7 w-7 rounded-lg border-2 transition-all",
-                                  tag.color === color ? "border-foreground scale-110" : "border-transparent hover:scale-105",
-                                )}
-                                style={{ backgroundColor: color }}
-                                onClick={() => handleColorSelect(tag.id, color)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                    <div className="flex items-center gap-1">
+                      {PRESET_COLORS.map((color) => (
+                        <button
+                          key={color}
+                          className={cn(
+                            "h-4 w-4 rounded-full border-2 transition-all shrink-0",
+                            tag.color === color ? "border-foreground scale-125" : "border-transparent hover:scale-110",
+                          )}
+                          style={{ backgroundColor: color }}
+                          onClick={() => handleColorSelect(tag.id, color)}
+                          title={color}
+                        />
+                      ))}
                     </div>
                   </td>
                   <td className="px-4 py-2">

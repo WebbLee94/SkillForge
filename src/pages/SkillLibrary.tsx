@@ -91,12 +91,14 @@ export function SkillLibrary() {
   const handleAssignTag = useCallback(async (skillId: string, tagId: number) => {
     await assignTag("skill", skillId, tagId);
     await fetchSkills();
-  }, [assignTag, fetchSkills]);
+    await fetchTags('skill');
+  }, [assignTag, fetchSkills, fetchTags]);
 
   const handleRemoveTag = useCallback(async (skillId: string, tagId: number) => {
     await removeTagAction("skill", skillId, tagId);
     await fetchSkills();
-  }, [removeTagAction, fetchSkills]);
+    await fetchTags('skill');
+  }, [removeTagAction, fetchSkills, fetchTags]);
 
   const handleBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;

@@ -7,7 +7,7 @@ import { AddProjectDialog } from "../components/AddProjectDialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import {
   Plus, FolderOpen, Trash2, RefreshCw,
-  CheckCircle, AlertCircle, Clock, AlertTriangle, Search, Globe,
+  CheckCircle, AlertCircle, Clock, AlertTriangle, Search, Globe, Filter,
 } from "lucide-react";
 import type { SyncStatus } from "../types";
 
@@ -37,6 +37,7 @@ export function ProjectDistribution() {
 
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sceneFilter, setSceneFilter] = useState<string>("");
 
   // Scene-bound platform IDs map: sceneId -> platformId[]
   const [scenePlatformsMap, setScenePlatformsMap] = useState<Record<string, string[]>>({});
@@ -67,6 +68,10 @@ export function ProjectDistribution() {
     fetchScenes();
     fetchDistributions();
     fetchPlatforms();
+    // Detect URL param for scene_id
+    const params = new URLSearchParams(window.location.search);
+    const sceneId = params.get("scene_id");
+    if (sceneId) setSceneFilter(sceneId);
   }, [fetchProjects, fetchScenes, fetchDistributions, fetchPlatforms]);
 
   const handleAddProject = useCallback(async (data: { name: string; path: string; sceneId?: string }) => {
@@ -96,9 +101,11 @@ export function ProjectDistribution() {
     return distributions.filter((d) => d.project_id === projectId);
   }, [distributions]);
 
-  const filteredProjects = searchQuery
-    ? projects.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.path.toLowerCase().includes(searchQuery.toLowerCase()))
-    : projects;
+  const filteredProjects = projects.filter((p) => {
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.path.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    if (sceneFilter && p.scene_id !== sceneFilter) return false;
+    return true;
+  });
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
@@ -119,9 +126,9 @@ export function ProjectDistribution() {
         </button>
       </div>
 
-      {/* Search */}
-      <div className="mb-4">
-        <div className="relative max-w-[400px]">
+      {/* Search + Scene Filter */}
+      <div className="mb-4 flex items-center gap-3">
+        <div className="relative max-w-[400px] flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
@@ -133,6 +140,19 @@ export function ProjectDistribution() {
               "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
             )}
           />
+        </div>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <select
+            value={sceneFilter}
+            onChange={(e) => setSceneFilter(e.target.value)}
+            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">全部场景</option>
+            {scenes.map((scene) => (
+              <option key={scene.id} value={scene.id}>{scene.name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

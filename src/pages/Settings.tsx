@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
-import { Globe, Server, ExternalLink, Database, Folder, Info, CheckCircle2, XCircle } from "lucide-react";
+import { Globe, Server, ExternalLink, Database, Info, CheckCircle2, XCircle, FolderOpen } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import type { Platform, PlatformCapabilities } from "../types";
 
 type SettingsTab = "general" | "platforms";
@@ -29,6 +30,7 @@ export function Settings() {
   const { t, i18n } = useTranslation(["common", "settings"]);
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const [dataDir, setDataDir] = useState("~/.skillforge/");
+  const [rawDataDir, setRawDataDir] = useState<string | null>(null);
   const [dbSize, setDbSize] = useState<string | null>(null);
   const [platforms, setPlatforms] = useState<Platform[]>([]);
   const [platformsLoading, setPlatformsLoading] = useState(false);
@@ -44,7 +46,10 @@ export function Settings() {
 
   useEffect(() => {
     ipc.getAppConfig().then((config) => {
-      setDataDir(config.data_dir);
+      setRawDataDir(config.data_dir);
+      // T9: Replace absolute home path with ~
+      const homeDir = config.data_dir.split("/.skillforge")[0];
+      setDataDir(config.data_dir.replace(homeDir, "~"));
     }).catch(() => {
       // fallback to default
     });
@@ -172,7 +177,13 @@ export function Settings() {
                       <span>{dbSize ?? t("settings:general.dbSizeCalculating")}</span>
                     </div>
                     <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-sm text-foreground">
-                      <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+                      <button
+                        className="text-muted-foreground hover:text-primary transition-colors"
+                        onClick={() => rawDataDir && revealItemInDir(rawDataDir)}
+                        title="在文件管理器中打开"
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                      </button>
                       <span className="font-mono text-xs">{dataDir}</span>
                     </div>
                   </div>
@@ -248,21 +259,20 @@ export function Settings() {
                       <tr className="border-b border-border bg-muted/50">
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground w-10"></th>
                         <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.name")}</th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.path")}</th>
-                        <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">{t("settings:platforms.columns.projectPath")}</th>
-                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">能力</th>
-                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground">{t("settings:platforms.columns.status")}</th>
+                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-[180px]">路径与能力</th>
+                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-20">{t("settings:platforms.columns.status")}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {platforms.map((platform) => {
                         const IconComp = getPlatformIcon(platform.id);
                         const isToggling = togglingId === platform.id;
+                        const caps = capabilitiesMap[platform.id];
                         return (
                           <tr
                             key={platform.id}
                             className={cn(
-                              "border-b border-border last:border-0 transition-opacity",
+                              "border-b border-border last:border-0 transition-opacity group",
                               !platform.enabled && "opacity-60",
                             )}
                           >
@@ -270,15 +280,8 @@ export function Settings() {
                               <IconComp className="h-5 w-5 text-muted-foreground" />
                             </td>
                             <td className="px-4 py-2.5 text-foreground font-medium">{platform.name}</td>
-                            <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground max-w-[200px] truncate">
-                              {platform.global_path || "-"}
-                            </td>
-                            <td className="px-4 py-2.5 text-xs font-mono text-muted-foreground max-w-[200px] truncate">
-                              {platform.project_path || "-"}
-                            </td>
                             <td className="px-4 py-2.5 text-center">
                               {(() => {
-                                const caps = capabilitiesMap[platform.id];
                                 if (!caps) return <span className="text-xs text-muted-foreground">-</span>;
                                 const CapBadge = ({ supported, label }: { supported: boolean; label: string }) => (
                                   <span title={`${label}: ${supported ? "✓" : "✗"}`}>
@@ -287,12 +290,47 @@ export function Settings() {
                                       : <XCircle className="h-3.5 w-3.5 text-error" />}
                                   </span>
                                 );
+                                const capLabels = [
+                                  { key: "skills_global", supported: caps.skills_global, label: "全局技能", path: platform.global_path || "" },
+                                  { key: "skills_project", supported: caps.skills_project, label: "项目技能", path: platform.project_path || "" },
+                                  { key: "rules_global", supported: caps.rules_global, label: "全局规则", path: caps.rules_global ? (platform.global_path || "").replace("/skills", "/rules") : "" },
+                                  { key: "rules_project", supported: caps.rules_project, label: "项目规则", path: caps.rules_project ? (platform.project_path || "").replace("/skills", "/rules") : "" },
+                                ];
                                 return (
-                                  <div className="flex items-center justify-center gap-1.5">
-                                    <CapBadge supported={caps.skills_global} label={t("settings:platforms.capabilities.skillsGlobal")} />
-                                    <CapBadge supported={caps.skills_project} label={t("settings:platforms.capabilities.skillsProject")} />
-                                    <CapBadge supported={caps.rules_global} label={t("settings:platforms.capabilities.rulesGlobal")} />
-                                    <CapBadge supported={caps.rules_project} label={t("settings:platforms.capabilities.rulesProject")} />
+                                  <div className="relative">
+                                    <div className="flex items-center justify-center gap-1.5">
+                                      {capLabels.map((c) => (
+                                        <CapBadge key={c.key} supported={c.supported} label={c.label} />
+                                      ))}
+                                    </div>
+                                    {/* Tooltip on hover */}
+                                    <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
+                                      <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px]">
+                                        {capLabels.map((c) => (
+                                          <div key={c.key} className="flex items-center gap-2 py-1 text-xs">
+                                            {c.supported
+                                              ? <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                              : <XCircle className="h-3 w-3 text-error shrink-0" />
+                                            }
+                                            <span className="text-muted-foreground w-16 shrink-0">{c.label}</span>
+                                            {c.supported && c.path ? (
+                                              <span className="font-mono text-foreground truncate flex-1">{c.path}</span>
+                                            ) : (
+                                              <span className="text-muted-foreground/50">不支持</span>
+                                            )}
+                                            {c.supported && c.path && (
+                                              <button
+                                                className="shrink-0 text-muted-foreground hover:text-primary pointer-events-auto"
+                                                onClick={() => navigator.clipboard.writeText(c.path)}
+                                                title="复制路径"
+                                              >
+                                                📋
+                                              </button>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
                                   </div>
                                 );
                               })()}
