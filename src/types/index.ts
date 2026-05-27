@@ -276,6 +276,7 @@ export interface PlatformDistInfo {
   total_count: number;
   last_synced_at: string | null;
   skills_dir?: string | null;
+  skills_dir_resolved?: string | null;
   rules_dir?: string | null;
   scene_skill_count?: number;
   synced_skill_count?: number;
