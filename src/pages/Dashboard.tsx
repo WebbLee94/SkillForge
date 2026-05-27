@@ -3,25 +3,22 @@ import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
-import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe, AlertTriangle } from "lucide-react";
+import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe } from "lucide-react";
 
 export function Dashboard() {
   const { t } = useTranslation("common");
   const dashboardStats = useAppStore((s) => s.dashboardStats);
   const globalDistStatus = useAppStore((s) => s.globalDistStatus);
-  const driftCount = useAppStore((s) => s.driftCount);
   const fetchDashboardStats = useAppStore((s) => s.fetchDashboardStats);
   const fetchRecentActivity = useAppStore((s) => s.fetchRecentActivity);
   const fetchGlobalDistStatus = useAppStore((s) => s.fetchGlobalDistStatus);
-  const fetchDriftStatus = useAppStore((s) => s.fetchDriftStatus);
   const setActiveNav = useAppStore((s) => s.setActiveNav);
 
   useEffect(() => {
     fetchDashboardStats();
     fetchRecentActivity();
     fetchGlobalDistStatus();
-    fetchDriftStatus();
-  }, [fetchDashboardStats, fetchRecentActivity, fetchGlobalDistStatus, fetchDriftStatus]);
+  }, [fetchDashboardStats, fetchRecentActivity, fetchGlobalDistStatus]);
 
   const statCards = [
     {
@@ -141,18 +138,6 @@ export function Dashboard() {
                     {formatDate(globalDistStatus.last_synced_at)}
                   </span>
                 </div>
-              )}
-              {driftCount > 0 && (
-                <button
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-md bg-warning/10 px-3 py-2",
-                    "text-xs font-medium text-warning hover:bg-warning/20 transition-colors",
-                  )}
-                  onClick={() => setActiveNav("globalDistribution")}
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  检测到 {driftCount} 项漂移，点击查看详情
-                </button>
               )}
             </div>
           ) : (

@@ -103,6 +103,7 @@ body {
 .bg-accent { background-color: hsl(var(--accent)); }
 .bg-destructive { background-color: hsl(var(--destructive)); }
 .bg-sidebar { background-color: hsl(var(--sidebar)); }
+.bg-popover { background-color: hsl(var(--popover)); }
 .bg-success { background-color: hsl(var(--success)); }
 .bg-warning { background-color: hsl(var(--warning)); }
 .bg-error { background-color: hsl(var(--error)); }
@@ -110,6 +111,7 @@ body {
 .text-background { color: hsl(var(--background)); }
 .text-foreground { color: hsl(var(--foreground)); }
 .text-card-foreground { color: hsl(var(--card-foreground)); }
+.text-popover-foreground { color: hsl(var(--popover-foreground)); }
 .text-primary { color: hsl(var(--primary)); }
 .text-primary-foreground { color: hsl(var(--primary-foreground)); }
 .text-secondary-foreground { color: hsl(var(--secondary-foreground)); }
