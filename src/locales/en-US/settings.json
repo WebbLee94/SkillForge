@@ -8,7 +8,6 @@
     "language": { "title": "Language", "desc": "Choose display language" },
     "languageSystem": "Follow System",
     "dataDir": { "title": "Data Directory", "desc": "SkillForge data storage location" },
-    "dbSize": { "title": "Database Size", "desc": "SQLite database file size" },
     "version": { "title": "Version", "desc": "Current application version" },
     "github": { "title": "GitHub", "desc": "View source code and submit feedback" },
     "dbSizeCalculating": "Calculating..."
@@ -16,21 +15,9 @@
   "platforms": {
     "title": "Agent Platform List",
     "addButton": "Add Platform",
-    "columns": { "name": "Name", "path": "Global Path", "projectPath": "Project Path", "status": "Status" },
+    "columns": { "name": "Name", "status": "Status" },
     "actions": { "enable": "Enable", "disable": "Disable" },
     "hint": "Manage registered Agent platforms. Enabling/disabling platforms affects visibility in scene editing and distribution.",
-    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed.",
-    "capabilities": {
-      "title": "Distribution Capabilities",
-      "skillsGlobal": "Global Skills",
-      "skillsProject": "Project Skills",
-      "rulesGlobal": "Global Rules",
-      "rulesProject": "Project Rules",
-      "supported": "Supported",
-      "notSupported": "Not Supported",
-      "modeDirectory": "Directory Mode",
-      "modeSingleFile": "Single File Mode",
-      "hint": "Some platforms have special limitations on rules distribution, see the capability table above"
-    }
+    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed."
   }
 }

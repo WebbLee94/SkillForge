@@ -282,20 +282,6 @@ pub fn get_global_distribution_status(
 }
 
 #[tauri::command]
-pub fn get_drift_status(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let count: Option<String> = conn
-        .query_row(
-            "SELECT value FROM app_config WHERE key = 'drift_count'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(None);
-    let drift_count: i64 = count.and_then(|v| v.parse().ok()).unwrap_or(0);
-    Ok(serde_json::json!({ "drift_count": drift_count }))
-}
-
-#[tauri::command]
 pub fn toggle_platform_enabled(
     id: String,
     enabled: bool,
@@ -310,7 +296,7 @@ pub fn toggle_platform_enabled(
 }
 
 #[tauri::command]
-pub fn get_db_size(state: tauri::State<'_, AppState>) -> Result<String, AppError> {
+pub fn get_db_size(_state: tauri::State<'_, AppState>) -> Result<String, AppError> {
     let data_dir = dirs::home_dir()
         .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
         .join(".skillforge");

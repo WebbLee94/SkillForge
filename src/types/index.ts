@@ -273,18 +273,5 @@ export interface PlatformDistInfo {
   last_synced_at: string | null;
 }
 
-export interface VerifyReport {
-  total: number;
-  ok: number;
-  drifted: DriftedItem[];
-}
-
-export interface DriftedItem {
-  item_type: string;
-  item_id: string;
-  platform_id: string;
-  issue: string;
-}
-
 // ===== Sync Status =====
 export type SyncStatus = "synced" | "outdated" | "partial" | "error" | "pending";

@@ -41,7 +41,6 @@ interface AppStore {
   dashboardStats: DashboardStats | null;
   syncStatus: SyncStatusDTO | null;
   globalDistStatus: GlobalDistStatus | null;
-  driftCount: number;
 
   // === Selection ===
   selectedSkill: Skill | null;
@@ -54,7 +53,6 @@ interface AppStore {
   sidebarCollapsed: boolean;
   searchQuery: string;
   tagFilter: number[];
-  sourceFilter: string[];
   loading: boolean;
   toasts: Toast[];
 
@@ -69,7 +67,6 @@ interface AppStore {
   // === Filter ===
   setSearchQuery: (query: string) => void;
   setTagFilter: (tags: number[]) => void;
-  setSourceFilter: (sources: string[]) => void;
 
   // === Skill Actions ===
   fetchSkills: () => Promise<void>;
@@ -125,7 +122,6 @@ interface AppStore {
   fetchDashboardStats: () => Promise<void>;
   fetchRecentActivity: () => Promise<void>;
   fetchGlobalDistStatus: () => Promise<void>;
-  fetchDriftStatus: () => Promise<void>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -141,7 +137,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   dashboardStats: null,
   syncStatus: null,
   globalDistStatus: null,
-  driftCount: 0,
 
   // === Selection ===
   selectedSkill: null,
@@ -154,7 +149,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   sidebarCollapsed: false,
   searchQuery: "",
   tagFilter: [],
-  sourceFilter: [],
   loading: false,
   toasts: [],
 
@@ -177,7 +171,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // === Filter ===
   setSearchQuery: (query) => set({ searchQuery: query }),
   setTagFilter: (tags) => set({ tagFilter: tags }),
-  setSourceFilter: (sources) => set({ sourceFilter: sources }),
 
   // === Skill Actions ===
   fetchSkills: async () => {
@@ -634,16 +627,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       const errMsg = e instanceof Error ? e.message : String(e);
       console.error("[DIAG] Failed to fetch global distribution status:", e);
       get().addToast(`获取全局分发状态失败: ${errMsg}`, "error");
-    }
-  },
-  fetchDriftStatus: async () => {
-    try {
-      const result = await ipc.getDriftStatus();
-      set({ driftCount: result.drift_count });
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch drift status:", e);
-      get().addToast(`获取漂移状态失败: ${errMsg}`, "error");
     }
   },
 }));

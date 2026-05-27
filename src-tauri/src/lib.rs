@@ -40,8 +40,6 @@ pub fn run() {
             commands::distribution::get_sync_status,
             commands::distribution::get_distributions,
             commands::distribution::switch_global_scene,
-            commands::distribution::verify_distribution,
-            commands::distribution::repair_drift,
             commands::projects::list_projects,
             commands::projects::add_project,
             commands::projects::bind_scene_to_project,
@@ -64,7 +62,6 @@ pub fn run() {
             commands::system::get_global_config,
             commands::system::set_global_config,
             commands::system::get_global_distribution_status,
-            commands::system::get_drift_status,
             commands::system::toggle_platform_enabled,
             commands::system::get_db_size,
             commands::platform::get_platform_capabilities,
@@ -91,14 +88,6 @@ pub fn run() {
 
             // Store db connection as app state
             app.manage(AppState { db: Mutex::new(conn) });
-
-            // Background startup integrity check
-            let db_path_clone = db_path.clone();
-            std::thread::spawn(move || {
-                if let Ok(check_conn) = rusqlite::Connection::open(&db_path_clone) {
-                    let _ = engine::dist_engine::startup_integrity_check(&check_conn);
-                }
-            });
 
             Ok(())
         })

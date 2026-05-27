@@ -20,7 +20,6 @@ import type {
   SyncResult,
   SyncStatusDTO,
   GlobalDistStatus,
-  VerifyReport,
 } from "../types";
 
 export const ipc = {
@@ -116,7 +115,4 @@ export const ipc = {
   getGlobalConfig: () => invoke<{ global_scene_id: string | null }>("get_global_config"),
   setGlobalConfig: (key: string, value: string | null) => invoke<void>("set_global_config", { key, value }),
   switchGlobalScene: (newSceneId: string) => invoke<SyncResult>("switch_global_scene", { newSceneId }),
-  verifyDistribution: (sceneId: string, scope: string) => invoke<VerifyReport>("verify_distribution", { sceneId, scope }),
-  repairDrift: (itemType: string, itemId: string, platformId: string, action: string) => invoke<void>("repair_drift", { itemType, itemId, platformId, action }),
-  getDriftStatus: () => invoke<{ drift_count: number }>("get_drift_status"),
 };
