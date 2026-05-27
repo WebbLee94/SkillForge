@@ -342,7 +342,7 @@ export function GlobalDistribution() {
                 <button
                   className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
                   onClick={() => revealItemInDir(globalDir)}
-                  title={tc("actions.openDir")}
+                  title={tc("actions.openInFileManager")}
                 >
                   <FolderOpen className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">{globalDir}</span>

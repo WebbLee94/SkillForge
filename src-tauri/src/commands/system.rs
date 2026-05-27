@@ -288,7 +288,7 @@ pub fn get_global_distribution_status(
                         let fs_rule_count = paths.global_rules_dir.as_ref()
                             .map(|d| count_files_in_dir(&crate::plugins::platform::expand_home(d)))
                             .unwrap_or(0);
-                        (Some(paths.global_skills_dir), paths.global_rules_dir, fs_skill_count, fs_rule_count)
+                        (Some(skills_dir_path.to_string_lossy().to_string()), paths.global_rules_dir, fs_skill_count, fs_rule_count)
                     }
                     Err(_) => (None, None, 0, 0),
                 };
