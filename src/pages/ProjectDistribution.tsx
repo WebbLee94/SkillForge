@@ -135,7 +135,7 @@ export function ProjectDistribution() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索项目..."
+            placeholder={tc("actions.searchProjects")}
             className={cn(
               "w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm",
               "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
@@ -149,7 +149,7 @@ export function ProjectDistribution() {
             onChange={(e) => setSceneFilter(e.target.value)}
             className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="">全部场景</option>
+            <option value="">{tc("scenes:allScenes")}</option>
             {scenes.map((scene) => (
               <option key={scene.id} value={scene.id}>{scene.name}</option>
             ))}
@@ -171,7 +171,7 @@ export function ProjectDistribution() {
                   <button
                     className="text-primary hover:text-primary/80 transition-colors"
                     onClick={() => revealItemInDir(project.path)}
-                    title="在文件管理器中打开"
+                    title={tc("actions.openInFileManager")}
                   >
                     <FolderOpen className="h-5 w-5" />
                   </button>
@@ -208,12 +208,12 @@ export function ProjectDistribution() {
               {!project.scene_id ? (
                 <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
                   <Globe className="h-4 w-4 mr-2 text-muted-foreground/50" />
-                  请先绑定场景，平台由场景自动确定
+                  {t("bindSceneFirst")}
                 </div>
               ) : (scenePlatformsMap[project.scene_id] || []).length === 0 ? (
                 <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
                   <Globe className="h-4 w-4 mr-2 text-muted-foreground/50" />
-                  该场景未配置目标平台，请在场景编排中配置
+                  {t("noPlatformForSceneProject")}
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2">

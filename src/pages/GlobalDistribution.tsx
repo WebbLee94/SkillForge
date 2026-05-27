@@ -122,7 +122,7 @@ export function GlobalDistribution() {
     if (!newSceneId) return;
     if (currentScene?.id === newSceneId) return;
 
-    const confirmed = window.confirm("切换全局场景将重新分发技能和规则，是否继续？");
+    const confirmed = window.confirm(t("confirmSwitchScene"));
     if (!confirmed) return;
 
     try {
@@ -131,10 +131,9 @@ export function GlobalDistribution() {
       if (scene) setCurrentScene(scene);
       await fetchGlobalDistStatus();
       await fetchSyncStatus();
-      addToast("切换全局场景成功", "success");
+      addToast(tc("messages.switchSceneSuccess"), "success");
     } catch (e) {
-      console.error("Failed to switch global scene:", e);
-      addToast("切换全局场景失败", "error");
+      addToast(tc("messages.switchSceneFailed"), "error");
     }
   };
 
@@ -167,7 +166,7 @@ export function GlobalDistribution() {
             onClick={handleSyncAll}
           >
             <RefreshCw className="h-4 w-4" />
-            同步当前场景
+            {t("syncCurrentScene")}
           </button>
         </div>
       </div>
@@ -181,7 +180,7 @@ export function GlobalDistribution() {
             onChange={(e) => handleSceneChange(e.target.value)}
             className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            <option value="" disabled>请选择场景</option>
+            <option value="" disabled>{t("selectScenePlaceholder")}</option>
             {selectableScenes.map((scene) => (
               <option key={scene.id} value={scene.id}>{scene.name}</option>
             ))}
@@ -216,7 +215,7 @@ export function GlobalDistribution() {
             }}
             className="rounded border-border"
           />
-          自定义覆盖平台
+          {t("customOverridePlatforms")}
         </label>
       </div>
 
@@ -314,7 +313,7 @@ export function GlobalDistribution() {
       ) : currentScene ? (
         <div className="flex flex-col items-center justify-center py-12">
           <Globe className="mb-3 h-12 w-12 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">当前场景未配置目标平台，请在场景编排中为该场景选择目标平台</p>
+          <p className="text-sm text-muted-foreground">{t("noPlatformForScene")}</p>
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-12">
@@ -328,7 +327,7 @@ export function GlobalDistribution() {
         <div className="mt-6 rounded-lg border border-border bg-card p-4">
           <div className="flex items-center gap-2 mb-3">
             <History className="h-4 w-4 text-muted-foreground" />
-            <h3 className="text-sm font-semibold text-foreground">最近分发</h3>
+            <h3 className="text-sm font-semibold text-foreground">{t("recentDistribution")}</h3>
           </div>
           <div className="space-y-2">
             {recentLogs.map((log) => (
@@ -353,7 +352,7 @@ export function GlobalDistribution() {
                     log.status === "error" && "bg-error/10 text-error",
                     log.status !== "success" && log.status !== "error" && "bg-muted/50 text-muted-foreground",
                   )}>
-                    {log.status === "success" ? "成功" : log.status === "error" ? "失败" : log.status}
+                    {log.status === "success" ? tc("status.success") : log.status === "error" ? tc("status.failed") : log.status}
                   </span>
                   <span className="text-xs text-muted-foreground">{formatDate(log.created_at)}</span>
                 </div>

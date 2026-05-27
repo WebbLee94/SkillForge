@@ -89,11 +89,7 @@ pub fn uninstall_skill(
 
     let scene_count = affected_scenes.len() as i32;
     if scene_count > 0 {
-        let scene_list = affected_scenes.join(", ");
-        eprintln!(
-            "警告: 技能 '{}' 被 {} 个场景使用 ({}), 已自动从这些场景中移除",
-            skill_id, scene_count, scene_list
-        );
+        let _ = (scene_count, affected_scenes.join(", "));
     }
 
     // Delete skill files from disk

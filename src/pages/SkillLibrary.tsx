@@ -103,7 +103,7 @@ export function SkillLibrary() {
 
   const handleBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`确定删除 ${selectedIds.size} 个技能？此操作不可恢复`)) return;
+    if (!window.confirm(tc("messages.confirmBatchDeleteSkills", { count: selectedIds.size }))) return;
     for (const id of selectedIds) {
       await uninstallSkill(id);
     }
@@ -163,7 +163,7 @@ export function SkillLibrary() {
             }}
           >
             <CheckSquare className="h-4 w-4" />
-            {batchMode ? "退出选择" : "批量选择"}
+            {batchMode ? tc("actions.exitSelect") : tc("actions.batchSelect")}
           </button>
           <button
             className={cn(
@@ -198,7 +198,7 @@ export function SkillLibrary() {
               onClick={() => setShowTagManager(true)}
             >
               <Tags className="h-3.5 w-3.5" />
-              管理标签
+              {tc("tag.manageTags")}
             </button>
           </div>
         )}
@@ -207,13 +207,13 @@ export function SkillLibrary() {
       {/* Batch Action Bar */}
       {batchMode && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 border-b border-border bg-primary/5 px-4 py-2">
-          <span className="text-sm font-medium text-foreground">已选 {selectedIds.size} 项</span>
+          <span className="text-sm font-medium text-foreground">{tc("messages.selectedCount", { count: selectedIds.size })}</span>
           <button
             className="flex items-center gap-1.5 rounded-md bg-error/10 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/20 transition-colors"
             onClick={handleBatchDelete}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            删除
+            {tc("actions.delete")}
           </button>
           <button
             className="ml-auto text-sm text-muted-foreground hover:text-foreground"
@@ -222,7 +222,7 @@ export function SkillLibrary() {
               setSelectedIds(new Set());
             }}
           >
-            取消选择
+            {tc("actions.cancelSelect")}
           </button>
         </div>
       )}

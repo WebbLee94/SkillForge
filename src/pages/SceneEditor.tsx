@@ -266,7 +266,7 @@ export function SceneEditor() {
                 : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             )}
             onClick={() => !currentScene.is_system && handleSaveScene()}
-            title={currentScene.is_system ? "系统场景无需保存" : undefined}
+            title={currentScene.is_system ? t("systemSceneNoSave") : undefined}
           >
             <Save className="h-4 w-4" />
             {t("saveScene")}
@@ -288,10 +288,10 @@ export function SceneEditor() {
                 if (currentScene.is_system || projectCount === 0) return;
                 window.location.hash = `/project-distribution?scene_id=${currentScene.id}`;
               }}
-              title={currentScene.is_system ? "系统场景不绑定项目" : projectCount === 0 ? "暂无关联项目" : "查看关联项目"}
+              title={currentScene.is_system ? t("systemSceneNoProject") : projectCount === 0 ? t("noLinkedProjects") : t("viewLinkedProjects")}
             >
               <Users className="h-3 w-3" />
-              已用于 {projectCount} 个项目
+              {t("usedInProjects", { count: projectCount })}
             </button>
           );
         })()}
@@ -307,17 +307,17 @@ export function SceneEditor() {
             )}
             onClick={async () => {
               if (currentScene.is_system) return;
-              const confirmed = window.confirm(`确定要删除场景「${currentScene.name}」吗？此操作不可撤销。`);
+              const confirmed = window.confirm(tc("messages.confirmDeleteScene", { name: currentScene.name }));
               if (!confirmed) return;
               try {
                 await deleteScene(currentScene.id);
                 setCurrentScene(scenes[0] || null);
                 fetchScenes();
-              } catch (e: any) {
-                addToast(e?.toString?.() || "删除场景失败", "error");
+              } catch (e: unknown) {
+                addToast(e?.toString?.() || tc("messages.deleteSceneFailed"), "error");
               }
             }}
-            title={currentScene.is_system ? "系统场景不可删除" : "删除场景"}
+            title={currentScene.is_system ? t("systemSceneNoDelete") : t("deleteScene")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -396,7 +396,7 @@ export function SceneEditor() {
                         <button
                           className="shrink-0 ml-2 text-primary hover:text-primary/80 transition-colors"
                           onClick={() => handleAddSkill(skill.id)}
-                          title={t("addSkill", "添加技能")}
+                          title={t("addSkill")}
                         >
                           <Plus className="h-4 w-4" />
                         </button>
@@ -424,7 +424,7 @@ export function SceneEditor() {
                           onClick={() => {
                             if (currentScene) addRuleToScene(currentScene.id, rule.id);
                           }}
-                          title={t("addRule", "添加规则")}
+                          title={t("addRule")}
                         >
                           <Plus className="h-4 w-4" />
                         </button>
@@ -504,10 +504,10 @@ export function SceneEditor() {
             <div className="mb-4">
               <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Monitor className="h-4 w-4 text-primary" />
-                Agent 平台
+                {t("platforms.title")}
                 {currentScene.is_system ? (
                   <span className="text-xs font-normal text-muted-foreground">
-                    ({platforms.filter((p) => p.enabled).length} 已启用)
+                    ({platforms.filter((p) => p.enabled).length} {t("platforms.enabled")})
                   </span>
                 ) : (
                   <span className="text-xs font-normal text-muted-foreground">
@@ -517,7 +517,7 @@ export function SceneEditor() {
               </h3>
               {currentScene.is_system && (
                 <p className="mb-2 text-xs text-muted-foreground">
-                  系统场景自动关联所有已启用的 Agent 平台
+                  {t("platforms.autoBindHint")}
                 </p>
               )}
               <div className="grid grid-cols-2 gap-2">
@@ -525,8 +525,8 @@ export function SceneEditor() {
                   const caps = capabilitiesMap[platform.id];
                   const IconComp = getPlatformIcon(platform.id);
                   const limitations: string[] = [];
-                  if (caps && !caps.rules_global) limitations.push("不支持全局规则");
-                  if (caps && !caps.rules_project && caps.rules_global) limitations.push("不支持项目规则");
+                  if (caps && !caps.rules_global) limitations.push(t("platforms.noGlobalRules"));
+                  if (caps && !caps.rules_project && caps.rules_global) limitations.push(t("platforms.noProjectRules"));
                   if (currentScene.is_system) {
                     // Read-only for system scenes
                     return (

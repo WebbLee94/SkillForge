@@ -29,5 +29,13 @@
     "selectPlatform": "选择目标平台"
   },
   "empty": "还没有创建任何规则",
-  "count": "共 {{count}} 条规则"
+  "count": "共 {{count}} 条规则",
+  "ruleFileFilter": "规则文件",
+  "importedFrom": "从 {{filename}} 导入",
+  "importRules": "导入规则",
+  "importPreview": "导入规则预览",
+  "willCreateAs": "将创建为: {{name}}",
+  "fullscreenEdit": "全屏编辑",
+  "exitFullscreen": "退出全屏 (Esc)",
+  "preview": "预览"
 }

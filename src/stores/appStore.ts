@@ -180,7 +180,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ skills, loading: false });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch skills:", e);
       set({ loading: false });
       get().addToast(`获取技能列表失败: ${errMsg}`, "error");
     }
@@ -199,7 +198,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("安装成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to install skill:", e);
       get().addToast(`安装失败: ${errMsg}`, "error");
     }
   },
@@ -214,7 +212,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("卸载成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to uninstall skill:", e);
       get().addToast(`卸载失败: ${errMsg}`, "error");
     }
   },
@@ -225,7 +222,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("更新成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to update skill:", e);
       get().addToast(`更新失败: ${errMsg}`, "error");
     }
   },
@@ -238,7 +234,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ rules, loading: false });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch rules:", e);
       set({ loading: false });
       get().addToast(`获取规则列表失败: ${errMsg}`, "error");
     }
@@ -251,7 +246,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("创建规则成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to create rule:", e);
       get().addToast(`创建规则失败: ${errMsg}`, "error");
     }
   },
@@ -262,7 +256,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("保存规则成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to update rule:", e);
       get().addToast(`保存规则失败: ${errMsg}`, "error");
     }
   },
@@ -277,7 +270,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("删除规则成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to delete rule:", e);
       get().addToast(`删除规则失败: ${errMsg}`, "error");
     }
   },
@@ -289,7 +281,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ tags });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch tags:", e);
       get().addToast(`获取标签列表失败: ${errMsg}`, "error");
     }
   },
@@ -300,7 +291,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("创建标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to create tag:", e);
       get().addToast(`创建标签失败: ${errMsg}`, "error");
     }
   },
@@ -313,7 +303,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("更新标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to update tag:", e);
       get().addToast(`更新标签失败: ${errMsg}`, "error");
     }
   },
@@ -326,7 +315,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("删除标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to delete tag:", e);
       get().addToast(`删除标签失败: ${errMsg}`, "error");
     }
   },
@@ -336,7 +324,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("分配标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to assign tag:", e);
       get().addToast(`分配标签失败: ${errMsg}`, "error");
     }
   },
@@ -346,7 +333,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("移除标签成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to remove tag:", e);
       get().addToast(`移除标签失败: ${errMsg}`, "error");
     }
   },
@@ -358,7 +344,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ scenes });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch scenes:", e);
       get().addToast(`获取场景列表失败: ${errMsg}`, "error");
     }
   },
@@ -370,20 +355,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("创建场景成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to create scene:", e);
       get().addToast(`创建场景失败: ${errMsg}`, "error");
     }
   },
   updateScene: async (id, data) => {
     try {
-      console.log("[DIAG] updateScene IPC call: id=", id, "data=", data);
       await ipc.updateScene(id, data);
       await get().fetchScenes();
       get().addToast("保存场景成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : JSON.stringify(e);
-      console.error("[DIAG] Failed to update scene:", e);
-      console.error("[DIAG] Error type:", typeof e, "Error details:", errMsg);
       get().addToast(`保存场景失败: ${errMsg}`, "error");
     }
   },
@@ -398,7 +379,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("删除场景成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to delete scene:", e);
       get().addToast(`删除场景失败: ${errMsg}`, "error");
     }
   },
@@ -408,7 +388,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ currentSceneDetail: detail });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch scene detail:", e);
       get().addToast(`获取场景详情失败: ${errMsg}`, "error");
     }
   },
@@ -419,7 +398,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("添加技能到场景成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to add skill to scene:", e);
       get().addToast(`添加技能到场景失败: ${errMsg}`, "error");
     }
   },
@@ -430,7 +408,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("从场景移除技能成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to remove skill from scene:", e);
       get().addToast(`从场景移除技能失败: ${errMsg}`, "error");
     }
   },
@@ -441,7 +418,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("添加规则到场景成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to add rule to scene:", e);
       get().addToast(`添加规则到场景失败: ${errMsg}`, "error");
     }
   },
@@ -452,7 +428,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("从场景移除规则成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to remove rule from scene:", e);
       get().addToast(`从场景移除规则失败: ${errMsg}`, "error");
     }
   },
@@ -461,7 +436,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return await ipc.getScenePlatforms(sceneId);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to get scene platforms:", e);
       get().addToast(`获取场景平台关联失败: ${errMsg}`, "error");
       return [];
     }
@@ -472,7 +446,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("保存场景平台关联成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to set scene platforms:", e);
       get().addToast(`保存场景平台关联失败: ${errMsg}`, "error");
     }
   },
@@ -484,7 +457,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ projects });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch projects:", e);
       get().addToast(`获取项目列表失败: ${errMsg}`, "error");
     }
   },
@@ -495,7 +467,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("添加项目成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to add project:", e);
       get().addToast(`添加项目失败: ${errMsg}`, "error");
     }
   },
@@ -506,7 +477,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("移除项目成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to remove project:", e);
       get().addToast(`移除项目失败: ${errMsg}`, "error");
     }
   },
@@ -517,7 +487,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast("绑定场景成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to bind scene to project:", e);
       get().addToast(`绑定场景失败: ${errMsg}`, "error");
     }
   },
@@ -529,7 +498,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ platforms });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch platforms:", e);
       get().addToast(`获取平台列表失败: ${errMsg}`, "error");
     }
   },
@@ -541,7 +509,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ distributions });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch distributions:", e);
       get().addToast(`获取分发列表失败: ${errMsg}`, "error");
     }
   },
@@ -582,7 +549,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return result;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to sync scene:", e);
       get().addToast(`同步失败: ${errMsg}`, "error");
       return null;
     }
@@ -593,7 +559,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ syncStatus });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch sync status:", e);
       get().addToast(`获取同步状态失败: ${errMsg}`, "error");
     }
   },
@@ -605,7 +570,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ dashboardStats: stats });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch dashboard stats:", e);
       get().addToast(`获取看板统计失败: ${errMsg}`, "error");
     }
   },
@@ -615,7 +579,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ recentActivity: activity });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch recent activity:", e);
       get().addToast(`获取最近活动失败: ${errMsg}`, "error");
     }
   },
@@ -625,7 +588,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ globalDistStatus: status });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      console.error("[DIAG] Failed to fetch global distribution status:", e);
       get().addToast(`获取全局分发状态失败: ${errMsg}`, "error");
     }
   },

@@ -33,5 +33,13 @@
     "confirm": "Confirm Switch"
   },
   "empty": "No projects added yet",
-  "emptyGlobal": "No global distribution records"
+  "emptyGlobal": "No global distribution records",
+  "syncCurrentScene": "Sync Current Scene",
+  "selectScenePlaceholder": "Select a scene",
+  "customOverridePlatforms": "Custom Override Platforms",
+  "noPlatformForScene": "Current scene has no target platforms. Please select target platforms in Scene Editor",
+  "noPlatformForSceneProject": "This scene has no target platforms. Please configure in Scene Editor",
+  "bindSceneFirst": "Bind a scene first. Platforms are determined by the scene",
+  "confirmSwitchScene": "Switching global scene will redistribute skills and rules. Continue?",
+  "recentDistribution": "Recent Distribution"
 }

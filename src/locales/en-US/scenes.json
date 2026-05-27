@@ -26,6 +26,23 @@
   "skillTab": "Skills",
   "ruleTab": "Rules",
   "systemSceneHint": "System scene cannot be edited",
+  "systemSceneNoSave": "System scene does not need saving",
+  "systemSceneNoDelete": "System scene cannot be deleted",
+  "systemSceneNoProject": "System scene does not bind to projects",
+  "noLinkedProjects": "No linked projects",
+  "viewLinkedProjects": "View linked projects",
+  "usedInProjects": "Used in {{count}} project(s)",
+  "deleteScene": "Delete Scene",
+  "addSkill": "Add Skill",
+  "addRule": "Add Rule",
+  "platforms": {
+    "title": "Agent Platforms",
+    "enabled": "enabled",
+    "autoBindHint": "System scene automatically associates with all enabled Agent platforms",
+    "noGlobalRules": "No global rules support",
+    "noProjectRules": "No project rules support"
+  },
+  "allScenes": "All Scenes",
   "capabilities": {
     "no_global_rules": "No global rules support",
     "no_project_rules": "No project rules support",

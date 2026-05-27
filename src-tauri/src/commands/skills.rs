@@ -21,19 +21,9 @@ pub fn install_skill(
     skill_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Skill, AppError> {
-    eprintln!("[DIAG] install_skill called: source={}, skill_id={}", source, skill_id);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let source_plugin = source::create_source_plugin(&source)
-        .map_err(|e| {
-            eprintln!("[DIAG] install_skill: unknown source '{}': {:?}", source, e);
-            e
-        })?;
+    let source_plugin = source::create_source_plugin(&source)?;
     engine::skill_engine::install_skill(&conn, source_plugin.as_ref(), &skill_id)
-        .map_err(|e| {
-            eprintln!("[DIAG] install_skill FAILED: {:?}", e);
-            e
-        })
-        .inspect(|skill| eprintln!("[DIAG] install_skill OK: id={}", skill.id))
 }
 
 #[tauri::command]
@@ -50,7 +40,6 @@ pub fn update_skill(
     skill_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Skill, AppError> {
-    eprintln!("[DIAG] update_skill called: skill_id={}", skill_id);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     // Read both source_type and source_url from DB
@@ -62,15 +51,8 @@ pub fn update_skill(
         )
         .map_err(|_| AppError::SkillNotFound(skill_id.clone()))?;
 
-    eprintln!("[DIAG] update_skill: source_type={}, source_url={:?}", source_type, source_url);
-
     let source_plugin = source::create_source_plugin_with_url(&source_type, source_url.as_deref())?;
     engine::skill_engine::update_skill(&conn, source_plugin.as_ref(), &skill_id)
-        .map_err(|e| {
-            eprintln!("[DIAG] update_skill FAILED: {:?}", e);
-            e
-        })
-        .inspect(|skill| eprintln!("[DIAG] update_skill OK: id={}", skill.id))
 }
 
 #[tauri::command]

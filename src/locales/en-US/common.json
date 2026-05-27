@@ -41,7 +41,13 @@
     "back": "Back",
     "refresh": "Refresh",
     "export": "Export",
-    "copy": "Copy"
+    "copy": "Copy",
+    "batchSelect": "Batch Select",
+    "exitSelect": "Exit Select",
+    "cancelSelect": "Cancel Selection",
+    "confirmImport": "Confirm Import",
+    "searchProjects": "Search projects...",
+    "openInFileManager": "Open in File Manager"
   },
   "status": {
     "synced": "Synced",
@@ -54,11 +60,21 @@
     "installed": "Installed",
     "notInstalled": "Not Installed",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "importing": "Importing..."
   },
   "messages": {
     "confirmDelete": "Confirm delete? This action cannot be undone.",
     "confirmUninstall": "Local files will be deleted. Continue?",
+    "confirmDeleteScene": "Are you sure you want to delete scene \"{{name}}\"? This action cannot be undone.",
+    "deleteSceneFailed": "Failed to delete scene",
+    "switchSceneSuccess": "Global scene switched successfully",
+    "switchSceneFailed": "Failed to switch global scene",
+    "confirmBatchDeleteSkills": "Delete {{count}} skill(s)? This action cannot be undone",
+    "confirmBatchDeleteRules": "Delete {{count}} rule(s)? This action cannot be undone",
+    "selectedCount": "{{count}} selected",
+    "importComplete": "Import complete: {{success}} succeeded, {{fail}} failed",
+    "totalFiles": "{{count}} file(s) total",
     "skillInUse": "Skill is used by {{count}} scene(s)",
     "sceneInUse": "Scene is used by {{count}} project(s)",
     "projectExists": "Project already exists",
@@ -103,6 +119,14 @@
     "searchPlaceholder": "Search or type tag name...",
     "createNew": "Create",
     "untagged": "Untagged",
-    "allTags": "All"
+    "allTags": "All",
+    "manageTags": "Manage Tags"
+  },
+  "dashboard": {
+    "globalDistStatus": "Global Distribution Status",
+    "currentScene": "Current Scene",
+    "notConfigured": "Not Configured",
+    "configureGlobalScene": "Configure global scene first",
+    "skillRuleCount": "Skills / Rules"
   }
 }

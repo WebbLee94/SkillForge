@@ -152,7 +152,7 @@ export function RulesManager() {
 
   const handleBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(`确定删除 ${selectedIds.size} 条规则？此操作不可恢复`)) return;
+    if (!window.confirm(tc("messages.confirmBatchDeleteRules", { count: selectedIds.size }))) return;
     for (const id of selectedIds) {
       await deleteRule(id);
     }
@@ -196,7 +196,7 @@ export function RulesManager() {
       const selected = await openDialog({
         multiple: true,
         filters: [{
-          name: "规则文件",
+          name: t("ruleFileFilter"),
           extensions: ["mdc", "md", "yaml", "yml"],
         }],
       });
@@ -214,7 +214,6 @@ export function RulesManager() {
       setImportFiles(files);
       setShowImportPreview(true);
     } catch (e) {
-      console.error("Failed to open file dialog:", e);
     }
   }, []);
 
@@ -228,7 +227,7 @@ export function RulesManager() {
         const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
         const data: CreateRuleDTO = {
           name: nameWithoutExt,
-          description: `从 ${file.name} 导入`,
+          description: t("importedFrom", { filename: file.name }),
           format: file.format,
           content: content,
           platform: "",
@@ -237,14 +236,13 @@ export function RulesManager() {
         await createRule(data);
         successCount++;
       } catch (e) {
-        console.error(`Failed to import ${file.name}:`, e);
         failCount++;
       }
     }
     setImporting(false);
     setShowImportPreview(false);
     setImportFiles([]);
-    addToast(`导入完成：${successCount} 成功，${failCount} 失败`, failCount > 0 ? "warning" : "success");
+    addToast(tc("messages.importComplete", { success: successCount, fail: failCount }), failCount > 0 ? "warning" : "success");
   }, [importFiles, createRule, addToast]);
 
   return (
@@ -277,7 +275,7 @@ export function RulesManager() {
             }}
           >
             <CheckSquare className="h-4 w-4" />
-            {batchMode ? "退出选择" : "批量选择"}
+            {batchMode ? tc("actions.exitSelect") : tc("actions.batchSelect")}
           </button>
           <button
             className={cn(
@@ -287,7 +285,7 @@ export function RulesManager() {
             onClick={handleImportClick}
           >
             <Upload className="h-4 w-4" />
-            导入规则
+            {t("importRules")}
           </button>
           <button
             className={cn(
@@ -322,7 +320,7 @@ export function RulesManager() {
               onClick={() => setShowTagManager(true)}
             >
               <Tags className="h-3.5 w-3.5" />
-              管理标签
+              {tc("tag.manageTags")}
             </button>
           </div>
         )}
@@ -331,13 +329,13 @@ export function RulesManager() {
       {/* Batch Action Bar */}
       {batchMode && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 border-b border-border bg-primary/5 px-4 py-2">
-          <span className="text-sm font-medium text-foreground">已选 {selectedIds.size} 项</span>
+          <span className="text-sm font-medium text-foreground">{tc("messages.selectedCount", { count: selectedIds.size })}</span>
           <button
             className="flex items-center gap-1.5 rounded-md bg-error/10 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/20 transition-colors"
             onClick={handleBatchDelete}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            删除
+            {tc("actions.delete")}
           </button>
           <button
             className="ml-auto text-sm text-muted-foreground hover:text-foreground"
@@ -346,7 +344,7 @@ export function RulesManager() {
               setSelectedIds(new Set());
             }}
           >
-            取消选择
+            {tc("actions.cancelSelect")}
           </button>
         </div>
       )}
@@ -497,7 +495,7 @@ export function RulesManager() {
                   <button
                     className="text-muted-foreground hover:text-foreground"
                     onClick={() => setIsFullscreen(true)}
-                    title="全屏编辑"
+                    title={t("fullscreenEdit")}
                   >
                     <Maximize className="h-4 w-4" />
                   </button>
@@ -632,7 +630,7 @@ export function RulesManager() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
           <div className="w-[500px] max-h-[80vh] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">导入规则预览</h2>
+              <h2 className="text-lg font-semibold text-foreground">{t("importPreview")}</h2>
               <button onClick={() => { setShowImportPreview(false); setImportFiles([]); }} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
               </button>
@@ -650,18 +648,18 @@ export function RulesManager() {
                       .{file.format}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">将创建为: {file.name.replace(/\.[^.]+$/, "")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("willCreateAs", { name: file.name.replace(/\.[^.]+$/, "") })}</p>
                 </div>
               ))}
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-border">
-              <span className="text-sm text-muted-foreground">共 {importFiles.length} 个文件</span>
+              <span className="text-sm text-muted-foreground">{tc("messages.totalFiles", { count: importFiles.length })}</span>
               <div className="flex gap-2">
                 <button
                   className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
                   onClick={() => { setShowImportPreview(false); setImportFiles([]); }}
                 >
-                  取消
+                  {tc("actions.cancel")}
                 </button>
                 <button
                   className={cn(
@@ -670,7 +668,7 @@ export function RulesManager() {
                   )}
                   onClick={handleImportConfirm}
                 >
-                  {importing ? "导入中..." : "确认导入"}
+                  {importing ? tc("status.importing") : tc("actions.confirmImport")}
                 </button>
               </div>
             </div>
@@ -708,7 +706,7 @@ export function RulesManager() {
               <button
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => setIsFullscreen(false)}
-                title="退出全屏 (Esc)"
+                title={t("exitFullscreen")}
               >
                 <Minimize className="h-4 w-4" />
               </button>
@@ -723,7 +721,7 @@ export function RulesManager() {
               />
             </div>
             <div className="w-[40%] overflow-y-auto p-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">预览</h3>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("preview")}</h3>
               <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">{editContent}</pre>
             </div>
           </div>

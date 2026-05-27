@@ -33,5 +33,13 @@
     "confirm": "确认切换"
   },
   "empty": "还没有添加任何项目",
-  "emptyGlobal": "暂无全局分发记录"
+  "emptyGlobal": "暂无全局分发记录",
+  "syncCurrentScene": "同步当前场景",
+  "selectScenePlaceholder": "请选择场景",
+  "customOverridePlatforms": "自定义覆盖平台",
+  "noPlatformForScene": "当前场景未配置目标平台，请在场景编排中为该场景选择目标平台",
+  "noPlatformForSceneProject": "该场景未配置目标平台，请在场景编排中配置",
+  "bindSceneFirst": "请先绑定场景，平台由场景自动确定",
+  "confirmSwitchScene": "切换全局场景将重新分发技能和规则，是否继续？",
+  "recentDistribution": "最近分发"
 }

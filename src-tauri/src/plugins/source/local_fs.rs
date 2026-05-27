@@ -76,12 +76,8 @@ impl SourcePlugin for LocalFsSource {
                     meta.source_url = Some(entry.path().to_string_lossy().to_string());
                     skills.push(meta);
                 }
-                Err(e) => {
-                    eprintln!(
-                        "警告: 解析 {} 中的 SKILL.md 失败: {}",
-                        entry.path().display(),
-                        e
-                    );
+                Err(_) => {
+                    // error handled silently
                 }
             }
         }

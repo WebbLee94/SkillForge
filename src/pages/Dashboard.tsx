@@ -85,15 +85,15 @@ export function Dashboard() {
         {/* Global Distribution Status (full width) */}
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground">全局分发状态</h2>
+            <h2 className="text-sm font-semibold text-foreground">{t("dashboard.globalDistStatus")}</h2>
             <Globe className="h-4 w-4 text-primary" />
           </div>
           {globalDistStatus ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">当前场景</span>
+                <span className="text-sm text-muted-foreground">{t("dashboard.currentScene")}</span>
                 <span className="text-sm font-medium text-foreground">
-                  {globalDistStatus.scene_name || "未配置"}
+                  {globalDistStatus.scene_name || t("dashboard.notConfigured")}
                 </span>
               </div>
               {!globalDistStatus.scene_id && (
@@ -102,11 +102,11 @@ export function Dashboard() {
                   onClick={() => setActiveNav("globalDistribution")}
                 >
                   <Globe className="h-3.5 w-3.5" />
-                  请先配置全局场景
+                  {t("dashboard.configureGlobalScene")}
                 </button>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">技能 / 规则</span>
+                <span className="text-sm text-muted-foreground">{t("dashboard.skillRuleCount")}</span>
                 <span className="text-sm font-medium text-foreground">
                   {globalDistStatus.skill_count} / {globalDistStatus.rule_count}
                 </span>
@@ -133,7 +133,7 @@ export function Dashboard() {
               )}
               {globalDistStatus.last_synced_at && (
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs text-muted-foreground">上次同步</span>
+                  <span className="text-xs text-muted-foreground">{t("distribution:lastSynced")}</span>
                   <span className="text-xs text-muted-foreground">
                     {formatDate(globalDistStatus.last_synced_at)}
                   </span>

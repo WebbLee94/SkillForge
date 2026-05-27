@@ -16,7 +16,7 @@
 
 ```bash
 # 克隆仓库
-git clone https://github.com/JieYueGo/SkillForge.git
+git clone https://github.com/WebbLee94/SkillForge.git
 cd SkillForge
 
 # 安装前端依赖
@@ -58,11 +58,11 @@ cd src-tauri && cargo test
 
 ## 报告问题
 
-- 使用 [Bug Report](https://github.com/JieYueGo/SkillForge/issues/new?template=bug_report.md) 模板
+- 使用 [Bug Report](https://github.com/WebbLee94/SkillForge/issues/new?template=bug_report.md) 模板
 - 描述复现步骤、期望行为和实际行为
 - 附上操作系统和 SkillForge 版本信息
 
 ## 功能建议
 
-- 使用 [Feature Request](https://github.com/JieYueGo/SkillForge/issues/new?template=feature_request.md) 模板
+- 使用 [Feature Request](https://github.com/WebbLee94/SkillForge/issues/new?template=feature_request.md) 模板
 - 描述使用场景和期望效果

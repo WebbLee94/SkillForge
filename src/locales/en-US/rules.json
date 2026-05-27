@@ -29,5 +29,13 @@
     "selectPlatform": "Select target platform"
   },
   "empty": "No rules created yet",
-  "count": "{{count}} rules total"
+  "count": "{{count}} rules total",
+  "ruleFileFilter": "Rule Files",
+  "importedFrom": "Imported from {{filename}}",
+  "importRules": "Import Rules",
+  "importPreview": "Import Rules Preview",
+  "willCreateAs": "Will create as: {{name}}",
+  "fullscreenEdit": "Fullscreen Edit",
+  "exitFullscreen": "Exit Fullscreen (Esc)",
+  "preview": "Preview"
 }

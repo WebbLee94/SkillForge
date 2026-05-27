@@ -20,7 +20,6 @@ pub fn list_rules(
     platform: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Rule>, AppError> {
-    eprintln!("[DIAG] list_rules called: platform={:?}", platform);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     let sql = if platform.is_some() {
@@ -82,7 +81,6 @@ pub fn list_rules(
         .collect()
     };
 
-    eprintln!("[DIAG] list_rules OK: {} rules", rules.len());
     Ok(rules)
 }
 
@@ -91,7 +89,6 @@ pub fn create_rule(
     data: CreateRuleDTO,
     state: tauri::State<'_, AppState>,
 ) -> Result<Rule, AppError> {
-    eprintln!("[DIAG] create_rule called: data={:?}", data);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     let id = slugify(&data.name);
@@ -107,7 +104,6 @@ pub fn create_rule(
         .map(|c| c > 0)?;
 
     if exists {
-        eprintln!("[DIAG] create_rule FAILED: rule '{}' already exists", id);
         return Err(AppError::Validation(format!(
             "规则标识 '{}' 已存在",
             id
@@ -154,11 +150,9 @@ pub fn create_rule(
             })
         },
     )
-    .map_err(|e| {
-        eprintln!("[DIAG] create_rule FAILED: {:?}", e);
+    .map_err(|_| {
         AppError::RuleNotFound(id)
     })
-    .inspect(|rule| eprintln!("[DIAG] create_rule OK: id={}", rule.id))
 }
 
 #[tauri::command]
@@ -167,7 +161,6 @@ pub fn update_rule(
     data: UpdateRuleDTO,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    eprintln!("[DIAG] update_rule called: id={}, data={:?}", id, data);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     // Get current rule
@@ -190,10 +183,7 @@ pub fn update_rule(
                 })
             },
         )
-        .map_err(|e| {
-            eprintln!("[DIAG] update_rule FAILED: rule not found {:?}", e);
-            AppError::RuleNotFound(id.clone())
-        })?;
+        .map_err(|_| AppError::RuleNotFound(id.clone()))?;
 
     let now = chrono::Utc::now().to_rfc3339();
     let new_version = current.version + 1;
@@ -225,7 +215,6 @@ pub fn update_rule(
         std::fs::write(&rule_file, &new_content)?;
     }
 
-    eprintln!("[DIAG] update_rule OK: id={}, version={}", id, new_version);
     Ok(())
 }
 
@@ -234,7 +223,6 @@ pub fn delete_rule(
     id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    eprintln!("[DIAG] delete_rule called: id={}", id);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify rule exists
@@ -247,7 +235,6 @@ pub fn delete_rule(
         .map(|c| c > 0)?;
 
     if !exists {
-        eprintln!("[DIAG] delete_rule FAILED: rule not found");
         return Err(AppError::RuleNotFound(id));
     }
 
@@ -273,7 +260,6 @@ pub fn delete_rule(
         }
     }
 
-    eprintln!("[DIAG] delete_rule OK: id={}", id);
     Ok(())
 }
 
@@ -282,7 +268,6 @@ pub fn get_rule_history(
     id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<RuleHistory>, AppError> {
-    eprintln!("[DIAG] get_rule_history called: id={}", id);
     let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
 
     let mut stmt = conn.prepare(
@@ -303,7 +288,6 @@ pub fn get_rule_history(
         .filter_map(|r| r.ok())
         .collect();
 
-    eprintln!("[DIAG] get_rule_history OK: {} entries", history.len());
     Ok(history)
 }
 

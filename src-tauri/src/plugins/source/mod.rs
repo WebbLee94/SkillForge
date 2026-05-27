@@ -83,12 +83,10 @@ pub fn create_source_plugin_with_url(
                 if path.join("SKILL.md").exists() {
                     // source_url is the skill directory itself, use its parent as base_dir
                     if let Some(parent) = path.parent() {
-                        eprintln!("[DIAG] create_source_plugin_with_url: using parent as base_dir: {}", parent.display());
                         return Ok(Box::new(local_fs::LocalFsSource::with_dir(parent.to_path_buf())));
                     }
                 }
                 // Otherwise use the url as base_dir directly
-                eprintln!("[DIAG] create_source_plugin_with_url: using url as base_dir: {}", path.display());
                 Ok(Box::new(local_fs::LocalFsSource::with_dir(path.to_path_buf())))
             } else {
                 Ok(Box::new(local_fs::LocalFsSource::new()))

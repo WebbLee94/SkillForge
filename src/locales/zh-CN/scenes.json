@@ -26,6 +26,23 @@
   "skillTab": "技能",
   "ruleTab": "规则",
   "systemSceneHint": "系统场景不可编辑",
+  "systemSceneNoSave": "系统场景无需保存",
+  "systemSceneNoDelete": "系统场景不可删除",
+  "systemSceneNoProject": "系统场景不绑定项目",
+  "noLinkedProjects": "暂无关联项目",
+  "viewLinkedProjects": "查看关联项目",
+  "usedInProjects": "已用于 {{count}} 个项目",
+  "deleteScene": "删除场景",
+  "addSkill": "添加技能",
+  "addRule": "添加规则",
+  "platforms": {
+    "title": "Agent 平台",
+    "enabled": "已启用",
+    "autoBindHint": "系统场景自动关联所有已启用的 Agent 平台",
+    "noGlobalRules": "不支持全局规则",
+    "noProjectRules": "不支持项目规则"
+  },
+  "allScenes": "全部场景",
   "capabilities": {
     "no_global_rules": "全局规则不支持",
     "no_project_rules": "项目规则不支持",

@@ -25,7 +25,7 @@ jobs:
         with:
           tagName: ${{ inputs.version }}
           releaseName: SkillForge ${{ inputs.version }}
-          releaseBody: "See [CHANGELOG.md](https://github.com/JieYueGo/SkillForge/blob/main/CHANGELOG.md) for details."
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/main/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
 
@@ -46,7 +46,7 @@ jobs:
         with:
           tagName: ${{ inputs.version }}
           releaseName: SkillForge ${{ inputs.version }}
-          releaseBody: "See [CHANGELOG.md](https://github.com/JieYueGo/SkillForge/blob/main/CHANGELOG.md) for details."
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/main/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
 
@@ -71,6 +71,6 @@ jobs:
         with:
           tagName: ${{ inputs.version }}
           releaseName: SkillForge ${{ inputs.version }}
-          releaseBody: "See [CHANGELOG.md](https://github.com/JieYueGo/SkillForge/blob/main/CHANGELOG.md) for details."
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/main/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
