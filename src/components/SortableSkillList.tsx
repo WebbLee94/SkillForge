@@ -9,12 +9,14 @@ interface SortableSkillListProps {
   onRemove: (skillId: string) => void;
   onToggle: (skillId: string) => void;
   onReorder: (skills: SceneSkill[]) => void;
+  disabled?: boolean;
 }
 
 export const SortableSkillList = memo(function SortableSkillList({
   skills,
   onRemove,
   onToggle,
+  disabled = false,
 }: SortableSkillListProps) {
   const { t } = useTranslation("scenes");
 
@@ -37,13 +39,14 @@ export const SortableSkillList = memo(function SortableSkillList({
               ? "border-border bg-card"
               : "border-border bg-muted/30 opacity-60",
           )}
-          draggable
+          draggable={!disabled}
           onDragStart={(e) => {
+            if (disabled) return;
             e.dataTransfer.setData("text/plain", index.toString());
             e.dataTransfer.effectAllowed = "move";
           }}
         >
-          <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-muted-foreground" />
+          <GripVertical className={cn("h-4 w-4 shrink-0 text-muted-foreground", disabled ? "cursor-not-allowed opacity-30" : "cursor-grab")} />
           <span className="flex-1 text-sm text-foreground truncate">
             {skill.skill_name || skill.skill_id}
           </span>
@@ -51,8 +54,8 @@ export const SortableSkillList = memo(function SortableSkillList({
             <span className="text-xs text-muted-foreground">v{skill.version}</span>
           )}
           <button
-            className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-            onClick={() => onToggle(skill.skill_id)}
+            className={cn("shrink-0 transition-colors", disabled ? "cursor-not-allowed opacity-30" : "text-muted-foreground hover:text-primary")}
+            onClick={() => !disabled && onToggle(skill.skill_id)}
             title={skill.enabled ? t("disable", "禁用") : t("enable", "启用")}
           >
             {skill.enabled ? (
@@ -61,12 +64,14 @@ export const SortableSkillList = memo(function SortableSkillList({
               <ToggleLeft className="h-4 w-4" />
             )}
           </button>
-          <button
-            className="shrink-0 text-muted-foreground hover:text-error transition-colors"
-            onClick={() => onRemove(skill.skill_id)}
-          >
-            <X className="h-4 w-4" />
-          </button>
+          {!disabled && (
+            <button
+              className="shrink-0 text-muted-foreground hover:text-error transition-colors"
+              onClick={() => onRemove(skill.skill_id)}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ))}
     </div>

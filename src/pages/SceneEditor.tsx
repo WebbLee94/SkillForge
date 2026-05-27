@@ -215,8 +215,8 @@ export function SceneEditor() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Top Bar */}
-      <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+      {/* Top Bar — 5 fixed button positions */}
+      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Film className="h-5 w-5 text-primary" />
         <select
           value={currentScene?.id || ""}
@@ -230,39 +230,8 @@ export function SceneEditor() {
             <option key={scene.id} value={scene.id}>{scene.name}</option>
           ))}
         </select>
-        {currentScene && (() => {
-          const projectCount = projects.filter((p) => p.scene_id === currentScene.id).length;
-          return projectCount > 0 ? (
-            <a
-              href={`/project-distribution?scene_id=${currentScene.id}`}
-              className="flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-              title="查看关联项目"
-            >
-              <Users className="h-3 w-3" />
-              已用于 {projectCount} 个项目
-            </a>
-          ) : null;
-        })()}
-        {currentScene && !currentScene.is_system && (
-          <button
-            className="flex items-center gap-1 rounded-lg border border-error/30 bg-error/5 px-2 py-1.5 text-sm text-error hover:bg-error/10 transition-colors"
-            onClick={async () => {
-              if (!currentScene) return;
-              const confirmed = window.confirm(`确定要删除场景「${currentScene.name}」吗？此操作不可撤销。`);
-              if (!confirmed) return;
-              try {
-                await deleteScene(currentScene.id);
-                setCurrentScene(scenes[0] || null);
-                fetchScenes();
-              } catch (e: any) {
-                addToast(e?.toString?.() || "删除场景失败", "error");
-              }
-            }}
-            title="删除场景"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        )}
+
+        {/* 1. 新建场景 — always enabled */}
         <button
           className={cn(
             "flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5",
@@ -273,26 +242,85 @@ export function SceneEditor() {
           <Plus className="h-4 w-4" />
           {t("createScene")}
         </button>
-        <div className="flex-1" />
+
+        {/* 2. 一键同步 — always enabled */}
         {currentScene && (
-          <div className="flex items-center gap-2">
-            {!currentScene.is_system && (
-              <button
-                className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-sm text-secondary-foreground hover:bg-secondary/80"
-                onClick={handleSaveScene}
-              >
-                <Save className="h-4 w-4" />
-                {t("saveScene")}
-              </button>
+          <button
+            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            onClick={handleSyncScene}
+          >
+            <RefreshCw className="h-4 w-4" />
+            {t("syncScene")}
+          </button>
+        )}
+
+        <div className="flex-1" />
+
+        {/* 3. 保存场景 — disabled for system scenes */}
+        {currentScene && (
+          <button
+            className={cn(
+              "flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm transition-colors",
+              currentScene.is_system
+                ? "bg-secondary/50 text-muted-foreground cursor-not-allowed"
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
             )}
+            onClick={() => !currentScene.is_system && handleSaveScene()}
+            title={currentScene.is_system ? "系统场景无需保存" : undefined}
+          >
+            <Save className="h-4 w-4" />
+            {t("saveScene")}
+          </button>
+        )}
+
+        {/* 4. 已用于 N 个项目 — disabled for system scenes */}
+        {currentScene && (() => {
+          const projectCount = projects.filter((p) => p.scene_id === currentScene.id).length;
+          return (
             <button
-              className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              onClick={handleSyncScene}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors",
+                currentScene.is_system || projectCount === 0
+                  ? "bg-secondary/50 text-muted-foreground cursor-not-allowed"
+                  : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+              onClick={() => {
+                if (currentScene.is_system || projectCount === 0) return;
+                window.location.hash = `/project-distribution?scene_id=${currentScene.id}`;
+              }}
+              title={currentScene.is_system ? "系统场景不绑定项目" : projectCount === 0 ? "暂无关联项目" : "查看关联项目"}
             >
-              <RefreshCw className="h-4 w-4" />
-              {t("syncScene")}
+              <Users className="h-3 w-3" />
+              已用于 {projectCount} 个项目
             </button>
-          </div>
+          );
+        })()}
+
+        {/* 5. 删除 — disabled for system scenes */}
+        {currentScene && (
+          <button
+            className={cn(
+              "flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition-colors",
+              currentScene.is_system
+                ? "border-error/10 bg-error/5 text-error/30 cursor-not-allowed"
+                : "border-error/30 bg-error/5 text-error hover:bg-error/10",
+            )}
+            onClick={async () => {
+              if (currentScene.is_system) return;
+              const confirmed = window.confirm(`确定要删除场景「${currentScene.name}」吗？此操作不可撤销。`);
+              if (!confirmed) return;
+              try {
+                await deleteScene(currentScene.id);
+                setCurrentScene(scenes[0] || null);
+                fetchScenes();
+              } catch (e: any) {
+                addToast(e?.toString?.() || "删除场景失败", "error");
+              }
+            }}
+            title={currentScene.is_system ? "系统场景不可删除" : "删除场景"}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         )}
       </div>
 
@@ -436,6 +464,7 @@ export function SceneEditor() {
                 onRemove={handleRemoveSkill}
                 onToggle={handleToggleSkill}
                 onReorder={() => {}}
+                disabled={currentScene.is_system}
               />
             </div>
 
@@ -453,39 +482,45 @@ export function SceneEditor() {
                 onRemove={handleRemoveRule}
                 onToggle={handleToggleRule}
                 onReorder={() => {}}
+                disabled={currentScene.is_system}
               />
             </div>
 
-            {/* Platform Selector - hidden for system scenes */}
-            {!currentScene.is_system && (
-              <div className="mb-4">
-                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Monitor className="h-4 w-4 text-primary" />
-                  Agent 平台
+            {/* Platform Selector / Read-only for system scenes */}
+            <div className="mb-4">
+              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Monitor className="h-4 w-4 text-primary" />
+                Agent 平台
+                {currentScene.is_system ? (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    ({platforms.filter((p) => p.enabled).length} 已启用)
+                  </span>
+                ) : (
                   <span className="text-xs font-normal text-muted-foreground">
                     ({selectedPlatforms.length}/{platforms.filter((p) => p.enabled).length})
                   </span>
-                </h3>
-                <div className="grid grid-cols-2 gap-2">
-                  {platforms.filter((p) => p.enabled).map((platform) => {
-                    const caps = capabilitiesMap[platform.id];
-                    const isSelected = selectedPlatforms.includes(platform.id);
-                    const IconComp = getPlatformIcon(platform.id);
-                    const limitations: string[] = [];
-                    if (caps && !caps.rules_global) limitations.push("不支持全局规则");
-                    if (caps && !caps.rules_project && caps.rules_global) limitations.push("不支持项目规则");
+                )}
+              </h3>
+              {currentScene.is_system && (
+                <p className="mb-2 text-xs text-muted-foreground">
+                  系统场景自动关联所有已启用的 Agent 平台
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                {platforms.filter((p) => p.enabled).map((platform) => {
+                  const caps = capabilitiesMap[platform.id];
+                  const IconComp = getPlatformIcon(platform.id);
+                  const limitations: string[] = [];
+                  if (caps && !caps.rules_global) limitations.push("不支持全局规则");
+                  if (caps && !caps.rules_project && caps.rules_global) limitations.push("不支持项目规则");
+                  if (currentScene.is_system) {
+                    // Read-only for system scenes
                     return (
                       <div
                         key={platform.id}
-                        onClick={() => togglePlatform(platform.id)}
-                        className={cn(
-                          "relative flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors",
-                          isSelected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50",
-                        )}
+                        className="relative flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 p-3"
                       >
-                        {isSelected && (
-                          <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
-                        )}
+                        <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
                         <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
                         <span className="text-sm font-medium text-foreground">{platform.name}</span>
                         {limitations.length > 0 && (
@@ -495,10 +530,33 @@ export function SceneEditor() {
                         )}
                       </div>
                     );
-                  })}
-                </div>
+                  }
+                  // Interactive for user scenes
+                  const isSelected = selectedPlatforms.includes(platform.id);
+                  return (
+                    <div
+                      key={platform.id}
+                      onClick={() => togglePlatform(platform.id)}
+                      className={cn(
+                        "relative flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors",
+                        isSelected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/50",
+                      )}
+                    >
+                      {isSelected && (
+                        <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
+                      )}
+                      <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
+                      <span className="text-sm font-medium text-foreground">{platform.name}</span>
+                      {limitations.length > 0 && (
+                        <span className="ml-auto" title={limitations.join("；")}>
+                          <Info className="h-3.5 w-3.5 text-warning" />
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            )}
+            </div>
           </div>
         </div>
       ) : (
