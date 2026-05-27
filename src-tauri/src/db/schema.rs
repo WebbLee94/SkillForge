@@ -121,6 +121,16 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
         );"
     )?;
 
+    // ── scene_platforms ────────────────────────────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS scene_platforms (
+            scene_id    TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
+            platform_id TEXT NOT NULL REFERENCES platforms(id) ON DELETE CASCADE,
+            enabled     INTEGER NOT NULL DEFAULT 1,
+            PRIMARY KEY (scene_id, platform_id)
+        );"
+    )?;
+
     // ── projects ───────────────────────────────────────────────────
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS projects (
