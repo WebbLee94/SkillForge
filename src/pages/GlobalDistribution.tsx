@@ -336,29 +336,24 @@ export function GlobalDistribution() {
                 {t("syncNow")}
               </button>
             </div>
-            {/* Platform global path with open button */}
-            {globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir && (
-              <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            {/* Platform global path — 整行可点击打开文件管理器 */}
+            {(() => {
+              const platformInfo = globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id);
+              if (!platformInfo?.skills_dir) return null;
+              const skillsDir = platformInfo.skills_dir;
+              const parts = skillsDir.split("/");
+              const globalDir = parts.slice(0, -1).join("/") || skillsDir;
+              return (
                 <button
-                  className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
-                  onClick={() => {
-                    const dir = globalDistStatus.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir;
-                    if (dir) revealItemInDir(dir);
-                  }}
+                  className="mt-2 flex w-full items-center gap-1.5 rounded-md px-1 py-0.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+                  onClick={() => revealItemInDir(globalDir)}
                   title={tc("actions.openDir")}
                 >
-                  <FolderOpen className="h-3 w-3" />
+                  <FolderOpen className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{globalDir}</span>
                 </button>
-                <span className="truncate min-w-0">
-                  {(() => {
-                    const skillsDir = globalDistStatus.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir || "";
-                    // Show parent directory (global path) instead of skills subdirectory
-                    const parts = skillsDir.split("/");
-                    return parts.slice(0, -1).join("/") || skillsDir;
-                  })()}
-                </span>
-              </div>
-            )}
+              );
+            })()}
           </div>
           );
         })}
