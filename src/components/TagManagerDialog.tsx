@@ -164,6 +164,7 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
                   <td className="px-4 py-2">
                     <div className="relative">
                       <button
+                        data-color-btn={tag.id}
                         className="h-5 w-5 rounded-full shrink-0 border border-white/30 hover:scale-125 transition-transform"
                         style={{ backgroundColor: tag.color || "#888" }}
                         onClick={() => setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)}
@@ -172,7 +173,25 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
                       {colorPickerTagId === tag.id && (
                         <div
                           ref={colorPickerRef}
-                          className="absolute z-50 left-0 top-7 rounded-lg border border-border bg-popover p-2 shadow-lg"
+                          className="fixed z-[9999] rounded-lg border border-border bg-popover p-2 shadow-lg"
+                          style={{
+                            top: (() => {
+                              const btn = document.querySelector(`[data-color-btn="${tag.id}"]`);
+                              if (btn) {
+                                const rect = btn.getBoundingClientRect();
+                                return `${rect.bottom + 4}px`;
+                              }
+                              return '0px';
+                            })(),
+                            left: (() => {
+                              const btn = document.querySelector(`[data-color-btn="${tag.id}"]`);
+                              if (btn) {
+                                const rect = btn.getBoundingClientRect();
+                                return `${rect.left}px`;
+                              }
+                              return '0px';
+                            })(),
+                          }}
                         >
                           <div className="grid grid-cols-5 gap-1.5">
                             {PRESET_COLORS.map((color) => (
