@@ -120,8 +120,8 @@ pub fn sync_scene(
             })?;
         }
 
-        // Compute diff: what's currently distributed vs what should be
-        let current_skill_ids = get_distributed_skills(conn, scene_id, platform_id, scope, project_id)?;
+        // Compute diff: what's currently on disk vs what should be
+        let current_skill_ids = get_distributed_skills(conn, scene_id, platform_id, scope, project_id, plugin, &instance)?;
 
         // Skills to install (in scene but not in current distribution)
         let to_install: Vec<&String> = skill_ids
@@ -413,6 +413,8 @@ fn get_distributed_skills(
     platform_id: &str,
     scope: &str,
     project_id: Option<&str>,
+    _plugin: &Box<dyn PlatformPlugin>,
+    instance: &PlatformInstance,
 ) -> Result<Vec<String>, AppError> {
     // Check if a distribution record exists for this scene/platform/scope
     let has_distribution: bool = if project_id.is_some() {
@@ -432,13 +434,32 @@ fn get_distributed_skills(
     };
 
     if !has_distribution {
+        // First sync: nothing on disk yet, return empty so all skills get installed
         return Ok(vec![]);
     }
 
-    // Get skills currently in the scene as the previously distributed set.
-    // This allows the sync diff to detect skills added/removed from the scene
-    // since the last sync.
-    resolve_scene_skills(conn, scene_id)
+    // Read actual filesystem: list subdirectories in the skills directory
+    let skills_dir = std::path::Path::new(&instance.path);
+    if !skills_dir.exists() {
+        // Directory doesn't exist yet — treat as empty
+        return Ok(vec![]);
+    }
+
+    let mut current_skill_ids = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(skills_dir) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    // Skip hidden directories (e.g., .git)
+                    if !name.starts_with('.') {
+                        current_skill_ids.push(name.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(current_skill_ids)
 }
 
 fn get_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppError> {
