@@ -240,7 +240,7 @@ export function RulesManager() {
           platform: "",
           scope: "global",
         };
-        await createRule(data);
+        await createRule(data, { silent: true });
         successCount++;
       } catch (e) {
         failCount++;
