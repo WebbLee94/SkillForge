@@ -13,6 +13,12 @@
     "projectDistribution": "Project Distribution",
     "settings": "Settings"
   },
+  "navGroups": {
+    "overview": "Overview",
+    "resources": "Resources",
+    "orchestration": "Orchestration",
+    "distribution": "Distribution"
+  },
   "actions": {
     "add": "Add",
     "edit": "Edit",
@@ -85,6 +91,13 @@
     "operationFailed": "Operation failed",
     "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
   },
+  "platforms": {
+    "title": "Agent Platforms",
+    "enabled": "Enabled",
+    "autoBindHint": "System scene auto-binds all enabled platforms",
+    "noGlobalRules": "No global rules support",
+    "noProjectRules": "No project rules support"
+  },
   "tag": {
     "name": "Name",
     "color": "Color",
@@ -107,6 +120,7 @@
     "globalDistStatus": "Global Distribution Status",
     "currentScene": "Current Scene",
     "notConfigured": "Not Configured",
-    "configureGlobalScene": "Configure global scene first"
+    "configureGlobalScene": "Configure global scene first",
+    "skillRuleCount": "Skills / Rules"
   }
 }
