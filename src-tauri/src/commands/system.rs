@@ -25,6 +25,14 @@ pub struct PlatformDistInfo {
     last_synced_at: Option<String>,
     skills_dir: Option<String>,
     rules_dir: Option<String>,
+    #[serde(default)]
+    scene_skill_count: u32,
+    #[serde(default)]
+    synced_skill_count: u32,
+    #[serde(default)]
+    scene_rule_count: u32,
+    #[serde(default)]
+    synced_rule_count: u32,
 }
 
 #[tauri::command]
@@ -260,12 +268,17 @@ pub fn get_global_distribution_status(
             .query_map(params![sid, status.skill_count], |row| {
                 let pid: String = row.get(0)?;
                 // Resolve paths from platform plugin
-                let (skills_dir, rules_dir) = match crate::plugins::platform::create_platform_plugin(&pid) {
+                let (skills_dir, rules_dir, synced_skill_count, synced_rule_count) = match crate::plugins::platform::create_platform_plugin(&pid) {
                     Ok(p) => {
                         let paths = p.default_paths();
-                        (Some(paths.global_skills_dir), paths.global_rules_dir)
+                        let skills_dir_path = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+                        let fs_skill_count = count_subdirs(&skills_dir_path);
+                        let fs_rule_count = paths.global_rules_dir.as_ref()
+                            .map(|d| count_files_in_dir(&crate::plugins::platform::expand_home(d)))
+                            .unwrap_or(0);
+                        (Some(paths.global_skills_dir), paths.global_rules_dir, fs_skill_count, fs_rule_count)
                     }
-                    Err(_) => (None, None),
+                    Err(_) => (None, None, 0, 0),
                 };
                 Ok(PlatformDistInfo {
                     platform_id: pid,
@@ -275,6 +288,10 @@ pub fn get_global_distribution_status(
                     last_synced_at: row.get(4)?,
                     skills_dir,
                     rules_dir,
+                    scene_skill_count: status.skill_count,
+                    synced_skill_count,
+                    scene_rule_count: status.rule_count,
+                    synced_rule_count,
                 })
             })?
             .filter_map(|r| r.ok())
@@ -349,4 +366,44 @@ pub fn get_db_size(_state: tauri::State<'_, AppState>) -> Result<String, AppErro
     } else {
         Ok(format!("{:.1} KB", total_size as f64 / 1024.0))
     }
+}
+
+/// Count subdirectories in a directory (non-hidden, one level).
+fn count_subdirs(path: &std::path::Path) -> u32 {
+    if !path.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if !name.starts_with('.') {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+/// Count files in a directory (non-hidden, one level).
+fn count_files_in_dir(path: &std::path::Path) -> u32 {
+    if !path.exists() {
+        return 0;
+    }
+    let mut count = 0u32;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.path().is_file() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if !name.starts_with('.') {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
 }

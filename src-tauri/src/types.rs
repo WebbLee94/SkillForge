@@ -291,6 +291,14 @@ pub struct PlatformSyncStatus {
     pub status: String,
     pub synced_count: i64,
     pub total_count: i64,
+    #[serde(default)]
+    pub scene_skill_count: i64,
+    #[serde(default)]
+    pub synced_skill_count: i64,
+    #[serde(default)]
+    pub scene_rule_count: i64,
+    #[serde(default)]
+    pub synced_rule_count: i64,
 }
 
 // ── Dashboard / System types ───────────────────────────────────────

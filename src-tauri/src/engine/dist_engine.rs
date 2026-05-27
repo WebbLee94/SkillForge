@@ -260,12 +260,70 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
 
     let platforms: Vec<PlatformSyncStatus> = stmt
         .query_map([], |row| {
+            let pid: String = row.get(0)?;
+            let pname: String = row.get(1)?;
+            let pstatus: String = row.get(2)?;
+            let synced_count: i64 = row.get(3)?;
+            let total_count: i64 = row.get(4)?;
+
+            // Compute filesystem counts
+            let (scene_skill_count, synced_skill_count, scene_rule_count, synced_rule_count) = {
+                // Scene skill/rule counts from current global scene
+                let global_scene_id: Option<String> = conn
+                    .query_row(
+                        "SELECT value FROM app_config WHERE key = 'global_scene_id'",
+                        [],
+                        |r| r.get(0),
+                    )
+                    .unwrap_or(None);
+
+                let scene_skills: i64 = if let Some(ref sid) = global_scene_id {
+                    conn.query_row(
+                        "SELECT COUNT(*) FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
+                        params![sid],
+                        |r| r.get(0),
+                    ).unwrap_or(0)
+                } else {
+                    0
+                };
+
+                let scene_rules: i64 = if let Some(ref sid) = global_scene_id {
+                    conn.query_row(
+                        "SELECT COUNT(*) FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
+                        params![sid],
+                        |r| r.get(0),
+                    ).unwrap_or(0)
+                } else {
+                    0
+                };
+
+                // Filesystem counts from platform directory
+                let (fs_skills, fs_rules) = match crate::plugins::platform::create_platform_plugin(&pid) {
+                    Ok(p) => {
+                        let paths = p.default_paths();
+                        let skills_dir_path = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+                        let fs_skill_count = count_fs_subdirs(&skills_dir_path);
+                        let fs_rule_count = paths.global_rules_dir.as_ref()
+                            .map(|d| count_fs_files(&crate::plugins::platform::expand_home(d)))
+                            .unwrap_or(0);
+                        (fs_skill_count, fs_rule_count)
+                    }
+                    Err(_) => (0, 0),
+                };
+
+                (scene_skills, fs_skills, scene_rules, fs_rules)
+            };
+
             Ok(PlatformSyncStatus {
-                platform_id: row.get(0)?,
-                platform_name: row.get(1)?,
-                status: row.get(2)?,
-                synced_count: row.get(3)?,
-                total_count: row.get(4)?,
+                platform_id: pid,
+                platform_name: pname,
+                status: pstatus,
+                synced_count,
+                total_count,
+                scene_skill_count,
+                synced_skill_count,
+                scene_rule_count,
+                synced_rule_count,
             })
         })?
         .filter_map(|r| r.ok())
@@ -1077,6 +1135,46 @@ pub fn switch_global_scene(
     }
 
     Ok(result)
+}
+
+/// Count subdirectories in a path (non-hidden, one level).
+fn count_fs_subdirs(path: &std::path::Path) -> i64 {
+    if !path.exists() {
+        return 0;
+    }
+    let mut count = 0i64;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.path().is_dir() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if !name.starts_with('.') {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
+}
+
+/// Count files in a directory (non-hidden, one level).
+fn count_fs_files(path: &std::path::Path) -> i64 {
+    if !path.exists() {
+        return 0;
+    }
+    let mut count = 0i64;
+    if let Ok(entries) = std::fs::read_dir(path) {
+        for entry in entries.flatten() {
+            if entry.path().is_file() {
+                if let Some(name) = entry.file_name().to_str() {
+                    if !name.starts_with('.') {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    count
 }
 
 #[cfg(test)]

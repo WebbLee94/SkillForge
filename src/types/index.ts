@@ -237,6 +237,10 @@ export interface PlatformSyncStatus {
   status: string;
   synced_count: number;
   total_count: number;
+  scene_skill_count?: number;
+  synced_skill_count?: number;
+  scene_rule_count?: number;
+  synced_rule_count?: number;
 }
 
 // ===== Dashboard =====
@@ -273,6 +277,10 @@ export interface PlatformDistInfo {
   last_synced_at: string | null;
   skills_dir?: string | null;
   rules_dir?: string | null;
+  scene_skill_count?: number;
+  synced_skill_count?: number;
+  scene_rule_count?: number;
+  synced_rule_count?: number;
 }
 
 // ===== Sync Status =====
