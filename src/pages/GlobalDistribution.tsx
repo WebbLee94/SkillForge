@@ -8,6 +8,7 @@ import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
   Package, FileText, History,
 } from "lucide-react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { SyncStatus, SyncLog } from "../types";
 
 const statusIconMap: Record<SyncStatus, React.ReactNode> = {
@@ -53,6 +54,7 @@ export function GlobalDistribution() {
 
   // Recent activity for distribution history
   const [recentLogs, setRecentLogs] = useState<SyncLog[]>([]);
+  const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
 
   // T3: Include system scenes in the selector
   const selectableScenes = useMemo(
@@ -118,16 +120,11 @@ export function GlobalDistribution() {
   }, [currentScene, fetchSceneDetail]);
 
   // T3: Scene switch with confirmation
-  const handleSceneChange = async (newSceneId: string) => {
-    if (!newSceneId) return;
-    if (currentScene?.id === newSceneId) return;
-
-    const confirmed = window.confirm(t("confirmSwitchScene"));
-    if (!confirmed) return;
-
+  const executeSceneChange = async () => {
+    if (!pendingSceneId) return;
     try {
-      await ipc.switchGlobalScene(newSceneId);
-      const scene = scenes.find((s) => s.id === newSceneId);
+      await ipc.switchGlobalScene(pendingSceneId);
+      const scene = scenes.find((s) => s.id === pendingSceneId);
       if (scene) setCurrentScene(scene);
       await fetchGlobalDistStatus();
       await fetchSyncStatus();
@@ -135,6 +132,13 @@ export function GlobalDistribution() {
     } catch (e) {
       addToast(tc("messages.switchSceneFailed"), "error");
     }
+    setPendingSceneId(null);
+  };
+
+  const handleSceneChange = (newSceneId: string) => {
+    if (!newSceneId) return;
+    if (currentScene?.id === newSceneId) return;
+    setPendingSceneId(newSceneId);
   };
 
   // Sync uses scene platforms (null) by default, or custom override
@@ -362,6 +366,14 @@ export function GlobalDistribution() {
         </div>
       )}
 
+      <ConfirmDialog
+        open={pendingSceneId !== null}
+        title={tc("messages.confirm")}
+        message={t("confirmSwitchScene")}
+        confirmLabel={t("diffConfirm.confirm")}
+        onConfirm={executeSceneChange}
+        onCancel={() => setPendingSceneId(null)}
+      />
     </div>
   );
 }

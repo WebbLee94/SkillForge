@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
 import { Plus, Trash2, X, Palette } from "lucide-react";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 const PRESET_COLORS = [
   "#3B82F6", "#8B5CF6", "#EC4899", "#EF4444", "#F97316",
@@ -28,6 +29,7 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
   const [newColor, setNewColor] = useState(PRESET_COLORS[0]);
   const [editingTagId, setEditingTagId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  const [confirmDeleteTagId, setConfirmDeleteTagId] = useState<number | null>(null);
   const [colorPickerTagId, setColorPickerTagId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -69,17 +71,15 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
     setNewColor(PRESET_COLORS[0]);
   }, [newName, newColor, tagType, createTag]);
 
-  const handleDelete = useCallback(async (id: number) => {
-    const tag = tags.find((t) => t.id === id);
-    const count = tag?.count || 0;
-    const typeName = tagType === "skill" ? t("tag.skillType") : t("tag.ruleType");
-    const msg = count > 0
-      ? t("tag.deleteConfirm", { count, type: typeName })
-      : t("messages.confirmDelete");
-    if (window.confirm(msg)) {
-      await deleteTag(id);
-    }
-  }, [tags, tagType, t, deleteTag]);
+  const handleDelete = useCallback((id: number) => {
+    setConfirmDeleteTagId(id);
+  }, []);
+
+  const executeDeleteTag = useCallback(async () => {
+    if (confirmDeleteTagId === null) return;
+    await deleteTag(confirmDeleteTagId);
+    setConfirmDeleteTagId(null);
+  }, [confirmDeleteTagId, deleteTag]);
 
   const startEditName = (tagId: number, currentName: string) => {
     setEditingTagId(tagId);
@@ -107,6 +107,16 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
   const filteredTags = tags.filter((tag) =>
     tag.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const deleteTagMessage = useMemo(() => {
+    if (confirmDeleteTagId === null) return "";
+    const tag = tags.find((t) => t.id === confirmDeleteTagId);
+    const count = tag?.count || 0;
+    const typeName = tagType === "skill" ? t("tag.skillType") : t("tag.ruleType");
+    return count > 0
+      ? t("tag.deleteConfirm", { count, type: typeName })
+      : t("messages.confirmDelete");
+  }, [confirmDeleteTagId, tags, tagType, t]);
 
   if (!isOpen) return null;
 
@@ -299,6 +309,16 @@ export function TagManagerDialog({ tagType, isOpen, onClose }: TagManagerDialogP
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteTagId !== null}
+        title={t("messages.confirmDelete")}
+        message={deleteTagMessage}
+        variant="danger"
+        confirmLabel={t("actions.delete")}
+        onConfirm={executeDeleteTag}
+        onCancel={() => setConfirmDeleteTagId(null)}
+      />
     </div>
   );
 }

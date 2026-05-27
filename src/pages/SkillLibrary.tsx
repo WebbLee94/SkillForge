@@ -5,6 +5,7 @@ import { cn } from "../lib/utils";
 import { TagPopover } from "../components/TagPopover";
 import { TagFilterBar } from "../components/TagFilterBar";
 import { TagManagerDialog } from "../components/TagManagerDialog";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Search, Download, Trash2, RefreshCw, X, Package, FolderOpen, ChevronRight, Clock, CheckSquare, Tags } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -38,6 +39,8 @@ export function SkillLibrary() {
   const [batchMode, setBatchMode] = useState(false);
   const [untaggedFilter, setUntaggedFilter] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
+  const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(null);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchSkills();
@@ -101,15 +104,20 @@ export function SkillLibrary() {
     await fetchTags('skill');
   }, [removeTagAction, fetchSkills, fetchTags]);
 
-  const handleBatchDelete = useCallback(async () => {
+  const executeBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(tc("messages.confirmBatchDeleteSkills", { count: selectedIds.size }))) return;
     for (const id of selectedIds) {
       await uninstallSkill(id);
     }
     setSelectedIds(new Set());
     setBatchMode(false);
+    setShowBatchDeleteConfirm(false);
   }, [selectedIds, uninstallSkill]);
+
+  const handleBatchDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    setShowBatchDeleteConfirm(true);
+  }, [selectedIds]);
 
   // Esc to exit batch mode
   useEffect(() => {
@@ -448,11 +456,7 @@ export function SkillLibrary() {
                     "flex w-full items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2",
                     "text-sm font-medium text-error hover:bg-error/10 transition-colors",
                   )}
-                  onClick={() => {
-                    if (window.confirm(tc("messages.confirmUninstall"))) {
-                      uninstallSkill(selectedSkill.id);
-                    }
-                  }}
+                  onClick={() => setConfirmUninstallId(selectedSkill.id)}
                 >
                   <Trash2 className="h-4 w-4" />
                   {tc("actions.uninstall")}
@@ -558,6 +562,28 @@ export function SkillLibrary() {
           </div>
         </div>
       )}
+
+      {/* Confirm Dialogs */}
+      <ConfirmDialog
+        open={showBatchDeleteConfirm}
+        title={tc("messages.confirmBatchDeleteSkills", { count: selectedIds.size })}
+        message={tc("messages.confirmBatchDeleteSkills", { count: selectedIds.size })}
+        variant="danger"
+        onConfirm={executeBatchDelete}
+        onCancel={() => setShowBatchDeleteConfirm(false)}
+      />
+      <ConfirmDialog
+        open={confirmUninstallId !== null}
+        title={tc("actions.uninstall")}
+        message={tc("messages.confirmUninstall")}
+        variant="danger"
+        confirmLabel={tc("actions.uninstall")}
+        onConfirm={async () => {
+          if (confirmUninstallId) await uninstallSkill(confirmUninstallId);
+          setConfirmUninstallId(null);
+        }}
+        onCancel={() => setConfirmUninstallId(null)}
+      />
 
       {/* Tag Manager Dialog */}
       <TagManagerDialog

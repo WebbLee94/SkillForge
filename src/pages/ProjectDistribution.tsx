@@ -10,6 +10,7 @@ import {
   Plus, FolderOpen, Trash2, RefreshCw,
   CheckCircle, AlertCircle, Clock, AlertTriangle, Search, Globe, Filter,
 } from "lucide-react";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { SyncStatus } from "../types";
 
 const statusIconMap: Record<SyncStatus, React.ReactNode> = {
@@ -39,6 +40,7 @@ export function ProjectDistribution() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [sceneFilter, setSceneFilter] = useState<string>("");
+  const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
 
   // Scene-bound platform IDs map: sceneId -> platformId[]
   const [scenePlatformsMap, setScenePlatformsMap] = useState<Record<string, string[]>>({});
@@ -88,11 +90,15 @@ export function ProjectDistribution() {
     setShowAddDialog(false);
   }, [addProject, syncScene]);
 
-  const handleRemoveProject = useCallback(async (id: string) => {
-    if (window.confirm(tc("messages.confirmDelete"))) {
-      await removeProject(id);
-    }
-  }, [tc, removeProject]);
+  const handleRemoveProject = useCallback((id: string) => {
+    setConfirmDeleteProjectId(id);
+  }, []);
+
+  const executeRemoveProject = useCallback(async () => {
+    if (!confirmDeleteProjectId) return;
+    await removeProject(confirmDeleteProjectId);
+    setConfirmDeleteProjectId(null);
+  }, [confirmDeleteProjectId, removeProject]);
 
   const handleSyncProject = useCallback(async (projectId: string, sceneId: string, platformId: string) => {
     await syncScene(sceneId, [platformId], "project", projectId);
@@ -262,6 +268,16 @@ export function ProjectDistribution() {
         onClose={() => setShowAddDialog(false)}
         onConfirm={handleAddProject}
         scenes={scenes.map((s) => ({ id: s.id, name: s.name }))}
+      />
+
+      <ConfirmDialog
+        open={confirmDeleteProjectId !== null}
+        title={tc("messages.confirmDelete")}
+        message={tc("messages.confirmDelete")}
+        variant="danger"
+        confirmLabel={tc("actions.delete")}
+        onConfirm={executeRemoveProject}
+        onCancel={() => setConfirmDeleteProjectId(null)}
       />
     </div>
   );

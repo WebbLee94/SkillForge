@@ -8,6 +8,7 @@ import { TagFilterBar } from "../components/TagFilterBar";
 import { TagManagerDialog } from "../components/TagManagerDialog";
 import { Search, Plus, Trash2, History, FileText, X, ChevronRight, Clock, CheckSquare, Upload, Tags, Maximize, Minimize } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 import type { CreateRuleDTO, UpdateRuleDTO } from "../types";
 
@@ -63,6 +64,7 @@ export function RulesManager() {
   const [untaggedFilter, setUntaggedFilter] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
 
   // Import preview state
   const [importFiles, setImportFiles] = useState<Array<{ name: string; size: number; format: string; path: string }>>([]);
@@ -150,15 +152,20 @@ export function RulesManager() {
     await fetchTags('rule');
   }, [removeTagAction, fetchRules, fetchTags]);
 
-  const handleBatchDelete = useCallback(async () => {
+  const executeBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
-    if (!window.confirm(tc("messages.confirmBatchDeleteRules", { count: selectedIds.size }))) return;
     for (const id of selectedIds) {
       await deleteRule(id);
     }
     setSelectedIds(new Set());
     setBatchMode(false);
+    setShowBatchDeleteConfirm(false);
   }, [selectedIds, deleteRule]);
+
+  const handleBatchDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    setShowBatchDeleteConfirm(true);
+  }, [selectedIds]);
 
   // Esc to exit batch mode
   useEffect(() => {
@@ -727,6 +734,15 @@ export function RulesManager() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showBatchDeleteConfirm}
+        title={tc("messages.confirmBatchDeleteRules", { count: selectedIds.size })}
+        message={tc("messages.confirmBatchDeleteRules", { count: selectedIds.size })}
+        variant="danger"
+        onConfirm={executeBatchDelete}
+        onCancel={() => setShowBatchDeleteConfirm(false)}
+      />
     </div>
   );
 }

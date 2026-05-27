@@ -11,6 +11,7 @@ import {
   Package, FileText, X, Monitor, Info, Trash2, CheckCircle2, Users,
 } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import type { PlatformCapabilities } from "../types";
 
 export function SceneEditor() {
@@ -53,6 +54,7 @@ export function SceneEditor() {
   const [capabilitiesMap, setCapabilitiesMap] = useState<Record<string, PlatformCapabilities>>({});
   const [sceneTagFilter, setSceneTagFilter] = useState<number[]>([]);
   const [sceneTags, setSceneTags] = useState<import("../types").Tag[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     fetchScenes();
@@ -194,6 +196,18 @@ export function SceneEditor() {
     await syncScene(currentScene.id, selectedPlatforms, "global");
   }, [currentScene, selectedPlatforms, syncScene]);
 
+  const executeDeleteScene = useCallback(async () => {
+    if (!currentScene) return;
+    try {
+      await deleteScene(currentScene.id);
+      setCurrentScene(scenes[0] || null);
+      fetchScenes();
+    } catch (e: unknown) {
+      addToast(e?.toString?.() || tc("messages.deleteSceneFailed"), "error");
+    }
+    setShowDeleteConfirm(false);
+  }, [currentScene, deleteScene, scenes, setCurrentScene, fetchScenes, addToast, tc]);
+
   const handleCreateScene = useCallback(async () => {
     if (!newSceneName.trim()) return;
     await createScene({ name: newSceneName.trim(), description: newSceneDesc.trim() });
@@ -305,17 +319,9 @@ export function SceneEditor() {
                 ? "border-error/10 bg-error/5 text-error/30 cursor-not-allowed"
                 : "border-error/30 bg-error/5 text-error hover:bg-error/10",
             )}
-            onClick={async () => {
+            onClick={() => {
               if (currentScene.is_system) return;
-              const confirmed = window.confirm(tc("messages.confirmDeleteScene", { name: currentScene.name }));
-              if (!confirmed) return;
-              try {
-                await deleteScene(currentScene.id);
-                setCurrentScene(scenes[0] || null);
-                fetchScenes();
-              } catch (e: unknown) {
-                addToast(e?.toString?.() || tc("messages.deleteSceneFailed"), "error");
-              }
+              setShowDeleteConfirm(true);
             }}
             title={currentScene.is_system ? t("systemSceneNoDelete") : t("deleteScene")}
           >
@@ -638,6 +644,16 @@ export function SceneEditor() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        title={tc("messages.confirmDelete")}
+        message={tc("messages.confirmDeleteScene", { name: currentScene?.name || "" })}
+        variant="danger"
+        confirmLabel={tc("actions.delete")}
+        onConfirm={executeDeleteScene}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }
