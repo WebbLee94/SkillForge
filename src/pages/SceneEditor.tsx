@@ -534,12 +534,16 @@ export function SceneEditor() {
                   if (caps && !caps.rules_global) limitations.push(t("platforms.noGlobalRules"));
                   if (caps && !caps.rules_project && caps.rules_global) limitations.push(t("platforms.noProjectRules"));
                   if (currentScene.is_system) {
-                    // Read-only for system scenes
+                    // Read-only for system scenes — show selected indicator
+                    const isSystemSelected = true; // All enabled platforms are selected for __all_skills__
                     return (
                       <div
                         key={platform.id}
                         className="relative flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 p-3 opacity-60 cursor-not-allowed"
                       >
+                        {isSystemSelected && (
+                          <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
+                        )}
                         <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
                         <span className="text-sm font-medium text-foreground">{platform.name}</span>
                         {limitations.length > 0 && (
