@@ -41,5 +41,6 @@
   "noPlatformForSceneProject": "This scene has no target platforms. Please configure in Scene Editor",
   "bindSceneFirst": "Bind a scene first. Platforms are determined by the scene",
   "confirmSwitchScene": "Switching global scene will redistribute skills and rules. Continue?",
-  "recentDistribution": "Recent Distribution"
+  "recentDistribution": "Recent Distribution",
+  "syncStrategyHint": "Sync only adds/updates skills and rules from the scene; it does not delete existing files in target directories"
 }

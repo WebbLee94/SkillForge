@@ -6,7 +6,7 @@ import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
 import {
   Globe, RefreshCw, CheckCircle, AlertCircle, Clock, AlertTriangle,
-  Package, FileText, History, FolderOpen,
+  Package, FileText, History, FolderOpen, HelpCircle,
 } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -166,7 +166,15 @@ export function GlobalDistribution() {
     <div className="flex h-full flex-col overflow-y-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("globalTitle")}</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            {t("globalTitle")}
+            <span className="relative ml-2 inline-flex items-center group/help">
+              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+              <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 hidden group-hover/help:block opacity-100 whitespace-nowrap rounded-lg border border-border bg-popover px-3 py-2 shadow-lg text-xs text-foreground">
+                {t("syncStrategyHint")}
+              </span>
+            </span>
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t("globalSubtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
@@ -328,13 +336,9 @@ export function GlobalDistribution() {
                 {t("syncNow")}
               </button>
             </div>
-            {/* Platform path with open button */}
+            {/* Platform global path with open button */}
             {globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir && (
               <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <FolderOpen className="h-3 w-3 shrink-0" />
-                <span className="truncate min-w-0">
-                  {globalDistStatus.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir}
-                </span>
                 <button
                   className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
                   onClick={() => {
@@ -345,6 +349,14 @@ export function GlobalDistribution() {
                 >
                   <FolderOpen className="h-3 w-3" />
                 </button>
+                <span className="truncate min-w-0">
+                  {(() => {
+                    const skillsDir = globalDistStatus.platforms.find((p) => p.platform_id === platform.platform_id)?.skills_dir || "";
+                    // Show parent directory (global path) instead of skills subdirectory
+                    const parts = skillsDir.split("/");
+                    return parts.slice(0, -1).join("/") || skillsDir;
+                  })()}
+                </span>
               </div>
             )}
           </div>

@@ -41,5 +41,6 @@
   "noPlatformForSceneProject": "该场景未配置目标平台，请在场景编排中配置",
   "bindSceneFirst": "请先绑定场景，平台由场景自动确定",
   "confirmSwitchScene": "切换全局场景将重新分发技能和规则，是否继续？",
-  "recentDistribution": "最近分发"
+  "recentDistribution": "最近分发",
+  "syncStrategyHint": "同步仅新增/更新场景内的技能和规则，不会删除目标目录中已有的其他文件"
 }
