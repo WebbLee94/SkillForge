@@ -293,8 +293,8 @@ export function Settings() {
                                         <CapBadge key={c.key} supported={c.supported} label={c.label} />
                                       ))}
                                     </div>
-                                    {/* Tooltip on hover — outside group scope to avoid opacity */}
-                                    <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
+                                    {/* Tooltip on hover — opacity-100 overrides parent row opacity-60 */}
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block opacity-100">
                                       <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px]">
                                         {capLabels.map((c) => (
                                           <div key={c.key} className="flex items-center gap-2 py-1 text-xs">
