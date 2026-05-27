@@ -291,10 +291,10 @@ export function Settings() {
                                   </span>
                                 );
                                 const capLabels = [
-                                  { key: "skills_global", supported: caps.skills_global, label: "全局技能", path: platform.global_path || "" },
-                                  { key: "skills_project", supported: caps.skills_project, label: "项目技能", path: platform.project_path || "" },
-                                  { key: "rules_global", supported: caps.rules_global, label: "全局规则", path: caps.rules_global ? (platform.global_path || "").replace("/skills", "/rules") : "" },
-                                  { key: "rules_project", supported: caps.rules_project, label: "项目规则", path: caps.rules_project ? (platform.project_path || "").replace("/skills", "/rules") : "" },
+                                  { key: "skills_global", supported: caps.skills_global, label: "全局技能", path: platform.paths?.global_skills_dir || "" },
+                                  { key: "skills_project", supported: caps.skills_project, label: "项目技能", path: platform.paths?.project_skills_pattern || "" },
+                                  { key: "rules_global", supported: caps.rules_global, label: "全局规则", path: platform.paths?.global_rules_dir || "" },
+                                  { key: "rules_project", supported: caps.rules_project, label: "项目规则", path: platform.paths?.project_rules_pattern || "" },
                                 ];
                                 return (
                                   <div className="relative">

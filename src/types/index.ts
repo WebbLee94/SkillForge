@@ -161,10 +161,9 @@ export interface Platform {
   id: string;
   name: string;
   adapter: string;
-  global_path: string | null;
-  project_path: string | null;
   enabled: boolean;
   icon: string | null;
+  paths: PlatformPaths;
   capabilities?: PlatformCapabilities;
 }
 
@@ -193,6 +192,8 @@ export interface PlatformPaths {
   project_skills_pattern: string;
   global_rules_dir: string | null;
   project_rules_pattern: string | null;
+  global_rules_format: RulesFormat | null;
+  project_rules_format: RulesFormat | null;
 }
 
 // ===== Distribution =====
