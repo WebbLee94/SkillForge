@@ -37,3 +37,6 @@ dist-ssr
 docs/
 AGENTS.md
 .worktrees/
+
+# Rust / frontend build output (release binaries live in releases/)
+src-tauri/target/
