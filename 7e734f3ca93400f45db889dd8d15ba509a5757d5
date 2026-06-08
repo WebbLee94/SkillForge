@@ -1,0 +1,24 @@
+.gitignore
+  34c40f583ed2461c 41-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.0",
+  "base_commit_sha": "7e734f3ca93400f45db889dd8d15ba509a5757d5",
+  "prompts": {
+    "34c40f583ed2461c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "4c413fdb-156a-47e5-8084-8ccefdec0342",
+        "model": "default"
+      },
+      "human_author": "LongXiaoBin <longxiaobin@cvte.com>",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 2,
+      "accepted_lines": 3,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/d1780a88ab166f31e8b58a848b812970710aff82c146ff16fad859763ca3ff6e"
+    }
+  }
+}
