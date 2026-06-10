@@ -200,7 +200,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`安装失败: ${errMsg}`, "error");
+      if (!opts?.silent) {
+        get().addToast(`安装失败: ${errMsg}`, "error");
+      }
     }
   },
   uninstallSkill: async (id) => {
