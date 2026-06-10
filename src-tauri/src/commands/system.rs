@@ -236,27 +236,32 @@ pub fn get_global_distribution_status(
             )
             .unwrap_or(None);
 
-        // Count enabled skills
-        status.skill_count = conn
-            .query_row(
+        let is_all_skills = sid == "__all_skills__";
+
+        // Count skills: all installed for __all_skills__, scene-bound otherwise
+        status.skill_count = if is_all_skills {
+            conn.query_row("SELECT COUNT(*) FROM skills", [], |row| row.get::<_, u32>(0)).unwrap_or(0)
+        } else {
+            conn.query_row(
                 "SELECT COUNT(*) FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
                 params![sid],
                 |row| row.get::<_, u32>(0),
-            )
-            .unwrap_or(0);
+            ).unwrap_or(0)
+        };
 
-        // Count enabled rules
-        status.rule_count = conn
-            .query_row(
+        // Count rules: all for __all_skills__, scene-bound otherwise
+        status.rule_count = if is_all_skills {
+            conn.query_row("SELECT COUNT(*) FROM rules", [], |row| row.get::<_, u32>(0)).unwrap_or(0)
+        } else {
+            conn.query_row(
                 "SELECT COUNT(*) FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
                 params![sid],
                 |row| row.get::<_, u32>(0),
-            )
-            .unwrap_or(0);
+            ).unwrap_or(0)
+        };
 
         // Get per-platform status
         // For __all_skills__ system scene, use all enabled platforms (no scene_platforms records)
-        let is_all_skills = sid == "__all_skills__";
         let mut stmt = conn.prepare(
             if is_all_skills {
                 "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
