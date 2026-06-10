@@ -14,6 +14,12 @@ pub fn install_skill(
     // Fetch skill bundle from source first
     let bundle = source_plugin.fetch(skill_id, None)?;
 
+    // Determine local storage path
+    let data_dir = dirs::home_dir()
+        .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
+        .join(".skillforge");
+    let local_path = data_dir.join("skills").join(&bundle.meta.id);
+
     // Check if already installed using the canonical skill ID from the bundle
     let exists: bool = conn
         .query_row(
@@ -24,16 +30,35 @@ pub fn install_skill(
         .map(|c| c > 0)?;
 
     if exists {
-        return Err(AppError::DuplicateSkill(bundle.meta.id.clone()));
+        // Silent overwrite: use UPDATE to preserve skill_tags and scene_skills relationships
+        // (DELETE would cascade via foreign keys and destroy all tags/scene bindings)
+        store_skill_files(&local_path, &bundle)?;
+        conn.execute(
+            "UPDATE skills SET name = ?1, description = ?2, source_type = ?3, source_url = ?4, current_ver = ?5, local_path = ?6, metadata = ?7 WHERE id = ?8",
+            params![
+                bundle.meta.name,
+                bundle.meta.description,
+                bundle.meta.source_type,
+                bundle.meta.source_url,
+                bundle.meta.version,
+                local_path.to_string_lossy().to_string(),
+                bundle.meta.metadata,
+                bundle.meta.id,
+            ],
+        )?;
+        // Record new version
+        if let Some(ver) = &bundle.meta.version {
+            let fetched_at = chrono::Utc::now().to_rfc3339();
+            conn.execute(
+                "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![bundle.meta.id, ver, bundle.meta.source_url, Option::<String>::None, fetched_at],
+            )?;
+        }
+        return query_skill_by_id(conn, &bundle.meta.id);
     }
 
-    // Determine local storage path
-    let data_dir = dirs::home_dir()
-        .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
-        .join(".skillforge");
-    let local_path = data_dir.join("skills").join(&bundle.meta.id);
-
-    // Store skill files to disk
+    // New install: store files and insert DB record
     store_skill_files(&local_path, &bundle)?;
 
     let now = chrono::Utc::now().to_rfc3339();
