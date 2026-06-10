@@ -240,12 +240,15 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                 COALESCE(d.total_count, 0) as total_count
          FROM platforms p
          LEFT JOIN (
-             SELECT platform_id, status,
-                    COUNT(CASE WHEN status = 'synced' THEN 1 END) as synced_count,
+             SELECT d.platform_id,
+                    (SELECT d2.status FROM distributions d2
+                     WHERE d2.platform_id = d.platform_id AND d2.scope = 'global'
+                     ORDER BY d2.last_synced_at DESC LIMIT 1) as status,
+                    COUNT(CASE WHEN d.status = 'synced' THEN 1 END) as synced_count,
                     COUNT(*) as total_count
-             FROM distributions
-             WHERE scope = 'global'
-             GROUP BY platform_id
+             FROM distributions d
+             WHERE d.scope = 'global'
+             GROUP BY d.platform_id
          ) d ON p.id = d.platform_id
          WHERE p.enabled != 0
          ORDER BY p.name ASC",
