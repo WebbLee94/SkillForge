@@ -139,5 +139,15 @@
     "importing": "Importing...",
     "scanning": "Scanning...",
     "noDiscoverable": "No discoverable skills or rules found"
+  },
+  "syncConfirm": {
+    "title": "Sync Confirmation",
+    "warning": "The following items will be permanently removed from the platform directory:",
+    "addSkills": "Add {{count}} skill(s)",
+    "removeSkills": "Remove {{count}} skill(s)",
+    "addRules": "Add {{count}} rule(s)",
+    "removeRules": "Remove {{count}} rule(s)",
+    "summary": "Will add {{add}} item(s), remove {{remove}} item(s). This action cannot be undone.",
+    "confirm": "Confirm Sync"
   }
 }

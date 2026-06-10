@@ -22,6 +22,7 @@ import type {
   SkillPreview,
   RulePreview,
   ImportResult,
+  PlatformSyncPreview,
 } from "../types";
 import { ipc } from "../lib/ipc";
 import i18n from "../lib/i18n";
@@ -128,6 +129,9 @@ interface AppStore {
   fetchGlobalDistStatus: () => Promise<void>;
   scanForImport: () => Promise<ScanForImportResult | null>;
   importScanned: (skills: SkillPreview[], rules: RulePreview[]) => Promise<ImportResult | null>;
+  pendingSyncConfirm: { platforms: PlatformSyncPreview[]; onConfirm?: () => void } | null;
+  resolveSyncConfirm: ((confirmed: boolean) => void) | null;
+  requestSyncConfirm: (params: { sceneId: string; platformIds: string[]; scope: string; projectId?: string }) => Promise<boolean>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -551,6 +555,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }
       }
 
+      // Sync confirmation — shows dialog if removals detected
+      const targetPlatformIds = platforms ?? (await ipc.getScenePlatforms(sceneId));
+      const ok = await get().requestSyncConfirm({ sceneId, platformIds: targetPlatformIds, scope, projectId });
+      if (!ok) return null;
+
       const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
       await get().fetchDistributions();
       await get().fetchSyncStatus();
@@ -614,6 +623,28 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return null;
     }
   },
+  pendingSyncConfirm: null,
+  resolveSyncConfirm: null,
+
+  // Sync confirmation — shows dialog before sync if removals detected
+  requestSyncConfirm: async ({ sceneId, platformIds, scope, projectId }) => {
+    try {
+      const preview = await ipc.previewSync(sceneId, platformIds, scope, projectId);
+      if (!preview || !preview.has_removals) return true;
+      return new Promise((resolve) => {
+        set({
+          pendingSyncConfirm: { platforms: preview.platforms },
+          resolveSyncConfirm: (confirmed: boolean) => {
+            set({ pendingSyncConfirm: null, resolveSyncConfirm: null });
+            resolve(confirmed);
+          },
+        });
+      });
+    } catch {
+      return true; // 预览失败不阻断同步
+    }
+  },
+
   importScanned: async (skills, rules) => {
     try {
       const result = await ipc.importScanned(skills, rules);

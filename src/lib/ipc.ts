@@ -24,6 +24,7 @@ import type {
   SkillPreview,
   RulePreview,
   ImportResult,
+  SyncPreviewResult,
 } from "../types";
 
 export const ipc = {
@@ -124,4 +125,6 @@ export const ipc = {
   scanForImport: () => invoke<ScanForImportResult>("scan_for_import"),
   importScanned: (skills: SkillPreview[], rules: RulePreview[]) =>
     invoke<ImportResult>("import_scanned", { skills, rules }),
+  previewSync: (sceneId: string, platformIds: string[], scope: string, projectId?: string) =>
+    invoke<SyncPreviewResult>("preview_sync", { sceneId, platformIds, scope, projectId }),
 };

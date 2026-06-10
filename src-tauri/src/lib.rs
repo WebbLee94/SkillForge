@@ -41,6 +41,7 @@ pub fn run() {
             commands::distribution::get_sync_status,
             commands::distribution::get_distributions,
             commands::distribution::switch_global_scene,
+            commands::distribution::preview_sync,
             commands::projects::list_projects,
             commands::projects::add_project,
             commands::projects::bind_scene_to_project,

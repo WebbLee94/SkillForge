@@ -415,7 +415,7 @@ pub fn get_distributions(
 
 // ── Internal helpers ───────────────────────────────────────────────
 
-fn resolve_scene_skills(
+pub fn resolve_scene_skills(
     conn: &rusqlite::Connection,
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
@@ -438,7 +438,7 @@ fn resolve_scene_skills(
     }
 }
 
-fn resolve_scene_rules(
+pub fn resolve_scene_rules(
     conn: &rusqlite::Connection,
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
@@ -459,6 +459,14 @@ fn resolve_scene_rules(
             .collect();
         Ok(result)
     }
+}
+
+// Public wrappers for preview_sync command
+pub fn resolve_scene_skills_for_preview(conn: &rusqlite::Connection, scene_id: &str) -> Result<Vec<String>, crate::error::AppError> {
+    resolve_scene_skills(conn, scene_id)
+}
+pub fn resolve_scene_rules_for_preview(conn: &rusqlite::Connection, scene_id: &str) -> Result<Vec<String>, crate::error::AppError> {
+    resolve_scene_rules(conn, scene_id)
 }
 
 fn get_distributed_skills(

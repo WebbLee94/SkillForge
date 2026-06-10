@@ -325,3 +325,18 @@ export interface ImportResult {
   skipped_rules: number;
   errors: string[];
 }
+
+// ===== Sync Preview =====
+export interface SyncPreviewResult {
+  platforms: PlatformSyncPreview[];
+  has_removals: boolean;
+}
+
+export interface PlatformSyncPreview {
+  platform_id: string;
+  platform_name: string;
+  skills_to_add: string[];
+  skills_to_remove: string[];
+  rules_to_add: string[];
+  rules_to_remove: string[];
+}

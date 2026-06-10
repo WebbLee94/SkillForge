@@ -10,6 +10,7 @@ import { GlobalDistribution } from "./pages/GlobalDistribution";
 import { ProjectDistribution } from "./pages/ProjectDistribution";
 import { Settings } from "./pages/Settings";
 import { useAppStore } from "./stores/appStore";
+import { SyncConfirmDialog } from "./components/SyncConfirmDialog";
 
 const routeToNavMap: Record<string, string> = {
   "/": "dashboard",
@@ -75,6 +76,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
+        <SyncConfirmDialog />
       </BrowserRouter>
     </ErrorBoundary>
   );

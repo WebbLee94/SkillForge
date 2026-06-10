@@ -139,5 +139,15 @@
     "importing": "正在导入...",
     "scanning": "正在扫描...",
     "noDiscoverable": "未发现可导入的技能或规则"
+  },
+  "syncConfirm": {
+    "title": "同步确认",
+    "warning": "以下内容将从平台目录中永久删除：",
+    "addSkills": "新增 {{count}} 个技能",
+    "removeSkills": "移除 {{count}} 个技能",
+    "addRules": "新增 {{count}} 条规则",
+    "removeRules": "移除 {{count}} 条规则",
+    "summary": "将新增 {{add}} 项，移除 {{remove}} 项。此操作不可撤销。",
+    "confirm": "确认同步"
   }
 }
