@@ -10,6 +10,7 @@
     "dataDir": { "title": "数据目录", "desc": "SkillForge 数据存储位置" },
     "version": { "title": "版本", "desc": "当前应用版本号" },
     "github": { "title": "GitHub", "desc": "查看源码和提交反馈" },
+    "distribution": { "title": "分发方式", "desc": "技能使用符号链接分发（源目录修改即时生效），规则使用文件复制分发（确保多规则合并的可靠性）。" },
     "dbSizeCalculating": "计算中..."
   },
   "platforms": {

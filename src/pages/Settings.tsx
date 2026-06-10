@@ -223,6 +223,14 @@ export function Settings() {
                   </a>
                 </div>
               </div>
+
+              {/* Distribution method info */}
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div>
+                  <h3 className="text-sm font-medium text-foreground">{t("settings:general.distribution.title")}</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{t("settings:general.distribution.desc")}</p>
+                </div>
+              </div>
             </div>
           )}
 

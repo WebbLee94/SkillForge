@@ -10,6 +10,7 @@
     "dataDir": { "title": "Data Directory", "desc": "SkillForge data storage location" },
     "version": { "title": "Version", "desc": "Current application version" },
     "github": { "title": "GitHub", "desc": "View source code and submit feedback" },
+    "distribution": { "title": "Distribution Method", "desc": "Skills use symbolic links (source changes take effect immediately), rules use file copy (ensures reliability for multi-rule merging)." },
     "dbSizeCalculating": "Calculating..."
   },
   "platforms": {
