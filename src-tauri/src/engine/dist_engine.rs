@@ -220,13 +220,12 @@ pub fn sync_scene(
         }
 
         // Update distribution record
-        let now = chrono::Utc::now().to_rfc3339();
         let checksum = compute_scene_checksum(conn, scene_id);
 
         conn.execute(
             "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'), ?7)",
-            params![scene_id, platform_id, scope, project_id, project_path, now, checksum],
+            params![scene_id, platform_id, scope, project_id, project_path, "synced", checksum],
         )?;
     }
 
@@ -1116,13 +1115,12 @@ pub fn switch_global_scene(
     )?;
 
     // Update distribution records for new scene's platforms only
-    let now = chrono::Utc::now().to_rfc3339();
     let checksum = compute_scene_checksum(conn, new_scene_id);
     for pid in &new_platform_ids {
         conn.execute(
-            "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, synced_at, checksum)
-             VALUES (?1, ?2, 'global', NULL, NULL, 'synced', ?3, ?4)",
-            params![new_scene_id, pid, now, checksum],
+            "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum)
+             VALUES (?1, ?2, 'global', NULL, NULL, 'synced', datetime('now'), ?3)",
+            params![new_scene_id, pid, checksum],
         )?;
     }
 
