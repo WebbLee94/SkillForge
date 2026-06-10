@@ -18,6 +18,10 @@ import type {
   CreateTagDTO,
   SyncResult,
   GlobalDistStatus,
+  ScanForImportResult,
+  SkillPreview,
+  RulePreview,
+  ImportResult,
 } from "../types";
 import { ipc } from "../lib/ipc";
 import i18n from "../lib/i18n";
@@ -122,6 +126,8 @@ interface AppStore {
   fetchDashboardStats: () => Promise<void>;
   fetchRecentActivity: () => Promise<void>;
   fetchGlobalDistStatus: () => Promise<void>;
+  scanForImport: () => Promise<ScanForImportResult | null>;
+  importScanned: (skills: SkillPreview[], rules: RulePreview[]) => Promise<ImportResult | null>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -597,6 +603,39 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       get().addToast(`获取全局分发状态失败: ${errMsg}`, "error");
+    }
+  },
+  scanForImport: async () => {
+    try {
+      return await ipc.scanForImport();
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      get().addToast(`扫描失败: ${errMsg}`, "error");
+      return null;
+    }
+  },
+  importScanned: async (skills, rules) => {
+    try {
+      const result = await ipc.importScanned(skills, rules);
+      await get().fetchSkills();
+      await get().fetchRules();
+      await get().fetchTags('skill');
+      await get().fetchTags('rule');
+      const totalImported = result.imported_skills + result.imported_rules;
+      const totalSkipped = result.skipped_skills + result.skipped_rules;
+      const extra = totalSkipped > 0 ? `（跳过 ${totalSkipped} 个已存在）` : "";
+      const errExtra = result.errors.length > 0
+        ? ` | ${result.errors.length} 个失败: ${result.errors.slice(0, 3).join("; ")}${result.errors.length > 3 ? "..." : ""}`
+        : "";
+      get().addToast(
+        `导入完成: ${result.imported_skills} 技能, ${result.imported_rules} 规则${extra}${errExtra}`,
+        totalImported > 0 ? "success" : "error"
+      );
+      return result;
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      get().addToast(`导入失败: ${errMsg}`, "error");
+      return null;
     }
   },
 }));

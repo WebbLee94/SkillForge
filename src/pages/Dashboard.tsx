@@ -1,25 +1,83 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
 import { cn } from "../lib/utils";
 import { formatDate } from "../lib/utils";
-import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe } from "lucide-react";
+import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe, HelpCircle, Sparkles } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
+import { ImportPreviewDialog } from "../components/ImportPreviewDialog";
+import type { PlatformScanResult } from "../types";
+
+const FIRST_LAUNCH_DISMISSED_KEY = "skillforge-import-guide-dismissed";
 
 export function Dashboard() {
   const { t } = useTranslation("common");
   const dashboardStats = useAppStore((s) => s.dashboardStats);
   const globalDistStatus = useAppStore((s) => s.globalDistStatus);
+  const platforms = useAppStore((s) => s.platforms);
   const fetchDashboardStats = useAppStore((s) => s.fetchDashboardStats);
   const fetchRecentActivity = useAppStore((s) => s.fetchRecentActivity);
   const fetchGlobalDistStatus = useAppStore((s) => s.fetchGlobalDistStatus);
+  const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
+  const scanForImport = useAppStore((s) => s.scanForImport);
+  const importScanned = useAppStore((s) => s.importScanned);
   const setActiveNav = useAppStore((s) => s.setActiveNav);
 
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importResult, setImportResult] = useState<PlatformScanResult[]>([]);
+  const [totalNew, setTotalNew] = useState(0);
+  const [totalSkipped, setTotalSkipped] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [showGuideCard, setShowGuideCard] = useState(false);
+
+  // Load data then check first-launch — uses direct store read to avoid React dep issues
   useEffect(() => {
+    const init = async () => {
+      await fetchDashboardStats();
+      await fetchPlatforms();
+      fetchRecentActivity();
+      fetchGlobalDistStatus();
+
+      const state = useAppStore.getState();
+      const enabledCount = (state.platforms || []).filter((p) => p.enabled).length;
+      const skillCount = state.dashboardStats?.skill_count ?? 0;
+      console.log("[firstLaunch]", { skillCount, enabledCount, platformCount: state.platforms.length });
+      if (skillCount === 0 && enabledCount > 0) {
+        // Always show guide when no skills exist, regardless of previous dismiss
+        setShowGuideCard(true);
+      }
+    };
+    init();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleDismissGuide = useCallback(() => {
+    localStorage.setItem(FIRST_LAUNCH_DISMISSED_KEY, "true");
+    setShowGuideCard(false);
+  }, []);
+
+  const handleScan = useCallback(async () => {
+    const result = await scanForImport();
+    if (result) {
+      const platformsWithContent = result.platforms.filter(
+        (p) => p.new_skills.length > 0 || p.new_rules.length > 0
+      );
+      setImportResult(platformsWithContent);
+      setTotalNew(result.total_new_skills + result.total_new_rules);
+      setTotalSkipped(result.total_existing_skills + result.total_existing_rules);
+      setShowImportPreview(true);
+    }
+  }, [scanForImport]);
+
+  const handleConfirmImport = useCallback(async () => {
+    setImporting(true);
+    const allSkills = importResult.flatMap((p) => p.new_skills);
+    const allRules = importResult.flatMap((p) => p.new_rules);
+    await importScanned(allSkills, allRules);
+    setImporting(false);
+    setShowImportPreview(false);
     fetchDashboardStats();
-    fetchRecentActivity();
-    fetchGlobalDistStatus();
-  }, [fetchDashboardStats, fetchRecentActivity, fetchGlobalDistStatus]);
+    handleDismissGuide();
+  }, [importResult, importScanned, fetchDashboardStats, handleDismissGuide]);
 
   const statCards = [
     {
@@ -59,6 +117,52 @@ export function Dashboard() {
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
       <h1 className="mb-6 text-2xl font-bold text-foreground">{t("nav.dashboard")}</h1>
+
+      {/* First-launch guide card */}
+      {showGuideCard && (
+        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold text-foreground">{t("import.firstLaunchTitle")}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t("import.firstLaunchDesc", { count: platforms.filter((p) => p.enabled).length })}
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  onClick={handleScan}
+                >
+                  {t("import.firstLaunchAction")}
+                </button>
+                <button
+                  className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
+                  onClick={handleDismissGuide}
+                >
+                  {t("import.firstLaunchDismiss")}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="relative inline-flex items-center group">
+          <button
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+            onClick={handleScan}
+          >
+            <Download className="h-3.5 w-3.5" />
+            {t("import.scanTitle")}
+          </button>
+          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help ml-1.5" />
+          <span className="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block whitespace-nowrap rounded-lg border border-border bg-popover px-3 py-2 shadow-lg text-xs text-foreground">
+            {t("import.scanTooltip")}
+          </span>
+        </div>
+      </div>
 
       {/* Stat Cards */}
       <div className="mb-6 grid grid-cols-4 gap-4">
@@ -182,6 +286,16 @@ export function Dashboard() {
           {t("actions.syncAll")}
         </button>
       </div>
+
+      <ImportPreviewDialog
+        open={showImportPreview}
+        platforms={importResult}
+        totalNew={totalNew}
+        totalSkipped={totalSkipped}
+        importing={importing}
+        onClose={() => setShowImportPreview(false)}
+        onConfirm={handleConfirmImport}
+      />
     </div>
   );
 }

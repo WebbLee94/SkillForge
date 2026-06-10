@@ -122,5 +122,22 @@
     "notConfigured": "Not Configured",
     "configureGlobalScene": "Configure global scene first",
     "skillRuleCount": "Skills / Rules"
+  },
+  "import": {
+    "scanTitle": "One-Click Import",
+    "scanTooltip": "Scan all Agent platform global directories to discover unimported skills and rules",
+    "firstLaunchTitle": "Content Discovered",
+    "firstLaunchDesc": "Found installed skills and rules across {{count}} Agent platforms. Import them all at once?",
+    "firstLaunchAction": "Import Now",
+    "firstLaunchDismiss": "Later",
+    "previewTitle": "Discoverable Skills and Rules",
+    "newSkills": "New Skills",
+    "newRules": "New Rules",
+    "existing": "Skipped",
+    "summary": "Will add {{skills}} skills, {{rules}} rules | Skipped {{skipped}} existing",
+    "confirmImport": "Confirm Import ({{count}})",
+    "importing": "Importing...",
+    "scanning": "Scanning...",
+    "noDiscoverable": "No discoverable skills or rules found"
   }
 }

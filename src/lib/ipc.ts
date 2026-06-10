@@ -20,6 +20,10 @@ import type {
   SyncResult,
   SyncStatusDTO,
   GlobalDistStatus,
+  ScanForImportResult,
+  SkillPreview,
+  RulePreview,
+  ImportResult,
 } from "../types";
 
 export const ipc = {
@@ -115,4 +119,9 @@ export const ipc = {
   getGlobalConfig: () => invoke<{ global_scene_id: string | null }>("get_global_config"),
   setGlobalConfig: (key: string, value: string | null) => invoke<void>("set_global_config", { key, value }),
   switchGlobalScene: (newSceneId: string) => invoke<SyncResult>("switch_global_scene", { newSceneId }),
+
+  // Import
+  scanForImport: () => invoke<ScanForImportResult>("scan_for_import"),
+  importScanned: (skills: SkillPreview[], rules: RulePreview[]) =>
+    invoke<ImportResult>("import_scanned", { skills, rules }),
 };

@@ -286,3 +286,42 @@ export interface PlatformDistInfo {
 
 // ===== Sync Status =====
 export type SyncStatus = "synced" | "outdated" | "partial" | "error" | "pending";
+
+// ===== Import Scan =====
+export interface ScanForImportResult {
+  platforms: PlatformScanResult[];
+  total_new_skills: number;
+  total_new_rules: number;
+  total_existing_skills: number;
+  total_existing_rules: number;
+}
+
+export interface PlatformScanResult {
+  platform_id: string;
+  platform_name: string;
+  new_skills: SkillPreview[];
+  new_rules: RulePreview[];
+  existing_skills: number;
+  existing_rules: number;
+}
+
+export interface SkillPreview {
+  id: string;
+  name: string;
+  source_path: string;
+}
+
+export interface RulePreview {
+  id: string;
+  name: string;
+  format: string;
+  source_path: string;
+}
+
+export interface ImportResult {
+  imported_skills: number;
+  imported_rules: number;
+  skipped_skills: number;
+  skipped_rules: number;
+  errors: string[];
+}

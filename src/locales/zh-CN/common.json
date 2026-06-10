@@ -122,5 +122,22 @@
     "notConfigured": "未配置",
     "configureGlobalScene": "请先配置全局场景",
     "skillRuleCount": "技能 / 规则"
+  },
+  "import": {
+    "scanTitle": "一键导入",
+    "scanTooltip": "扫描所有 Agent 平台的全局目录，发现尚未导入的技能和规则",
+    "firstLaunchTitle": "发现可用内容",
+    "firstLaunchDesc": "检测到你在 {{count}} 个 Agent 平台中有已安装的技能和规则，是否一键导入？",
+    "firstLaunchAction": "立即导入",
+    "firstLaunchDismiss": "以后再说",
+    "previewTitle": "发现可导入的技能和规则",
+    "newSkills": "新技能",
+    "newRules": "新规则",
+    "existing": "已跳过",
+    "summary": "将新增 {{skills}} 个技能，{{rules}} 条规则 | 已跳过 {{skipped}} 个",
+    "confirmImport": "确认导入 ({{count}})",
+    "importing": "正在导入...",
+    "scanning": "正在扫描...",
+    "noDiscoverable": "未发现可导入的技能或规则"
   }
 }

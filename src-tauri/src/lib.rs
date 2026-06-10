@@ -66,6 +66,8 @@ pub fn run() {
             commands::system::toggle_platform_enabled,
             commands::system::get_db_size,
             commands::platform::get_platform_capabilities,
+            commands::import::scan_for_import,
+            commands::import::import_scanned,
         ])
         .setup(|app| {
             // Initialize database on startup
