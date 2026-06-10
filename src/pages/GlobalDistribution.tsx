@@ -108,7 +108,7 @@ export function GlobalDistribution() {
       const scene = scenes.find((s) => s.id === globalDistStatus.scene_id);
       if (scene) setCurrentScene(scene);
     }
-  }, [globalDistStatus?.scene_id, scenes, currentScene, setCurrentScene]);
+  }, [globalDistStatus?.scene_id, scenes, setCurrentScene]);
 
   useEffect(() => {
     fetchScenes();
@@ -281,8 +281,8 @@ export function GlobalDistribution() {
                 <span>{t("syncProgress")}</span>
                 <span>{(() => {
                   const pdi = globalDistStatus?.platforms.find((p) => p.platform_id === platform.platform_id);
-                  if (pdi && (pdi.scene_skill_count ?? 0) > 0) {
-                    return `${pdi.synced_skill_count ?? 0}/${pdi.scene_skill_count}`;
+                  if (pdi) {
+                    return `${pdi.synced_skill_count ?? 0}/${pdi.synced_rule_count ?? 0}`;
                   }
                   return `${platform.synced_count}/${platform.total_count}`;
                 })()}</span>

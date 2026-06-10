@@ -116,13 +116,9 @@ export function Dashboard() {
                 <div className="flex flex-wrap gap-2 pt-1">
                   {globalDistStatus.platforms.map((p) => {
                     const PlatformIcon = getPlatformIcon(p.platform_id);
-                    // Use filesystem counts when available
-                    const skillProgress = (p.scene_skill_count ?? 0) > 0
-                      ? `${p.synced_skill_count ?? 0}/${p.scene_skill_count}`
-                      : `${p.synced_count}/${p.total_count}`;
-                    const tooltipText = (p.scene_skill_count ?? 0) > 0
-                      ? `已同步 ${p.synced_skill_count ?? 0} / 场景配置 ${p.scene_skill_count}`
-                      : `${p.synced_count}/${p.total_count}`;
+                    // Display synced_skill_count / synced_rule_count
+                    const skillProgress = `${p.synced_skill_count ?? 0}/${p.synced_rule_count ?? 0}`;
+                    const tooltipText = `已同步技能: ${p.synced_skill_count ?? 0} / 已同步规则: ${p.synced_rule_count ?? 0}`;
                     return (
                       <button
                         key={p.platform_id}
