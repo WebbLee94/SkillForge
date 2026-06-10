@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { useAppStore } from "../stores/appStore";
+import { ipc } from "../lib/ipc";
 import { cn } from "../lib/utils";
 import { TagPopover } from "../components/TagPopover";
 import { TagFilterBar } from "../components/TagFilterBar";

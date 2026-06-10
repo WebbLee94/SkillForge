@@ -273,6 +273,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
         set({ editingRule: null });
       }
       await get().fetchRules();
+      await get().fetchTags('rule');
       get().addToast("删除规则成功", "success");
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);

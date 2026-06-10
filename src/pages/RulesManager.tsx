@@ -55,7 +55,7 @@ export function RulesManager() {
   // Create form state
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
-  const [newFormat, setNewFormat] = useState<"mdc" | "md" | "yaml">("mdc");
+  const [newFormat, setNewFormat] = useState<"md" | "mdc" | "yaml">("md");
   const [newContent, setNewContent] = useState("");
 
   // Batch mode state
@@ -605,8 +605,8 @@ export function RulesManager() {
                   onChange={(e) => setNewFormat(e.target.value as "mdc" | "md" | "yaml")}
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="mdc">.mdc</option>
                   <option value="md">.md</option>
+                  <option value="mdc">.mdc</option>
                   <option value="yaml">.yaml</option>
                 </select>
               </div>
