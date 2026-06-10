@@ -236,23 +236,17 @@ pub fn sync_scene(
 pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, AppError> {
     let mut stmt = conn.prepare(
         "SELECT p.id, p.name, COALESCE(d.status, 'never_synced') as status,
-                COALESCE(s.synced_count, 0) as synced_count,
-                COALESCE(s.total_count, 0) as total_count
+                COALESCE(d.synced_count, 0) as synced_count,
+                COALESCE(d.total_count, 0) as total_count
          FROM platforms p
          LEFT JOIN (
              SELECT platform_id, status,
                     COUNT(CASE WHEN status = 'synced' THEN 1 END) as synced_count,
                     COUNT(*) as total_count
              FROM distributions
+             WHERE scope = 'global'
              GROUP BY platform_id
          ) d ON p.id = d.platform_id
-         LEFT JOIN (
-             SELECT platform_id,
-                    COUNT(CASE WHEN status = 'synced' THEN 1 END) as synced_count,
-                    COUNT(*) as total_count
-             FROM distributions
-             GROUP BY platform_id
-         ) s ON p.id = s.platform_id
          WHERE p.enabled != 0
          ORDER BY p.name ASC",
     )?;
