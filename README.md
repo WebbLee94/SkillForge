@@ -33,6 +33,12 @@ SkillForge 是一款专为 AI Agent 用户打造的技能管理工具，旨在�
 | 🧠 **平台能力感知** | 自动检测平台分发能力，不支持时显示警告 |
 | 🌐 **多平台支持** | Claude Code / OpenCode / Cursor / Windsurf / Trae / CodeBuddy 等 12 个平台 |
 
+## 📸 界面预览
+
+![SkillForge 看板](public/images/dashboard.png)
+
+*SkillForge 桌面应用主界面 —— 统一管理 AI Agent 技能与规则*
+
 ## 🛠️ 技术栈
 
 | 层 | 技术 | 图标 |
