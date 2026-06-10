@@ -103,13 +103,14 @@ impl SourcePlugin for LocalFsSource {
         bundle.meta.source_type = "local-fs".to_string();
         bundle.meta.source_url = Some(skill_dir.to_string_lossy().to_string());
 
-        // Detect subdirectories
-        let known_subdirs = ["references", "scripts", "rules", "assets", "examples"];
-        for subdir in &known_subdirs {
-            let subdir_path = skill_dir.join(subdir);
-            if subdir_path.exists() && subdir_path.is_dir() {
-                if !bundle.subdirs.contains(&subdir.to_string()) {
-                    bundle.subdirs.push(subdir.to_string());
+        // Dynamically detect all subdirectories (excluding hidden dirs)
+        if let Ok(entries) = std::fs::read_dir(&skill_dir) {
+            for entry in entries.flatten() {
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if !name.starts_with('.') && !bundle.subdirs.contains(&name) {
+                        bundle.subdirs.push(name);
+                    }
                 }
             }
         }

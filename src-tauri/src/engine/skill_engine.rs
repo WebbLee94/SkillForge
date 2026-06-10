@@ -394,9 +394,25 @@ fn store_skill_files(
     );
     std::fs::write(local_path.join("SKILL.md"), full_md)?;
 
-    // Create subdirectory placeholders
-    for subdir in &bundle.subdirs {
-        std::fs::create_dir_all(local_path.join(subdir))?;
+    // Copy subdirectory contents from source if available
+    if let Some(ref source_url) = bundle.meta.source_url {
+        let source_dir = std::path::Path::new(source_url);
+        for subdir in &bundle.subdirs {
+            let src_subdir = source_dir.join(subdir);
+            let dst_subdir = local_path.join(subdir);
+            if src_subdir.exists() && src_subdir.is_dir() {
+                if let Err(e) = crate::plugins::platform::copy_dir_recursive(&src_subdir, &dst_subdir) {
+                    eprintln!("Warning: Failed to copy subdirectory {}: {}", subdir, e);
+                }
+            } else {
+                std::fs::create_dir_all(&dst_subdir)?;
+            }
+        }
+    } else {
+        // No source URL — create empty directory placeholders
+        for subdir in &bundle.subdirs {
+            std::fs::create_dir_all(local_path.join(subdir))?;
+        }
     }
 
     Ok(())
