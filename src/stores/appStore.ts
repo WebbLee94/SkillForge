@@ -542,7 +542,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
         }
       }
 
-      get().addToast("开始同步...", "info");
       const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
       await get().fetchDistributions();
       await get().fetchSyncStatus();

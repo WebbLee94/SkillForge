@@ -50,21 +50,6 @@ export const AddProjectDialog = memo(function AddProjectDialog({
 
         <div className="space-y-4">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-foreground">{t("projectName")}</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="输入项目名称"
-              autoFocus
-              className={cn(
-                "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
-                "focus:outline-none focus:ring-2 focus:ring-ring",
-              )}
-            />
-          </div>
-
-          <div>
             <label className="mb-1.5 block text-sm font-medium text-foreground">{t("projectPath")}</label>
             <div className="flex gap-2">
               <input
@@ -95,6 +80,20 @@ export const AddProjectDialog = memo(function AddProjectDialog({
                 <FolderOpen className="h-4 w-4" />
               </button>
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground">{t("projectName")}</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="输入项目名称"
+              className={cn(
+                "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
+                "focus:outline-none focus:ring-2 focus:ring-ring",
+              )}
+            />
           </div>
 
           <div>
