@@ -170,7 +170,11 @@ export function ProjectDistribution() {
         {filteredProjects.map((project) => {
           const projectDists = getProjectDistributions(project.id);
           const platformStatuses = new Map<string, string>();
-          projectDists.forEach((d) => platformStatuses.set(d.platform_id, d.status || "pending"));
+          projectDists.forEach((d) => {
+            if (!platformStatuses.has(d.platform_id)) {
+              platformStatuses.set(d.platform_id, d.status || "pending");
+            }
+          });
 
           return (
             <div key={project.id} className="rounded-lg border border-border bg-card p-4">
