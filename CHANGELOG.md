@@ -1,5 +1,36 @@
 # Changelog
 
+## v1.0.1 (2026-06-10)
+
+### 修复
+
+#### 分发同步
+- 全局分发同步后状态显示为"已同步"（修复 distributions 表多行 GROUP BY 歧义导致 status 取旧值）
+- 项目分发同步后平台图标显示为绿勾（修复 dist_engine status 列误写 datetime 字符串）
+- Directory 模式规则同步增加 diff 删除，统一为完整 diff 策略（技能+规则行为一致）
+
+#### 技能库
+- 覆盖安装不再丢失标签和场景关系（DELETE CASCADE → UPDATE 保护外键关联）
+- 批量安装支持子目录深度复制（动态扫描所有子目录 + copy_dir_recursive）
+- 批量安装界面增加滚动条、合并 Toast 结果、使用后端 batch 命令
+- 暂时隐藏 Git 安装选项（逻辑待修复后开放）
+
+#### 看板 / 全局分发
+- 看板与全局分发场景选择保持一致（修复 useEffect 依赖死锁）
+- xx/xx 格式改为"已安装技能数 / 已同步规则数"
+
+#### 规则管理
+- 删除规则后标签计数同步更新
+- 新建规则默认格式改为 `.md` 并排在第一位
+
+#### 设置
+- GitHub 链接修正为 `github.com/WebbLee94/SkillForge`
+- 新增分发方式说明文案（解释技能 symlink vs 规则 copy 的差异原因）
+
+### 文档
+- README.md 添加致谢节（引用 skills-manager）
+- CHANGELOG.md 更新至 v1.0.1
+
 ## v1.0.0 (2026-05-27)
 
 ### 新增
