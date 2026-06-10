@@ -647,6 +647,31 @@ fn sync_rules_to_directory(
             ))
         })?;
 
+        // Diff removal: remove rule files that are no longer in the scene
+        if let Ok(entries) = std::fs::read_dir(rules_dir) {
+            let expected: std::collections::HashSet<&str> = rule_ids.iter().map(|s| s.as_str()).collect();
+            for entry in entries.flatten() {
+                if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
+                    if let Some(file_name) = entry.file_name().to_str() {
+                        if let Some(stem) = std::path::Path::new(file_name).file_stem() {
+                            let stem_str = stem.to_string_lossy();
+                            if !expected.contains(stem_str.as_ref()) {
+                                if let Err(e) = std::fs::remove_file(entry.path()) {
+                                    result.errors.push(format!(
+                                        "删除过期规则文件 '{}' 失败: {}",
+                                        entry.path().display(),
+                                        e
+                                    ));
+                                } else {
+                                    result.removed.push(format!("rule:{}", stem_str));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         for rule_id in rule_ids {
             // Get rule content from DB
             let rule_content: Option<String> = conn
