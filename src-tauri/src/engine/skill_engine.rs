@@ -370,7 +370,7 @@ fn store_skill_files(
 
     // Write SKILL.md (full content including frontmatter)
     let full_md = format!(
-        "---\nname: {}\ndescription: {}{}{}{}---\n\n{}",
+        "---\nname: {}\ndescription: {}{}{}{}\n---\n\n{}",
         bundle.meta.name,
         bundle.meta.description,
         bundle
