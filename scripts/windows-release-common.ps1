@@ -60,8 +60,14 @@ function Get-GhToken {
 
     $gh = Get-Command gh -ErrorAction SilentlyContinue
     if ($gh) {
-        $token = & gh auth token 2>$null
-        if ($token) { return $token.Trim() }
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'SilentlyContinue'
+        try {
+            $token = & gh auth token 2>$null
+            if ($token) { return $token.Trim() }
+        } finally {
+            $ErrorActionPreference = $prevEap
+        }
     }
 
     $input = "protocol=https`nhost=github.com`n`n"
