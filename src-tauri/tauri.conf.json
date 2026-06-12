@@ -42,7 +42,9 @@
         "language": "zh-CN"
       },
       "nsis": {
-        "installerHooks": "./windows/installer-hooks.nsh"
+        "installMode": "perMachine",
+        "installerHooks": "./windows/installer-hooks.nsh",
+        "template": "./windows/installer.nsi"
       }
     },
     "linux": {
