@@ -1,0 +1,24 @@
+scripts/windows-release-common.ps1
+  34c40f583ed2461c 63-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.0",
+  "base_commit_sha": "ed3b38fad442550eb893d315df079906e9da79dd",
+  "prompts": {
+    "34c40f583ed2461c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "4c413fdb-156a-47e5-8084-8ccefdec0342",
+        "model": "default"
+      },
+      "human_author": "LongXiaoBin <longxiaobin@cvte.com>",
+      "messages": [],
+      "total_additions": 8,
+      "total_deletions": 2,
+      "accepted_lines": 8,
+      "overriden_lines": 0,
+      "messages_url": "https://gitai.gz.cvte.cn/cas/a94725d7708e3792ac24ad1f1d4426065bc5c18e6c3529f7360b323b0eafcb85"
+    }
+  }
+}
