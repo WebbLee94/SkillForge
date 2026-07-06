@@ -30,6 +30,7 @@ dist-ssr
 .trae/
 
 # opencode
+.omo/
 .sisyphus/
 .superpowers/
 
