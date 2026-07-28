@@ -14,6 +14,31 @@ function Get-AppVersion {
     return (Get-Content $confPath -Raw -Encoding UTF8 | ConvertFrom-Json).version
 }
 
+function Get-VersionFromTag {
+    param([string]$Tag)
+    if ($Tag -match '^v?(\d+\.\d+\.\d+(?:[-+][\w.-]+)?)$') {
+        return $Matches[1]
+    }
+    throw "Invalid tag '$Tag'. Expected format: v1.0.0 or 1.0.0"
+}
+
+function Ensure-CargoInPath {
+    $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
+    if (Test-Path $cargoBin) {
+        $env:Path = "$cargoBin;$env:Path"
+    }
+    if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+        throw "cargo not found. Install Rust: https://rustup.rs"
+    }
+}
+
+function Ensure-GhAuth {
+    $null = Get-GhToken
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        throw "gh CLI not found. Install: winget install GitHub.cli"
+    }
+}
+
 function Get-TauriReleaseDir {
     param([string]$Root = (Get-ProjectRoot))
     $candidates = @(
@@ -35,8 +60,14 @@ function Get-GhToken {
 
     $gh = Get-Command gh -ErrorAction SilentlyContinue
     if ($gh) {
-        $token = & gh auth token 2>$null
-        if ($token) { return $token.Trim() }
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = 'SilentlyContinue'
+        try {
+            $token = & gh auth token 2>$null
+            if ($token) { return $token.Trim() }
+        } finally {
+            $ErrorActionPreference = $prevEap
+        }
     }
 
     $input = "protocol=https`nhost=github.com`n`n"
