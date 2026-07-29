@@ -6,6 +6,7 @@ import { formatDate } from "../lib/utils";
 import { Package, FileText, Film, FolderOpen, Download, Plus, RefreshCw, Globe, HelpCircle, Sparkles } from "lucide-react";
 import { getPlatformIcon } from "../components/icons/PlatformIcons";
 import { ImportPreviewDialog } from "../components/ImportPreviewDialog";
+import { WatcherNotification } from "../components/WatcherNotification";
 import type { PlatformScanResult } from "../types";
 
 const FIRST_LAUNCH_DISMISSED_KEY = "skillforge-import-guide-dismissed";
@@ -117,6 +118,8 @@ export function Dashboard() {
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
       <h1 className="mb-6 text-2xl font-bold text-foreground">{t("nav.dashboard")}</h1>
+
+      <WatcherNotification />
 
       {/* First-launch guide card */}
       {showGuideCard && (

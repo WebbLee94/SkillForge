@@ -361,6 +361,13 @@ fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, App
 }
 
 /// Store skill files to the local filesystem
+pub fn store_skill_files_public(
+    local_path: &std::path::Path,
+    bundle: &crate::types::SkillBundle,
+) -> Result<(), AppError> {
+    store_skill_files(local_path, bundle)
+}
+
 fn store_skill_files(
     local_path: &std::path::Path,
     bundle: &crate::types::SkillBundle,

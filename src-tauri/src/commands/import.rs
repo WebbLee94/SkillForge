@@ -1,5 +1,6 @@
 use crate::error::AppError;
 use crate::plugins::platform;
+use crate::plugins::source::SourcePlugin;
 use crate::AppState;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -192,91 +193,98 @@ pub fn scan_for_import(
 // ── Import command ────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn import_scanned(
+pub async fn import_scanned(
     skills: Vec<SkillPreview>,
     rules: Vec<RulePreview>,
     state: tauri::State<'_, AppState>,
 ) -> Result<ImportResult, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let mut imported_skills = 0u32;
-    let mut imported_rules = 0u32;
-    let mut skipped_skills = 0u32;
-    let mut skipped_rules = 0u32;
-    let mut errors: Vec<String> = Vec::new();
+    let db = state.db.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let conn = db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+        let mut imported_skills = 0u32;
+        let mut imported_rules = 0u32;
+        let mut skipped_skills = 0u32;
+        let mut skipped_rules = 0u32;
+        let mut errors: Vec<String> = Vec::new();
 
-    // Import skills: each skill lives in a platform-specific directory,
-    // so we create a LocalFsSource per skill's parent directory
-    for skill in &skills {
-        // Re-check existence
-        let exists: bool = conn
-            .query_row("SELECT COUNT(*) FROM skills WHERE id = ?1", params![skill.id], |r| r.get::<_, i64>(0))
-            .map(|c| c > 0)
-            .unwrap_or(false);
-        if exists {
-            skipped_skills += 1;
-            continue;
-        }
-        // Create source plugin pointing to the skill's parent directory
-        let source_path = std::path::Path::new(&skill.source_path);
-        let parent_dir = source_path.parent().unwrap_or(source_path).to_path_buf();
-        let source_plugin = crate::plugins::source::local_fs::LocalFsSource::with_dir(parent_dir);
-        match crate::engine::skill_engine::install_skill(&conn, &source_plugin, &skill.id) {
-            Ok(_) => imported_skills += 1,
-            Err(e) => {
-                let msg = format!("{}: {}", skill.name, e);
-                eprintln!("导入技能失败: {}", msg);
-                errors.push(msg);
+        for skill in &skills {
+            let exists: bool = conn
+                .query_row("SELECT COUNT(*) FROM skills WHERE id = ?1", params![skill.id], |r| r.get::<_, i64>(0))
+                .map(|c| c > 0)
+                .unwrap_or(false);
+            if exists {
+                skipped_skills += 1;
+                continue;
+            }
+            let source_path = std::path::Path::new(&skill.source_path);
+            let parent_dir = source_path.parent().unwrap_or(source_path).to_path_buf();
+            let source_plugin = crate::plugins::source::local_fs::LocalFsSource::with_dir(parent_dir);
+            let bundle = match source_plugin.fetch(&skill.id, None) {
+                Ok(b) => b,
+                Err(e) => { errors.push(format!("{}: {}", skill.name, e)); continue; }
+            };
+            let local_path = dirs::home_dir()
+                .unwrap_or_default()
+                .join(".skillforge")
+                .join("skills")
+                .join(&bundle.meta.id);
+            match crate::engine::skill_engine::store_skill_files_public(&local_path, &bundle) {
+                Ok(_) => {}
+                Err(e) => { errors.push(format!("{}: {}", skill.name, e)); continue; }
+            }
+            let now = chrono::Utc::now().to_rfc3339();
+            match conn.execute(
+                "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                params![bundle.meta.id, bundle.meta.name, bundle.meta.description, bundle.meta.source_type, bundle.meta.source_url, bundle.meta.version, now, local_path.to_string_lossy().to_string(), bundle.meta.metadata],
+            ) {
+                Ok(_) => imported_skills += 1,
+                Err(e) => errors.push(format!("{}: {}", skill.name, e)),
             }
         }
-    }
 
-    // Import rules
-    for rule in &rules {
-        let exists: bool = conn
-            .query_row("SELECT COUNT(*) FROM rules WHERE id = ?1", params![rule.id], |r| r.get::<_, i64>(0))
-            .map(|c| c > 0)
-            .unwrap_or(false);
-        if exists {
-            skipped_rules += 1;
-            continue;
-        }
-        let content = std::fs::read_to_string(&rule.source_path).unwrap_or_default();
-        if content.is_empty() {
-            skipped_rules += 1;
-            continue;
-        }
-        let now = chrono::Utc::now().to_rfc3339();
-        let result = conn.execute(
-            "INSERT INTO rules (id, name, description, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)",
-            params![rule.id, rule.name, "", rule.format, content, now],
-        );
-        match result {
-            Ok(_) => {
-                // Write rule file to SkillForge storage for consistency with skills
-                let rules_dir = dirs::home_dir()
-                    .unwrap_or_default()
-                    .join(".skillforge")
-                    .join("rules");
-                std::fs::create_dir_all(&rules_dir).ok();
-                let rule_path = rules_dir.join(format!("{}.{}", rule.id, rule.format));
-                std::fs::write(&rule_path, &content).ok();
-                imported_rules += 1;
+        for rule in &rules {
+            let exists: bool = conn
+                .query_row("SELECT COUNT(*) FROM rules WHERE id = ?1", params![rule.id], |r| r.get::<_, i64>(0))
+                .map(|c| c > 0)
+                .unwrap_or(false);
+            if exists {
+                skipped_rules += 1;
+                continue;
             }
-            Err(e) => {
-                let msg = format!("{}: {}", rule.name, e);
-                eprintln!("导入规则失败: {}", msg);
-                errors.push(msg);
+            let content = std::fs::read_to_string(&rule.source_path).unwrap_or_default();
+            if content.is_empty() {
+                skipped_rules += 1;
+                continue;
+            }
+            let now = chrono::Utc::now().to_rfc3339();
+            match conn.execute(
+                "INSERT INTO rules (id, name, description, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)",
+                params![rule.id, rule.name, "", rule.format, content, now],
+            ) {
+                Ok(_) => {
+                    let rules_dir = dirs::home_dir()
+                        .unwrap_or_default()
+                        .join(".skillforge")
+                        .join("rules");
+                    std::fs::create_dir_all(&rules_dir).ok();
+                    let rule_path = rules_dir.join(format!("{}.{}", rule.id, rule.format));
+                    std::fs::write(&rule_path, &content).ok();
+                    imported_rules += 1;
+                }
+                Err(e) => errors.push(format!("{}: {}", rule.name, e)),
             }
         }
-    }
 
-    Ok(ImportResult {
-        imported_skills,
-        imported_rules,
-        skipped_skills,
-        skipped_rules,
-        errors,
+        Ok(ImportResult {
+            imported_skills,
+            imported_rules,
+            skipped_skills,
+            skipped_rules,
+            errors,
+        })
     })
+    .await
+    .map_err(|e| AppError::Io(e.to_string()))?
 }
 
 #[derive(Serialize)]

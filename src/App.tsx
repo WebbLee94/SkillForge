@@ -10,6 +10,7 @@ import { GlobalDistribution } from "./pages/GlobalDistribution";
 import { ProjectDistribution } from "./pages/ProjectDistribution";
 import { Settings } from "./pages/Settings";
 import { useAppStore } from "./stores/appStore";
+import { useWatcherStore } from "./stores/watcherStore";
 import { SyncConfirmDialog } from "./components/SyncConfirmDialog";
 
 const routeToNavMap: Record<string, string> = {
@@ -60,6 +61,16 @@ function NavSync() {
 }
 
 function App() {
+  useEffect(() => {
+    const setup = async () => {
+      const unlisten = await useWatcherStore.getState().listenToWatcher();
+      useWatcherStore.getState().fetchEvents();
+      return unlisten;
+    };
+    const unlistenPromise = setup();
+    return () => { unlistenPromise.then(fn => fn()).catch(() => {}); };
+  }, []);
+
   return (
     <ErrorBoundary>
       <BrowserRouter>

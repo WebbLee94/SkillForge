@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 1;
+const CURRENT_VERSION: u32 = 2;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -25,6 +25,10 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
         apply_v1(conn)?;
     }
 
+    if current < 2 {
+        apply_v2(conn)?;
+    }
+
     Ok(())
 }
 
@@ -37,6 +41,41 @@ fn apply_v1(conn: &rusqlite::Connection) -> Result<(), AppError> {
         rusqlite::params![1, now],
     )?;
 
+    Ok(())
+}
+
+fn apply_v2(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    let columns: Vec<String> = {
+        let mut stmt = conn.prepare("PRAGMA table_info(skills)")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(1))?;
+        rows.filter_map(|r| r.ok()).collect()
+    };
+    if !columns.contains(&"content_hash".to_string()) {
+        conn.execute("ALTER TABLE skills ADD COLUMN content_hash TEXT", [])?;
+    }
+    if !columns.contains(&"sync_status".to_string()) {
+        conn.execute("ALTER TABLE skills ADD COLUMN sync_status TEXT DEFAULT 'synced'", [])?;
+    }
+
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS watcher_events (
+             id          INTEGER PRIMARY KEY AUTOINCREMENT,
+             event_type  TEXT NOT NULL,
+             capability  TEXT NOT NULL,
+             path        TEXT NOT NULL,
+             platform    TEXT,
+             old_hash    TEXT,
+             new_hash    TEXT,
+             handled     INTEGER DEFAULT 0,
+             created_at  TEXT DEFAULT (datetime('now'))
+         );"
+    )?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![2, now],
+    )?;
     Ok(())
 }
 
@@ -124,5 +163,38 @@ mod tests {
             .collect();
         assert!(columns.contains(&"last_synced_at".to_string()));
         assert!(!columns.contains(&"synced_at".to_string()));
+    }
+
+    #[test]
+    fn test_v2_migration_adds_columns_and_watcher_table() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+
+        // Verify skills table has new columns
+        let mut stmt = conn.prepare("PRAGMA table_info(skills)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(columns.contains(&"content_hash".to_string()));
+        assert!(columns.contains(&"sync_status".to_string()));
+
+        // Verify watcher_events table exists
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='watcher_events'")
+            .unwrap();
+        let table: String = stmt.query_row([], |row| row.get(0)).unwrap();
+        assert_eq!(table, "watcher_events");
+
+        // Verify migration version is 2
+        let version: u32 = conn
+            .query_row(
+                "SELECT MAX(version) FROM schema_version",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(version >= 2);
     }
 }

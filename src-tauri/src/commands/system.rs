@@ -426,3 +426,30 @@ fn count_files_in_dir(path: &std::path::Path) -> u32 {
     }
     count
 }
+
+// ── Watcher commands ──
+
+#[tauri::command]
+pub fn get_watcher_events() -> Result<serde_json::Value, AppError> {
+    let events = crate::engine::fs_watcher::get_pending_events();
+    let result: Vec<serde_json::Value> = events.iter().map(|(id, event_type, path)| {
+        serde_json::json!({
+            "id": id,
+            "event_type": event_type,
+            "path": path,
+        })
+    }).collect();
+    Ok(serde_json::json!({
+        "unhandled_count": result.len(),
+        "events": result,
+    }))
+}
+
+#[tauri::command]
+pub fn handle_watcher_event(
+    _event_id: i64,
+    _action: i32,
+) -> Result<(), AppError> {
+    crate::engine::fs_watcher::clear_pending_events();
+    Ok(())
+}

@@ -4,3 +4,5 @@ pub mod scene_engine;
 pub mod dist_engine;
 pub mod fs_watcher;
 pub mod content_hash;
+pub mod watcher_integration;
+pub mod auto_updater;

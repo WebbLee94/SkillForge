@@ -5,12 +5,12 @@ pub mod commands;
 pub mod error;
 pub mod types;
 
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::Manager;
 
 /// Application state shared across Tauri commands
 pub struct AppState {
-    pub db: Mutex<rusqlite::Connection>,
+    pub db: Arc<Mutex<rusqlite::Connection>>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -66,6 +66,8 @@ pub fn run() {
             commands::system::get_global_distribution_status,
             commands::system::toggle_platform_enabled,
             commands::system::get_db_size,
+            commands::system::get_watcher_events,
+            commands::system::handle_watcher_event,
             commands::platform::get_platform_capabilities,
             commands::import::scan_for_import,
             commands::import::import_scanned,
@@ -79,10 +81,11 @@ pub fn run() {
             let db_path = data_dir.join("skillforge.db");
             let mut conn = rusqlite::Connection::open(&db_path)
                 .expect("无法打开数据库");
+            conn.busy_timeout(std::time::Duration::from_secs(5)).ok();
+            let _ = conn.execute_batch("PRAGMA journal_mode=WAL;");
             db::migrations::run_migrations(&mut conn)
                 .expect("无法运行数据库迁移");
 
-            // Initialize data directory structure
             let skills_dir = data_dir.join("skills");
             let rules_dir = data_dir.join("rules");
             let cache_dir = data_dir.join("cache/git");
@@ -90,8 +93,26 @@ pub fn run() {
             std::fs::create_dir_all(&rules_dir).ok();
             std::fs::create_dir_all(&cache_dir).ok();
 
-            // Store db connection as app state
-            app.manage(AppState { db: Mutex::new(conn) });
+            let conn = Arc::new(Mutex::new(conn));
+            app.manage(AppState { db: conn.clone() });
+
+            let watch_paths = {
+                let db = conn.lock().unwrap();
+                let mut stmt = db.prepare(
+                    "SELECT id FROM platforms WHERE enabled != 0"
+                ).unwrap();
+                let ids: Vec<String> = stmt.query_map([], |r| r.get(0))
+                    .unwrap()
+                    .filter_map(|r| r.ok())
+                    .collect();
+                engine::fs_watcher::build_watch_paths(&ids)
+            };
+
+            let watcher_app = app.handle().clone();
+            engine::fs_watcher::start_file_watcher(watcher_app, watch_paths);
+
+            let updater_app = app.handle().clone();
+            engine::auto_updater::start_auto_updater(updater_app, conn.clone());
 
             Ok(())
         })

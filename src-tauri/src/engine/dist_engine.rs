@@ -111,6 +111,7 @@ pub fn sync_scene(
 
         // Ensure instance directory exists
         if let Some(parent) = std::path::Path::new(&instance.path).parent() {
+            crate::engine::fs_watcher::mute_self_writes(parent);
             std::fs::create_dir_all(parent).map_err(|e| {
                 AppError::Io(format!(
                     "无法创建平台目录 '{}': {}",
@@ -650,6 +651,7 @@ fn sync_rules_to_directory(
     let rules_dir = resolve_rules_path(conn, plugin, instance);
 
     if let Some(rules_dir) = &rules_dir {
+        crate::engine::fs_watcher::mute_self_writes(rules_dir);
         std::fs::create_dir_all(rules_dir).map_err(|e| {
             AppError::Io(format!(
                 "无法创建规则目录 '{}': {}",
@@ -667,6 +669,7 @@ fn sync_rules_to_directory(
                         if let Some(stem) = std::path::Path::new(file_name).file_stem() {
                             let stem_str = stem.to_string_lossy();
                             if !expected.contains(stem_str.as_ref()) {
+                                crate::engine::fs_watcher::mute_self_writes(&entry.path());
                                 if let Err(e) = std::fs::remove_file(entry.path()) {
                                     result.errors.push(format!(
                                         "删除过期规则文件 '{}' 失败: {}",
@@ -705,6 +708,7 @@ fn sync_rules_to_directory(
                 let file_name = format!("{}.{}", rule_id, format);
                 let rule_path = rules_dir.join(&file_name);
 
+                crate::engine::fs_watcher::mute_self_writes(&rule_path);
                 match std::fs::write(&rule_path, &content) {
                     Ok(_) => {
                         result.installed.push(format!("rule:{}", rule_id));
@@ -748,6 +752,7 @@ fn sync_rules_to_single_file(
 ) -> Result<(), AppError> {
     // Ensure parent directory exists
     if let Some(parent) = file_path.parent() {
+        crate::engine::fs_watcher::mute_self_writes(parent);
         std::fs::create_dir_all(parent).map_err(|e| {
             AppError::Io(format!(
                 "无法创建规则文件父目录 '{}': {}",
@@ -802,9 +807,11 @@ fn sync_rules_to_single_file(
     // Write file (or delete if empty)
     if final_content.trim().is_empty() {
         if file_path.exists() {
+            crate::engine::fs_watcher::mute_self_writes(file_path);
             std::fs::remove_file(file_path)?;
         }
     } else {
+        crate::engine::fs_watcher::mute_self_writes(file_path);
         std::fs::write(file_path, &final_content)?;
     }
 
@@ -834,8 +841,10 @@ fn remove_rule_from_single_file(
     let new_content = re.replace_all(&existing_content, "").trim().to_string();
 
     if new_content.is_empty() {
+        crate::engine::fs_watcher::mute_self_writes(file_path);
         std::fs::remove_file(file_path)?;
     } else {
+        crate::engine::fs_watcher::mute_self_writes(file_path);
         std::fs::write(file_path, format!("{}\n", new_content))?;
     }
 

@@ -27,6 +27,23 @@ import type {
   SyncPreviewResult,
 } from "../types";
 
+export interface WatcherEvent {
+  id: number;
+  event_type: string;
+  capability: string;
+  path: string;
+  platform: string | null;
+  old_hash: string | null;
+  new_hash: string | null;
+  handled: number;
+  created_at: string;
+}
+
+export interface WatcherStatus {
+  unhandled_count: number;
+  events: WatcherEvent[];
+}
+
 export const ipc = {
   // Skills - Rust uses skill_id, not id
   listSkills: (sourceType?: string, tag?: string) =>
@@ -127,4 +144,9 @@ export const ipc = {
     invoke<ImportResult>("import_scanned", { skills, rules }),
   previewSync: (sceneId: string, platformIds: string[], scope: string, projectId?: string) =>
     invoke<SyncPreviewResult>("preview_sync", { sceneId, platformIds, scope, projectId }),
+
+  // Watcher
+  getWatcherEvents: () => invoke<WatcherStatus>("get_watcher_events"),
+  handleWatcherEvent: (eventId: number, action: number) =>
+    invoke<void>("handle_watcher_event", { eventId, action }),
 };

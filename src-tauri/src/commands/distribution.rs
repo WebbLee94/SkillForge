@@ -73,8 +73,8 @@ pub struct PlatformSyncPreview {
 pub fn preview_sync(
     scene_id: String,
     platform_ids: Vec<String>,
-    scope: String,
-    project_id: Option<String>,
+    _scope: String,
+    _project_id: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<SyncPreviewResult, crate::error::AppError> {
     let conn = state.db.lock().map_err(|e| crate::error::AppError::Database(e.to_string()))?;

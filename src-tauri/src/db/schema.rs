@@ -12,7 +12,9 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             current_ver TEXT,
             installed_at TEXT NOT NULL,
             local_path  TEXT NOT NULL,
-            metadata    TEXT
+            metadata    TEXT,
+            content_hash TEXT,
+            sync_status  TEXT DEFAULT 'synced'
         );"
     )?;
 
@@ -191,6 +193,21 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             value TEXT
         );
         INSERT OR IGNORE INTO app_config (key, value) VALUES ('global_scene_id', NULL);"
+    )?;
+
+    // ── watcher_events ──────────────────────────────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS watcher_events (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_type  TEXT NOT NULL,
+            capability  TEXT NOT NULL,
+            path        TEXT NOT NULL,
+            platform    TEXT,
+            old_hash    TEXT,
+            new_hash    TEXT,
+            handled     INTEGER DEFAULT 0,
+            created_at  TEXT DEFAULT (datetime('now'))
+        );"
     )?;
 
     // ── Indexes ────────────────────────────────────────────────────
