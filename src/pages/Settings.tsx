@@ -10,7 +10,7 @@ import type { Platform, PlatformCapabilities } from "../types";
 
 type SettingsTab = "general" | "platforms";
 
-const APP_VERSION = "1.0.1";
+const APP_VERSION = "1.1.0";
 const GITHUB_URL = "https://github.com/WebbLee94/SkillForge";
 const LANG_STORAGE_KEY = "skillforge-lang";
 
