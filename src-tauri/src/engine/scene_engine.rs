@@ -1,16 +1,13 @@
 use crate::error::AppError;
 use crate::types::{
-    CreateSceneDTO, Scene, SceneDetail, SceneRuleEntry, SceneSkillEntry,
-    UpdateSceneDTO, ValidationResult,
+    CreateSceneDTO, Scene, SceneDetail, SceneRuleEntry, SceneSkillEntry, UpdateSceneDTO,
+    ValidationResult,
 };
 
 use rusqlite::params;
 
 /// Create a new scene with associated skills and rules.
-pub fn create_scene(
-    conn: &rusqlite::Connection,
-    data: &CreateSceneDTO,
-) -> Result<Scene, AppError> {
+pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Result<Scene, AppError> {
     let id = slugify(&data.name);
 
     // Check for duplicate
@@ -23,10 +20,7 @@ pub fn create_scene(
         .map(|c| c > 0)?;
 
     if exists {
-        return Err(AppError::Validation(format!(
-            "场景标识 '{}' 已存在",
-            id
-        )));
+        return Err(AppError::Validation(format!("场景标识 '{}' 已存在", id)));
     }
 
     let now = chrono::Utc::now().to_rfc3339();
@@ -136,9 +130,7 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
 
     // Block deletion of system scenes
     if scene.is_system {
-        return Err(AppError::Validation(
-            "无法删除系统场景".to_string(),
-        ));
+        return Err(AppError::Validation("无法删除系统场景".to_string()));
     }
 
     // Check global distribution reference
@@ -172,7 +164,10 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
     // Delete associations (cascading should handle this, but be explicit)
     conn.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM scene_platforms WHERE scene_id = ?1", params![id])?;
+    conn.execute(
+        "DELETE FROM scene_platforms WHERE scene_id = ?1",
+        params![id],
+    )?;
     conn.execute("DELETE FROM distributions WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
 
@@ -340,10 +335,7 @@ pub fn list_scenes(conn: &rusqlite::Connection) -> Result<Vec<Scene>, AppError> 
 }
 
 /// Get detailed scene information including associated skills and rules.
-pub fn get_scene_detail(
-    conn: &rusqlite::Connection,
-    id: &str,
-) -> Result<SceneDetail, AppError> {
+pub fn get_scene_detail(conn: &rusqlite::Connection, id: &str) -> Result<SceneDetail, AppError> {
     let scene = query_scene_by_id(conn, id)?;
 
     let skills = if id == "__all_skills__" {
@@ -368,10 +360,7 @@ pub fn get_scene_detail(
 }
 
 /// Validate a scene: check all skills are installed, no version conflicts.
-pub fn validate_scene(
-    conn: &rusqlite::Connection,
-    id: &str,
-) -> Result<ValidationResult, AppError> {
+pub fn validate_scene(conn: &rusqlite::Connection, id: &str) -> Result<ValidationResult, AppError> {
     let _scene = query_scene_by_id(conn, id)?;
     let mut errors = Vec::new();
 
@@ -424,9 +413,8 @@ pub fn get_scene_platforms(
 ) -> Result<Vec<String>, AppError> {
     // Special handling for __all_skills__ system scene
     if scene_id == "__all_skills__" {
-        let mut stmt = conn.prepare(
-            "SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC")?;
         let platform_ids: Vec<String> = stmt
             .query_map([], |row| row.get(0))?
             .filter_map(|r| r.ok())
@@ -557,9 +545,7 @@ fn get_scene_rule_entries(
 fn get_all_skills_as_entries(
     conn: &rusqlite::Connection,
 ) -> Result<Vec<SceneSkillEntry>, AppError> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, current_ver FROM skills ORDER BY name ASC",
-    )?;
+    let mut stmt = conn.prepare("SELECT id, name, current_ver FROM skills ORDER BY name ASC")?;
 
     let entries = stmt
         .query_map([], |row| {
@@ -578,9 +564,7 @@ fn get_all_skills_as_entries(
     Ok(entries)
 }
 
-fn get_all_rules_as_entries(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<SceneRuleEntry>, AppError> {
+fn get_all_rules_as_entries(conn: &rusqlite::Connection) -> Result<Vec<SceneRuleEntry>, AppError> {
     let mut stmt = conn.prepare("SELECT id, name FROM rules ORDER BY name ASC")?;
 
     let entries = stmt
@@ -602,13 +586,7 @@ fn get_all_rules_as_entries(
 fn slugify(name: &str) -> String {
     name.to_lowercase()
         .chars()
-        .map(|c| {
-            if c.is_alphanumeric() {
-                c
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())

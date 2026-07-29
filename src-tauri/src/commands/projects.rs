@@ -5,10 +5,11 @@ use crate::AppState;
 use rusqlite::params;
 
 #[tauri::command]
-pub fn list_projects(
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<Project>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn list_projects(state: tauri::State<'_, AppState>) -> Result<Vec<Project>, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let mut stmt = conn.prepare(
         "SELECT id, name, path, scene_id, description, created_at, updated_at
@@ -41,7 +42,10 @@ pub fn add_project(
     description: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Project, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Check for duplicate path
     let exists: bool = conn
@@ -90,7 +94,10 @@ pub fn bind_scene_to_project(
     scene_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify project exists
     let project_exists: bool = conn
@@ -128,11 +135,11 @@ pub fn bind_scene_to_project(
 }
 
 #[tauri::command]
-pub fn remove_project(
-    id: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn remove_project(id: String, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify project exists
     let exists: bool = conn

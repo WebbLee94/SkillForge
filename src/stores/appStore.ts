@@ -1,4 +1,4 @@
-import { create } from "zustand";
+import { create } from 'zustand';
 import type {
   Skill,
   Rule,
@@ -23,14 +23,14 @@ import type {
   RulePreview,
   ImportResult,
   PlatformSyncPreview,
-} from "../types";
-import { ipc } from "../lib/ipc";
-import i18n from "../lib/i18n";
+} from '../types';
+import { ipc } from '../lib/ipc';
+import i18n from '../lib/i18n';
 
 interface Toast {
   id: string;
   message: string;
-  type: "success" | "error" | "info" | "warning";
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 interface AppStore {
@@ -62,7 +62,7 @@ interface AppStore {
   toasts: Toast[];
 
   // === Toast Actions ===
-  addToast: (message: string, type: Toast["type"]) => void;
+  addToast: (message: string, type: Toast['type']) => void;
   removeToast: (id: string) => void;
 
   // === Navigation ===
@@ -76,24 +76,44 @@ interface AppStore {
   // === Skill Actions ===
   fetchSkills: () => Promise<void>;
   selectSkill: (skill: Skill | null) => void;
-  installSkill: (source: string, id: string, opts?: { silent?: boolean }) => Promise<void>;
+  installSkill: (
+    source: string,
+    id: string,
+    opts?: { silent?: boolean }
+  ) => Promise<void>;
   uninstallSkill: (id: string) => Promise<void>;
   updateSkill: (id: string) => Promise<void>;
 
   // === Rule Actions ===
   fetchRules: () => Promise<void>;
   setEditingRule: (rule: Rule | null) => void;
-  createRule: (data: CreateRuleDTO, opts?: { silent?: boolean }) => Promise<void>;
+  createRule: (
+    data: CreateRuleDTO,
+    opts?: { silent?: boolean }
+  ) => Promise<void>;
   updateRule: (id: string, data: UpdateRuleDTO) => Promise<void>;
   deleteRule: (id: string) => Promise<void>;
 
   // === Tag Actions ===
   fetchTags: (tagType?: string) => Promise<void>;
   createTag: (data: CreateTagDTO) => Promise<number | void>;
-  updateTag: (id: number, name?: string, color?: string, category?: string) => Promise<void>;
+  updateTag: (
+    id: number,
+    name?: string,
+    color?: string,
+    category?: string
+  ) => Promise<void>;
   deleteTag: (id: number) => Promise<void>;
-  assignTag: (targetType: string, targetId: string, tagId: number) => Promise<void>;
-  removeTag: (targetType: string, targetId: string, tagId: number) => Promise<void>;
+  assignTag: (
+    targetType: string,
+    targetId: string,
+    tagId: number
+  ) => Promise<void>;
+  removeTag: (
+    targetType: string,
+    targetId: string,
+    tagId: number
+  ) => Promise<void>;
 
   // === Scene Actions ===
   fetchScenes: () => Promise<void>;
@@ -111,7 +131,12 @@ interface AppStore {
 
   // === Project Actions ===
   fetchProjects: () => Promise<void>;
-  addProject: (name: string, path: string, sceneId?: string, description?: string) => Promise<void>;
+  addProject: (
+    name: string,
+    path: string,
+    sceneId?: string,
+    description?: string
+  ) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
   bindSceneToProject: (projectId: string, sceneId: string) => Promise<void>;
 
@@ -120,7 +145,12 @@ interface AppStore {
 
   // === Distribution Actions ===
   fetchDistributions: () => Promise<void>;
-  syncScene: (sceneId: string, platforms: string[] | null, scope: string, projectId?: string) => Promise<SyncResult | null>;
+  syncScene: (
+    sceneId: string,
+    platforms: string[] | null,
+    scope: string,
+    projectId?: string
+  ) => Promise<SyncResult | null>;
   fetchSyncStatus: () => Promise<void>;
 
   // === Dashboard ===
@@ -128,10 +158,21 @@ interface AppStore {
   fetchRecentActivity: () => Promise<void>;
   fetchGlobalDistStatus: () => Promise<void>;
   scanForImport: () => Promise<ScanForImportResult | null>;
-  importScanned: (skills: SkillPreview[], rules: RulePreview[]) => Promise<ImportResult | null>;
-  pendingSyncConfirm: { platforms: PlatformSyncPreview[]; onConfirm?: () => void } | null;
+  importScanned: (
+    skills: SkillPreview[],
+    rules: RulePreview[]
+  ) => Promise<ImportResult | null>;
+  pendingSyncConfirm: {
+    platforms: PlatformSyncPreview[];
+    onConfirm?: () => void;
+  } | null;
   resolveSyncConfirm: ((confirmed: boolean) => void) | null;
-  requestSyncConfirm: (params: { sceneId: string; platformIds: string[]; scope: string; projectId?: string }) => Promise<boolean>;
+  requestSyncConfirm: (params: {
+    sceneId: string;
+    platformIds: string[];
+    scope: string;
+    projectId?: string;
+  }) => Promise<boolean>;
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -155,9 +196,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
   editingRule: null,
 
   // === UI State ===
-  activeNav: "dashboard",
+  activeNav: 'dashboard',
   sidebarCollapsed: false,
-  searchQuery: "",
+  searchQuery: '',
   tagFilter: [],
   loading: false,
   toasts: [],
@@ -176,7 +217,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // === Navigation ===
   setActiveNav: (nav) => set({ activeNav: nav }),
-  toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  toggleSidebar: () =>
+    set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
 
   // === Filter ===
   setSearchQuery: (query) => set({ searchQuery: query }),
@@ -191,27 +233,27 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       set({ loading: false });
-      get().addToast(`获取技能列表失败: ${errMsg}`, "error");
+      get().addToast(`获取技能列表失败: ${errMsg}`, 'error');
     }
   },
   selectSkill: (skill) => set({ selectedSkill: skill }),
   installSkill: async (source, id, opts?: { silent?: boolean }) => {
     // Map frontend source type to backend plugin name
     const sourceMap: Record<string, string> = {
-      local: "local-fs",
-      git: "git-repo",
+      local: 'local-fs',
+      git: 'git-repo',
     };
     const backendSource = sourceMap[source] || source;
     try {
       await ipc.installSkill(backendSource, id);
       await get().fetchSkills();
       if (!opts?.silent) {
-        get().addToast("安装成功", "success");
+        get().addToast('安装成功', 'success');
       }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       if (!opts?.silent) {
-        get().addToast(`安装失败: ${errMsg}`, "error");
+        get().addToast(`安装失败: ${errMsg}`, 'error');
       }
     }
   },
@@ -223,20 +265,20 @@ export const useAppStore = create<AppStore>((set, get) => ({
         set({ selectedSkill: null });
       }
       await get().fetchSkills();
-      get().addToast("卸载成功", "success");
+      get().addToast('卸载成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`卸载失败: ${errMsg}`, "error");
+      get().addToast(`卸载失败: ${errMsg}`, 'error');
     }
   },
   updateSkill: async (id) => {
     try {
       await ipc.updateSkill(id);
       await get().fetchSkills();
-      get().addToast("更新成功", "success");
+      get().addToast('更新成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`更新失败: ${errMsg}`, "error");
+      get().addToast(`更新失败: ${errMsg}`, 'error');
     }
   },
 
@@ -249,7 +291,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       set({ loading: false });
-      get().addToast(`获取规则列表失败: ${errMsg}`, "error");
+      get().addToast(`获取规则列表失败: ${errMsg}`, 'error');
     }
   },
   setEditingRule: (rule) => set({ editingRule: rule }),
@@ -258,21 +300,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await ipc.createRule(data);
       await get().fetchRules();
       if (!opts?.silent) {
-        get().addToast("创建规则成功", "success");
+        get().addToast('创建规则成功', 'success');
       }
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`创建规则失败: ${errMsg}`, "error");
+      get().addToast(`创建规则失败: ${errMsg}`, 'error');
     }
   },
   updateRule: async (id, data) => {
     try {
       await ipc.updateRule(id, data);
       await get().fetchRules();
-      get().addToast("保存规则成功", "success");
+      get().addToast('保存规则成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`保存规则失败: ${errMsg}`, "error");
+      get().addToast(`保存规则失败: ${errMsg}`, 'error');
     }
   },
   deleteRule: async (id) => {
@@ -284,10 +326,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
       await get().fetchRules();
       await get().fetchTags('rule');
-      get().addToast("删除规则成功", "success");
+      get().addToast('删除规则成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`删除规则失败: ${errMsg}`, "error");
+      get().addToast(`删除规则失败: ${errMsg}`, 'error');
     }
   },
 
@@ -298,60 +340,65 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ tags });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取标签列表失败: ${errMsg}`, "error");
+      get().addToast(`获取标签列表失败: ${errMsg}`, 'error');
     }
   },
   createTag: async (data) => {
     try {
-      const newTag = await ipc.createTag(data.name, data.color, data.category, data.tag_type);
+      const newTag = await ipc.createTag(
+        data.name,
+        data.color,
+        data.category,
+        data.tag_type
+      );
       await get().fetchTags(data.tag_type);
-      get().addToast("创建标签成功", "success");
+      get().addToast('创建标签成功', 'success');
       return newTag?.id;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`创建标签失败: ${errMsg}`, "error");
+      get().addToast(`创建标签失败: ${errMsg}`, 'error');
     }
   },
   updateTag: async (id, name, color, category) => {
     try {
       await ipc.updateTag(id, name, color, category);
       // Re-fetch with current filter context — find the tag's type
-      const tag = get().tags.find(t => t.id === id);
+      const tag = get().tags.find((t) => t.id === id);
       await get().fetchTags(tag?.tag_type);
-      get().addToast("更新标签成功", "success");
+      get().addToast('更新标签成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`更新标签失败: ${errMsg}`, "error");
+      get().addToast(`更新标签失败: ${errMsg}`, 'error');
     }
   },
   deleteTag: async (id) => {
     try {
-      const tag = get().tags.find(t => t.id === id);
+      const tag = get().tags.find((t) => t.id === id);
       const tagType = tag?.tag_type;
       await ipc.deleteTag(id);
       await get().fetchTags(tagType);
-      get().addToast("删除标签成功", "success");
+      get().addToast('删除标签成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`删除标签失败: ${errMsg}`, "error");
+      get().addToast(`删除标签失败: ${errMsg}`, 'error');
     }
   },
   assignTag: async (targetType, targetId, tagId) => {
     try {
       await ipc.assignTag(targetType, targetId, tagId);
-      get().addToast("分配标签成功", "success");
+      get().addToast('分配标签成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`分配标签失败: ${errMsg}`, "error");
+      get().addToast(`分配标签失败: ${errMsg}`, 'error');
     }
   },
   removeTag: async (targetType, targetId, tagId) => {
     try {
       await ipc.removeTag(targetType, targetId, tagId);
-      get().addToast("移除标签成功", "success");
+      get().addToast('移除标签成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`移除标签失败: ${errMsg}`, "error");
+      get().addToast(`移除标签失败: ${errMsg}`, 'error');
     }
   },
 
@@ -362,28 +409,29 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ scenes });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取场景列表失败: ${errMsg}`, "error");
+      get().addToast(`获取场景列表失败: ${errMsg}`, 'error');
     }
   },
-  setCurrentScene: (scene) => set({ currentScene: scene, currentSceneDetail: null }),
+  setCurrentScene: (scene) =>
+    set({ currentScene: scene, currentSceneDetail: null }),
   createScene: async (data) => {
     try {
       await ipc.createScene(data);
       await get().fetchScenes();
-      get().addToast("创建场景成功", "success");
+      get().addToast('创建场景成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`创建场景失败: ${errMsg}`, "error");
+      get().addToast(`创建场景失败: ${errMsg}`, 'error');
     }
   },
   updateScene: async (id, data) => {
     try {
       await ipc.updateScene(id, data);
       await get().fetchScenes();
-      get().addToast("保存场景成功", "success");
+      get().addToast('保存场景成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : JSON.stringify(e);
-      get().addToast(`保存场景失败: ${errMsg}`, "error");
+      get().addToast(`保存场景失败: ${errMsg}`, 'error');
     }
   },
   deleteScene: async (id) => {
@@ -394,10 +442,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
         set({ currentScene: null, currentSceneDetail: null });
       }
       await get().fetchScenes();
-      get().addToast("删除场景成功", "success");
+      get().addToast('删除场景成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`删除场景失败: ${errMsg}`, "error");
+      get().addToast(`删除场景失败: ${errMsg}`, 'error');
     }
   },
   fetchSceneDetail: async (id) => {
@@ -406,47 +454,47 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ currentSceneDetail: detail });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取场景详情失败: ${errMsg}`, "error");
+      get().addToast(`获取场景详情失败: ${errMsg}`, 'error');
     }
   },
   addSkillToScene: async (sceneId, skillId) => {
     try {
       await ipc.addSkillToScene(sceneId, skillId);
       await get().fetchSceneDetail(sceneId);
-      get().addToast("添加技能到场景成功", "success");
+      get().addToast('添加技能到场景成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`添加技能到场景失败: ${errMsg}`, "error");
+      get().addToast(`添加技能到场景失败: ${errMsg}`, 'error');
     }
   },
   removeSkillFromScene: async (sceneId, skillId) => {
     try {
       await ipc.removeSkillFromScene(sceneId, skillId);
       await get().fetchSceneDetail(sceneId);
-      get().addToast("从场景移除技能成功", "success");
+      get().addToast('从场景移除技能成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`从场景移除技能失败: ${errMsg}`, "error");
+      get().addToast(`从场景移除技能失败: ${errMsg}`, 'error');
     }
   },
   addRuleToScene: async (sceneId, ruleId) => {
     try {
       await ipc.addRuleToScene(sceneId, ruleId);
       await get().fetchSceneDetail(sceneId);
-      get().addToast("添加规则到场景成功", "success");
+      get().addToast('添加规则到场景成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`添加规则到场景失败: ${errMsg}`, "error");
+      get().addToast(`添加规则到场景失败: ${errMsg}`, 'error');
     }
   },
   removeRuleFromScene: async (sceneId, ruleId) => {
     try {
       await ipc.removeRuleFromScene(sceneId, ruleId);
       await get().fetchSceneDetail(sceneId);
-      get().addToast("从场景移除规则成功", "success");
+      get().addToast('从场景移除规则成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`从场景移除规则失败: ${errMsg}`, "error");
+      get().addToast(`从场景移除规则失败: ${errMsg}`, 'error');
     }
   },
   getScenePlatforms: async (sceneId) => {
@@ -454,17 +502,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return await ipc.getScenePlatforms(sceneId);
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取场景平台关联失败: ${errMsg}`, "error");
+      get().addToast(`获取场景平台关联失败: ${errMsg}`, 'error');
       return [];
     }
   },
   setScenePlatforms: async (sceneId, platformIds) => {
     try {
       await ipc.setScenePlatforms(sceneId, platformIds);
-      get().addToast("保存场景平台关联成功", "success");
+      get().addToast('保存场景平台关联成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`保存场景平台关联失败: ${errMsg}`, "error");
+      get().addToast(`保存场景平台关联失败: ${errMsg}`, 'error');
     }
   },
 
@@ -475,37 +523,37 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ projects });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取项目列表失败: ${errMsg}`, "error");
+      get().addToast(`获取项目列表失败: ${errMsg}`, 'error');
     }
   },
   addProject: async (name, path, sceneId, description) => {
     try {
       await ipc.addProject(name, path, sceneId, description);
       await get().fetchProjects();
-      get().addToast("添加项目成功", "success");
+      get().addToast('添加项目成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`添加项目失败: ${errMsg}`, "error");
+      get().addToast(`添加项目失败: ${errMsg}`, 'error');
     }
   },
   removeProject: async (id) => {
     try {
       await ipc.removeProject(id);
       await get().fetchProjects();
-      get().addToast("移除项目成功", "success");
+      get().addToast('移除项目成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`移除项目失败: ${errMsg}`, "error");
+      get().addToast(`移除项目失败: ${errMsg}`, 'error');
     }
   },
   bindSceneToProject: async (projectId, sceneId) => {
     try {
       await ipc.bindSceneToProject(projectId, sceneId);
       await get().fetchProjects();
-      get().addToast("绑定场景成功", "success");
+      get().addToast('绑定场景成功', 'success');
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`绑定场景失败: ${errMsg}`, "error");
+      get().addToast(`绑定场景失败: ${errMsg}`, 'error');
     }
   },
 
@@ -516,7 +564,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ platforms });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取平台列表失败: ${errMsg}`, "error");
+      get().addToast(`获取平台列表失败: ${errMsg}`, 'error');
     }
   },
 
@@ -527,15 +575,16 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ distributions });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取分发列表失败: ${errMsg}`, "error");
+      get().addToast(`获取分发列表失败: ${errMsg}`, 'error');
     }
   },
   syncScene: async (sceneId, platforms, scope, projectId) => {
     try {
       // L2: 同步前能力检查 — 全局分发时检查是否有平台不支持全局规则
-      if (scope === "global") {
+      if (scope === 'global') {
         try {
-          const targetPlatformIds = platforms ?? (await ipc.getScenePlatforms(sceneId));
+          const targetPlatformIds =
+            platforms ?? (await ipc.getScenePlatforms(sceneId));
           const noGlobalRulesPlatforms: string[] = [];
           for (const pid of targetPlatformIds) {
             const cap = await ipc.getCapabilities(pid);
@@ -546,8 +595,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
           }
           if (noGlobalRulesPlatforms.length > 0) {
             get().addToast(
-              i18n.t("common:messages.capabilityWarning", { platforms: noGlobalRulesPlatforms.join("、") }),
-              "warning",
+              i18n.t('common:messages.capabilityWarning', {
+                platforms: noGlobalRulesPlatforms.join('、'),
+              }),
+              'warning'
             );
           }
         } catch {
@@ -556,8 +607,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       }
 
       // Sync confirmation — shows dialog if removals detected
-      const targetPlatformIds = platforms ?? (await ipc.getScenePlatforms(sceneId));
-      const ok = await get().requestSyncConfirm({ sceneId, platformIds: targetPlatformIds, scope, projectId });
+      const targetPlatformIds =
+        platforms ?? (await ipc.getScenePlatforms(sceneId));
+      const ok = await get().requestSyncConfirm({
+        sceneId,
+        platformIds: targetPlatformIds,
+        scope,
+        projectId,
+      });
       if (!ok) return null;
 
       const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
@@ -565,14 +622,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await get().fetchSyncStatus();
       await get().fetchGlobalDistStatus();
       if (result.errors.length === 0) {
-        get().addToast("同步成功", "success");
+        get().addToast('同步成功', 'success');
       } else {
-        get().addToast(`同步完成，${result.errors.length} 项失败`, "warning");
+        get().addToast(`同步完成，${result.errors.length} 项失败`, 'warning');
       }
       return result;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`同步失败: ${errMsg}`, "error");
+      get().addToast(`同步失败: ${errMsg}`, 'error');
       return null;
     }
   },
@@ -582,7 +639,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ syncStatus });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取同步状态失败: ${errMsg}`, "error");
+      get().addToast(`获取同步状态失败: ${errMsg}`, 'error');
     }
   },
 
@@ -593,7 +650,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ dashboardStats: stats });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取看板统计失败: ${errMsg}`, "error");
+      get().addToast(`获取看板统计失败: ${errMsg}`, 'error');
     }
   },
   fetchRecentActivity: async () => {
@@ -602,7 +659,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ recentActivity: activity });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取最近活动失败: ${errMsg}`, "error");
+      get().addToast(`获取最近活动失败: ${errMsg}`, 'error');
     }
   },
   fetchGlobalDistStatus: async () => {
@@ -611,7 +668,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       set({ globalDistStatus: status });
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取全局分发状态失败: ${errMsg}`, "error");
+      get().addToast(`获取全局分发状态失败: ${errMsg}`, 'error');
     }
   },
   scanForImport: async () => {
@@ -619,7 +676,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return await ipc.scanForImport();
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`扫描失败: ${errMsg}`, "error");
+      get().addToast(`扫描失败: ${errMsg}`, 'error');
       return null;
     }
   },
@@ -629,7 +686,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // Sync confirmation — shows dialog before sync if removals detected
   requestSyncConfirm: async ({ sceneId, platformIds, scope, projectId }) => {
     try {
-      const preview = await ipc.previewSync(sceneId, platformIds, scope, projectId);
+      const preview = await ipc.previewSync(
+        sceneId,
+        platformIds,
+        scope,
+        projectId
+      );
       if (!preview || !preview.has_removals) return true;
       return new Promise((resolve) => {
         set({
@@ -654,18 +716,19 @@ export const useAppStore = create<AppStore>((set, get) => ({
       await get().fetchTags('rule');
       const totalImported = result.imported_skills + result.imported_rules;
       const totalSkipped = result.skipped_skills + result.skipped_rules;
-      const extra = totalSkipped > 0 ? `（跳过 ${totalSkipped} 个已存在）` : "";
-      const errExtra = result.errors.length > 0
-        ? ` | ${result.errors.length} 个失败: ${result.errors.slice(0, 3).join("; ")}${result.errors.length > 3 ? "..." : ""}`
-        : "";
+      const extra = totalSkipped > 0 ? `（跳过 ${totalSkipped} 个已存在）` : '';
+      const errExtra =
+        result.errors.length > 0
+          ? ` | ${result.errors.length} 个失败: ${result.errors.slice(0, 3).join('; ')}${result.errors.length > 3 ? '...' : ''}`
+          : '';
       get().addToast(
         `导入完成: ${result.imported_skills} 技能, ${result.imported_rules} 规则${extra}${errExtra}`,
-        totalImported > 0 ? "success" : "error"
+        totalImported > 0 ? 'success' : 'error'
       );
       return result;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`导入失败: ${errMsg}`, "error");
+      get().addToast(`导入失败: ${errMsg}`, 'error');
       return null;
     }
   },

@@ -43,7 +43,7 @@ export interface Tag {
   name: string;
   color: string | null;
   category?: string | null;
-  tag_type: "skill" | "rule";
+  tag_type: 'skill' | 'rule';
   count?: number;
 }
 
@@ -51,7 +51,7 @@ export interface CreateTagDTO {
   name: string;
   color: string;
   category?: string;
-  tag_type: "skill" | "rule";
+  tag_type: 'skill' | 'rule';
 }
 
 // ===== Rule =====
@@ -178,8 +178,7 @@ export interface PlatformCapabilities {
 }
 
 export type RulesFormat =
-  | { Directory: null }
-  | { SingleFile: { file_name: string } };
+  { Directory: null } | { SingleFile: { file_name: string } };
 
 export interface PlatformInstance {
   platform_id: string;
@@ -285,7 +284,8 @@ export interface PlatformDistInfo {
 }
 
 // ===== Sync Status =====
-export type SyncStatus = "synced" | "outdated" | "partial" | "error" | "pending";
+export type SyncStatus =
+  'synced' | 'outdated' | 'partial' | 'error' | 'pending';
 
 // ===== Import Scan =====
 export interface ScanForImportResult {

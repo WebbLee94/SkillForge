@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
-import { useWatcherStore } from "../stores/watcherStore";
-import { useAppStore } from "../stores/appStore";
-import { X, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { useWatcherStore } from '../stores/watcherStore';
+import { useAppStore } from '../stores/appStore';
+import { X, AlertTriangle } from 'lucide-react';
 
 const dismissedEventIds = new Set<number>();
 
@@ -10,7 +10,7 @@ export function WatcherNotification() {
   const setActiveNav = useAppStore((s) => s.setActiveNav);
   const [visible, setVisible] = useState(false);
 
-  const activeEvents = events.filter(e => !dismissedEventIds.has(e.id));
+  const activeEvents = events.filter((e) => !dismissedEventIds.has(e.id));
   const activeCount = activeEvents.length;
 
   useEffect(() => {
@@ -21,18 +21,22 @@ export function WatcherNotification() {
 
   if (!visible || activeCount === 0) return null;
 
-  const newCount = activeEvents.filter(e => e.event_type === "NEW").length;
-  const deletedCount = activeEvents.filter(e => e.event_type === "DELETED").length;
-  const modifiedCount = activeEvents.filter(e => e.event_type === "MODIFIED").length;
+  const newCount = activeEvents.filter((e) => e.event_type === 'NEW').length;
+  const deletedCount = activeEvents.filter(
+    (e) => e.event_type === 'DELETED'
+  ).length;
+  const modifiedCount = activeEvents.filter(
+    (e) => e.event_type === 'MODIFIED'
+  ).length;
 
   const handleDismiss = () => {
-    activeEvents.forEach(e => dismissedEventIds.add(e.id));
+    activeEvents.forEach((e) => dismissedEventIds.add(e.id));
     setVisible(false);
   };
 
   const handleGoDashboard = () => {
     setVisible(false);
-    setActiveNav("dashboard");
+    setActiveNav('dashboard');
   };
 
   return (
@@ -64,7 +68,10 @@ export function WatcherNotification() {
             </button>
           </div>
         </div>
-        <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground shrink-0">
+        <button
+          onClick={handleDismiss}
+          className="text-muted-foreground hover:text-foreground shrink-0"
+        >
           <X className="h-4 w-4" />
         </button>
       </div>

@@ -1,36 +1,42 @@
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { useEffect } from "react";
-import { AppShell } from "./components/AppShell";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Dashboard } from "./pages/Dashboard";
-import { SkillLibrary } from "./pages/SkillLibrary";
-import { RulesManager } from "./pages/RulesManager";
-import { SceneEditor } from "./pages/SceneEditor";
-import { GlobalDistribution } from "./pages/GlobalDistribution";
-import { ProjectDistribution } from "./pages/ProjectDistribution";
-import { Settings } from "./pages/Settings";
-import { useAppStore } from "./stores/appStore";
-import { useWatcherStore } from "./stores/watcherStore";
-import { SyncConfirmDialog } from "./components/SyncConfirmDialog";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useNavigate,
+} from 'react-router-dom';
+import { useEffect } from 'react';
+import { AppShell } from './components/AppShell';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Dashboard } from './pages/Dashboard';
+import { SkillLibrary } from './pages/SkillLibrary';
+import { RulesManager } from './pages/RulesManager';
+import { SceneEditor } from './pages/SceneEditor';
+import { GlobalDistribution } from './pages/GlobalDistribution';
+import { ProjectDistribution } from './pages/ProjectDistribution';
+import { Settings } from './pages/Settings';
+import { useAppStore } from './stores/appStore';
+import { useWatcherStore } from './stores/watcherStore';
+import { SyncConfirmDialog } from './components/SyncConfirmDialog';
 
 const routeToNavMap: Record<string, string> = {
-  "/": "dashboard",
-  "/skills": "skills",
-  "/rules": "rules",
-  "/scenes": "scenes",
-  "/global-distribution": "globalDistribution",
-  "/project-distribution": "projectDistribution",
-  "/settings": "settings",
+  '/': 'dashboard',
+  '/skills': 'skills',
+  '/rules': 'rules',
+  '/scenes': 'scenes',
+  '/global-distribution': 'globalDistribution',
+  '/project-distribution': 'projectDistribution',
+  '/settings': 'settings',
 };
 
 const navToRouteMap: Record<string, string> = {
-  dashboard: "/",
-  skills: "/skills",
-  rules: "/rules",
-  scenes: "/scenes",
-  globalDistribution: "/global-distribution",
-  projectDistribution: "/project-distribution",
-  settings: "/settings",
+  dashboard: '/',
+  skills: '/skills',
+  rules: '/rules',
+  scenes: '/scenes',
+  globalDistribution: '/global-distribution',
+  projectDistribution: '/project-distribution',
+  settings: '/settings',
 };
 
 function NavSync() {
@@ -53,8 +59,8 @@ function NavSync() {
         useAppStore.getState().setActiveNav(nav);
       }
     };
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   return null;
@@ -68,7 +74,9 @@ function App() {
       return unlisten;
     };
     const unlistenPromise = setup();
-    return () => { unlistenPromise.then(fn => fn()).catch(() => {}); };
+    return () => {
+      unlistenPromise.then((fn) => fn()).catch(() => {});
+    };
   }, []);
 
   return (
@@ -81,8 +89,14 @@ function App() {
             <Route path="/skills" element={<SkillLibrary />} />
             <Route path="/rules" element={<RulesManager />} />
             <Route path="/scenes" element={<SceneEditor />} />
-            <Route path="/global-distribution" element={<GlobalDistribution />} />
-            <Route path="/project-distribution" element={<ProjectDistribution />} />
+            <Route
+              path="/global-distribution"
+              element={<GlobalDistribution />}
+            />
+            <Route
+              path="/project-distribution"
+              element={<ProjectDistribution />}
+            />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

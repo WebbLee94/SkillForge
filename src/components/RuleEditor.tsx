@@ -1,13 +1,13 @@
-import { memo, useState, useEffect, useRef } from "react";
-import { cn } from "../lib/utils";
-import { RulePreviewPanel } from "./RulePreviewPanel";
+import { memo, useState, useEffect, useRef } from 'react';
+import { cn } from '../lib/utils';
+import { RulePreviewPanel } from './RulePreviewPanel';
 
-type ViewMode = "edit" | "preview" | "split";
+type ViewMode = 'edit' | 'preview' | 'split';
 
 interface RuleEditorProps {
   content: string;
   onChange: (content: string) => void;
-  format: "mdc" | "md" | "yaml";
+  format: 'mdc' | 'md' | 'yaml';
   readOnly?: boolean;
   defaultViewMode?: ViewMode;
 }
@@ -17,7 +17,7 @@ export const RuleEditor = memo(function RuleEditor({
   onChange,
   format,
   readOnly = false,
-  defaultViewMode = "split",
+  defaultViewMode = 'split',
 }: RuleEditorProps) {
   const [viewMode, setViewMode] = useState<ViewMode>(defaultViewMode);
   const [previewContent, setPreviewContent] = useState(content);
@@ -34,12 +34,12 @@ export const RuleEditor = memo(function RuleEditor({
     };
   }, [content]);
 
-  const lineCount = content.split("\n").length;
+  const lineCount = content.split('\n').length;
 
   const viewModes: { key: ViewMode; label: string }[] = [
-    { key: "edit", label: "编辑" },
-    { key: "preview", label: "预览" },
-    { key: "split", label: "双栏" },
+    { key: 'edit', label: '编辑' },
+    { key: 'preview', label: '预览' },
+    { key: 'split', label: '双栏' },
   ];
 
   return (
@@ -58,10 +58,10 @@ export const RuleEditor = memo(function RuleEditor({
             <button
               key={mode.key}
               className={cn(
-                "rounded px-2 py-0.5 text-xs font-medium transition-colors",
+                'rounded px-2 py-0.5 text-xs font-medium transition-colors',
                 viewMode === mode.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
               onClick={() => setViewMode(mode.key)}
             >
@@ -73,16 +73,21 @@ export const RuleEditor = memo(function RuleEditor({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Editor pane */}
-        {viewMode !== "preview" && (
-          <div className={cn("flex flex-col", viewMode === "split" ? "w-1/2 border-r border-border" : "w-full")}>
+        {viewMode !== 'preview' && (
+          <div
+            className={cn(
+              'flex flex-col',
+              viewMode === 'split' ? 'w-1/2 border-r border-border' : 'w-full'
+            )}
+          >
             <textarea
               value={content}
               onChange={(e) => onChange(e.target.value)}
               readOnly={readOnly}
               className={cn(
-                "flex-1 resize-none bg-card p-3 font-mono text-sm text-foreground",
-                "placeholder:text-muted-foreground focus:outline-none",
-                readOnly && "cursor-default opacity-80",
+                'flex-1 resize-none bg-card p-3 font-mono text-sm text-foreground',
+                'placeholder:text-muted-foreground focus:outline-none',
+                readOnly && 'cursor-default opacity-80'
               )}
               placeholder="Write rule content here..."
               spellCheck={false}
@@ -91,8 +96,13 @@ export const RuleEditor = memo(function RuleEditor({
         )}
 
         {/* Preview pane */}
-        {viewMode !== "edit" && (
-          <div className={cn("flex flex-col overflow-hidden", viewMode === "split" ? "w-1/2" : "w-full")}>
+        {viewMode !== 'edit' && (
+          <div
+            className={cn(
+              'flex flex-col overflow-hidden',
+              viewMode === 'split' ? 'w-1/2' : 'w-full'
+            )}
+          >
             <div className="shrink-0 border-b border-border bg-muted/30 px-3 py-1">
               <span className="text-xs text-muted-foreground">Preview</span>
             </div>

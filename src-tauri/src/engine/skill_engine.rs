@@ -52,7 +52,13 @@ pub fn install_skill(
             conn.execute(
                 "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
                  VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![bundle.meta.id, ver, bundle.meta.source_url, Option::<String>::None, fetched_at],
+                params![
+                    bundle.meta.id,
+                    ver,
+                    bundle.meta.source_url,
+                    Option::<String>::None,
+                    fetched_at
+                ],
             )?;
         }
         return query_skill_by_id(conn, &bundle.meta.id);
@@ -86,7 +92,13 @@ pub fn install_skill(
         conn.execute(
             "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![bundle.meta.id, ver, bundle.meta.source_url, Option::<String>::None, fetched_at],
+            params![
+                bundle.meta.id,
+                ver,
+                bundle.meta.source_url,
+                Option::<String>::None,
+                fetched_at
+            ],
         )?;
     }
 
@@ -97,17 +109,12 @@ pub fn install_skill(
 
 /// Uninstall a skill: delete files and DB records.
 /// Checks scene references, removes from scenes automatically, and logs affected scenes.
-pub fn uninstall_skill(
-    conn: &rusqlite::Connection,
-    skill_id: &str,
-) -> Result<Skill, AppError> {
+pub fn uninstall_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppError> {
     let skill = query_skill_by_id(conn, skill_id)?;
 
     // Check scene references: collect affected scene IDs before deletion
     let affected_scenes: Vec<String> = {
-        let mut stmt = conn.prepare(
-            "SELECT scene_id FROM scene_skills WHERE skill_id = ?1",
-        )?;
+        let mut stmt = conn.prepare("SELECT scene_id FROM scene_skills WHERE skill_id = ?1")?;
         let rows = stmt.query_map(params![skill_id], |row| row.get(0))?;
         rows.filter_map(|r| r.ok()).collect()
     };
@@ -124,9 +131,18 @@ pub fn uninstall_skill(
     }
 
     // Delete DB records (cascading will handle skill_versions, skill_tags, scene_skills)
-    conn.execute("DELETE FROM scene_skills WHERE skill_id = ?1", params![skill_id])?;
-    conn.execute("DELETE FROM skill_tags WHERE skill_id = ?1", params![skill_id])?;
-    conn.execute("DELETE FROM skill_versions WHERE skill_id = ?1", params![skill_id])?;
+    conn.execute(
+        "DELETE FROM scene_skills WHERE skill_id = ?1",
+        params![skill_id],
+    )?;
+    conn.execute(
+        "DELETE FROM skill_tags WHERE skill_id = ?1",
+        params![skill_id],
+    )?;
+    conn.execute(
+        "DELETE FROM skill_versions WHERE skill_id = ?1",
+        params![skill_id],
+    )?;
     conn.execute("DELETE FROM skills WHERE id = ?1", params![skill_id])?;
 
     // Update timestamps for affected scenes
@@ -222,7 +238,8 @@ pub fn list_skills(
 
     sql.push_str(" GROUP BY s.id ORDER BY s.name ASC");
 
-    let params: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+    let params: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|p| p.as_ref()).collect();
 
     let mut stmt = conn.prepare(&sql)?;
     let skills = stmt
@@ -248,10 +265,7 @@ pub fn list_skills(
 }
 
 /// Search skills by name or description.
-pub fn search_skills(
-    conn: &rusqlite::Connection,
-    query: &str,
-) -> Result<Vec<Skill>, AppError> {
+pub fn search_skills(conn: &rusqlite::Connection, query: &str) -> Result<Vec<Skill>, AppError> {
     let pattern = format!("%{}%", query);
     let mut stmt = conn.prepare(
         "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
@@ -408,7 +422,9 @@ fn store_skill_files(
             let src_subdir = source_dir.join(subdir);
             let dst_subdir = local_path.join(subdir);
             if src_subdir.exists() && src_subdir.is_dir() {
-                if let Err(e) = crate::plugins::platform::copy_dir_recursive(&src_subdir, &dst_subdir) {
+                if let Err(e) =
+                    crate::plugins::platform::copy_dir_recursive(&src_subdir, &dst_subdir)
+                {
                     eprintln!("Warning: Failed to copy subdirectory {}: {}", subdir, e);
                 }
             } else {
@@ -567,16 +583,23 @@ mod tests {
         conn.execute(
             "INSERT INTO tags (name, color, tag_type) VALUES (?1, ?2, 'skill')",
             params!["rust", "#ff6600"],
-        ).unwrap();
-        let tag_id: i64 = conn.query_row("SELECT last_insert_rowid()", [], |r| r.get(0)).unwrap();
+        )
+        .unwrap();
+        let tag_id: i64 = conn
+            .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
+            .unwrap();
 
         // Associate tag with skill
         conn.execute(
             "INSERT INTO skill_tags (skill_id, tag_id) VALUES (?1, ?2)",
             params!["tagged-skill", tag_id],
-        ).unwrap();
+        )
+        .unwrap();
 
-        let filter = SkillFilter { source_type: None, tag: None };
+        let filter = SkillFilter {
+            source_type: None,
+            tag: None,
+        };
         let skills = list_skills(&conn, &filter).unwrap();
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].tags.len(), 1);
@@ -595,7 +618,10 @@ mod tests {
             params!["untagged-skill", "Untagged Skill", "No tags", "local-fs", now, "/tmp/test"],
         ).unwrap();
 
-        let filter = SkillFilter { source_type: None, tag: None };
+        let filter = SkillFilter {
+            source_type: None,
+            tag: None,
+        };
         let skills = list_skills(&conn, &filter).unwrap();
         assert_eq!(skills.len(), 1);
         assert!(skills[0].tags.is_empty());

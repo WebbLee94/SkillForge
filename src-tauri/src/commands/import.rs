@@ -44,10 +44,11 @@ pub struct RulePreview {
 // ── Scan command ──────────────────────────────────────────────────
 
 #[tauri::command]
-pub fn scan_for_import(
-    state: tauri::State<'_, AppState>,
-) -> Result<ScanForImportResult, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn scan_for_import(state: tauri::State<'_, AppState>) -> Result<ScanForImportResult, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let mut platforms = Vec::new();
     let mut total_new_skills = 0u32;
@@ -56,9 +57,8 @@ pub fn scan_for_import(
     let mut total_existing_rules = 0u32;
 
     // Query enabled platforms
-    let mut stmt = conn.prepare(
-        "SELECT id, name FROM platforms WHERE enabled != 0 ORDER BY name ASC",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT id, name FROM platforms WHERE enabled != 0 ORDER BY name ASC")?;
 
     let rows: Vec<(String, String)> = stmt
         .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?

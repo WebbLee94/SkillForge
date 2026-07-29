@@ -1,8 +1,7 @@
 /// Compile-time constant definitions for all supported Agent platforms.
 /// This is the single source of truth for platform metadata (paths, capabilities).
 /// DB `platforms` table stores only mutable fields (enabled, icon).
-
-use crate::types::{RulesFormat, PlatformPaths as PlatformPathsType};
+use crate::types::{PlatformPaths as PlatformPathsType, RulesFormat};
 
 /// Static platform definition — all data known at compile time.
 pub struct PlatformDef {
@@ -172,12 +171,16 @@ fn extract_file_name(path: &str) -> String {
 impl From<&PlatformDef> for PlatformPathsType {
     fn from(def: &PlatformDef) -> Self {
         let global_rules_format = if def.rules_single_file_global {
-            def.rules_global.map(|p| RulesFormat::SingleFile { file_name: extract_file_name(p) })
+            def.rules_global.map(|p| RulesFormat::SingleFile {
+                file_name: extract_file_name(p),
+            })
         } else {
             None
         };
         let project_rules_format = if def.rules_single_file_project {
-            def.rules_project.map(|p| RulesFormat::SingleFile { file_name: extract_file_name(p) })
+            def.rules_project.map(|p| RulesFormat::SingleFile {
+                file_name: extract_file_name(p),
+            })
         } else {
             None
         };

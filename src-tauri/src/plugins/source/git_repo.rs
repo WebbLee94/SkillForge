@@ -1,5 +1,5 @@
-use crate::error::AppError;
 use crate::engine::parser;
+use crate::error::AppError;
 use crate::types::{SkillBundle, SkillMeta, ValidationResult, VersionInfo};
 
 use super::SourcePlugin;
@@ -112,9 +112,8 @@ impl SourcePlugin for GitRepoSource {
         }
 
         let skill_md_path = skill_dir.join("SKILL.md");
-        let content = std::fs::read_to_string(&skill_md_path).map_err(|e| {
-            AppError::Source(format!("读取 SKILL.md 失败: {}", e))
-        })?;
+        let content = std::fs::read_to_string(&skill_md_path)
+            .map_err(|e| AppError::Source(format!("读取 SKILL.md 失败: {}", e)))?;
 
         let mut bundle = parser::parse_skill_md(&content)?;
         bundle.meta.source_type = "git-repo".to_string();

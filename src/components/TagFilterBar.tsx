@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { cn } from "../lib/utils";
-import { TagChip } from "./TagChip";
-import { ChevronDown, ChevronUp } from "lucide-react";
-import type { Tag } from "../types";
+import { useState } from 'react';
+import { cn } from '../lib/utils';
+import { TagChip } from './TagChip';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import type { Tag } from '../types';
 
 const COLLAPSE_THRESHOLD = 4;
 
@@ -31,19 +31,20 @@ export function TagFilterBar({
   // Sort tags by count descending
   const sortedTags = [...tags].sort((a, b) => (b.count || 0) - (a.count || 0));
   const needsCollapse = sortedTags.length > COLLAPSE_THRESHOLD;
-  const visibleTags = needsCollapse && !expanded
-    ? sortedTags.slice(0, COLLAPSE_THRESHOLD)
-    : sortedTags;
+  const visibleTags =
+    needsCollapse && !expanded
+      ? sortedTags.slice(0, COLLAPSE_THRESHOLD)
+      : sortedTags;
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
       {/* "All" chip */}
       <button
         className={cn(
-          "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
+          'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
           !hasSelection
-            ? "bg-primary text-primary-foreground"
-            : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+            ? 'bg-primary text-primary-foreground'
+            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
         )}
         onClick={onClearAll}
       >
@@ -68,10 +69,10 @@ export function TagFilterBar({
       {showUntagged && onToggleUntagged && (
         <button
           className={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border border-dashed",
+            'shrink-0 rounded-full px-2.5 py-1 text-xs font-medium transition-colors border border-dashed',
             untaggedFilter
-              ? "bg-primary text-primary-foreground border-primary"
-              : "border-muted-foreground/40 text-muted-foreground hover:bg-secondary",
+              ? 'bg-primary text-primary-foreground border-primary'
+              : 'border-muted-foreground/40 text-muted-foreground hover:bg-secondary'
           )}
           onClick={onToggleUntagged}
         >
@@ -86,9 +87,14 @@ export function TagFilterBar({
           onClick={() => setExpanded(!expanded)}
         >
           {expanded ? (
-            <>收起 <ChevronUp className="h-3 w-3" /></>
+            <>
+              收起 <ChevronUp className="h-3 w-3" />
+            </>
           ) : (
-            <>+{sortedTags.length - COLLAPSE_THRESHOLD} <ChevronDown className="h-3 w-3" /></>
+            <>
+              +{sortedTags.length - COLLAPSE_THRESHOLD}{' '}
+              <ChevronDown className="h-3 w-3" />
+            </>
           )}
         </button>
       )}

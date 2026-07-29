@@ -1,6 +1,6 @@
-import React from "react";
-import { cn } from "../lib/utils";
-import { AlertTriangle, RotateCw } from "lucide-react";
+import React from 'react';
+import { cn } from '../lib/utils';
+import { AlertTriangle, RotateCw } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: React.ReactNode;
@@ -11,7 +11,10 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+export class ErrorBoundary extends React.Component<
+  ErrorBoundaryProps,
+  ErrorBoundaryState
+> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
@@ -22,7 +25,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    console.error("ErrorBoundary caught:", error, errorInfo);
+    console.error('ErrorBoundary caught:', error, errorInfo);
   }
 
   handleReload = () => {
@@ -41,13 +44,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               应用出现了错误
             </h2>
             <p className="mb-4 text-sm text-muted-foreground">
-              {this.state.error?.message || "发生了意外错误，请尝试重新加载。"}
+              {this.state.error?.message || '发生了意外错误，请尝试重新加载。'}
             </p>
             <button
               className={cn(
-                "inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium",
-                "text-primary-foreground hover:bg-primary/90",
-                "transition-colors",
+                'inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium',
+                'text-primary-foreground hover:bg-primary/90',
+                'transition-colors'
               )}
               onClick={this.handleReload}
             >

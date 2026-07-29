@@ -1,6 +1,6 @@
-import { Outlet } from "react-router-dom";
-import { Sidebar } from "./Sidebar";
-import { ToastProvider } from "./ToastProvider";
+import { Outlet } from 'react-router-dom';
+import { Sidebar } from './Sidebar';
+import { ToastProvider } from './ToastProvider';
 
 export function AppShell() {
   return (

@@ -10,7 +10,10 @@ pub fn list_skills(
     tag: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Skill>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let filter = SkillFilter { source_type, tag };
     engine::skill_engine::list_skills(&conn, &filter)
 }
@@ -21,7 +24,10 @@ pub fn install_skill(
     skill_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Skill, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let source_plugin = source::create_source_plugin(&source)?;
     engine::skill_engine::install_skill(&conn, source_plugin.as_ref(), &skill_id)
 }
@@ -32,7 +38,10 @@ pub fn install_skills_batch(
     skill_ids: Vec<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Skill>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let source_plugin = source::create_source_plugin(&source)?;
     let mut results = Vec::new();
     for skill_id in &skill_ids {
@@ -49,7 +58,10 @@ pub fn uninstall_skill(
     skill_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Skill, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     engine::skill_engine::uninstall_skill(&conn, &skill_id)
 }
 
@@ -58,7 +70,10 @@ pub fn update_skill(
     skill_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Skill, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Read both source_type and source_url from DB
     let (source_type, source_url): (String, Option<String>) = conn
@@ -78,6 +93,9 @@ pub fn search_skills(
     query: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Skill>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     engine::skill_engine::search_skills(&conn, &query)
 }

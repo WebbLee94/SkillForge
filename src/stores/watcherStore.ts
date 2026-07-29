@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import { ipc, type WatcherEvent } from "../lib/ipc";
+import { create } from 'zustand';
+import { ipc, type WatcherEvent } from '../lib/ipc';
 
 interface WatcherStore {
   events: WatcherEvent[];
@@ -20,7 +20,11 @@ export const useWatcherStore = create<WatcherStore>((set, get) => ({
     set({ loading: true });
     try {
       const status = await ipc.getWatcherEvents();
-      set({ events: status.events, unhandledCount: status.unhandled_count, loading: false });
+      set({
+        events: status.events,
+        unhandledCount: status.unhandled_count,
+        loading: false,
+      });
     } catch {
       set({ loading: false });
     }
@@ -39,9 +43,9 @@ export const useWatcherStore = create<WatcherStore>((set, get) => ({
   },
 
   listenToWatcher: async () => {
-    const { listen } = await import("@tauri-apps/api/event");
+    const { listen } = await import('@tauri-apps/api/event');
     let lastCall = 0;
-    const unlisten = await listen("app-fs-changed", () => {
+    const unlisten = await listen('app-fs-changed', () => {
       const now = Date.now();
       if (now - lastCall < 2000) return;
       lastCall = now;

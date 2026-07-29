@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef } from 'react';
 
 interface AppLogoProps {
   className?: string;
@@ -65,4 +65,4 @@ export const AppLogo = forwardRef<SVGSVGElement, AppLogoProps>(
   }
 );
 
-AppLogo.displayName = "AppLogo";
+AppLogo.displayName = 'AppLogo';

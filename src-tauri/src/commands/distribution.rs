@@ -11,10 +11,14 @@ pub fn sync_scene(
     project_id: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncResult, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Create platform plugin instances
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = crate::plugins::platform::create_all_platform_plugins_vec();
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
 
     engine::dist_engine::sync_scene(
         &conn,
@@ -27,10 +31,11 @@ pub fn sync_scene(
 }
 
 #[tauri::command]
-pub fn get_sync_status(
-    state: tauri::State<'_, AppState>,
-) -> Result<SyncStatusDTO, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn get_sync_status(state: tauri::State<'_, AppState>) -> Result<SyncStatusDTO, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     engine::dist_engine::get_sync_status(&conn)
 }
 
@@ -39,7 +44,10 @@ pub fn get_distributions(
     scene_id: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Distribution>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     engine::dist_engine::get_distributions(&conn, scene_id.as_deref())
 }
 
@@ -48,8 +56,12 @@ pub fn switch_global_scene(
     new_scene_id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncResult, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> = crate::plugins::platform::create_all_platform_plugins_vec();
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
     engine::dist_engine::switch_global_scene(&conn, &all_plugins, &new_scene_id)
 }
 
@@ -77,17 +89,26 @@ pub fn preview_sync(
     _project_id: Option<String>,
     state: tauri::State<'_, crate::AppState>,
 ) -> Result<SyncPreviewResult, crate::error::AppError> {
-    let conn = state.db.lock().map_err(|e| crate::error::AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| crate::error::AppError::Database(e.to_string()))?;
 
-    let scene_skills = crate::engine::dist_engine::resolve_scene_skills_for_preview(&conn, &scene_id)?;
-    let scene_rules = crate::engine::dist_engine::resolve_scene_rules_for_preview(&conn, &scene_id)?;
+    let scene_skills =
+        crate::engine::dist_engine::resolve_scene_skills_for_preview(&conn, &scene_id)?;
+    let scene_rules =
+        crate::engine::dist_engine::resolve_scene_rules_for_preview(&conn, &scene_id)?;
 
     let mut platforms = Vec::new();
     let mut has_removals = false;
 
     for pid in &platform_ids {
         let pname = conn
-            .query_row("SELECT name FROM platforms WHERE id = ?1", rusqlite::params![pid], |r| r.get::<_, String>(0))
+            .query_row(
+                "SELECT name FROM platforms WHERE id = ?1",
+                rusqlite::params![pid],
+                |r| r.get::<_, String>(0),
+            )
             .unwrap_or_else(|_| pid.clone());
 
         let mut skills_to_add = Vec::new();
@@ -136,9 +157,13 @@ pub fn preview_sync(
                         for entry in entries.flatten() {
                             if entry.path().is_file() {
                                 let ext = std::path::Path::new(&entry.file_name())
-                                    .extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
+                                    .extension()
+                                    .map(|e| e.to_string_lossy().to_string())
+                                    .unwrap_or_default();
                                 if ["md", "mdc", "yaml"].contains(&ext.as_str()) {
-                                    if let Some(stem) = std::path::Path::new(&entry.file_name()).file_stem() {
+                                    if let Some(stem) =
+                                        std::path::Path::new(&entry.file_name()).file_stem()
+                                    {
                                         current_rules.push(stem.to_string_lossy().to_string());
                                     }
                                 }
@@ -174,5 +199,8 @@ pub fn preview_sync(
         }
     }
 
-    Ok(SyncPreviewResult { platforms, has_removals })
+    Ok(SyncPreviewResult {
+        platforms,
+        has_removals,
+    })
 }

@@ -20,7 +20,10 @@ pub fn list_rules(
     platform: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Rule>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let sql = if platform.is_some() {
         "SELECT r.id, r.name, r.description, r.format, r.content, r.platform, r.scope, r.version, r.updated_at, \
@@ -89,7 +92,10 @@ pub fn create_rule(
     data: CreateRuleDTO,
     state: tauri::State<'_, AppState>,
 ) -> Result<Rule, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let id = slugify(&data.name);
     let now = chrono::Utc::now().to_rfc3339();
@@ -104,10 +110,7 @@ pub fn create_rule(
         .map(|c| c > 0)?;
 
     if exists {
-        return Err(AppError::Validation(format!(
-            "规则标识 '{}' 已存在",
-            id
-        )));
+        return Err(AppError::Validation(format!("规则标识 '{}' 已存在", id)));
     }
 
     conn.execute(
@@ -161,7 +164,10 @@ pub fn update_rule(
     data: UpdateRuleDTO,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Get current rule
     let current: Rule = conn
@@ -210,7 +216,9 @@ pub fn update_rule(
     let data_dir = dirs::home_dir()
         .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
         .join(".skillforge");
-    let rule_file = data_dir.join("rules").join(format!("{}.{}", id, current.format));
+    let rule_file = data_dir
+        .join("rules")
+        .join(format!("{}.{}", id, current.format));
     if rule_file.exists() {
         std::fs::write(&rule_file, &new_content)?;
     }
@@ -219,11 +227,11 @@ pub fn update_rule(
 }
 
 #[tauri::command]
-pub fn delete_rule(
-    id: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn delete_rule(id: String, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify rule exists
     let exists: bool = conn
@@ -268,7 +276,10 @@ pub fn get_rule_history(
     id: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<RuleHistory>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let mut stmt = conn.prepare(
         "SELECT rule_id, version, content, changed_at

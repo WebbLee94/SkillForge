@@ -1,8 +1,8 @@
+pub mod commands;
 pub mod db;
 pub mod engine;
-pub mod plugins;
-pub mod commands;
 pub mod error;
+pub mod plugins;
 pub mod types;
 
 use std::sync::{Arc, Mutex};
@@ -79,12 +79,10 @@ pub fn run() {
                 .join(".skillforge");
             std::fs::create_dir_all(&data_dir).ok();
             let db_path = data_dir.join("skillforge.db");
-            let mut conn = rusqlite::Connection::open(&db_path)
-                .expect("无法打开数据库");
+            let mut conn = rusqlite::Connection::open(&db_path).expect("无法打开数据库");
             conn.busy_timeout(std::time::Duration::from_secs(5)).ok();
             let _ = conn.execute_batch("PRAGMA journal_mode=WAL;");
-            db::migrations::run_migrations(&mut conn)
-                .expect("无法运行数据库迁移");
+            db::migrations::run_migrations(&mut conn).expect("无法运行数据库迁移");
 
             let skills_dir = data_dir.join("skills");
             let rules_dir = data_dir.join("rules");
@@ -98,10 +96,11 @@ pub fn run() {
 
             let watch_paths = {
                 let db = conn.lock().unwrap();
-                let mut stmt = db.prepare(
-                    "SELECT id FROM platforms WHERE enabled != 0"
-                ).unwrap();
-                let ids: Vec<String> = stmt.query_map([], |r| r.get(0))
+                let mut stmt = db
+                    .prepare("SELECT id FROM platforms WHERE enabled != 0")
+                    .unwrap();
+                let ids: Vec<String> = stmt
+                    .query_map([], |r| r.get(0))
                     .unwrap()
                     .filter_map(|r| r.ok())
                     .collect();

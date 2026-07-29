@@ -1,8 +1,8 @@
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
 use crate::types::{
-    Distribution, PlatformInstance, RulesFormat, Skill, SyncResult, SyncStatusDTO,
-    PlatformSyncStatus,
+    Distribution, PlatformInstance, PlatformSyncStatus, RulesFormat, Skill, SyncResult,
+    SyncStatusDTO,
 };
 
 use rusqlite::params;
@@ -29,9 +29,12 @@ pub fn sync_scene(
     let platform_ids = match platform_ids {
         Some(ids) if !ids.is_empty() => ids,
         _ => {
-            resolved_platform_ids = crate::engine::scene_engine::get_scene_platforms(conn, scene_id)?;
+            resolved_platform_ids =
+                crate::engine::scene_engine::get_scene_platforms(conn, scene_id)?;
             if resolved_platform_ids.is_empty() {
-                return Err(AppError::Platform("场景未关联任何平台，请先在场景编辑中配置目标平台".to_string()));
+                return Err(AppError::Platform(
+                    "场景未关联任何平台，请先在场景编辑中配置目标平台".to_string(),
+                ));
             }
             &resolved_platform_ids
         }
@@ -55,7 +58,9 @@ pub fn sync_scene(
         Some(
             project_id
                 .and_then(|pid| get_project_path(conn, pid))
-                .ok_or_else(|| AppError::ProjectNotFound("项目范围同步需要提供项目ID".to_string()))?
+                .ok_or_else(|| {
+                    AppError::ProjectNotFound("项目范围同步需要提供项目ID".to_string())
+                })?,
         )
     } else {
         None
@@ -72,10 +77,9 @@ pub fn sync_scene(
         let instances = match plugin.detect() {
             Ok(instances) => instances,
             Err(e) => {
-                result.errors.push(format!(
-                    "检测平台 '{}' 失败: {}",
-                    platform_id, e
-                ));
+                result
+                    .errors
+                    .push(format!("检测平台 '{}' 失败: {}", platform_id, e));
                 continue;
             }
         };
@@ -113,16 +117,20 @@ pub fn sync_scene(
         if let Some(parent) = std::path::Path::new(&instance.path).parent() {
             crate::engine::fs_watcher::mute_self_writes(parent);
             std::fs::create_dir_all(parent).map_err(|e| {
-                AppError::Io(format!(
-                    "无法创建平台目录 '{}': {}",
-                    parent.display(),
-                    e
-                ))
+                AppError::Io(format!("无法创建平台目录 '{}': {}", parent.display(), e))
             })?;
         }
 
         // Compute diff: what's currently on disk vs what should be
-        let current_skill_ids = get_distributed_skills(conn, scene_id, platform_id, scope, project_id, plugin, &instance)?;
+        let current_skill_ids = get_distributed_skills(
+            conn,
+            scene_id,
+            platform_id,
+            scope,
+            project_id,
+            plugin,
+            &instance,
+        )?;
 
         // Skills to install (in scene but not in current distribution)
         let to_install: Vec<&String> = skill_ids
@@ -169,10 +177,9 @@ pub fn sync_scene(
                     }
                 },
                 Err(e) => {
-                    result.errors.push(format!(
-                        "技能 '{}' 未在数据库中找到: {}",
-                        skill_id, e
-                    ));
+                    result
+                        .errors
+                        .push(format!("技能 '{}' 未在数据库中找到: {}", skill_id, e));
                 }
             }
         }
@@ -216,8 +223,16 @@ pub fn sync_scene(
                 plugin.default_paths().global_rules_format.clone()
             } else {
                 plugin.default_paths().project_rules_format.clone()
-            }.unwrap_or(RulesFormat::Directory);
-            sync_rules_to_platform(conn, plugin, &instance, &rule_ids, &rules_format, &mut result)?;
+            }
+            .unwrap_or(RulesFormat::Directory);
+            sync_rules_to_platform(
+                conn,
+                plugin,
+                &instance,
+                &rule_ids,
+                &rules_format,
+                &mut result,
+            )?;
         }
 
         // Update distribution record
@@ -279,7 +294,8 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                         "SELECT COUNT(*) FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
                         params![sid],
                         |r| r.get(0),
-                    ).unwrap_or(0)
+                    )
+                    .unwrap_or(0)
                 } else {
                     0
                 };
@@ -289,24 +305,29 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                         "SELECT COUNT(*) FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
                         params![sid],
                         |r| r.get(0),
-                    ).unwrap_or(0)
+                    )
+                    .unwrap_or(0)
                 } else {
                     0
                 };
 
                 // Filesystem counts from platform directory
-                let (fs_skills, fs_rules) = match crate::plugins::platform::create_platform_plugin(&pid) {
-                    Ok(p) => {
-                        let paths = p.default_paths();
-                        let skills_dir_path = crate::plugins::platform::expand_home(&paths.global_skills_dir);
-                        let fs_skill_count = count_fs_subdirs(&skills_dir_path);
-                        let fs_rule_count = paths.global_rules_dir.as_ref()
-                            .map(|d| count_fs_files(&crate::plugins::platform::expand_home(d)))
-                            .unwrap_or(0);
-                        (fs_skill_count, fs_rule_count)
-                    }
-                    Err(_) => (0, 0),
-                };
+                let (fs_skills, fs_rules) =
+                    match crate::plugins::platform::create_platform_plugin(&pid) {
+                        Ok(p) => {
+                            let paths = p.default_paths();
+                            let skills_dir_path =
+                                crate::plugins::platform::expand_home(&paths.global_skills_dir);
+                            let fs_skill_count = count_fs_subdirs(&skills_dir_path);
+                            let fs_rule_count = paths
+                                .global_rules_dir
+                                .as_ref()
+                                .map(|d| count_fs_files(&crate::plugins::platform::expand_home(d)))
+                                .unwrap_or(0);
+                            (fs_skill_count, fs_rule_count)
+                        }
+                        Err(_) => (0, 0),
+                    };
 
                 (scene_skills, fs_skills, scene_rules, fs_rules)
             };
@@ -428,9 +449,8 @@ pub fn resolve_scene_skills(
             .collect();
         Ok(result)
     } else {
-        let mut stmt = conn.prepare(
-            "SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?;
         let result: Vec<String> = stmt
             .query_map(params![scene_id], |row| row.get(0))?
             .filter_map(|r| r.ok())
@@ -451,9 +471,8 @@ pub fn resolve_scene_rules(
             .collect();
         Ok(result)
     } else {
-        let mut stmt = conn.prepare(
-            "SELECT rule_id FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
-        )?;
+        let mut stmt =
+            conn.prepare("SELECT rule_id FROM scene_rules WHERE scene_id = ?1 AND enabled = 1")?;
         let result: Vec<String> = stmt
             .query_map(params![scene_id], |row| row.get(0))?
             .filter_map(|r| r.ok())
@@ -463,10 +482,16 @@ pub fn resolve_scene_rules(
 }
 
 // Public wrappers for preview_sync command
-pub fn resolve_scene_skills_for_preview(conn: &rusqlite::Connection, scene_id: &str) -> Result<Vec<String>, crate::error::AppError> {
+pub fn resolve_scene_skills_for_preview(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+) -> Result<Vec<String>, crate::error::AppError> {
     resolve_scene_skills(conn, scene_id)
 }
-pub fn resolve_scene_rules_for_preview(conn: &rusqlite::Connection, scene_id: &str) -> Result<Vec<String>, crate::error::AppError> {
+pub fn resolve_scene_rules_for_preview(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+) -> Result<Vec<String>, crate::error::AppError> {
     resolve_scene_rules(conn, scene_id)
 }
 
@@ -597,9 +622,7 @@ fn sync_rules_to_platform(
     result: &mut SyncResult,
 ) -> Result<(), AppError> {
     match rules_format {
-        RulesFormat::Directory => {
-            sync_rules_to_directory(conn, plugin, instance, rule_ids, result)
-        }
+        RulesFormat::Directory => sync_rules_to_directory(conn, plugin, instance, rule_ids, result),
         RulesFormat::SingleFile { .. } => {
             let file_path = resolve_rules_path(conn, plugin, instance);
             if let Some(file_path) = file_path {
@@ -653,16 +676,13 @@ fn sync_rules_to_directory(
     if let Some(rules_dir) = &rules_dir {
         crate::engine::fs_watcher::mute_self_writes(rules_dir);
         std::fs::create_dir_all(rules_dir).map_err(|e| {
-            AppError::Io(format!(
-                "无法创建规则目录 '{}': {}",
-                rules_dir.display(),
-                e
-            ))
+            AppError::Io(format!("无法创建规则目录 '{}': {}", rules_dir.display(), e))
         })?;
 
         // Diff removal: remove rule files that are no longer in the scene
         if let Ok(entries) = std::fs::read_dir(rules_dir) {
-            let expected: std::collections::HashSet<&str> = rule_ids.iter().map(|s| s.as_str()).collect();
+            let expected: std::collections::HashSet<&str> =
+                rule_ids.iter().map(|s| s.as_str()).collect();
             for entry in entries.flatten() {
                 if entry.file_type().map(|t| t.is_file()).unwrap_or(false) {
                     if let Some(file_name) = entry.file_name().to_str() {
@@ -770,8 +790,9 @@ fn sync_rules_to_single_file(
     };
 
     // Remove all SKILLFORGE-managed blocks, preserving user content
-    let re = regex::Regex::new(r"<!-- SKILLFORGE:rule:.*? -->[\s\S]*?<!-- /SKILLFORGE:rule:.*? -->")
-        .map_err(|e| AppError::Platform(format!("正则编译失败: {}", e)))?;
+    let re =
+        regex::Regex::new(r"<!-- SKILLFORGE:rule:.*? -->[\s\S]*?<!-- /SKILLFORGE:rule:.*? -->")
+            .map_err(|e| AppError::Platform(format!("正则编译失败: {}", e)))?;
     let user_content = re.replace_all(&existing_content, "").trim().to_string();
 
     // Build new SKILLFORGE blocks
@@ -938,7 +959,9 @@ pub fn switch_global_scene(
         if let Some(plugin) = find_plugin(pid) {
             let instances = plugin.detect().unwrap_or_default();
             for instance in instances {
-                if instance.scope != "global" { continue; }
+                if instance.scope != "global" {
+                    continue;
+                }
                 for skill_id in &old_skills {
                     match plugin.remove(skill_id, &instance) {
                         Ok(_) => {
@@ -946,8 +969,18 @@ pub fn switch_global_scene(
                             log_sync(conn, "remove", "skill", skill_id, pid, "success", None);
                         }
                         Err(e) => {
-                            result.errors.push(format!("remove {} from {}: {}", skill_id, pid, e));
-                            log_sync(conn, "remove", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                            result
+                                .errors
+                                .push(format!("remove {} from {}: {}", skill_id, pid, e));
+                            log_sync(
+                                conn,
+                                "remove",
+                                "skill",
+                                skill_id,
+                                pid,
+                                "error",
+                                Some(&e.to_string()),
+                            );
                         }
                     }
                 }
@@ -960,7 +993,9 @@ pub fn switch_global_scene(
         if let Some(plugin) = find_plugin(pid) {
             let instances = plugin.detect().unwrap_or_default();
             for instance in instances {
-                if instance.scope != "global" { continue; }
+                if instance.scope != "global" {
+                    continue;
+                }
                 // Install new skills first (avoid gap)
                 for skill_id in &skills_to_install {
                     if let Ok(skill) = get_skill(conn, skill_id) {
@@ -971,7 +1006,15 @@ pub fn switch_global_scene(
                             }
                             Err(e) => {
                                 result.errors.push(format!("{}: {}", skill_id, e));
-                                log_sync(conn, "install", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                                log_sync(
+                                    conn,
+                                    "install",
+                                    "skill",
+                                    skill_id,
+                                    pid,
+                                    "error",
+                                    Some(&e.to_string()),
+                                );
                             }
                         }
                     }
@@ -985,7 +1028,15 @@ pub fn switch_global_scene(
                         }
                         Err(e) => {
                             result.errors.push(format!("remove {}: {}", skill_id, e));
-                            log_sync(conn, "remove", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                            log_sync(
+                                conn,
+                                "remove",
+                                "skill",
+                                skill_id,
+                                pid,
+                                "error",
+                                Some(&e.to_string()),
+                            );
                         }
                     }
                 }
@@ -998,7 +1049,9 @@ pub fn switch_global_scene(
         if let Some(plugin) = find_plugin(pid) {
             let instances = plugin.detect().unwrap_or_default();
             for instance in instances {
-                if instance.scope != "global" { continue; }
+                if instance.scope != "global" {
+                    continue;
+                }
                 for skill_id in &new_skills {
                     if let Ok(skill) = get_skill(conn, skill_id) {
                         match plugin.install(&skill, &instance) {
@@ -1008,7 +1061,15 @@ pub fn switch_global_scene(
                             }
                             Err(e) => {
                                 result.errors.push(format!("{}: {}", skill_id, e));
-                                log_sync(conn, "install", "skill", skill_id, pid, "error", Some(&e.to_string()));
+                                log_sync(
+                                    conn,
+                                    "install",
+                                    "skill",
+                                    skill_id,
+                                    pid,
+                                    "error",
+                                    Some(&e.to_string()),
+                                );
                             }
                         }
                     }
@@ -1036,7 +1097,10 @@ pub fn switch_global_scene(
         .collect();
 
     // Rules: only shared and new platforms
-    let all_target_platforms: Vec<&String> = platforms_shared.iter().chain(platforms_only_new.iter()).collect();
+    let all_target_platforms: Vec<&String> = platforms_shared
+        .iter()
+        .chain(platforms_only_new.iter())
+        .collect();
     for pid in all_target_platforms {
         if let Some(plugin) = find_plugin(pid) {
             if plugin.default_paths().global_rules_dir.is_none() {
@@ -1044,11 +1108,23 @@ pub fn switch_global_scene(
             }
             let instances = plugin.detect().unwrap_or_default();
             for instance in instances {
-                if instance.scope != "global" { continue; }
-                let rules_format = plugin.default_paths().global_rules_format.clone()
+                if instance.scope != "global" {
+                    continue;
+                }
+                let rules_format = plugin
+                    .default_paths()
+                    .global_rules_format
+                    .clone()
                     .unwrap_or(RulesFormat::Directory);
                 // Install new rules
-                sync_rules_to_platform(conn, plugin, &instance, &rules_to_install, &rules_format, &mut result)?;
+                sync_rules_to_platform(
+                    conn,
+                    plugin,
+                    &instance,
+                    &rules_to_install,
+                    &rules_format,
+                    &mut result,
+                )?;
             }
         }
     }
@@ -1059,7 +1135,10 @@ pub fn switch_global_scene(
             if plugin.default_paths().global_rules_dir.is_none() {
                 continue;
             }
-            let rules_format = plugin.default_paths().global_rules_format.clone()
+            let rules_format = plugin
+                .default_paths()
+                .global_rules_format
+                .clone()
                 .unwrap_or(RulesFormat::Directory);
             match &rules_format {
                 RulesFormat::Directory => {
@@ -1090,7 +1169,9 @@ pub fn switch_global_scene(
                             if let Err(e) = remove_rule_from_single_file(file_path, rule_id) {
                                 result.errors.push(format!(
                                     "从 {} 移除规则 '{}' 失败: {}",
-                                    file_path.display(), rule_id, e
+                                    file_path.display(),
+                                    rule_id,
+                                    e
                                 ));
                             }
                         }
@@ -1106,7 +1187,10 @@ pub fn switch_global_scene(
             if plugin.default_paths().global_rules_dir.is_none() {
                 continue;
             }
-            let rules_format = plugin.default_paths().global_rules_format.clone()
+            let rules_format = plugin
+                .default_paths()
+                .global_rules_format
+                .clone()
                 .unwrap_or(RulesFormat::Directory);
             match &rules_format {
                 RulesFormat::Directory => {
@@ -1137,7 +1221,9 @@ pub fn switch_global_scene(
                             if let Err(e) = remove_rule_from_single_file(file_path, rule_id) {
                                 result.errors.push(format!(
                                     "从 {} 移除规则 '{}' 失败: {}",
-                                    file_path.display(), rule_id, e
+                                    file_path.display(),
+                                    rule_id,
+                                    e
                                 ));
                             }
                         }
@@ -1232,7 +1318,8 @@ mod tests {
                 FOREIGN KEY (platform_id) REFERENCES platforms(id) ON DELETE CASCADE
             )",
             [],
-        ).unwrap();
+        )
+        .unwrap();
         conn
     }
 
@@ -1300,7 +1387,8 @@ mod tests {
         conn.execute(
             "INSERT INTO scene_platforms (scene_id, platform_id) VALUES (?1, ?2)",
             params!["test-scene", "claude-code"],
-        ).unwrap();
+        )
+        .unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
 
@@ -1354,7 +1442,8 @@ mod tests {
         conn.execute(
             "UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'",
             [],
-        ).unwrap();
+        )
+        .unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         let result = switch_global_scene(&conn, &plugins, "scene-b").unwrap();
@@ -1365,7 +1454,11 @@ mod tests {
 
         // Verify global_scene_id updated
         let new_scene_id: Option<String> = conn
-            .query_row("SELECT value FROM app_config WHERE key = 'global_scene_id'", [], |row| row.get(0))
+            .query_row(
+                "SELECT value FROM app_config WHERE key = 'global_scene_id'",
+                [],
+                |row| row.get(0),
+            )
             .unwrap_or(None);
         assert_eq!(new_scene_id, Some("scene-b".to_string()));
     }
@@ -1404,7 +1497,11 @@ mod tests {
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-b', 'skill-2', 1, 0)", []).unwrap();
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-b', 'skill-3', 1, 1)", []).unwrap();
 
-        conn.execute("UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'", []).unwrap();
+        conn.execute(
+            "UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'",
+            [],
+        )
+        .unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         let result = switch_global_scene(&conn, &plugins, "scene-b").unwrap();
@@ -1432,7 +1529,11 @@ mod tests {
         ).unwrap();
 
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-a', 'skill-1', 1, 0)", []).unwrap();
-        conn.execute("UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'", []).unwrap();
+        conn.execute(
+            "UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'",
+            [],
+        )
+        .unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         let result = switch_global_scene(&conn, &plugins, "scene-a").unwrap();

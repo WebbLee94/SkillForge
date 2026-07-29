@@ -1,7 +1,7 @@
-import { memo } from "react";
-import { useTranslation } from "react-i18next";
-import { cn } from "../lib/utils";
-import { X } from "lucide-react";
+import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { cn } from '../lib/utils';
+import { X } from 'lucide-react';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -9,7 +9,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
-  variant?: "danger" | "primary";
+  variant?: 'danger' | 'primary';
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -20,11 +20,11 @@ export const ConfirmDialog = memo(function ConfirmDialog({
   message,
   confirmLabel,
   cancelLabel,
-  variant = "primary",
+  variant = 'primary',
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const { t } = useTranslation("common");
+  const { t } = useTranslation('common');
 
   if (!open) return null;
 
@@ -33,7 +33,10 @@ export const ConfirmDialog = memo(function ConfirmDialog({
       <div className="w-[400px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-          <button onClick={onCancel} className="text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onCancel}
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -43,17 +46,17 @@ export const ConfirmDialog = memo(function ConfirmDialog({
             className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
             onClick={onCancel}
           >
-            {cancelLabel || t("actions.cancel")}
+            {cancelLabel || t('actions.cancel')}
           </button>
           <button
             className={cn(
-              "rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90",
-              variant === "danger" && "bg-error",
-              variant === "primary" && "bg-primary",
+              'rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90',
+              variant === 'danger' && 'bg-error',
+              variant === 'primary' && 'bg-primary'
             )}
             onClick={onConfirm}
           >
-            {confirmLabel || t("actions.confirm")}
+            {confirmLabel || t('actions.confirm')}
           </button>
         </div>
       </div>

@@ -1,33 +1,47 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { useAppStore } from "../stores/appStore";
-import { cn } from "../lib/utils";
-import { RuleEditor } from "../components/RuleEditor";
-import { TagPopover } from "../components/TagPopover";
-import { TagFilterBar } from "../components/TagFilterBar";
-import { TagManagerDialog } from "../components/TagManagerDialog";
-import { Search, Plus, Trash2, History, FileText, X, ChevronRight, Clock, CheckSquare, Upload, Tags, Maximize, Minimize } from "lucide-react";
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { ConfirmDialog } from "../components/ConfirmDialog";
-import { readTextFile } from "@tauri-apps/plugin-fs";
-import type { CreateRuleDTO, UpdateRuleDTO } from "../types";
+import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../stores/appStore';
+import { cn } from '../lib/utils';
+import { RuleEditor } from '../components/RuleEditor';
+import { TagPopover } from '../components/TagPopover';
+import { TagFilterBar } from '../components/TagFilterBar';
+import { TagManagerDialog } from '../components/TagManagerDialog';
+import {
+  Search,
+  Plus,
+  Trash2,
+  History,
+  FileText,
+  X,
+  ChevronRight,
+  Clock,
+  CheckSquare,
+  Upload,
+  Tags,
+  Maximize,
+  Minimize,
+} from 'lucide-react';
+import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { ConfirmDialog } from '../components/ConfirmDialog';
+import { readTextFile } from '@tauri-apps/plugin-fs';
+import type { CreateRuleDTO, UpdateRuleDTO } from '../types';
 
 const formatBadge: Record<string, { bg: string; text: string }> = {
-  mdc: { bg: "bg-primary/10", text: "text-primary" },
-  md: { bg: "bg-success/10", text: "text-success" },
-  yaml: { bg: "bg-warning/10", text: "text-warning" },
+  mdc: { bg: 'bg-primary/10', text: 'text-primary' },
+  md: { bg: 'bg-success/10', text: 'text-success' },
+  yaml: { bg: 'bg-warning/10', text: 'text-warning' },
 };
 
-function detectFormat(filename: string): "mdc" | "md" | "yaml" {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  if (ext === "mdc") return "mdc";
-  if (ext === "yaml" || ext === "yml") return "yaml";
-  return "md";
+function detectFormat(filename: string): 'mdc' | 'md' | 'yaml' {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'mdc') return 'mdc';
+  if (ext === 'yaml' || ext === 'yml') return 'yaml';
+  return 'md';
 }
 
 export function RulesManager() {
-  const { t } = useTranslation("rules");
-  const { t: tc } = useTranslation("common");
+  const { t } = useTranslation('rules');
+  const { t: tc } = useTranslation('common');
   const rules = useAppStore((s) => s.rules);
   const tags = useAppStore((s) => s.tags);
   const editingRule = useAppStore((s) => s.editingRule);
@@ -45,18 +59,18 @@ export function RulesManager() {
   const createTag = useAppStore((s) => s.createTag);
   const addToast = useAppStore((s) => s.addToast);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [editContent, setEditContent] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
+  const [editContent, setEditContent] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   // Create form state
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newFormat, setNewFormat] = useState<"md" | "mdc" | "yaml">("md");
-  const [newContent, setNewContent] = useState("");
+  const [newName, setNewName] = useState('');
+  const [newDescription, setNewDescription] = useState('');
+  const [newFormat, setNewFormat] = useState<'md' | 'mdc' | 'yaml'>('md');
+  const [newContent, setNewContent] = useState('');
 
   // Batch mode state
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -67,7 +81,9 @@ export function RulesManager() {
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
 
   // Import preview state
-  const [importFiles, setImportFiles] = useState<Array<{ name: string; size: number; format: string; path: string }>>([]);
+  const [importFiles, setImportFiles] = useState<
+    Array<{ name: string; size: number; format: string; path: string }>
+  >([]);
   const [showImportPreview, setShowImportPreview] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -80,7 +96,7 @@ export function RulesManager() {
     if (editingRule) {
       setEditContent(editingRule.content);
       setEditName(editingRule.name);
-      setEditDescription(editingRule.description || "");
+      setEditDescription(editingRule.description || '');
     }
   }, [editingRule]);
 
@@ -89,7 +105,9 @@ export function RulesManager() {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (rule) => rule.name.toLowerCase().includes(q) || (rule.description || "").toLowerCase().includes(q),
+        (rule) =>
+          rule.name.toLowerCase().includes(q) ||
+          (rule.description || '').toLowerCase().includes(q)
       );
     }
     if (untaggedFilter) {
@@ -108,7 +126,7 @@ export function RulesManager() {
     setTagFilter(
       tagFilter.includes(tagId)
         ? tagFilter.filter((id) => id !== tagId)
-        : [...tagFilter, tagId],
+        : [...tagFilter, tagId]
     );
   };
 
@@ -121,7 +139,14 @@ export function RulesManager() {
     };
     await updateRule(editingRule.id, data);
     setEditingRule(null);
-  }, [editingRule, editName, editDescription, editContent, updateRule, setEditingRule]);
+  }, [
+    editingRule,
+    editName,
+    editDescription,
+    editContent,
+    updateRule,
+    setEditingRule,
+  ]);
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
@@ -130,27 +155,33 @@ export function RulesManager() {
       description: newDescription.trim(),
       format: newFormat,
       content: newContent,
-      platform: "",
-      scope: "global",
+      platform: '',
+      scope: 'global',
     };
     await createRule(data);
     setShowCreateForm(false);
-    setNewName("");
-    setNewDescription("");
-    setNewContent("");
+    setNewName('');
+    setNewDescription('');
+    setNewContent('');
   }, [newName, newDescription, newFormat, newContent, createRule]);
 
-  const handleAssignTag = useCallback(async (ruleId: string, tagId: number) => {
-    await assignTag("rule", ruleId, tagId);
-    await fetchRules();
-    await fetchTags('rule');
-  }, [assignTag, fetchRules, fetchTags]);
+  const handleAssignTag = useCallback(
+    async (ruleId: string, tagId: number) => {
+      await assignTag('rule', ruleId, tagId);
+      await fetchRules();
+      await fetchTags('rule');
+    },
+    [assignTag, fetchRules, fetchTags]
+  );
 
-  const handleRemoveTag = useCallback(async (ruleId: string, tagId: number) => {
-    await removeTagAction("rule", ruleId, tagId);
-    await fetchRules();
-    await fetchTags('rule');
-  }, [removeTagAction, fetchRules, fetchTags]);
+  const handleRemoveTag = useCallback(
+    async (ruleId: string, tagId: number) => {
+      await removeTagAction('rule', ruleId, tagId);
+      await fetchRules();
+      await fetchTags('rule');
+    },
+    [removeTagAction, fetchRules, fetchTags]
+  );
 
   const executeBatchDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
@@ -171,13 +202,13 @@ export function RulesManager() {
   useEffect(() => {
     if (!batchMode) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         setBatchMode(false);
         setSelectedIds(new Set());
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, [batchMode]);
 
   const toggleSelect = useCallback((id: string) => {
@@ -191,7 +222,10 @@ export function RulesManager() {
 
   const formatTime = (iso: string) => {
     try {
-      return new Date(iso).toLocaleDateString("zh-CN", { month: "short", day: "numeric" });
+      return new Date(iso).toLocaleDateString('zh-CN', {
+        month: 'short',
+        day: 'numeric',
+      });
     } catch (e) {
       console.error('formatTime failed:', e);
       return iso;
@@ -203,15 +237,17 @@ export function RulesManager() {
     try {
       const selected = await openDialog({
         multiple: true,
-        filters: [{
-          name: t("ruleFileFilter"),
-          extensions: ["mdc", "md", "yaml", "yml"],
-        }],
+        filters: [
+          {
+            name: t('ruleFileFilter'),
+            extensions: ['mdc', 'md', 'yaml', 'yml'],
+          },
+        ],
       });
       if (!selected) return;
       const paths = Array.isArray(selected) ? selected : [selected];
       const files = paths.map((p) => {
-        const name = p.split("/").pop() || p.split("\\").pop() || p;
+        const name = p.split('/').pop() || p.split('\\').pop() || p;
         return {
           name,
           size: 0,
@@ -221,8 +257,7 @@ export function RulesManager() {
       });
       setImportFiles(files);
       setShowImportPreview(true);
-    } catch (e) {
-    }
+    } catch (e) {}
   }, []);
 
   const handleImportConfirm = useCallback(async () => {
@@ -232,14 +267,14 @@ export function RulesManager() {
     for (const file of importFiles) {
       try {
         const content = await readTextFile(file.path);
-        const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
+        const nameWithoutExt = file.name.replace(/\.[^.]+$/, '');
         const data: CreateRuleDTO = {
           name: nameWithoutExt,
-          description: t("importedFrom", { filename: file.name }),
+          description: t('importedFrom', { filename: file.name }),
           format: file.format,
           content: content,
-          platform: "",
-          scope: "global",
+          platform: '',
+          scope: 'global',
         };
         await createRule(data, { silent: true });
         successCount++;
@@ -250,7 +285,10 @@ export function RulesManager() {
     setImporting(false);
     setShowImportPreview(false);
     setImportFiles([]);
-    addToast(tc("messages.importComplete", { success: successCount, fail: failCount }), failCount > 0 ? "warning" : "success");
+    addToast(
+      tc('messages.importComplete', { success: successCount, fail: failCount }),
+      failCount > 0 ? 'warning' : 'success'
+    );
   }, [importFiles, createRule, addToast]);
 
   return (
@@ -264,18 +302,18 @@ export function RulesManager() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t("searchPlaceholder")}
+              placeholder={t('searchPlaceholder')}
               className={cn(
-                "w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm",
-                "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+                'w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm',
+                'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
               )}
             />
           </div>
           <button
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-border px-3 py-2",
-              "text-sm font-medium text-foreground hover:bg-accent transition-colors",
-              batchMode && "bg-primary/10 border-primary/30",
+              'flex items-center gap-2 rounded-lg border border-border px-3 py-2',
+              'text-sm font-medium text-foreground hover:bg-accent transition-colors',
+              batchMode && 'bg-primary/10 border-primary/30'
             )}
             onClick={() => {
               setBatchMode(!batchMode);
@@ -283,27 +321,27 @@ export function RulesManager() {
             }}
           >
             <CheckSquare className="h-4 w-4" />
-            {batchMode ? tc("actions.exitSelect") : tc("actions.batchSelect")}
+            {batchMode ? tc('actions.exitSelect') : tc('actions.batchSelect')}
           </button>
           <button
             className={cn(
-              "flex items-center gap-2 rounded-lg border border-border px-3 py-2",
-              "text-sm font-medium text-foreground hover:bg-accent transition-colors",
+              'flex items-center gap-2 rounded-lg border border-border px-3 py-2',
+              'text-sm font-medium text-foreground hover:bg-accent transition-colors'
             )}
             onClick={handleImportClick}
           >
             <Upload className="h-4 w-4" />
-            {t("importRules")}
+            {t('importRules')}
           </button>
           <button
             className={cn(
-              "flex items-center gap-2 rounded-lg bg-primary px-3 py-2",
-              "text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors",
+              'flex items-center gap-2 rounded-lg bg-primary px-3 py-2',
+              'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
             )}
             onClick={() => setShowCreateForm(true)}
           >
             <Plus className="h-4 w-4" />
-            {t("createRule")}
+            {t('createRule')}
           </button>
         </div>
         {/* Tag filter bar + manage button */}
@@ -314,7 +352,10 @@ export function RulesManager() {
                 tags={tags}
                 selectedTagIds={tagFilter}
                 onToggleTag={toggleTag}
-                onClearAll={() => { setTagFilter([]); setUntaggedFilter(false); }}
+                onClearAll={() => {
+                  setTagFilter([]);
+                  setUntaggedFilter(false);
+                }}
                 showUntagged
                 untaggedFilter={untaggedFilter}
                 onToggleUntagged={() => setUntaggedFilter(!untaggedFilter)}
@@ -322,13 +363,13 @@ export function RulesManager() {
             </div>
             <button
               className={cn(
-                "shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1",
-                "text-xs font-medium text-foreground hover:bg-accent transition-colors",
+                'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1',
+                'text-xs font-medium text-foreground hover:bg-accent transition-colors'
               )}
               onClick={() => setShowTagManager(true)}
             >
               <Tags className="h-3.5 w-3.5" />
-              {tc("tag.manageTags")}
+              {tc('tag.manageTags')}
             </button>
           </div>
         )}
@@ -337,13 +378,15 @@ export function RulesManager() {
       {/* Batch Action Bar */}
       {batchMode && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 border-b border-border bg-primary/5 px-4 py-2">
-          <span className="text-sm font-medium text-foreground">{tc("messages.selectedCount", { count: selectedIds.size })}</span>
+          <span className="text-sm font-medium text-foreground">
+            {tc('messages.selectedCount', { count: selectedIds.size })}
+          </span>
           <button
             className="flex items-center gap-1.5 rounded-md bg-error/10 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/20 transition-colors"
             onClick={handleBatchDelete}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            {tc("actions.delete")}
+            {tc('actions.delete')}
           </button>
           <button
             className="ml-auto text-sm text-muted-foreground hover:text-foreground"
@@ -352,7 +395,7 @@ export function RulesManager() {
               setSelectedIds(new Set());
             }}
           >
-            {tc("actions.cancelSelect")}
+            {tc('actions.cancelSelect')}
           </button>
         </div>
       )}
@@ -361,9 +404,17 @@ export function RulesManager() {
       <div className="flex-1 overflow-hidden flex">
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              }}
+            >
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="animate-pulse rounded-lg border border-border bg-card p-4">
+                <div
+                  key={i}
+                  className="animate-pulse rounded-lg border border-border bg-card p-4"
+                >
                   <div className="h-4 w-32 rounded bg-muted" />
                   <div className="mt-2 h-3 w-full rounded bg-muted" />
                   <div className="mt-1 h-3 w-2/3 rounded bg-muted" />
@@ -371,18 +422,25 @@ export function RulesManager() {
               ))}
             </div>
           ) : filteredRules.length > 0 ? (
-            <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))" }}>
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+              }}
+            >
               {filteredRules.map((rule) => {
                 const badge = formatBadge[rule.format] || formatBadge.md;
                 return (
                   <div
                     key={rule.id}
                     className={cn(
-                      "rounded-lg border p-4 text-left transition-all relative",
+                      'rounded-lg border p-4 text-left transition-all relative',
                       editingRule?.id === rule.id
-                        ? "border-primary bg-primary/5 shadow-sm"
-                        : "border-border bg-card hover:border-primary/30 hover:shadow-sm",
-                      batchMode && selectedIds.has(rule.id) && "border-primary/50 bg-primary/5",
+                        ? 'border-primary bg-primary/5 shadow-sm'
+                        : 'border-border bg-card hover:border-primary/30 hover:shadow-sm',
+                      batchMode &&
+                        selectedIds.has(rule.id) &&
+                        'border-primary/50 bg-primary/5'
                     )}
                     onClick={() => {
                       if (batchMode) {
@@ -391,7 +449,7 @@ export function RulesManager() {
                         setEditingRule(rule);
                       }
                     }}
-                    style={{ cursor: "pointer" }}
+                    style={{ cursor: 'pointer' }}
                   >
                     {batchMode && (
                       <div className="absolute left-3 top-3 z-10">
@@ -404,21 +462,43 @@ export function RulesManager() {
                         />
                       </div>
                     )}
-                    <div className={cn("flex items-start justify-between gap-2", batchMode && "pl-6")}>
+                    <div
+                      className={cn(
+                        'flex items-start justify-between gap-2',
+                        batchMode && 'pl-6'
+                      )}
+                    >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-sm font-semibold text-foreground truncate">{rule.name}</h3>
-                          <span className={cn("shrink-0 rounded px-1.5 py-0.5 text-xs font-medium", badge.bg, badge.text)}>
+                          <h3 className="text-sm font-semibold text-foreground truncate">
+                            {rule.name}
+                          </h3>
+                          <span
+                            className={cn(
+                              'shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
+                              badge.bg,
+                              badge.text
+                            )}
+                          >
                             .{rule.format}
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground line-clamp-3">
-                          {rule.content?.slice(0, 150) || rule.description || ""}
+                          {rule.content?.slice(0, 150) ||
+                            rule.description ||
+                            ''}
                         </p>
                       </div>
-                      {!batchMode && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />}
+                      {!batchMode && (
+                        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
+                      )}
                     </div>
-                    <div className={cn("mt-3 flex items-center gap-2 flex-wrap", batchMode && "pl-6")}>
+                    <div
+                      className={cn(
+                        'mt-3 flex items-center gap-2 flex-wrap',
+                        batchMode && 'pl-6'
+                      )}
+                    >
                       {/* Tag popover on card */}
                       <div onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-wrap items-center gap-1">
@@ -426,12 +506,22 @@ export function RulesManager() {
                             <span
                               key={tag.id}
                               className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium"
-                              style={tag.color ? { backgroundColor: tag.color + "20", color: tag.color } : undefined}
+                              style={
+                                tag.color
+                                  ? {
+                                      backgroundColor: tag.color + '20',
+                                      color: tag.color,
+                                    }
+                                  : undefined
+                              }
                             >
                               {tag.name}
                               <button
                                 className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
-                                onClick={(e) => { e.stopPropagation(); handleRemoveTag(rule.id, tag.id); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRemoveTag(rule.id, tag.id);
+                                }}
                               >
                                 <X className="h-2.5 w-2.5" />
                               </button>
@@ -442,10 +532,18 @@ export function RulesManager() {
                             targetId={rule.id}
                             assignedTags={rule.tags || []}
                             allTags={tags}
-                            onAssign={(tagId) => handleAssignTag(rule.id, tagId)}
-                            onRemove={(tagId) => handleRemoveTag(rule.id, tagId)}
+                            onAssign={(tagId) =>
+                              handleAssignTag(rule.id, tagId)
+                            }
+                            onRemove={(tagId) =>
+                              handleRemoveTag(rule.id, tagId)
+                            }
                             onCreate={async (name, color) => {
-                              const result = await createTag({ name, color, tag_type: "rule" });
+                              const result = await createTag({
+                                name,
+                                color,
+                                tag_type: 'rule',
+                              });
                               await fetchRules();
                               return result;
                             }}
@@ -464,12 +562,14 @@ export function RulesManager() {
           ) : (
             <div className="flex flex-col items-center justify-center py-16">
               <FileText className="mb-3 h-12 w-12 text-muted-foreground/30" />
-              <p className="mb-1 text-sm font-medium text-muted-foreground">{t("empty")}</p>
+              <p className="mb-1 text-sm font-medium text-muted-foreground">
+                {t('empty')}
+              </p>
               <button
                 className="mt-2 text-sm text-primary hover:underline"
                 onClick={() => setShowCreateForm(true)}
               >
-                {t("createRule")}
+                {t('createRule')}
               </button>
             </div>
           )}
@@ -478,8 +578,8 @@ export function RulesManager() {
         {/* Right Slide-out Detail Panel */}
         <div
           className={cn(
-            "shrink-0 border-l border-border overflow-y-auto transition-all duration-300",
-            editingRule ? "w-[420px]" : "w-0",
+            'shrink-0 border-l border-border overflow-y-auto transition-all duration-300',
+            editingRule ? 'w-[420px]' : 'w-0'
           )}
         >
           {editingRule && (
@@ -497,14 +597,14 @@ export function RulesManager() {
                     value={editDescription}
                     onChange={(e) => setEditDescription(e.target.value)}
                     className="w-full bg-transparent text-sm text-muted-foreground focus:outline-none mt-1"
-                    placeholder={t("create.descriptionPlaceholder")}
+                    placeholder={t('create.descriptionPlaceholder')}
                   />
                 </div>
                 <div className="flex items-center gap-2 ml-2">
                   <button
                     className="text-muted-foreground hover:text-foreground"
                     onClick={() => setIsFullscreen(true)}
-                    title={t("fullscreenEdit")}
+                    title={t('fullscreenEdit')}
                   >
                     <Maximize className="h-4 w-4" />
                   </button>
@@ -513,13 +613,13 @@ export function RulesManager() {
                     onClick={() => setShowHistory(!showHistory)}
                   >
                     <History className="h-4 w-4" />
-                    {t("versionHistory")}
+                    {t('versionHistory')}
                   </button>
                   <button
                     className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                     onClick={handleSaveEdit}
                   >
-                    {tc("actions.save")}
+                    {tc('actions.save')}
                   </button>
                   <button
                     className="text-muted-foreground hover:text-foreground"
@@ -533,7 +633,9 @@ export function RulesManager() {
                 <RuleEditor
                   content={editContent}
                   onChange={setEditContent}
-                  format={(editingRule.format || "mdc") as "mdc" | "md" | "yaml"}
+                  format={
+                    (editingRule.format || 'mdc') as 'mdc' | 'md' | 'yaml'
+                  }
                   defaultViewMode="preview"
                 />
               </div>
@@ -542,13 +644,23 @@ export function RulesManager() {
               {showHistory && (
                 <div className="border-t border-border max-h-[200px] overflow-y-auto p-3">
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t("versionHistory")}
+                    {t('versionHistory')}
                   </h3>
                   <div className="space-y-1">
-                    {[{ version: editingRule.version, changed_at: editingRule.updated_at }].map((h) => (
-                      <div key={h.version} className="flex items-center justify-between rounded px-2 py-1 text-sm">
+                    {[
+                      {
+                        version: editingRule.version,
+                        changed_at: editingRule.updated_at,
+                      },
+                    ].map((h) => (
+                      <div
+                        key={h.version}
+                        className="flex items-center justify-between rounded px-2 py-1 text-sm"
+                      >
                         <span className="text-foreground">v{h.version}</span>
-                        <span className="text-xs text-muted-foreground">{h.changed_at}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {h.changed_at}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -564,45 +676,56 @@ export function RulesManager() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
           <div className="w-[560px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">{t("create.title")}</h2>
-              <button onClick={() => setShowCreateForm(false)} className="text-muted-foreground hover:text-foreground">
+              <h2 className="text-lg font-semibold text-foreground">
+                {t('create.title')}
+              </h2>
+              <button
+                onClick={() => setShowCreateForm(false)}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="space-y-4">
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  {t("create.nameLabel")}
+                  {t('create.nameLabel')}
                 </label>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder={t("create.namePlaceholder")}
+                  placeholder={t('create.namePlaceholder')}
                   className={cn(
-                    "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
-                    "focus:outline-none focus:ring-2 focus:ring-ring",
+                    'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-ring'
                   )}
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("create.descriptionLabel")}</label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  {t('create.descriptionLabel')}
+                </label>
                 <input
                   type="text"
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  placeholder={t("create.descriptionPlaceholder")}
+                  placeholder={t('create.descriptionPlaceholder')}
                   className={cn(
-                    "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm",
-                    "focus:outline-none focus:ring-2 focus:ring-ring",
+                    'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm',
+                    'focus:outline-none focus:ring-2 focus:ring-ring'
                   )}
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("format")}</label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  {t('format')}
+                </label>
                 <select
                   value={newFormat}
-                  onChange={(e) => setNewFormat(e.target.value as "mdc" | "md" | "yaml")}
+                  onChange={(e) =>
+                    setNewFormat(e.target.value as 'mdc' | 'md' | 'yaml')
+                  }
                   className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="md">.md</option>
@@ -611,9 +734,16 @@ export function RulesManager() {
                 </select>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">{t("content")}</label>
+                <label className="mb-1.5 block text-sm font-medium text-foreground">
+                  {t('content')}
+                </label>
                 <div className="h-[300px]">
-                  <RuleEditor content={newContent} onChange={setNewContent} format={newFormat} defaultViewMode="edit" />
+                  <RuleEditor
+                    content={newContent}
+                    onChange={setNewContent}
+                    format={newFormat}
+                    defaultViewMode="edit"
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -621,13 +751,13 @@ export function RulesManager() {
                   className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
                   onClick={() => setShowCreateForm(false)}
                 >
-                  {tc("actions.cancel")}
+                  {tc('actions.cancel')}
                 </button>
                 <button
                   className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                   onClick={handleCreate}
                 >
-                  {tc("actions.save")}
+                  {tc('actions.save')}
                 </button>
               </div>
             </div>
@@ -640,45 +770,71 @@ export function RulesManager() {
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
           <div className="w-[500px] max-h-[80vh] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in flex flex-col">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">{t("importPreview")}</h2>
-              <button onClick={() => { setShowImportPreview(false); setImportFiles([]); }} className="text-muted-foreground hover:text-foreground">
+              <h2 className="text-lg font-semibold text-foreground">
+                {t('importPreview')}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowImportPreview(false);
+                  setImportFiles([]);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2 mb-4">
               {importFiles.map((file, idx) => (
-                <div key={idx} className="rounded-md border border-border bg-muted/30 p-3">
+                <div
+                  key={idx}
+                  className="rounded-md border border-border bg-muted/30 p-3"
+                >
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground truncate">{file.name}</span>
-                    <span className={cn(
-                      "rounded px-1.5 py-0.5 text-xs font-medium",
-                      (formatBadge[file.format] || formatBadge.md).bg,
-                      (formatBadge[file.format] || formatBadge.md).text,
-                    )}>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {file.name}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded px-1.5 py-0.5 text-xs font-medium',
+                        (formatBadge[file.format] || formatBadge.md).bg,
+                        (formatBadge[file.format] || formatBadge.md).text
+                      )}
+                    >
                       .{file.format}
                     </span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{t("willCreateAs", { name: file.name.replace(/\.[^.]+$/, "") })}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('willCreateAs', {
+                      name: file.name.replace(/\.[^.]+$/, ''),
+                    })}
+                  </p>
                 </div>
               ))}
             </div>
             <div className="flex items-center justify-between pt-2 border-t border-border">
-              <span className="text-sm text-muted-foreground">{tc("messages.totalFiles", { count: importFiles.length })}</span>
+              <span className="text-sm text-muted-foreground">
+                {tc('messages.totalFiles', { count: importFiles.length })}
+              </span>
               <div className="flex gap-2">
                 <button
                   className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-                  onClick={() => { setShowImportPreview(false); setImportFiles([]); }}
+                  onClick={() => {
+                    setShowImportPreview(false);
+                    setImportFiles([]);
+                  }}
                 >
-                  {tc("actions.cancel")}
+                  {tc('actions.cancel')}
                 </button>
                 <button
                   className={cn(
-                    "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90",
-                    importing && "opacity-50 pointer-events-none",
+                    'rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90',
+                    importing && 'opacity-50 pointer-events-none'
                   )}
                   onClick={handleImportConfirm}
                 >
-                  {importing ? tc("status.importing") : tc("actions.confirmImport")}
+                  {importing
+                    ? tc('status.importing')
+                    : tc('actions.confirmImport')}
                 </button>
               </div>
             </div>
@@ -709,14 +865,17 @@ export function RulesManager() {
             <div className="flex items-center gap-2">
               <button
                 className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                onClick={async () => { await handleSaveEdit(); setIsFullscreen(false); }}
+                onClick={async () => {
+                  await handleSaveEdit();
+                  setIsFullscreen(false);
+                }}
               >
-                {tc("actions.save")}
+                {tc('actions.save')}
               </button>
               <button
                 className="text-muted-foreground hover:text-foreground"
                 onClick={() => setIsFullscreen(false)}
-                title={t("exitFullscreen")}
+                title={t('exitFullscreen')}
               >
                 <Minimize className="h-4 w-4" />
               </button>
@@ -727,13 +886,17 @@ export function RulesManager() {
               <RuleEditor
                 content={editContent}
                 onChange={setEditContent}
-                format={(editingRule.format || "mdc") as "mdc" | "md" | "yaml"}
+                format={(editingRule.format || 'mdc') as 'mdc' | 'md' | 'yaml'}
                 defaultViewMode="edit"
               />
             </div>
             <div className="w-[40%] overflow-y-auto p-4">
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("preview")}</h3>
-              <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">{editContent}</pre>
+              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {t('preview')}
+              </h3>
+              <pre className="whitespace-pre-wrap text-sm text-foreground font-mono">
+                {editContent}
+              </pre>
             </div>
           </div>
         </div>
@@ -741,8 +904,12 @@ export function RulesManager() {
 
       <ConfirmDialog
         open={showBatchDeleteConfirm}
-        title={tc("messages.confirmBatchDeleteRules", { count: selectedIds.size })}
-        message={tc("messages.confirmBatchDeleteRules", { count: selectedIds.size })}
+        title={tc('messages.confirmBatchDeleteRules', {
+          count: selectedIds.size,
+        })}
+        message={tc('messages.confirmBatchDeleteRules', {
+          count: selectedIds.size,
+        })}
         variant="danger"
         onConfirm={executeBatchDelete}
         onCancel={() => setShowBatchDeleteConfirm(false)}

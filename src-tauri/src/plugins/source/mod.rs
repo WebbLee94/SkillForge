@@ -1,5 +1,5 @@
-pub mod local_fs;
 pub mod git_repo;
+pub mod local_fs;
 
 use crate::error::AppError;
 use crate::types::{SkillBundle, SkillMeta, ValidationResult, VersionInfo};
@@ -83,11 +83,15 @@ pub fn create_source_plugin_with_url(
                 if path.join("SKILL.md").exists() {
                     // source_url is the skill directory itself, use its parent as base_dir
                     if let Some(parent) = path.parent() {
-                        return Ok(Box::new(local_fs::LocalFsSource::with_dir(parent.to_path_buf())));
+                        return Ok(Box::new(local_fs::LocalFsSource::with_dir(
+                            parent.to_path_buf(),
+                        )));
                     }
                 }
                 // Otherwise use the url as base_dir directly
-                Ok(Box::new(local_fs::LocalFsSource::with_dir(path.to_path_buf())))
+                Ok(Box::new(local_fs::LocalFsSource::with_dir(
+                    path.to_path_buf(),
+                )))
             } else {
                 Ok(Box::new(local_fs::LocalFsSource::new()))
             }

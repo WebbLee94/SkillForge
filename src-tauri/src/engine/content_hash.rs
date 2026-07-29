@@ -7,7 +7,13 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
-const IGNORED: &[&str] = &[".git", ".DS_Store", "Thumbs.db", ".gitignore", "__pycache__"];
+const IGNORED: &[&str] = &[
+    ".git",
+    ".DS_Store",
+    "Thumbs.db",
+    ".gitignore",
+    "__pycache__",
+];
 
 fn is_ignored(name: &str) -> bool {
     IGNORED.contains(&name) || name.ends_with(".pyc")

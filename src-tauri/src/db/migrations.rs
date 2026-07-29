@@ -9,15 +9,13 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
         "CREATE TABLE IF NOT EXISTS schema_version (
             version INTEGER PRIMARY KEY,
             applied_at TEXT NOT NULL
-        );"
+        );",
     )?;
 
     let current: u32 = conn
-        .query_row(
-            "SELECT MAX(version) FROM schema_version",
-            [],
-            |row| row.get::<_, Option<u32>>(0),
-        )
+        .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+            row.get::<_, Option<u32>>(0)
+        })
         .unwrap_or(None)
         .unwrap_or(0);
 
@@ -54,7 +52,10 @@ fn apply_v2(conn: &rusqlite::Connection) -> Result<(), AppError> {
         conn.execute("ALTER TABLE skills ADD COLUMN content_hash TEXT", [])?;
     }
     if !columns.contains(&"sync_status".to_string()) {
-        conn.execute("ALTER TABLE skills ADD COLUMN sync_status TEXT DEFAULT 'synced'", [])?;
+        conn.execute(
+            "ALTER TABLE skills ADD COLUMN sync_status TEXT DEFAULT 'synced'",
+            [],
+        )?;
     }
 
     conn.execute_batch(
@@ -68,7 +69,7 @@ fn apply_v2(conn: &rusqlite::Connection) -> Result<(), AppError> {
              new_hash    TEXT,
              handled     INTEGER DEFAULT 0,
              created_at  TEXT DEFAULT (datetime('now'))
-         );"
+         );",
     )?;
 
     let now = chrono::Utc::now().to_rfc3339();
@@ -89,11 +90,9 @@ mod tests {
         run_migrations(&mut conn).unwrap();
 
         let version: u32 = conn
-            .query_row(
-                "SELECT MAX(version) FROM schema_version",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(version, CURRENT_VERSION);
     }
@@ -106,11 +105,9 @@ mod tests {
         run_migrations(&mut conn).unwrap();
 
         let version: u32 = conn
-            .query_row(
-                "SELECT MAX(version) FROM schema_version",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(version, CURRENT_VERSION);
     }
@@ -189,11 +186,9 @@ mod tests {
 
         // Verify migration version is 2
         let version: u32 = conn
-            .query_row(
-                "SELECT MAX(version) FROM schema_version",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert!(version >= 2);
     }

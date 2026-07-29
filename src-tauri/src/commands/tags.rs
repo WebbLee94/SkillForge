@@ -11,7 +11,10 @@ pub fn list_tags(
     search: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<Tag>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Build SQL based on filters
     let (sql, use_category, use_tag_type, use_search) = match (&category, &tag_type, &search) {
@@ -95,14 +98,38 @@ pub fn list_tags(
     };
 
     let tags: Vec<Tag> = match (use_category, use_tag_type, use_search) {
-        (true, true, true) => stmt.query_map(params![category, tag_type, search], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (true, true, false) => stmt.query_map(params![category, tag_type], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (true, false, true) => stmt.query_map(params![category, search], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (true, false, false) => stmt.query_map(params![category], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (false, true, true) => stmt.query_map(params![tag_type, search], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (false, true, false) => stmt.query_map(params![tag_type], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (false, false, true) => stmt.query_map(params![search], row_mapper)?.filter_map(|r| r.ok()).collect(),
-        (false, false, false) => stmt.query_map([], row_mapper)?.filter_map(|r| r.ok()).collect(),
+        (true, true, true) => stmt
+            .query_map(params![category, tag_type, search], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (true, true, false) => stmt
+            .query_map(params![category, tag_type], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (true, false, true) => stmt
+            .query_map(params![category, search], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (true, false, false) => stmt
+            .query_map(params![category], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (false, true, true) => stmt
+            .query_map(params![tag_type, search], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (false, true, false) => stmt
+            .query_map(params![tag_type], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (false, false, true) => stmt
+            .query_map(params![search], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
+        (false, false, false) => stmt
+            .query_map([], row_mapper)?
+            .filter_map(|r| r.ok())
+            .collect(),
     };
 
     Ok(tags)
@@ -116,7 +143,10 @@ pub fn create_tag(
     tag_type: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<Tag, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Validate tag_type
     if tag_type != "skill" && tag_type != "rule" {
@@ -157,11 +187,11 @@ pub fn create_tag(
 }
 
 #[tauri::command]
-pub fn delete_tag(
-    id: i64,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn delete_tag(id: i64, state: tauri::State<'_, AppState>) -> Result<(), AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify tag exists
     let exists: bool = conn
@@ -192,7 +222,10 @@ pub fn update_tag(
     category: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify tag exists and get its tag_type
     let tag_info: Option<(String,)> = conn
@@ -219,7 +252,10 @@ pub fn update_tag(
             .map(|c| c > 0)?;
 
         if exists {
-            return Err(AppError::DuplicateTag(format!("{}({})", new_name, tag_type)));
+            return Err(AppError::DuplicateTag(format!(
+                "{}({})",
+                new_name, tag_type
+            )));
         }
     }
 
@@ -238,7 +274,10 @@ pub fn assign_tag(
     tag_id: i64,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Verify tag exists and get its tag_type
     let tag_info: Option<(String,)> = conn
@@ -319,7 +358,10 @@ pub fn remove_tag(
     tag_id: i64,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     match target_type.as_str() {
         "skill" => {

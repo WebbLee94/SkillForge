@@ -35,16 +35,16 @@ pub fn parse_skill_md(content: &str) -> Result<SkillBundle, AppError> {
     let rest = &content[3..];
 
     // Find the closing ---
-    let end_marker = rest
-        .find("\n---")
-        .ok_or_else(|| AppError::Parse("SKILL.md frontmatter not closed (missing ---)".to_string()))?;
+    let end_marker = rest.find("\n---").ok_or_else(|| {
+        AppError::Parse("SKILL.md frontmatter not closed (missing ---)".to_string())
+    })?;
 
     let yaml_str = &rest[..end_marker];
     let markdown_body = rest[end_marker + 4..].trim_start();
 
     // Parse YAML frontmatter
-    let frontmatter: serde_yaml::Value =
-        serde_yaml::from_str(yaml_str).map_err(|e| AppError::Parse(format!("Invalid YAML: {}", e)))?;
+    let frontmatter: serde_yaml::Value = serde_yaml::from_str(yaml_str)
+        .map_err(|e| AppError::Parse(format!("Invalid YAML: {}", e)))?;
 
     // Extract required fields
     let name = frontmatter
@@ -80,9 +80,9 @@ pub fn parse_skill_md(content: &str) -> Result<SkillBundle, AppError> {
         .map(|s| s.to_string());
 
     // Extract metadata as JSON string
-    let metadata = frontmatter.get("metadata").and_then(|v| {
-        serde_json::to_string(v).ok()
-    });
+    let metadata = frontmatter
+        .get("metadata")
+        .and_then(|v| serde_json::to_string(v).ok());
 
     // Detect subdirectories from markdown body
     let subdirs = detect_subdirs(markdown_body);

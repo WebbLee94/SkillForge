@@ -14,11 +14,14 @@ pub fn start_auto_updater<R: Runtime>(app: AppHandle<R>, conn: Arc<Mutex<rusqlit
         loop {
             let skills: Vec<(String, String)> = {
                 let db = conn.lock().unwrap();
-                let mut stmt = match db.prepare(
-                    "SELECT id, local_path FROM skills WHERE source_type = 'git'"
-                ) {
+                let mut stmt = match db
+                    .prepare("SELECT id, local_path FROM skills WHERE source_type = 'git'")
+                {
                     Ok(s) => s,
-                    Err(_) => { std::thread::sleep(POLL_INTERVAL); continue; }
+                    Err(_) => {
+                        std::thread::sleep(POLL_INTERVAL);
+                        continue;
+                    }
                 };
                 stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
                     .ok()
@@ -41,11 +44,15 @@ pub fn start_auto_updater<R: Runtime>(app: AppHandle<R>, conn: Arc<Mutex<rusqlit
                     }
                 }
                 let head_id = repo.head().and_then(|r| r.peel_to_commit()).map(|c| c.id());
-                let origin_id = repo.find_reference("refs/remotes/origin/main")
-                    .and_then(|r| r.peel_to_commit()).map(|c| c.id());
+                let origin_id = repo
+                    .find_reference("refs/remotes/origin/main")
+                    .and_then(|r| r.peel_to_commit())
+                    .map(|c| c.id());
                 drop(repo);
                 if let (Ok(h), Ok(o)) = (head_id, origin_id) {
-                    if h != o { updated += 1; }
+                    if h != o {
+                        updated += 1;
+                    }
                 }
             }
 
@@ -59,12 +66,11 @@ pub fn start_auto_updater<R: Runtime>(app: AppHandle<R>, conn: Arc<Mutex<rusqlit
 }
 
 fn check_skill_updates(conn: &rusqlite::Connection) -> Result<u32, AppError> {
-    let mut stmt = conn.prepare(
-        "SELECT id, local_path, current_ver FROM skills WHERE source_type = 'git'"
-    )?;
-    let skills: Vec<(String, String, Option<String>)> = stmt.query_map([], |row| {
-        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-    })?.collect::<Result<Vec<_>, _>>()?;
+    let mut stmt =
+        conn.prepare("SELECT id, local_path, current_ver FROM skills WHERE source_type = 'git'")?;
+    let skills: Vec<(String, String, Option<String>)> = stmt
+        .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+        .collect::<Result<Vec<_>, _>>()?;
 
     let mut updated = 0u32;
     for (_id, local_path, _current_ver) in skills {
@@ -84,10 +90,9 @@ fn check_skill_updates(conn: &rusqlite::Connection) -> Result<u32, AppError> {
         }
 
         // Compare HEAD with origin/main
-        let head_id = repo.head()
-            .and_then(|r| r.peel_to_commit())
-            .map(|c| c.id());
-        let origin_id = repo.find_reference("refs/remotes/origin/main")
+        let head_id = repo.head().and_then(|r| r.peel_to_commit()).map(|c| c.id());
+        let origin_id = repo
+            .find_reference("refs/remotes/origin/main")
             .and_then(|r| r.peel_to_commit())
             .map(|c| c.id());
 

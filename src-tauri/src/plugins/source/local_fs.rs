@@ -1,5 +1,5 @@
-use crate::error::AppError;
 use crate::engine::parser;
+use crate::error::AppError;
 use crate::types::{SkillBundle, SkillMeta, ValidationResult, VersionInfo};
 
 use super::SourcePlugin;
@@ -47,9 +47,8 @@ impl SourcePlugin for LocalFsSource {
             return Ok(skills);
         }
 
-        let entries = std::fs::read_dir(&self.base_dir).map_err(|e| {
-            AppError::Source(format!("读取来源目录失败: {}", e))
-        })?;
+        let entries = std::fs::read_dir(&self.base_dir)
+            .map_err(|e| AppError::Source(format!("读取来源目录失败: {}", e)))?;
 
         for entry in entries.flatten() {
             if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
@@ -95,9 +94,8 @@ impl SourcePlugin for LocalFsSource {
         }
 
         let skill_md_path = skill_dir.join("SKILL.md");
-        let content = std::fs::read_to_string(&skill_md_path).map_err(|e| {
-            AppError::Source(format!("读取 SKILL.md 失败: {}", e))
-        })?;
+        let content = std::fs::read_to_string(&skill_md_path)
+            .map_err(|e| AppError::Source(format!("读取 SKILL.md 失败: {}", e)))?;
 
         let mut bundle = parser::parse_skill_md(&content)?;
         bundle.meta.source_type = "local-fs".to_string();

@@ -1,9 +1,9 @@
 name: Build
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
-    branches: [main]
+    branches: [master]
 jobs:
   build-macos:
     runs-on: macos-latest
@@ -17,6 +17,12 @@ jobs:
       - run: npm run build
       - run: cargo test
         working-directory: src-tauri
+      - run: cargo fmt --all -- --check
+        working-directory: src-tauri
+      - run: cargo clippy -- -W warnings
+        working-directory: src-tauri
+      - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
+      - run: npx vitest run
 
   build-windows:
     runs-on: windows-latest
@@ -30,6 +36,12 @@ jobs:
       - run: npm run build
       - run: cargo test
         working-directory: src-tauri
+      - run: cargo fmt --all -- --check
+        working-directory: src-tauri
+      - run: cargo clippy -- -W warnings
+        working-directory: src-tauri
+      - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
+      - run: npx vitest run
 
   build-linux:
     runs-on: ubuntu-latest
@@ -47,3 +59,9 @@ jobs:
       - run: npm run build
       - run: cargo test
         working-directory: src-tauri
+      - run: cargo fmt --all -- --check
+        working-directory: src-tauri
+      - run: cargo clippy -- -W warnings
+        working-directory: src-tauri
+      - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
+      - run: npx vitest run

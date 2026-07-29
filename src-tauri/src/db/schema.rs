@@ -15,7 +15,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             metadata    TEXT,
             content_hash TEXT,
             sync_status  TEXT DEFAULT 'synced'
-        );"
+        );",
     )?;
 
     // ── skill_versions ─────────────────────────────────────────────
@@ -27,7 +27,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             checksum   TEXT,
             fetched_at TEXT NOT NULL,
             PRIMARY KEY (skill_id, version)
-        );"
+        );",
     )?;
 
     // ── tags ───────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             color    TEXT,
             category TEXT,
             tag_type TEXT NOT NULL DEFAULT 'skill' CHECK(tag_type IN ('skill','rule'))
-        );"
+        );",
     )?;
 
     // ── skill_tags ─────────────────────────────────────────────────
@@ -47,7 +47,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
             tag_id   INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
             PRIMARY KEY (skill_id, tag_id)
-        );"
+        );",
     )?;
 
     // ── rules ──────────────────────────────────────────────────────
@@ -62,7 +62,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             scope       TEXT,
             version     INTEGER NOT NULL DEFAULT 1,
             updated_at  TEXT NOT NULL
-        );"
+        );",
     )?;
 
     // ── rule_history ───────────────────────────────────────────────
@@ -73,7 +73,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             content    TEXT NOT NULL,
             changed_at TEXT NOT NULL,
             PRIMARY KEY (rule_id, version)
-        );"
+        );",
     )?;
 
     // ── rule_tags ──────────────────────────────────────────────────
@@ -82,7 +82,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             rule_id TEXT NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
             tag_id  INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
             PRIMARY KEY (rule_id, tag_id)
-        );"
+        );",
     )?;
 
     // ── scenes ─────────────────────────────────────────────────────
@@ -96,7 +96,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             is_system   INTEGER NOT NULL DEFAULT 0,
             created_at  TEXT NOT NULL,
             updated_at  TEXT NOT NULL
-        );"
+        );",
     )?;
 
     // ── scene_skills ───────────────────────────────────────────────
@@ -109,7 +109,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             sort_order INTEGER NOT NULL DEFAULT 0,
             config     TEXT,
             PRIMARY KEY (scene_id, skill_id)
-        );"
+        );",
     )?;
 
     // ── scene_rules ────────────────────────────────────────────────
@@ -120,7 +120,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             enabled    INTEGER NOT NULL DEFAULT 1,
             sort_order INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY (scene_id, rule_id)
-        );"
+        );",
     )?;
 
     // ── scene_platforms ────────────────────────────────────────────
@@ -130,7 +130,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             platform_id TEXT NOT NULL REFERENCES platforms(id) ON DELETE CASCADE,
             enabled     INTEGER NOT NULL DEFAULT 1,
             PRIMARY KEY (scene_id, platform_id)
-        );"
+        );",
     )?;
 
     // ── projects ───────────────────────────────────────────────────
@@ -143,7 +143,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             description TEXT,
             created_at  TEXT NOT NULL,
             updated_at  TEXT NOT NULL
-        );"
+        );",
     )?;
 
     // ── platforms ──────────────────────────────────────────────────
@@ -154,7 +154,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             adapter      TEXT NOT NULL,
             enabled      INTEGER NOT NULL DEFAULT 1,
             icon         TEXT
-        );"
+        );",
     )?;
 
     // ── distributions ──────────────────────────────────────────────
@@ -169,7 +169,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             status       TEXT NOT NULL,
             last_synced_at TEXT,
             checksum     TEXT
-        );"
+        );",
     )?;
 
     // ── sync_logs ──────────────────────────────────────────────────
@@ -183,7 +183,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             status      TEXT NOT NULL,
             message     TEXT,
             created_at  TEXT NOT NULL
-        );"
+        );",
     )?;
 
     // ── app_config ──────────────────────────────────────────────────
@@ -192,7 +192,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             key TEXT PRIMARY KEY,
             value TEXT
         );
-        INSERT OR IGNORE INTO app_config (key, value) VALUES ('global_scene_id', NULL);"
+        INSERT OR IGNORE INTO app_config (key, value) VALUES ('global_scene_id', NULL);",
     )?;
 
     // ── watcher_events ──────────────────────────────────────────────
@@ -207,7 +207,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             new_hash    TEXT,
             handled     INTEGER DEFAULT 0,
             created_at  TEXT DEFAULT (datetime('now'))
-        );"
+        );",
     )?;
 
     // ── Indexes ────────────────────────────────────────────────────

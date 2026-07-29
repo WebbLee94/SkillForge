@@ -1,9 +1,9 @@
-import { memo } from "react";
-import { useTranslation } from "react-i18next";
-import { cn } from "../lib/utils";
-import { X, Download } from "lucide-react";
-import { getPlatformIcon } from "./icons/PlatformIcons";
-import type { PlatformScanResult } from "../types";
+import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { cn } from '../lib/utils';
+import { X, Download } from 'lucide-react';
+import { getPlatformIcon } from './icons/PlatformIcons';
+import type { PlatformScanResult } from '../types';
 
 interface ImportPreviewDialogProps {
   open: boolean;
@@ -24,7 +24,7 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
   onClose,
   onConfirm,
 }: ImportPreviewDialogProps) {
-  const { t: tc } = useTranslation("common");
+  const { t: tc } = useTranslation('common');
 
   if (!open) return null;
 
@@ -36,7 +36,7 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
       <div className="w-[540px] max-h-[80vh] overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
-            {tc("import.previewTitle")}
+            {tc('import.previewTitle')}
           </h2>
           <button
             onClick={onClose}
@@ -66,17 +66,18 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
                     <div className="flex gap-4 text-xs text-muted-foreground">
                       {p.new_skills.length > 0 && (
                         <span className="text-success">
-                          +{p.new_skills.length} {tc("import.newSkills")}
+                          +{p.new_skills.length} {tc('import.newSkills')}
                         </span>
                       )}
                       {p.new_rules.length > 0 && (
                         <span className="text-success">
-                          +{p.new_rules.length} {tc("import.newRules")}
+                          +{p.new_rules.length} {tc('import.newRules')}
                         </span>
                       )}
                       {(p.existing_skills > 0 || p.existing_rules > 0) && (
                         <span>
-                          {p.existing_skills + p.existing_rules} {tc("import.existing")}
+                          {p.existing_skills + p.existing_rules}{' '}
+                          {tc('import.existing')}
                         </span>
                       )}
                     </div>
@@ -86,7 +87,7 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
             </div>
 
             <p className="mb-4 text-xs text-muted-foreground">
-              {tc("import.summary", {
+              {tc('import.summary', {
                 skills: newSkills,
                 rules: newRules,
                 skipped: totalSkipped,
@@ -95,7 +96,7 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
           </>
         ) : (
           <p className="mb-4 text-sm text-muted-foreground">
-            {tc("import.noDiscoverable")}
+            {tc('import.noDiscoverable')}
           </p>
         )}
 
@@ -105,13 +106,13 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
             onClick={onClose}
             disabled={importing}
           >
-            {tc("actions.cancel")}
+            {tc('actions.cancel')}
           </button>
           {totalNew > 0 && (
             <button
               className={cn(
-                "rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90",
-                importing && "opacity-50 pointer-events-none",
+                'rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90',
+                importing && 'opacity-50 pointer-events-none'
               )}
               onClick={onConfirm}
               disabled={importing}
@@ -119,10 +120,10 @@ export const ImportPreviewDialog = memo(function ImportPreviewDialog({
               {importing ? (
                 <span className="flex items-center gap-2">
                   <Download className="h-4 w-4 animate-pulse" />
-                  {tc("import.importing")}
+                  {tc('import.importing')}
                 </span>
               ) : (
-                tc("import.confirmImport", { count: totalNew })
+                tc('import.confirmImport', { count: totalNew })
               )}
             </button>
           )}

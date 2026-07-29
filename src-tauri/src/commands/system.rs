@@ -50,10 +50,11 @@ pub fn get_app_config() -> Result<AppConfig, AppError> {
 }
 
 #[tauri::command]
-pub fn get_dashboard_stats(
-    state: tauri::State<'_, AppState>,
-) -> Result<DashboardStats, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn get_dashboard_stats(state: tauri::State<'_, AppState>) -> Result<DashboardStats, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let skill_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM skills", [], |row| row.get(0))
@@ -64,11 +65,7 @@ pub fn get_dashboard_stats(
         .unwrap_or(0);
 
     let scene_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM scenes",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM scenes", [], |row| row.get(0))
         .unwrap_or(0);
 
     let user_scene_count: i64 = conn
@@ -97,7 +94,10 @@ pub fn get_recent_activity(
     limit: Option<i64>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<SyncLog>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let limit = limit.unwrap_or(50);
 
     let mut stmt = conn.prepare(
@@ -128,10 +128,12 @@ pub fn get_recent_activity(
 
 #[tauri::command]
 pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let mut stmt = conn.prepare(
-        "SELECT id, name, adapter, enabled, icon FROM platforms ORDER BY name ASC",
-    )?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let mut stmt =
+        conn.prepare("SELECT id, name, adapter, enabled, icon FROM platforms ORDER BY name ASC")?;
     let platforms = stmt
         .query_map([], |row| {
             let id: String = row.get(0)?;
@@ -168,7 +170,10 @@ pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>
 
 #[tauri::command]
 pub fn get_global_config(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     let value: Option<String> = conn
         .query_row(
             "SELECT value FROM app_config WHERE key = 'global_scene_id'",
@@ -185,7 +190,10 @@ pub fn set_global_config(
     value: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     if let Some(v) = value {
         conn.execute(
             "INSERT OR REPLACE INTO app_config (key, value) VALUES (?1, ?2)",
@@ -204,7 +212,10 @@ pub fn set_global_config(
 pub fn get_global_distribution_status(
     state: tauri::State<'_, AppState>,
 ) -> Result<GlobalDistStatus, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     // Get global_scene_id
     let scene_id: Option<String> = conn
@@ -240,24 +251,30 @@ pub fn get_global_distribution_status(
 
         // Count skills: all installed for __all_skills__, scene-bound otherwise
         status.skill_count = if is_all_skills {
-            conn.query_row("SELECT COUNT(*) FROM skills", [], |row| row.get::<_, u32>(0)).unwrap_or(0)
+            conn.query_row("SELECT COUNT(*) FROM skills", [], |row| {
+                row.get::<_, u32>(0)
+            })
+            .unwrap_or(0)
         } else {
             conn.query_row(
                 "SELECT COUNT(*) FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
                 params![sid],
                 |row| row.get::<_, u32>(0),
-            ).unwrap_or(0)
+            )
+            .unwrap_or(0)
         };
 
         // Count rules: all for __all_skills__, scene-bound otherwise
         status.rule_count = if is_all_skills {
-            conn.query_row("SELECT COUNT(*) FROM rules", [], |row| row.get::<_, u32>(0)).unwrap_or(0)
+            conn.query_row("SELECT COUNT(*) FROM rules", [], |row| row.get::<_, u32>(0))
+                .unwrap_or(0)
         } else {
             conn.query_row(
                 "SELECT COUNT(*) FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
                 params![sid],
                 |row| row.get::<_, u32>(0),
-            ).unwrap_or(0)
+            )
+            .unwrap_or(0)
         };
 
         // Get per-platform status
@@ -286,15 +303,30 @@ pub fn get_global_distribution_status(
         let platforms: Vec<PlatformDistInfo> = stmt
             .query_map(params![sid, status.skill_count], |row| {
                 let pid: String = row.get(0)?;
-                let (skills_dir, skills_dir_resolved, rules_dir, synced_skill_count, synced_rule_count) = match crate::plugins::platform::create_platform_plugin(&pid) {
+                let (
+                    skills_dir,
+                    skills_dir_resolved,
+                    rules_dir,
+                    synced_skill_count,
+                    synced_rule_count,
+                ) = match crate::plugins::platform::create_platform_plugin(&pid) {
                     Ok(p) => {
                         let paths = p.default_paths();
-                        let skills_dir_path = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+                        let skills_dir_path =
+                            crate::plugins::platform::expand_home(&paths.global_skills_dir);
                         let fs_skill_count = count_subdirs(&skills_dir_path);
-                        let fs_rule_count = paths.global_rules_dir.as_ref()
+                        let fs_rule_count = paths
+                            .global_rules_dir
+                            .as_ref()
                             .map(|d| count_files_in_dir(&crate::plugins::platform::expand_home(d)))
                             .unwrap_or(0);
-                        (Some(paths.global_skills_dir.clone()), Some(skills_dir_path.to_string_lossy().to_string()), paths.global_rules_dir, fs_skill_count, fs_rule_count)
+                        (
+                            Some(paths.global_skills_dir.clone()),
+                            Some(skills_dir_path.to_string_lossy().to_string()),
+                            paths.global_rules_dir,
+                            fs_skill_count,
+                            fs_rule_count,
+                        )
                     }
                     Err(_) => (None, None, None, 0, 0),
                 };
@@ -336,7 +368,10 @@ pub fn toggle_platform_enabled(
     enabled: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     conn.execute(
         "UPDATE platforms SET enabled = ?1 WHERE id = ?2",
         params![enabled as i32, id],
@@ -432,13 +467,16 @@ fn count_files_in_dir(path: &std::path::Path) -> u32 {
 #[tauri::command]
 pub fn get_watcher_events() -> Result<serde_json::Value, AppError> {
     let events = crate::engine::fs_watcher::get_pending_events();
-    let result: Vec<serde_json::Value> = events.iter().map(|(id, event_type, path)| {
-        serde_json::json!({
-            "id": id,
-            "event_type": event_type,
-            "path": path,
+    let result: Vec<serde_json::Value> = events
+        .iter()
+        .map(|(id, event_type, path)| {
+            serde_json::json!({
+                "id": id,
+                "event_type": event_type,
+                "path": path,
+            })
         })
-    }).collect();
+        .collect();
     Ok(serde_json::json!({
         "unhandled_count": result.len(),
         "events": result,
@@ -446,10 +484,7 @@ pub fn get_watcher_events() -> Result<serde_json::Value, AppError> {
 }
 
 #[tauri::command]
-pub fn handle_watcher_event(
-    _event_id: i64,
-    _action: i32,
-) -> Result<(), AppError> {
+pub fn handle_watcher_event(_event_id: i64, _action: i32) -> Result<(), AppError> {
     crate::engine::fs_watcher::clear_pending_events();
     Ok(())
 }

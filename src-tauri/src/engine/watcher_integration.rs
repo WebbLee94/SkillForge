@@ -61,13 +61,21 @@ pub fn resolve_path_to_capability(path: &Path) -> Option<(String, String)> {
 }
 
 /// Persist a filesystem event into watcher_events and update skills.sync_status
-pub fn handle_fs_event(conn: &rusqlite::Connection, event_path: &str, event_kind: &str) -> Result<(), AppError> {
+pub fn handle_fs_event(
+    conn: &rusqlite::Connection,
+    event_path: &str,
+    event_kind: &str,
+) -> Result<(), AppError> {
     let (platform, capability) = match resolve_path_to_capability(Path::new(event_path)) {
         Some(p) => p,
         None => return Ok(()),
     };
 
-    let platform_opt: Option<&str> = if platform.is_empty() { None } else { Some(&platform) };
+    let platform_opt: Option<&str> = if platform.is_empty() {
+        None
+    } else {
+        Some(&platform)
+    };
 
     match event_kind {
         "NEW" => {
@@ -108,19 +116,31 @@ pub fn handle_fs_event(conn: &rusqlite::Connection, event_path: &str, event_kind
 pub fn get_unhandled_events(conn: &rusqlite::Connection) -> Result<Vec<WatcherEvent>, AppError> {
     let mut stmt = conn.prepare(
         "SELECT id, event_type, capability, path, platform, old_hash, new_hash, handled, created_at
-         FROM watcher_events WHERE handled = 0 ORDER BY created_at DESC LIMIT 50"
+         FROM watcher_events WHERE handled = 0 ORDER BY created_at DESC LIMIT 50",
     )?;
-    let events = stmt.query_map([], |row| {
-        Ok(WatcherEvent {
-            id: row.get(0)?, event_type: row.get(1)?, capability: row.get(2)?,
-            path: row.get(3)?, platform: row.get(4)?, old_hash: row.get(5)?,
-            new_hash: row.get(6)?, handled: row.get(7)?, created_at: row.get(8)?,
-        })
-    })?.collect::<Result<Vec<_>, _>>()?;
+    let events = stmt
+        .query_map([], |row| {
+            Ok(WatcherEvent {
+                id: row.get(0)?,
+                event_type: row.get(1)?,
+                capability: row.get(2)?,
+                path: row.get(3)?,
+                platform: row.get(4)?,
+                old_hash: row.get(5)?,
+                new_hash: row.get(6)?,
+                handled: row.get(7)?,
+                created_at: row.get(8)?,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(events)
 }
 
-pub fn mark_event_handled(conn: &rusqlite::Connection, event_id: i64, action: i32) -> Result<(), AppError> {
+pub fn mark_event_handled(
+    conn: &rusqlite::Connection,
+    event_id: i64,
+    action: i32,
+) -> Result<(), AppError> {
     conn.execute(
         "UPDATE watcher_events SET handled = ?1 WHERE id = ?2",
         params![action, event_id],
