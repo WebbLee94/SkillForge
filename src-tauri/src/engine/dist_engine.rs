@@ -128,7 +128,7 @@ pub fn sync_scene(
             platform_id,
             scope,
             project_id,
-            plugin,
+            &**plugin,
             &instance,
         )?;
 
@@ -227,7 +227,7 @@ pub fn sync_scene(
             .unwrap_or(RulesFormat::Directory);
             sync_rules_to_platform(
                 conn,
-                plugin,
+                &**plugin,
                 &instance,
                 &rule_ids,
                 &rules_format,
@@ -501,7 +501,7 @@ fn get_distributed_skills(
     platform_id: &str,
     scope: &str,
     project_id: Option<&str>,
-    _plugin: &Box<dyn PlatformPlugin>,
+    _plugin: &dyn PlatformPlugin,
     instance: &PlatformInstance,
 ) -> Result<Vec<String>, AppError> {
     // Check if a distribution record exists for this scene/platform/scope
@@ -615,7 +615,7 @@ fn compute_scene_checksum(conn: &rusqlite::Connection, scene_id: &str) -> String
 /// Dispatch rules sync based on the platform's `RulesFormat`.
 fn sync_rules_to_platform(
     conn: &rusqlite::Connection,
-    plugin: &Box<dyn PlatformPlugin>,
+    plugin: &dyn PlatformPlugin,
     instance: &PlatformInstance,
     rule_ids: &[String],
     rules_format: &RulesFormat,
@@ -640,7 +640,7 @@ fn sync_rules_to_platform(
 /// - SingleFile mode: returns the full file path
 fn resolve_rules_path(
     _conn: &rusqlite::Connection,
-    plugin: &Box<dyn PlatformPlugin>,
+    plugin: &dyn PlatformPlugin,
     instance: &PlatformInstance,
 ) -> Option<std::path::PathBuf> {
     if instance.scope == "global" {
@@ -666,7 +666,7 @@ fn resolve_rules_path(
 /// Directory mode: write each rule as `{rules_dir}/{rule_id}.{format}`.
 fn sync_rules_to_directory(
     conn: &rusqlite::Connection,
-    plugin: &Box<dyn PlatformPlugin>,
+    plugin: &dyn PlatformPlugin,
     instance: &PlatformInstance,
     rule_ids: &[String],
     result: &mut SyncResult,
@@ -1119,7 +1119,7 @@ pub fn switch_global_scene(
                 // Install new rules
                 sync_rules_to_platform(
                     conn,
-                    plugin,
+                    &**plugin,
                     &instance,
                     &rules_to_install,
                     &rules_format,

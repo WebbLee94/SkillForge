@@ -215,16 +215,13 @@ pub struct SkillMeta {
 ///
 /// - `Directory`: each rule is written as `{rules_dir}/{rule_id}.{format}`
 /// - `SingleFile`: all rules are merged into one named file using SKILLFORGE markers
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum RulesFormat {
+    #[default]
     Directory,
-    SingleFile { file_name: String },
-}
-
-impl Default for RulesFormat {
-    fn default() -> Self {
-        RulesFormat::Directory
-    }
+    SingleFile {
+        file_name: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

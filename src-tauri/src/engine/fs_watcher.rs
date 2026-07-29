@@ -16,7 +16,6 @@ struct PendingEvent {
     id: u64,
     event_type: String,
     path: String,
-    created_at: String,
 }
 
 static EVENT_COUNTER: OnceLock<Mutex<u64>> = OnceLock::new();
@@ -326,7 +325,6 @@ pub fn start_file_watcher<R: Runtime>(app: AppHandle<R>, watch_paths: Vec<PathBu
                                 id,
                                 event_type: kind.to_string(),
                                 path: root_str,
-                                created_at: chrono::Utc::now().to_rfc3339(),
                             });
                         }
                     }
@@ -373,10 +371,8 @@ fn resolve_to_skill_root(path: &Path) -> Option<PathBuf> {
     let components: Vec<_> = path.components().collect();
     for i in 0..components.len() {
         let name = components[i].as_os_str().to_str()?;
-        if name == "skills" || name == "rules" {
-            if i + 1 < components.len() {
-                return Some(components[..=i + 1].iter().collect());
-            }
+        if (name == "skills" || name == "rules") && i + 1 < components.len() {
+            return Some(components[..=i + 1].iter().collect());
         }
     }
     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {

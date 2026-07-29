@@ -123,10 +123,11 @@ impl SourcePlugin for GitRepoSource {
         let known_subdirs = ["references", "scripts", "rules", "assets", "examples"];
         for subdir in &known_subdirs {
             let subdir_path = skill_dir.join(subdir);
-            if subdir_path.exists() && subdir_path.is_dir() {
-                if !bundle.subdirs.contains(&subdir.to_string()) {
-                    bundle.subdirs.push(subdir.to_string());
-                }
+            if subdir_path.exists()
+                && subdir_path.is_dir()
+                && !bundle.subdirs.contains(&subdir.to_string())
+            {
+                bundle.subdirs.push(subdir.to_string());
             }
         }
 

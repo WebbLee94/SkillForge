@@ -553,9 +553,9 @@ pub fn create_all_platform_plugins_vec() -> Vec<Box<dyn PlatformPlugin>> {
 
 /// Expand tilde (~) in paths to home directory
 pub fn expand_home(path: &str) -> std::path::PathBuf {
-    if path.starts_with("~/") {
+    if let Some(stripped) = path.strip_prefix("~/") {
         if let Some(home) = dirs::home_dir() {
-            return home.join(&path[2..]);
+            return home.join(stripped);
         }
     }
     std::path::PathBuf::from(path)

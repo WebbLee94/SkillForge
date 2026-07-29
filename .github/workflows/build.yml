@@ -19,7 +19,7 @@ jobs:
         working-directory: src-tauri
       - run: cargo fmt --all -- --check
         working-directory: src-tauri
-      - run: cargo clippy -- -W warnings
+      - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
       - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
       - run: npx vitest run
@@ -38,7 +38,7 @@ jobs:
         working-directory: src-tauri
       - run: cargo fmt --all -- --check
         working-directory: src-tauri
-      - run: cargo clippy -- -W warnings
+      - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
       - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
       - run: npx vitest run
@@ -61,7 +61,7 @@ jobs:
         working-directory: src-tauri
       - run: cargo fmt --all -- --check
         working-directory: src-tauri
-      - run: cargo clippy -- -W warnings
+      - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
       - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
       - run: npx vitest run

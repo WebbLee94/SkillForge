@@ -144,7 +144,7 @@ pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>
 
             // Merge with compile-time constant for paths
             let paths = crate::plugins::platform::definitions::find_platform_def(&id)
-                .map(|def| crate::types::PlatformPaths::from(def))
+                .map(crate::types::PlatformPaths::from)
                 .unwrap_or_else(|| crate::types::PlatformPaths {
                     global_skills_dir: String::new(),
                     project_skills_pattern: String::new(),
