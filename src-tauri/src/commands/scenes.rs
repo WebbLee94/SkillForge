@@ -109,28 +109,3 @@ pub fn get_scene_detail(
         .map_err(|e| AppError::Database(e.to_string()))?;
     engine::scene_engine::get_scene_detail(&conn, &id)
 }
-
-#[tauri::command]
-pub fn get_scene_platforms(
-    scene_id: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<String>, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    engine::scene_engine::get_scene_platforms(&conn, &scene_id)
-}
-
-#[tauri::command]
-pub fn set_scene_platforms(
-    scene_id: String,
-    platform_ids: Vec<String>,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    engine::scene_engine::set_scene_platforms(&conn, &scene_id, &platform_ids)
-}

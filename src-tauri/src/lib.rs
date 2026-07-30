@@ -35,8 +35,6 @@ pub fn run() {
             commands::scenes::add_rule_to_scene,
             commands::scenes::remove_rule_from_scene,
             commands::scenes::get_scene_detail,
-            commands::scenes::get_scene_platforms,
-            commands::scenes::set_scene_platforms,
             commands::distribution::sync_scene,
             commands::distribution::get_sync_status,
             commands::distribution::get_distributions,

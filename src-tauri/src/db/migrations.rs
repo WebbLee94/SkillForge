@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -25,6 +25,10 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
 
     if current < 2 {
         apply_v2(conn)?;
+    }
+
+    if current < 3 {
+        apply_v3(conn)?;
     }
 
     Ok(())
@@ -80,6 +84,17 @@ fn apply_v2(conn: &rusqlite::Connection) -> Result<(), AppError> {
     Ok(())
 }
 
+fn apply_v3(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    conn.execute_batch("DROP TABLE IF EXISTS scene_platforms;")?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![3, now],
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,7 +145,6 @@ mod tests {
         assert!(tables.contains(&"scenes".to_string()));
         assert!(tables.contains(&"platforms".to_string()));
         assert!(tables.contains(&"projects".to_string()));
-        assert!(tables.contains(&"scene_platforms".to_string()));
         assert!(tables.contains(&"distributions".to_string()));
         assert!(tables.contains(&"tags".to_string()));
         assert!(tables.contains(&"app_config".to_string()));
@@ -191,5 +205,19 @@ mod tests {
             })
             .unwrap();
         assert!(version >= 2);
+    }
+
+    #[test]
+    fn test_v3_migration_drops_scene_platforms() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        run_migrations(&mut conn).unwrap();
+
+        let mut stmt = conn
+            .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='scene_platforms'")
+            .unwrap();
+        let exists: bool = stmt
+            .query_row([], |row| Ok(row.get::<_, String>(0)?))
+            .is_ok();
+        assert!(!exists, "scene_platforms table should be dropped by v3");
     }
 }

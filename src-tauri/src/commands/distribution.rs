@@ -5,7 +5,9 @@ use crate::AppState;
 
 #[tauri::command]
 pub fn sync_scene(
-    scene_id: String,
+    skill_ids: Vec<String>,
+    rule_ids: Vec<String>,
+    scene_id: Option<String>,
     platforms: Option<Vec<String>>,
     scope: String,
     project_id: Option<String>,
@@ -16,14 +18,15 @@ pub fn sync_scene(
         .lock()
         .map_err(|e| AppError::Database(e.to_string()))?;
 
-    // Create platform plugin instances
     let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
         crate::plugins::platform::create_all_platform_plugins_vec();
 
     engine::dist_engine::sync_scene(
         &conn,
         &all_plugins,
-        &scene_id,
+        &skill_ids,
+        &rule_ids,
+        scene_id.as_deref(),
         platforms.as_deref(),
         &scope,
         project_id.as_deref(),

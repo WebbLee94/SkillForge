@@ -164,10 +164,6 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
     // Delete associations (cascading should handle this, but be explicit)
     conn.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
-    conn.execute(
-        "DELETE FROM scene_platforms WHERE scene_id = ?1",
-        params![id],
-    )?;
     conn.execute("DELETE FROM distributions WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
 
@@ -404,63 +400,18 @@ pub fn get_all_skills_scene(conn: &rusqlite::Connection) -> Result<SceneDetail, 
     get_scene_detail(conn, "__all_skills__")
 }
 
-/// Get platform IDs associated with a scene.
-/// Only returns platforms that are enabled (p.enabled != 0).
-/// For `__all_skills__` system scene, returns all enabled platforms.
+/// Get all enabled platform IDs.
+/// After scene_platforms removal, this returns all enabled platforms directly.
 pub fn get_scene_platforms(
     conn: &rusqlite::Connection,
-    scene_id: &str,
+    _scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
-    // Special handling for __all_skills__ system scene
-    if scene_id == "__all_skills__" {
-        let mut stmt =
-            conn.prepare("SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC")?;
-        let platform_ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-        return Ok(platform_ids);
-    }
-
-    let _scene = query_scene_by_id(conn, scene_id)?;
-
-    let mut stmt = conn.prepare(
-        "SELECT sp.platform_id FROM scene_platforms sp
-         INNER JOIN platforms p ON sp.platform_id = p.id
-         WHERE sp.scene_id = ?1 AND p.enabled != 0",
-    )?;
-
+    let mut stmt = conn.prepare("SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC")?;
     let platform_ids: Vec<String> = stmt
-        .query_map(params![scene_id], |row| row.get(0))?
+        .query_map([], |row| row.get(0))?
         .filter_map(|r| r.ok())
         .collect();
-
     Ok(platform_ids)
-}
-
-/// Set (replace) platform associations for a scene.
-pub fn set_scene_platforms(
-    conn: &rusqlite::Connection,
-    scene_id: &str,
-    platform_ids: &[String],
-) -> Result<(), AppError> {
-    let _scene = query_scene_by_id(conn, scene_id)?;
-
-    // Clear existing associations
-    conn.execute(
-        "DELETE FROM scene_platforms WHERE scene_id = ?1",
-        params![scene_id],
-    )?;
-
-    // Insert new associations
-    for platform_id in platform_ids {
-        conn.execute(
-            "INSERT OR IGNORE INTO scene_platforms (scene_id, platform_id) VALUES (?1, ?2)",
-            params![scene_id, platform_id],
-        )?;
-    }
-
-    Ok(())
 }
 
 // ── Internal helpers ───────────────────────────────────────────────

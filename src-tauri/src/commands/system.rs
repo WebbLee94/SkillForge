@@ -277,28 +277,16 @@ pub fn get_global_distribution_status(
             .unwrap_or(0)
         };
 
-        // Get per-platform status
-        // For __all_skills__ system scene, use all enabled platforms (no scene_platforms records)
+        // Get per-platform status — all enabled platforms (scene_platforms removed in v3)
         let mut stmt = conn.prepare(
-            if is_all_skills {
-                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
-                 FROM platforms p
-                 LEFT JOIN (
-                    SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
-                    FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
-                 ) d ON p.id = d.platform_id
-                 WHERE p.enabled != 0
-                 ORDER BY p.name ASC"
-            } else {
-                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
-                 FROM platforms p
-                 INNER JOIN scene_platforms sp ON sp.platform_id = p.id AND sp.scene_id = ?1
-                 LEFT JOIN (
-                    SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
-                    FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
-                 ) d ON p.id = d.platform_id
-                 WHERE p.enabled != 0"
-            },
+            "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
+             FROM platforms p
+             LEFT JOIN (
+                SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
+                FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
+             ) d ON p.id = d.platform_id
+             WHERE p.enabled != 0
+             ORDER BY p.name ASC",
         )?;
         let platforms: Vec<PlatformDistInfo> = stmt
             .query_map(params![sid, status.skill_count], |row| {

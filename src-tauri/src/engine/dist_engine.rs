@@ -4,55 +4,47 @@ use crate::types::{
     Distribution, PlatformInstance, PlatformSyncStatus, RulesFormat, Skill, SyncResult,
     SyncStatusDTO,
 };
-
 use rusqlite::params;
 
-/// Sync a scene to one or more platforms.
+/// Sync skills and rules to one or more platforms.
 ///
 /// This is the core distribution operation:
-/// 1. Resolve all skills and rules in the scene
-/// 2. For each platform, compute diff and execute install/update/remove
-/// 3. Record sync logs
+/// 1. Use directly provided skill/rule IDs (or resolve from scene if scene_id given)
+/// 2. Auto-resolve platforms to all enabled platforms if not specified
+/// 3. For each platform, compute diff and execute install/update/remove
+/// 4. Record sync logs
+#[allow(clippy::too_many_arguments)]
 pub fn sync_scene(
     conn: &rusqlite::Connection,
     platform_plugins: &[Box<dyn PlatformPlugin>],
-    scene_id: &str,
+    skill_ids: &[String],
+    rule_ids: &[String],
+    scene_id: Option<&str>,
     platform_ids: Option<&[String]>,
     scope: &str,
     project_id: Option<&str>,
 ) -> Result<SyncResult, AppError> {
-    // Verify scene exists
-    let _scene = crate::engine::scene_engine::get_scene_detail(conn, scene_id)?;
-
-    // If no platforms specified, auto-resolve from scene_platforms
+    // If no platforms specified, auto-resolve to all enabled platforms
     let resolved_platform_ids: Vec<String>;
     let platform_ids = match platform_ids {
         Some(ids) if !ids.is_empty() => ids,
         _ => {
-            resolved_platform_ids =
-                crate::engine::scene_engine::get_scene_platforms(conn, scene_id)?;
+            resolved_platform_ids = crate::engine::scene_engine::get_scene_platforms(conn, "")?;
             if resolved_platform_ids.is_empty() {
-                return Err(AppError::Platform(
-                    "场景未关联任何平台，请先在场景编辑中配置目标平台".to_string(),
-                ));
+                return Err(AppError::Platform("没有已启用的平台".to_string()));
             }
             &resolved_platform_ids
         }
     };
-
     let mut result = SyncResult {
         installed: Vec::new(),
         updated: Vec::new(),
         removed: Vec::new(),
         errors: Vec::new(),
     };
-
-    // Resolve skills in the scene
-    let skill_ids = resolve_scene_skills(conn, scene_id)?;
-
-    // Resolve rules in the scene
-    let rule_ids = resolve_scene_rules(conn, scene_id)?;
-
+    // Use the directly provided skill/rule lists (scene_id is informational only)
+    let skill_ids: Vec<String> = skill_ids.to_vec();
+    let rule_ids: Vec<String> = rule_ids.to_vec();
     // Get project path if project-scoped
     let project_path: Option<String> = if scope == "project" {
         Some(
@@ -65,14 +57,12 @@ pub fn sync_scene(
     } else {
         None
     };
-
     // For each target platform
     for platform_id in platform_ids {
         let plugin = platform_plugins
             .iter()
             .find(|p| p.platform_name() == platform_id)
             .ok_or_else(|| AppError::Platform(format!("未找到平台插件: {}", platform_id)))?;
-
         // Detect platform instances
         let instances = match plugin.detect() {
             Ok(instances) => instances,
@@ -83,7 +73,6 @@ pub fn sync_scene(
                 continue;
             }
         };
-
         // Find matching instance for the requested scope
         let instance = if scope == "global" {
             instances
@@ -104,7 +93,6 @@ pub fn sync_scene(
                     pattern.replace("{project}", p)
                 })
                 .unwrap_or_default();
-
             PlatformInstance {
                 platform_id: platform_id.to_string(),
                 platform_name: platform_id.to_string(),
@@ -112,7 +100,6 @@ pub fn sync_scene(
                 scope: "project".to_string(),
             }
         };
-
         // Ensure instance directory exists
         if let Some(parent) = std::path::Path::new(&instance.path).parent() {
             crate::engine::fs_watcher::mute_self_writes(parent);
@@ -120,30 +107,26 @@ pub fn sync_scene(
                 AppError::Io(format!("无法创建平台目录 '{}': {}", parent.display(), e))
             })?;
         }
-
         // Compute diff: what's currently on disk vs what should be
         let current_skill_ids = get_distributed_skills(
             conn,
-            scene_id,
+            scene_id.unwrap_or(""),
             platform_id,
             scope,
             project_id,
             &**plugin,
             &instance,
         )?;
-
         // Skills to install (in scene but not in current distribution)
         let to_install: Vec<&String> = skill_ids
             .iter()
             .filter(|id| !current_skill_ids.contains(id))
             .collect();
-
         // Skills to remove (in current distribution but not in scene)
         let to_remove: Vec<&String> = current_skill_ids
             .iter()
             .filter(|id| !skill_ids.contains(id))
             .collect();
-
         // Execute installs
         for skill_id in &to_install {
             match get_skill(conn, skill_id) {
@@ -183,7 +166,6 @@ pub fn sync_scene(
                 }
             }
         }
-
         // Execute removes
         for skill_id in &to_remove {
             match plugin.remove(skill_id, &instance) {
@@ -216,7 +198,6 @@ pub fn sync_scene(
                 }
             }
         }
-
         // Sync rules for platforms that support rules
         if plugin.default_paths().global_rules_dir.is_some() {
             let rules_format = if instance.scope == "global" {
@@ -234,20 +215,16 @@ pub fn sync_scene(
                 &mut result,
             )?;
         }
-
         // Update distribution record
-        let checksum = compute_scene_checksum(conn, scene_id);
-
+        let checksum = compute_scene_checksum(conn, scene_id.unwrap_or(""));
         conn.execute(
             "INSERT OR REPLACE INTO distributions (scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, datetime('now'), ?7)",
-            params![scene_id, platform_id, scope, project_id, project_path, "synced", checksum],
+            params![scene_id.unwrap_or(""), platform_id, scope, project_id, project_path, "synced", checksum],
         )?;
     }
-
     Ok(result)
 }
-
 /// Get the current sync status across all enabled platforms.
 pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, AppError> {
     let mut stmt = conn.prepare(
@@ -269,7 +246,6 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
          WHERE p.enabled != 0
          ORDER BY p.name ASC",
     )?;
-
     let platforms: Vec<PlatformSyncStatus> = stmt
         .query_map([], |row| {
             let pid: String = row.get(0)?;
@@ -277,7 +253,6 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
             let pstatus: String = row.get(2)?;
             let synced_count: i64 = row.get(3)?;
             let total_count: i64 = row.get(4)?;
-
             // Compute filesystem counts
             let (scene_skill_count, synced_skill_count, scene_rule_count, synced_rule_count) = {
                 // Scene skill/rule counts from current global scene
@@ -288,7 +263,6 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                         |r| r.get(0),
                     )
                     .unwrap_or(None);
-
                 let scene_skills: i64 = if let Some(ref sid) = global_scene_id {
                     conn.query_row(
                         "SELECT COUNT(*) FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
@@ -299,7 +273,6 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                 } else {
                     0
                 };
-
                 let scene_rules: i64 = if let Some(ref sid) = global_scene_id {
                     conn.query_row(
                         "SELECT COUNT(*) FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
@@ -310,7 +283,6 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                 } else {
                     0
                 };
-
                 // Filesystem counts from platform directory
                 let (fs_skills, fs_rules) =
                     match crate::plugins::platform::create_platform_plugin(&pid) {
@@ -328,10 +300,8 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
                         }
                         Err(_) => (0, 0),
                     };
-
                 (scene_skills, fs_skills, scene_rules, fs_rules)
             };
-
             Ok(PlatformSyncStatus {
                 platform_id: pid,
                 platform_name: pname,
@@ -346,10 +316,8 @@ pub fn get_sync_status(conn: &rusqlite::Connection) -> Result<SyncStatusDTO, App
         })?
         .filter_map(|r| r.ok())
         .collect();
-
     Ok(SyncStatusDTO { platforms })
 }
-
 /// Get distribution details for a specific scene/platform/scope combination.
 pub fn get_distribution_detail(
     conn: &rusqlite::Connection,
@@ -362,7 +330,6 @@ pub fn get_distribution_detail(
          FROM distributions
          WHERE scene_id = ?1 AND platform_id = ?2 AND scope = ?3",
     )?;
-
     let distributions = stmt
         .query_map(params![scene_id, platform_id, scope], |row| {
             Ok(Distribution {
@@ -379,10 +346,8 @@ pub fn get_distribution_detail(
         })?
         .filter_map(|r| r.ok())
         .collect();
-
     Ok(distributions)
 }
-
 /// Get all distributions, optionally filtered.
 pub fn get_distributions(
     conn: &rusqlite::Connection,
@@ -395,9 +360,7 @@ pub fn get_distributions(
         "SELECT id, scene_id, platform_id, scope, project_id, project_path, status, last_synced_at, checksum
          FROM distributions ORDER BY last_synced_at DESC"
     };
-
     let mut stmt = conn.prepare(sql)?;
-
     let distributions: Vec<Distribution> = if let Some(sid) = scene_id {
         stmt.query_map(params![sid], |row| {
             Ok(Distribution {
@@ -431,12 +394,9 @@ pub fn get_distributions(
         .filter_map(|r| r.ok())
         .collect()
     };
-
     Ok(distributions)
 }
-
 // ── Internal helpers ───────────────────────────────────────────────
-
 pub fn resolve_scene_skills(
     conn: &rusqlite::Connection,
     scene_id: &str,
@@ -458,7 +418,6 @@ pub fn resolve_scene_skills(
         Ok(result)
     }
 }
-
 pub fn resolve_scene_rules(
     conn: &rusqlite::Connection,
     scene_id: &str,
@@ -480,7 +439,6 @@ pub fn resolve_scene_rules(
         Ok(result)
     }
 }
-
 // Public wrappers for preview_sync command
 pub fn resolve_scene_skills_for_preview(
     conn: &rusqlite::Connection,
@@ -494,7 +452,6 @@ pub fn resolve_scene_rules_for_preview(
 ) -> Result<Vec<String>, crate::error::AppError> {
     resolve_scene_rules(conn, scene_id)
 }
-
 fn get_distributed_skills(
     conn: &rusqlite::Connection,
     scene_id: &str,
@@ -520,19 +477,16 @@ fn get_distributed_skills(
         )
         .map(|c| c > 0)?
     };
-
     if !has_distribution {
         // First sync: nothing on disk yet, return empty so all skills get installed
         return Ok(vec![]);
     }
-
     // Read actual filesystem: list subdirectories in the skills directory
     let skills_dir = std::path::Path::new(&instance.path);
     if !skills_dir.exists() {
         // Directory doesn't exist yet — treat as empty
         return Ok(vec![]);
     }
-
     let mut current_skill_ids = Vec::new();
     if let Ok(entries) = std::fs::read_dir(skills_dir) {
         for entry in entries.flatten() {
@@ -546,10 +500,8 @@ fn get_distributed_skills(
             }
         }
     }
-
     Ok(current_skill_ids)
 }
-
 fn get_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppError> {
     conn.query_row(
         "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata
@@ -572,7 +524,6 @@ fn get_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppEr
     )
     .map_err(|_| AppError::SkillNotFound(skill_id.to_string()))
 }
-
 fn get_project_path(conn: &rusqlite::Connection, project_id: &str) -> Option<String> {
     conn.query_row(
         "SELECT path FROM projects WHERE id = ?1",
@@ -581,7 +532,6 @@ fn get_project_path(conn: &rusqlite::Connection, project_id: &str) -> Option<Str
     )
     .ok()
 }
-
 fn log_sync(
     conn: &rusqlite::Connection,
     action: &str,
@@ -599,19 +549,16 @@ fn log_sync(
     )
     .ok();
 }
-
 fn compute_scene_checksum(conn: &rusqlite::Connection, scene_id: &str) -> String {
     // Simple checksum based on skill IDs and versions
     let skills: Vec<String> = resolve_scene_skills(conn, scene_id).unwrap_or_default();
     let rules: Vec<String> = resolve_scene_rules(conn, scene_id).unwrap_or_default();
-
     let combined = format!("skills:{:?};rules:{:?}", skills, rules);
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(combined.as_bytes());
     format!("{:x}", hasher.finalize())[..16].to_string()
 }
-
 /// Dispatch rules sync based on the platform's `RulesFormat`.
 fn sync_rules_to_platform(
     conn: &rusqlite::Connection,
@@ -633,7 +580,6 @@ fn sync_rules_to_platform(
         }
     }
 }
-
 /// Resolve the rules path (directory or file) for the given platform instance.
 ///
 /// - Directory mode: returns the rules directory path
@@ -662,7 +608,6 @@ fn resolve_rules_path(
             })
     }
 }
-
 /// Directory mode: write each rule as `{rules_dir}/{rule_id}.{format}`.
 fn sync_rules_to_directory(
     conn: &rusqlite::Connection,
@@ -672,13 +617,11 @@ fn sync_rules_to_directory(
     result: &mut SyncResult,
 ) -> Result<(), AppError> {
     let rules_dir = resolve_rules_path(conn, plugin, instance);
-
     if let Some(rules_dir) = &rules_dir {
         crate::engine::fs_watcher::mute_self_writes(rules_dir);
         std::fs::create_dir_all(rules_dir).map_err(|e| {
             AppError::Io(format!("无法创建规则目录 '{}': {}", rules_dir.display(), e))
         })?;
-
         // Diff removal: remove rule files that are no longer in the scene
         if let Ok(entries) = std::fs::read_dir(rules_dir) {
             let expected: std::collections::HashSet<&str> =
@@ -705,7 +648,6 @@ fn sync_rules_to_directory(
                 }
             }
         }
-
         for rule_id in rule_ids {
             // Get rule content from DB
             let rule_content: Option<String> = conn
@@ -715,7 +657,6 @@ fn sync_rules_to_directory(
                     |row| row.get(0),
                 )
                 .ok();
-
             let rule_format: Option<String> = conn
                 .query_row(
                     "SELECT format FROM rules WHERE id = ?1",
@@ -723,11 +664,9 @@ fn sync_rules_to_directory(
                     |row| row.get(0),
                 )
                 .ok();
-
             if let (Some(content), Some(format)) = (rule_content, rule_format) {
                 let file_name = format!("{}.{}", rule_id, format);
                 let rule_path = rules_dir.join(&file_name);
-
                 crate::engine::fs_watcher::mute_self_writes(&rule_path);
                 match std::fs::write(&rule_path, &content) {
                     Ok(_) => {
@@ -745,10 +684,8 @@ fn sync_rules_to_directory(
             }
         }
     }
-
     Ok(())
 }
-
 /// SingleFile mode: merge all rules into one file using SKILLFORGE markers.
 ///
 /// File format:
@@ -781,20 +718,17 @@ fn sync_rules_to_single_file(
             ))
         })?;
     }
-
     // Read existing content
     let existing_content = if file_path.exists() {
         std::fs::read_to_string(file_path).unwrap_or_default()
     } else {
         String::new()
     };
-
     // Remove all SKILLFORGE-managed blocks, preserving user content
     let re =
         regex::Regex::new(r"<!-- SKILLFORGE:rule:.*? -->[\s\S]*?<!-- /SKILLFORGE:rule:.*? -->")
             .map_err(|e| AppError::Platform(format!("正则编译失败: {}", e)))?;
     let user_content = re.replace_all(&existing_content, "").trim().to_string();
-
     // Build new SKILLFORGE blocks
     let mut skillforge_blocks = String::new();
     for rule_id in rule_ids {
@@ -805,7 +739,6 @@ fn sync_rules_to_single_file(
                 |row| row.get(0),
             )
             .ok();
-
         if let Some(content) = rule_content {
             skillforge_blocks.push_str(&format!(
                 "\n<!-- SKILLFORGE:rule:{} -->\n{}<!-- /SKILLFORGE:rule:{} -->\n",
@@ -814,7 +747,6 @@ fn sync_rules_to_single_file(
             result.installed.push(format!("rule:{}", rule_id));
         }
     }
-
     // Combine: user content first, then SKILLFORGE blocks
     let mut final_content = String::new();
     if !user_content.is_empty() {
@@ -824,7 +756,6 @@ fn sync_rules_to_single_file(
         }
     }
     final_content.push_str(&skillforge_blocks);
-
     // Write file (or delete if empty)
     if final_content.trim().is_empty() {
         if file_path.exists() {
@@ -835,10 +766,8 @@ fn sync_rules_to_single_file(
         crate::engine::fs_watcher::mute_self_writes(file_path);
         std::fs::write(file_path, &final_content)?;
     }
-
     Ok(())
 }
-
 /// Remove a single rule from a SingleFile-managed file.
 ///
 /// Removes the specific `<!-- SKILLFORGE:rule:{id} -->...<!-- /SKILLFORGE:rule:{id} -->` block.
@@ -849,9 +778,7 @@ fn remove_rule_from_single_file(
     if !file_path.exists() {
         return Ok(());
     }
-
     let existing_content = std::fs::read_to_string(file_path).unwrap_or_default();
-
     let pattern = format!(
         r"<!-- SKILLFORGE:rule:{} -->[\s\S]*?<!-- /SKILLFORGE:rule:{} -->",
         regex::escape(rule_id),
@@ -860,7 +787,6 @@ fn remove_rule_from_single_file(
     let re = regex::Regex::new(&pattern)
         .map_err(|e| AppError::Platform(format!("正则编译失败: {}", e)))?;
     let new_content = re.replace_all(&existing_content, "").trim().to_string();
-
     if new_content.is_empty() {
         crate::engine::fs_watcher::mute_self_writes(file_path);
         std::fs::remove_file(file_path)?;
@@ -868,10 +794,8 @@ fn remove_rule_from_single_file(
         crate::engine::fs_watcher::mute_self_writes(file_path);
         std::fs::write(file_path, format!("{}\n", new_content))?;
     }
-
     Ok(())
 }
-
 /// Switch the global scene with diff-based install/remove.
 ///
 /// Computes the diff between the old scene's skills/rules and the new scene's,
@@ -885,7 +809,6 @@ pub fn switch_global_scene(
 ) -> Result<SyncResult, AppError> {
     // Verify new scene exists
     let _scene = crate::engine::scene_engine::get_scene_detail(conn, new_scene_id)?;
-
     // Get old scene_id from app_config
     let old_scene_id: Option<String> = conn
         .query_row(
@@ -894,7 +817,6 @@ pub fn switch_global_scene(
             |row| row.get(0),
         )
         .unwrap_or(None);
-
     // Get platform associations for old and new scenes
     let old_platform_ids: Vec<String> = if let Some(ref old_id) = old_scene_id {
         crate::engine::scene_engine::get_scene_platforms(conn, old_id)?
@@ -902,7 +824,6 @@ pub fn switch_global_scene(
         vec![]
     };
     let new_platform_ids = crate::engine::scene_engine::get_scene_platforms(conn, new_scene_id)?;
-
     // Compute platform diff
     let platforms_only_old: Vec<String> = old_platform_ids
         .iter()
@@ -919,17 +840,14 @@ pub fn switch_global_scene(
         .filter(|p| new_platform_ids.contains(p))
         .cloned()
         .collect();
-
     // Get old scene skills (if any)
     let old_skills: Vec<String> = if let Some(ref old_id) = old_scene_id {
         resolve_scene_skills(conn, old_id)?
     } else {
         vec![]
     };
-
     // Get new scene skills
     let new_skills = resolve_scene_skills(conn, new_scene_id)?;
-
     // Compute skill diff
     let skills_to_remove: Vec<String> = old_skills
         .iter()
@@ -941,19 +859,16 @@ pub fn switch_global_scene(
         .filter(|s| !old_skills.contains(s))
         .cloned()
         .collect();
-
     let mut result = SyncResult {
         installed: vec![],
         updated: vec![],
         removed: vec![],
         errors: vec![],
     };
-
     // Helper: find plugin by platform_id
     let find_plugin = |pid: &str| -> Option<&Box<dyn PlatformPlugin>> {
         platform_plugins.iter().find(|p| p.platform_name() == pid)
     };
-
     // 1. Platforms only in old scene: remove ALL old skills
     for pid in &platforms_only_old {
         if let Some(plugin) = find_plugin(pid) {
@@ -987,7 +902,6 @@ pub fn switch_global_scene(
             }
         }
     }
-
     // 2. Shared platforms: install new skills first, then remove old
     for pid in &platforms_shared {
         if let Some(plugin) = find_plugin(pid) {
@@ -1043,7 +957,6 @@ pub fn switch_global_scene(
             }
         }
     }
-
     // 3. Platforms only in new scene: install ALL new skills
     for pid in &platforms_only_new {
         if let Some(plugin) = find_plugin(pid) {
@@ -1077,7 +990,6 @@ pub fn switch_global_scene(
             }
         }
     }
-
     // Same for rules
     let old_rules: Vec<String> = if let Some(ref old_id) = old_scene_id {
         resolve_scene_rules(conn, old_id)?
@@ -1095,7 +1007,6 @@ pub fn switch_global_scene(
         .filter(|r| !old_rules.contains(r))
         .cloned()
         .collect();
-
     // Rules: only shared and new platforms
     let all_target_platforms: Vec<&String> = platforms_shared
         .iter()
@@ -1128,7 +1039,6 @@ pub fn switch_global_scene(
             }
         }
     }
-
     // Remove old rules from platforms only in old scene
     for pid in &platforms_only_old {
         if let Some(plugin) = find_plugin(pid) {
@@ -1180,7 +1090,6 @@ pub fn switch_global_scene(
             }
         }
     }
-
     // Remove old rules from shared platforms
     for pid in &platforms_shared {
         if let Some(plugin) = find_plugin(pid) {
@@ -1232,13 +1141,11 @@ pub fn switch_global_scene(
             }
         }
     }
-
     // Update global_scene_id in app_config
     conn.execute(
         "UPDATE app_config SET value = ?1 WHERE key = 'global_scene_id'",
         params![new_scene_id],
     )?;
-
     // Update distribution records for new scene's platforms only
     let checksum = compute_scene_checksum(conn, new_scene_id);
     for pid in &new_platform_ids {
@@ -1248,7 +1155,6 @@ pub fn switch_global_scene(
             params![new_scene_id, pid, checksum],
         )?;
     }
-
     // Clean up distribution records for platforms no longer associated
     for pid in &platforms_only_old {
         conn.execute(
@@ -1256,10 +1162,8 @@ pub fn switch_global_scene(
             params![new_scene_id, pid],
         )?;
     }
-
     Ok(result)
 }
-
 /// Count subdirectories in a path (non-hidden, one level).
 fn count_fs_subdirs(path: &std::path::Path) -> i64 {
     if !path.exists() {
@@ -1279,7 +1183,6 @@ fn count_fs_subdirs(path: &std::path::Path) -> i64 {
     }
     count
 }
-
 /// Count files in a directory (non-hidden, one level).
 fn count_fs_files(path: &std::path::Path) -> i64 {
     if !path.exists() {
@@ -1299,114 +1202,78 @@ fn count_fs_files(path: &std::path::Path) -> i64 {
     }
     count
 }
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::db::schema;
-
     fn setup_db() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         schema::create_tables(&conn).unwrap();
-        // Create scene_platforms table (normally created by migration v4)
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS scene_platforms (
-                scene_id TEXT NOT NULL,
-                platform_id TEXT NOT NULL,
-                PRIMARY KEY (scene_id, platform_id),
-                FOREIGN KEY (scene_id) REFERENCES scenes(id) ON DELETE CASCADE,
-                FOREIGN KEY (platform_id) REFERENCES platforms(id) ON DELETE CASCADE
-            )",
-            [],
-        )
-        .unwrap();
         conn
     }
-
     #[test]
     fn test_get_sync_status() {
         let conn = setup_db();
         let status = get_sync_status(&conn).unwrap();
         assert_eq!(status.platforms.len(), 12); // 12 built-in platforms
     }
-
     #[test]
     fn test_get_distributions_empty() {
         let conn = setup_db();
         let dists = get_distributions(&conn, None).unwrap();
         assert!(dists.is_empty());
     }
-
     #[test]
     fn test_sync_to_missing_directory() {
         // Test that syncing to a non-existent directory auto-creates it
         let test_dir = format!("/tmp/skillforge-test-sync-{}", std::process::id());
         let _ = std::fs::remove_dir_all(&test_dir); // cleanup from previous runs
-
-        // Verify the directory doesn't exist yet
+                                                    // Verify the directory doesn't exist yet
         assert!(!std::path::Path::new(&test_dir).exists());
-
         // Simulate the directory creation logic from sync_scene
         let path = std::path::Path::new(&test_dir);
         if let Some(parent) = path.parent() {
             let result = std::fs::create_dir_all(parent);
             assert!(result.is_ok(), "Should be able to create parent directory");
         }
-
         // Verify directory was created
         assert!(path.parent().unwrap().exists());
-
         // Cleanup
         std::fs::remove_dir_all(&test_dir).ok();
     }
-
     #[test]
-    fn test_sync_scene_not_found() {
+    fn test_sync_scene_no_platforms() {
         let conn = setup_db();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
-
-        let result = sync_scene(&conn, &plugins, "nonexistent-scene", None, "global", None);
+        // sync_scene with empty skill/rule lists and no scene_id should succeed
+        // (no skills to install, nothing to fail on)
+        // With no platforms explicitly specified, it auto-resolves to 12 enabled platforms
+        // but since plugins list is empty, each platform will fail with "platform not found"
+        let result = sync_scene(&conn, &plugins, &[], &[], None, None, "global", None);
         assert!(result.is_err());
-
-        match result.unwrap_err() {
-            AppError::SceneNotFound(id) => assert_eq!(id, "nonexistent-scene"),
-            other => panic!("Expected SceneNotFound error, got: {:?}", other),
-        }
     }
-
     #[test]
     fn test_sync_project_scope_without_project() {
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
-
         // Create a scene with a platform association
         conn.execute(
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
             params!["test-scene", "Test Scene", "A test", now, now],
         ).unwrap();
-        conn.execute(
-            "INSERT INTO scene_platforms (scene_id, platform_id) VALUES (?1, ?2)",
-            params!["test-scene", "claude-code"],
-        )
-        .unwrap();
-
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
-
         // Sync with project scope but no project_id should fail
-        let result = sync_scene(&conn, &plugins, "test-scene", None, "project", None);
+        let result = sync_scene(&conn, &plugins, &[], &[], None, None, "project", None);
         assert!(result.is_err());
-
         match result.unwrap_err() {
             AppError::ProjectNotFound(msg) => assert!(msg.contains("项目ID")),
             other => panic!("Expected ProjectNotFound error, got: {:?}", other),
         }
     }
-
     #[test]
     fn test_switch_global_scene_no_overlap() {
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
-
         // Create two scenes with different skills
         conn.execute(
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
@@ -1416,7 +1283,6 @@ mod tests {
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
             params!["scene-b", "Scene B", "B", now, now],
         ).unwrap();
-
         // Insert skills
         conn.execute(
             "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -1426,7 +1292,6 @@ mod tests {
             "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
             params!["skill-2", "Skill 2", "local-fs", now, "/tmp/s2"],
         ).unwrap();
-
         // Add skill-1 to scene-a
         conn.execute(
             "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, 0)",
@@ -1437,21 +1302,17 @@ mod tests {
             "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, 0)",
             params!["scene-b", "skill-2"],
         ).unwrap();
-
         // Set scene-a as current global scene
         conn.execute(
             "UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'",
             [],
         )
         .unwrap();
-
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         let result = switch_global_scene(&conn, &plugins, "scene-b").unwrap();
-
         // skill-2 should be in to_install, skill-1 in to_remove (no overlap)
         assert!(result.installed.contains(&"skill-2".to_string()) || result.errors.is_empty());
         assert!(result.removed.contains(&"skill-1".to_string()) || result.errors.is_empty());
-
         // Verify global_scene_id updated
         let new_scene_id: Option<String> = conn
             .query_row(
@@ -1462,12 +1323,10 @@ mod tests {
             .unwrap_or(None);
         assert_eq!(new_scene_id, Some("scene-b".to_string()));
     }
-
     #[test]
     fn test_switch_global_scene_partial_overlap() {
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
-
         conn.execute(
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
             params!["scene-a", "Scene A", "A", now, now],
@@ -1476,7 +1335,6 @@ mod tests {
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
             params!["scene-b", "Scene B", "B", now, now],
         ).unwrap();
-
         conn.execute(
             "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
             params!["skill-1", "Skill 1", "local-fs", now, "/tmp/s1"],
@@ -1489,65 +1347,53 @@ mod tests {
             "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
             params!["skill-3", "Skill 3", "local-fs", now, "/tmp/s3"],
         ).unwrap();
-
         // scene-a has skill-1, skill-2
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-a', 'skill-1', 1, 0)", []).unwrap();
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-a', 'skill-2', 1, 1)", []).unwrap();
         // scene-b has skill-2, skill-3 (overlap: skill-2)
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-b', 'skill-2', 1, 0)", []).unwrap();
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-b', 'skill-3', 1, 1)", []).unwrap();
-
         conn.execute(
             "UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'",
             [],
         )
         .unwrap();
-
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         let result = switch_global_scene(&conn, &plugins, "scene-b").unwrap();
-
         // skill-3 should be installed, skill-1 should be removed, skill-2 unchanged
         assert!(result.installed.contains(&"skill-3".to_string()) || result.errors.is_empty());
         assert!(result.removed.contains(&"skill-1".to_string()) || result.errors.is_empty());
         assert!(!result.installed.contains(&"skill-2".to_string()));
         assert!(!result.removed.contains(&"skill-2".to_string()));
     }
-
     #[test]
     fn test_switch_global_scene_idempotent() {
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
-
         conn.execute(
             "INSERT INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 0, ?4, ?5)",
             params!["scene-a", "Scene A", "A", now, now],
         ).unwrap();
-
         conn.execute(
             "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
             params!["skill-1", "Skill 1", "local-fs", now, "/tmp/s1"],
         ).unwrap();
-
         conn.execute("INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES ('scene-a', 'skill-1', 1, 0)", []).unwrap();
         conn.execute(
             "UPDATE app_config SET value = 'scene-a' WHERE key = 'global_scene_id'",
             [],
         )
         .unwrap();
-
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         let result = switch_global_scene(&conn, &plugins, "scene-a").unwrap();
-
         // Switching to the same scene should result in no installs/removes
         assert!(result.installed.is_empty());
         assert!(result.removed.is_empty());
     }
-
     #[test]
     fn test_sync_rules_to_single_file_create() {
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
-
         // Insert rules into DB
         conn.execute(
             "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
@@ -1557,11 +1403,9 @@ mod tests {
             "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
             params!["rule-2", "Rule 2", "md", "# Rule 2\nNo hardcoded secrets", now],
         ).unwrap();
-
         let test_dir = format!("/tmp/skillforge-test-sf-{}", std::process::id());
         let _ = std::fs::remove_dir_all(&test_dir);
         let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
-
         let rule_ids = vec!["rule-1".to_string(), "rule-2".to_string()];
         let mut result = SyncResult {
             installed: vec![],
@@ -1569,12 +1413,9 @@ mod tests {
             removed: vec![],
             errors: vec![],
         };
-
         sync_rules_to_single_file(&conn, &file_path, &rule_ids, &mut result).unwrap();
-
         // File should exist
         assert!(file_path.exists());
-
         // Content should contain both SKILLFORGE blocks
         let content = std::fs::read_to_string(&file_path).unwrap();
         assert!(content.contains("<!-- SKILLFORGE:rule:rule-1 -->"));
@@ -1583,33 +1424,27 @@ mod tests {
         assert!(content.contains("<!-- SKILLFORGE:rule:rule-2 -->"));
         assert!(content.contains("# Rule 2\nNo hardcoded secrets"));
         assert!(content.contains("<!-- /SKILLFORGE:rule:rule-2 -->"));
-
         // Both rules should be in installed
         assert!(result.installed.contains(&"rule:rule-1".to_string()));
         assert!(result.installed.contains(&"rule:rule-2".to_string()));
-
         // Cleanup
         std::fs::remove_dir_all(&test_dir).ok();
     }
-
     #[test]
     fn test_sync_rules_to_single_file_preserves_user_content() {
         let test_dir = format!("/tmp/skillforge-test-sf-preserve-{}", std::process::id());
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
         let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
-
         // Pre-existing file with user content + old SKILLFORGE block
         let pre_content = "# My custom header\n\nThis is user content.\n\n<!-- SKILLFORGE:rule:old-rule -->\nOld content\n<!-- /SKILLFORGE:rule:old-rule -->\n";
         std::fs::write(&file_path, pre_content).unwrap();
-
         let conn = setup_db();
         let now = chrono::Utc::now().to_rfc3339();
         conn.execute(
             "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
             params!["new-rule", "New Rule", "md", "# New Rule\nBe excellent", now],
         ).unwrap();
-
         let rule_ids = vec!["new-rule".to_string()];
         let mut result = SyncResult {
             installed: vec![],
@@ -1617,39 +1452,30 @@ mod tests {
             removed: vec![],
             errors: vec![],
         };
-
         sync_rules_to_single_file(&conn, &file_path, &rule_ids, &mut result).unwrap();
-
         let content = std::fs::read_to_string(&file_path).unwrap();
-
         // User content should be preserved
         assert!(content.contains("# My custom header"));
         assert!(content.contains("This is user content."));
-
         // Old SKILLFORGE block should be removed
         assert!(!content.contains("<!-- SKILLFORGE:rule:old-rule -->"));
         assert!(!content.contains("Old content"));
-
         // New SKILLFORGE block should be present
         assert!(content.contains("<!-- SKILLFORGE:rule:new-rule -->"));
         assert!(content.contains("# New Rule\nBe excellent"));
         assert!(content.contains("<!-- /SKILLFORGE:rule:new-rule -->"));
-
         // Cleanup
         std::fs::remove_dir_all(&test_dir).ok();
     }
-
     #[test]
     fn test_sync_rules_to_single_file_empty_rules_removes_blocks() {
         let test_dir = format!("/tmp/skillforge-test-sf-empty-{}", std::process::id());
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
         let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
-
         // Pre-existing file with SKILLFORGE block + user content
         let pre_content = "# User header\n\n<!-- SKILLFORGE:rule:old-rule -->\nOld content\n<!-- /SKILLFORGE:rule:old-rule -->\n";
         std::fs::write(&file_path, pre_content).unwrap();
-
         let conn = setup_db();
         let rule_ids: Vec<String> = vec![];
         let mut result = SyncResult {
@@ -1658,65 +1484,47 @@ mod tests {
             removed: vec![],
             errors: vec![],
         };
-
         sync_rules_to_single_file(&conn, &file_path, &rule_ids, &mut result).unwrap();
-
         let content = std::fs::read_to_string(&file_path).unwrap();
-
         // SKILLFORGE block should be removed
         assert!(!content.contains("SKILLFORGE"));
-
         // User content should be preserved
         assert!(content.contains("# User header"));
-
         // Cleanup
         std::fs::remove_dir_all(&test_dir).ok();
     }
-
     #[test]
     fn test_remove_rule_from_single_file() {
         let test_dir = format!("/tmp/skillforge-test-rm-sf-{}", std::process::id());
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
         let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
-
         let content = "# User header\n\n<!-- SKILLFORGE:rule:rule-a -->\nContent A\n<!-- /SKILLFORGE:rule:rule-a -->\n\n<!-- SKILLFORGE:rule:rule-b -->\nContent B\n<!-- /SKILLFORGE:rule:rule-b -->\n";
         std::fs::write(&file_path, content).unwrap();
-
         remove_rule_from_single_file(&file_path, "rule-a").unwrap();
-
         let new_content = std::fs::read_to_string(&file_path).unwrap();
-
         // rule-a should be removed
         assert!(!new_content.contains("SKILLFORGE:rule:rule-a"));
         assert!(!new_content.contains("Content A"));
-
         // rule-b should remain
         assert!(new_content.contains("SKILLFORGE:rule:rule-b"));
         assert!(new_content.contains("Content B"));
-
         // User content should remain
         assert!(new_content.contains("# User header"));
-
         // Cleanup
         std::fs::remove_dir_all(&test_dir).ok();
     }
-
     #[test]
     fn test_remove_rule_from_single_file_deletes_empty_file() {
         let test_dir = format!("/tmp/skillforge-test-rm-empty-{}", std::process::id());
         let _ = std::fs::remove_dir_all(&test_dir);
         std::fs::create_dir_all(&test_dir).unwrap();
         let file_path = std::path::PathBuf::from(format!("{}/AGENTS.md", test_dir));
-
         let content = "<!-- SKILLFORGE:rule:only-rule -->\nOnly content\n<!-- /SKILLFORGE:rule:only-rule -->\n";
         std::fs::write(&file_path, content).unwrap();
-
         remove_rule_from_single_file(&file_path, "only-rule").unwrap();
-
         // File should be deleted since it's now empty
         assert!(!file_path.exists());
-
         // Cleanup
         std::fs::remove_dir_all(&test_dir).ok();
     }

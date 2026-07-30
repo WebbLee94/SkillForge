@@ -56,38 +56,22 @@ fn test_scene_crud_cycle() {
 }
 
 #[test]
-fn test_scene_platform_association() {
+fn test_get_scene_platforms_returns_all_enabled() {
     let conn = init_db();
 
-    let dto = CreateSceneDTO {
-        name: "Platform Scene".to_string(),
-        description: None,
-        icon: None,
-        skill_ids: None,
-        rule_ids: None,
-    };
-    let scene = scene_engine::create_scene(&conn, &dto).unwrap();
-
-    // Initially no platform associations
-    let platforms = scene_engine::get_scene_platforms(&conn, &scene.id).unwrap();
-    assert!(
-        platforms.is_empty(),
-        "new scene should have no platform associations"
+    // After scene_platforms removal, get_scene_platforms returns all enabled platforms
+    let platforms = scene_engine::get_scene_platforms(&conn, "any-scene").unwrap();
+    assert_eq!(
+        platforms.len(),
+        12,
+        "should return all 12 built-in enabled platforms"
     );
-
-    // Set platform associations
-    scene_engine::set_scene_platforms(
-        &conn,
-        &scene.id,
-        &["claude-code".to_string(), "cursor".to_string()],
-    )
-    .expect("set_scene_platforms should succeed");
-
-    // Verify
-    let platforms = scene_engine::get_scene_platforms(&conn, &scene.id).unwrap();
-    assert_eq!(platforms.len(), 2);
     assert!(platforms.contains(&"claude-code".to_string()));
     assert!(platforms.contains(&"cursor".to_string()));
+
+    // Calling with different scene_id returns the same result (all enabled)
+    let platforms2 = scene_engine::get_scene_platforms(&conn, "different-scene").unwrap();
+    assert_eq!(platforms2, platforms);
 }
 
 #[test]
