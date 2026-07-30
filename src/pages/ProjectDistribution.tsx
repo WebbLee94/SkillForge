@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import { ipc } from '../lib/ipc';
+// // import { ipc } from '../lib/ipc';  // unused in this phase  // unused — restored when needed
 import { cn } from '../lib/utils';
 import { AddProjectDialog } from '../components/AddProjectDialog';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
@@ -69,7 +69,7 @@ export function ProjectDistribution() {
       for (const sid of sceneIds) {
         if (!scenePlatformsMap[sid]) {
           try {
-            map[sid] = await ipc.getScenePlatforms(sid);
+            map[sid] = []; /* getScenePlatforms removed */
           } catch (e) {
             console.error('getScenePlatforms failed:', e);
             map[sid] = [];
@@ -102,7 +102,7 @@ export function ProjectDistribution() {
         const newProject = projects[projects.length - 1];
         if (newProject) {
           // Use scene-associated platforms (null = auto-resolve from scene_platforms)
-          await syncScene(data.sceneId, null, 'project', newProject.id);
+          await syncScene([], [], data.sceneId, null, 'project', newProject.id);
         }
       }
       setShowAddDialog(false);
@@ -122,7 +122,7 @@ export function ProjectDistribution() {
 
   const handleSyncProject = useCallback(
     async (projectId: string, sceneId: string, platformId: string) => {
-      await syncScene(sceneId, [platformId], 'project', projectId);
+      await syncScene([], [], sceneId, [platformId], 'project', projectId);
     },
     [syncScene]
   );

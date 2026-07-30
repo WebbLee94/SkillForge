@@ -74,19 +74,16 @@ export const ipc = {
     invoke<void>('remove_rule_from_scene', { sceneId, ruleId }),
   getSceneDetail: (id: string) =>
     invoke<SceneDetail>('get_scene_detail', { id }),
-  getScenePlatforms: (sceneId: string) =>
-    invoke<string[]>('get_scene_platforms', { sceneId }),
-  setScenePlatforms: (sceneId: string, platformIds: string[]) =>
-    invoke<void>('set_scene_platforms', { sceneId, platformIds }),
-
-  // Distribution - Rust uses scene_id, snake_case
+  // Distribution - Rust uses skill_ids, rule_ids, optional scene_id
   syncScene: (
-    sceneId: string,
+    skillIds: string[],
+    ruleIds: string[],
+    sceneId: string | null,
     platforms: string[] | null,
     scope: string,
     projectId?: string
   ) =>
-    invoke<SyncResult>('sync_scene', { sceneId, platforms, scope, projectId }),
+    invoke<SyncResult>('sync_scene', { skillIds, ruleIds, sceneId, platforms, scope, projectId }),
   getSyncStatus: () => invoke<SyncStatusDTO>('get_sync_status'),
   getDistributions: (sceneId?: string) =>
     invoke<Distribution[]>('get_distributions', { sceneId }),

@@ -47,8 +47,6 @@ export function SceneEditor() {
   const addRuleToScene = useAppStore((s) => s.addRuleToScene);
   const removeRuleFromScene = useAppStore((s) => s.removeRuleFromScene);
   const syncScene = useAppStore((s) => s.syncScene);
-  const getScenePlatforms = useAppStore((s) => s.getScenePlatforms);
-  const setScenePlatforms = useAppStore((s) => s.setScenePlatforms);
   const deleteScene = useAppStore((s) => s.deleteScene);
   const addToast = useAppStore((s) => s.addToast);
   const projects = useAppStore((s) => s.projects);
@@ -120,14 +118,12 @@ export function SceneEditor() {
       setSceneDesc(currentScene.description || '');
       // Load scene-platform associations
       if (!currentScene.is_system) {
-        getScenePlatforms(currentScene.id).then((platformIds) => {
-          setSelectedPlatforms(platformIds);
-        });
+        Promise.resolve().then(() => { setSelectedPlatforms([]); });
       } else {
         setSelectedPlatforms([]);
       }
     }
-  }, [currentScene, fetchSceneDetail, getScenePlatforms]);
+  }, [currentScene, fetchSceneDetail]);
 
   const availableSkills = useMemo(() => {
     const sceneSkillIds = new Set(
@@ -234,7 +230,7 @@ export function SceneEditor() {
 
   const handleSyncScene = useCallback(async () => {
     if (!currentScene) return;
-    await syncScene(currentScene.id, selectedPlatforms, 'global');
+    await syncScene([], [], currentScene.id, selectedPlatforms, 'global');
   }, [currentScene, selectedPlatforms, syncScene]);
 
   const executeDeleteScene = useCallback(async () => {
@@ -274,8 +270,9 @@ export function SceneEditor() {
         ? prev.filter((p) => p !== platform)
         : [...prev, platform];
       // Persist to backend
+      // setScenePlatforms removed — platform binding no longer stored on scenes
       if (currentScene && !currentScene.is_system) {
-        setScenePlatforms(currentScene.id, next);
+        // no-op: platforms chosen at distribution entry
       }
       return next;
     });
@@ -594,7 +591,7 @@ export function SceneEditor() {
               />
             </div>
 
-            {/* Platform Selector / Read-only for system scenes */}
+            {/* Platform selector removed in Phase 1 — platforms chosen at distribution entry */}
             <div className="mb-4">
               <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Monitor className="h-4 w-4 text-primary" />

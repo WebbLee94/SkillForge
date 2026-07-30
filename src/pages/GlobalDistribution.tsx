@@ -1,456 +1,366 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import { ipc } from '../lib/ipc';
 import { cn } from '../lib/utils';
-import {
-  Globe,
-  RefreshCw,
-  CheckCircle,
-  AlertCircle,
-  Clock,
-  AlertTriangle,
-  FolderOpen,
-  HelpCircle,
-} from 'lucide-react';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
-import { revealItemInDir } from '@tauri-apps/plugin-opener';
-import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { SyncStatus } from '../types';
-
-const statusIconMap: Record<SyncStatus, React.ReactNode> = {
-  synced: <CheckCircle className="h-4 w-4 text-success" />,
-  outdated: <AlertTriangle className="h-4 w-4 text-warning" />,
-  partial: <AlertTriangle className="h-4 w-4 text-warning" />,
-  error: <AlertCircle className="h-4 w-4 text-error" />,
-  pending: <Clock className="h-4 w-4 text-muted-foreground" />,
-};
-
-const statusBgMap: Record<SyncStatus, string> = {
-  synced: 'border-success/20',
-  outdated: 'border-warning/20',
-  partial: 'border-warning/20',
-  error: 'border-error/20',
-  pending: 'border-border',
-};
-
-const statusLabelMap: Record<SyncStatus, string> = {
-  synced: 'status.synced',
-  outdated: 'status.outdated',
-  partial: 'status.partial',
-  error: 'status.error',
-  pending: 'status.pending',
-};
+import { Search } from 'lucide-react';
+import type { Platform } from '../types';
 
 export function GlobalDistribution() {
   const { t } = useTranslation('distribution');
-  const { t: tc } = useTranslation('common');
+  const platforms = useAppStore((s) => s.platforms);
+  const skills = useAppStore((s) => s.skills);
+  const rules = useAppStore((s) => s.rules);
   const scenes = useAppStore((s) => s.scenes);
-  const syncStatus = useAppStore((s) => s.syncStatus);
-  const currentScene = useAppStore((s) => s.currentScene);
-  const currentSceneDetail = useAppStore((s) => s.currentSceneDetail);
-  const globalDistStatus = useAppStore((s) => s.globalDistStatus);
   const fetchScenes = useAppStore((s) => s.fetchScenes);
-  const fetchSyncStatus = useAppStore((s) => s.fetchSyncStatus);
+  const fetchSkills = useAppStore((s) => s.fetchSkills);
+  const fetchRules = useAppStore((s) => s.fetchRules);
   const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
-  const setCurrentScene = useAppStore((s) => s.setCurrentScene);
-  const fetchSceneDetail = useAppStore((s) => s.fetchSceneDetail);
   const syncScene = useAppStore((s) => s.syncScene);
-  const fetchGlobalDistStatus = useAppStore((s) => s.fetchGlobalDistStatus);
   const addToast = useAppStore((s) => s.addToast);
 
-  const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
+  const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedRules, setSelectedRules] = useState<string[]>([]);
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
+  const [skillSearch, setSkillSearch] = useState('');
+  const [expandedDirs, setExpandedDirs] = useState<string[]>(['skills']);
+  const [previewFile, setPreviewFile] = useState<string | null>(null);
+  const [previewContent, setPreviewContent] = useState<string>('');
 
-  // T3: Include system scenes in the selector
-  const selectableScenes = useMemo(() => scenes, [scenes]);
+  const enabledPlatforms = platforms.filter((p) => p.enabled) as Platform[];
 
-  const allPlatformIds = useMemo(
-    () => syncStatus?.platforms.map((p) => p.platform_id) || [],
-    [syncStatus?.platforms]
-  );
-
-  // Custom override toggle (not persisted)
-  const [customOverride, setCustomOverride] = useState(false);
-  const [selectedPlatformIds, setSelectedPlatformIds] = useState<string[]>([]);
-
-  // Scene-bound platform IDs for filtering
-  const [scenePlatformIds, setScenePlatformIds] = useState<string[]>([]);
-
-  // Reset custom override and fetch scene platforms when scene changes
-  useEffect(() => {
-    setCustomOverride(false);
-    setSelectedPlatformIds([]);
-    if (currentScene?.id) {
-      // __all_skills__ system scene: use all enabled platforms
-      if (currentScene.is_system) {
-        ipc
-          .listPlatforms()
-          .then((platforms) => {
-            setScenePlatformIds(
-              platforms.filter((p) => p.enabled).map((p) => p.id)
-            );
-          })
-          .catch(() => setScenePlatformIds([]));
-      } else {
-        ipc
-          .getScenePlatforms(currentScene.id)
-          .then(setScenePlatformIds)
-          .catch(() => setScenePlatformIds([]));
-      }
-    } else {
-      setScenePlatformIds([]);
-    }
-  }, [currentScene?.id]);
-
-  // Filtered platforms: scene-bound by default, all when custom override is on
-  const filteredPlatforms = useMemo(() => {
-    if (customOverride) {
-      // When override is on, show selected platforms (or all if none selected)
-      const ids =
-        selectedPlatformIds.length > 0 ? selectedPlatformIds : allPlatformIds;
-      return (syncStatus?.platforms || []).filter((p) =>
-        ids.includes(p.platform_id)
-      );
-    }
-    if (scenePlatformIds.length === 0) return [];
-    return (syncStatus?.platforms || []).filter((p) =>
-      scenePlatformIds.includes(p.platform_id)
+  const filteredSkills = useMemo(() => {
+    const q = skillSearch.toLowerCase();
+    if (!q) return skills;
+    return skills.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        (s.description || '').toLowerCase().includes(q)
     );
-  }, [
-    customOverride,
-    selectedPlatformIds,
-    allPlatformIds,
-    syncStatus?.platforms,
-    scenePlatformIds,
-  ]);
+  }, [skills, skillSearch]);
 
-  // T3: Default to global scene from globalDistStatus
-  useEffect(() => {
-    if (globalDistStatus?.scene_id && !currentScene) {
-      const scene = scenes.find((s) => s.id === globalDistStatus.scene_id);
-      if (scene) setCurrentScene(scene);
-    }
-  }, [globalDistStatus?.scene_id, scenes, setCurrentScene]);
+  const filteredRules = useMemo(() => {
+    const q = skillSearch.toLowerCase();
+    if (!q) return rules;
+    return rules.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        (r.description || '').toLowerCase().includes(q)
+    );
+  }, [rules, skillSearch]);
 
   useEffect(() => {
     fetchScenes();
-    fetchSyncStatus();
+    fetchSkills();
+    fetchRules();
     fetchPlatforms();
-    fetchGlobalDistStatus();
-  }, [fetchScenes, fetchSyncStatus, fetchPlatforms, fetchGlobalDistStatus]);
+  }, []);
 
-  useEffect(() => {
-    if (currentScene) {
-      fetchSceneDetail(currentScene.id);
-    }
-  }, [currentScene, fetchSceneDetail]);
-
-  // T3: Scene switch with confirmation
-  const executeSceneChange = async () => {
-    if (!pendingSceneId) return;
-    try {
-      await ipc.switchGlobalScene(pendingSceneId);
-      const scene = scenes.find((s) => s.id === pendingSceneId);
-      if (scene) setCurrentScene(scene);
-      await fetchGlobalDistStatus();
-      await fetchSyncStatus();
-      addToast(tc('messages.switchSceneSuccess'), 'success');
-    } catch (e) {
-      addToast(tc('messages.switchSceneFailed'), 'error');
-    }
-    setPendingSceneId(null);
+  const toggleSkill = (id: string) => {
+    setSelectedSkills((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
   };
 
-  const handleSceneChange = (newSceneId: string) => {
-    if (!newSceneId) return;
-    if (currentScene?.id === newSceneId) return;
-    setPendingSceneId(newSceneId);
+  const toggleRule = (id: string) => {
+    setSelectedRules((prev) =>
+      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
+    );
   };
 
-  // Sync uses scene platforms (null) by default, or custom override
-  const handleSyncPlatform = async (platformId: string) => {
-    if (!currentScene) return;
-    await syncScene(currentScene.id, [platformId], 'global');
+  const handleDistribute = async () => {
+    if (!selectedPlatform) return;
+    await syncScene(
+      selectedSkills,
+      selectedRules,
+      selectedSceneId,
+      [selectedPlatform],
+      'global'
+    );
+    addToast('分发完成', 'success');
+    await fetchSkills();
+    await fetchRules();
   };
 
-  const handleSyncAll = async () => {
-    if (!currentScene) return;
-    const platforms = customOverride ? selectedPlatformIds : null;
-    await syncScene(currentScene.id, platforms, 'global');
+  const getPlatformDir = (platformId: string): string => {
+    const map: Record<string, string> = {
+      'claude-code': '~/.claude/',
+      cursor: '~/.cursor/',
+      opencode: '~/.opencode/',
+      trae: '~/.trae/',
+      'trae-cn': '~/.trae-cn/',
+      codebuddy: '~/.codebuddy/',
+      'codebuddy-cn': '~/.codebuddy-cn/',
+      codex: '~/.codex/',
+      hermes: '~/.hermes/',
+      openclaw: '~/.openclaw/',
+      antigravity: '~/.antigravity/',
+      windsurf: '~/.windsurf/',
+    };
+    return map[platformId] || `~/.${platformId}/`;
   };
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            {t('globalTitle')}
-            <span className="relative ml-2 inline-flex items-center group/help">
-              <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-              <span className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-50 hidden group-hover/help:block opacity-100 whitespace-nowrap rounded-lg border border-border bg-popover px-3 py-2 shadow-lg text-xs text-foreground">
-                {t('syncStrategyHint')}
-              </span>
-            </span>
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('globalSubtitle')}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            className={cn(
-              'flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5',
-              'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors',
-              !currentScene && 'opacity-50 pointer-events-none'
-            )}
-            onClick={handleSyncAll}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t('syncCurrentScene')}
-          </button>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold text-foreground mb-1">
+        {t('globalTitle')}
+      </h1>
+      <p className="text-sm text-muted-foreground mb-6">
+        {t('globalSubtitle')}
+      </p>
 
-      {/* T3: Scene Selector - no "all skills" option, defaults to global scene */}
+      {/* Section 1: Platform selector — single-select, enabled only, with logos */}
       <div className="mb-6">
-        <label className="mb-1.5 block text-sm font-medium text-foreground">
-          {t('selectScene')}
+        <label className="mb-2 block text-sm font-medium text-foreground">
+          {t('selectTargetPlatform')}
         </label>
-        <div className="flex items-center gap-3">
-          <select
-            value={currentScene?.id || ''}
-            onChange={(e) => handleSceneChange(e.target.value)}
-            className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="" disabled>
-              {t('selectScenePlaceholder')}
-            </option>
-            {selectableScenes.map((scene) => (
-              <option key={scene.id} value={scene.id}>
-                {scene.name}
-              </option>
-            ))}
-          </select>
+        <div className="flex gap-2 flex-wrap">
+          {enabledPlatforms.map((platform) => {
+            const isSelected = selectedPlatform === platform.id;
+            const IconComp = getPlatformIcon(platform.id);
+            return (
+              <button
+                key={platform.id}
+                onClick={() => setSelectedPlatform(platform.id)}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors',
+                  isSelected
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent/50'
+                )}
+              >
+                {IconComp && <IconComp className="h-5 w-5 shrink-0" />}
+                <span>{platform.name}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Scene Summary */}
-      {currentSceneDetail && (
-        <div className="mb-6 rounded-lg border border-border bg-card p-4">
-          <h3 className="mb-2 text-sm font-semibold text-foreground">
-            {t('sceneSummary')}
-          </h3>
-          <div className="flex gap-6">
-            <span className="text-sm text-muted-foreground">
-              {t('skillCount', { count: currentSceneDetail.skills.length })}
+      {/* Section 2: Local file tree + content preview */}
+      {selectedPlatform && (
+        <div className="mb-6">
+          <label className="mb-2 block text-sm font-medium text-foreground">
+            📂 {getPlatformDir(selectedPlatform)}
+            <span className="font-normal opacity-60 text-xs ml-2">
+              技能 {filteredSkills.length} · 规则 {filteredRules.length}
             </span>
-            <span className="text-sm text-muted-foreground">
-              {t('ruleCount', { count: currentSceneDetail.rules.length })}
-            </span>
+          </label>
+          <div className="flex gap-3 min-h-[150px]">
+            {/* Left: File tree */}
+            <div className="flex-1 font-mono text-xs bg-muted/50 rounded-lg p-3 overflow-y-auto max-h-[200px] border border-border">
+              <div
+                className="cursor-pointer py-1 px-1 rounded hover:bg-muted transition-colors"
+                onClick={() =>
+                  setExpandedDirs((prev) =>
+                    prev.includes('skills')
+                      ? prev.filter((d) => d !== 'skills')
+                      : [...prev, 'skills']
+                  )
+                }
+              >
+                {expandedDirs.includes('skills') ? '📂' : '📁'} skills/
+              </div>
+              {expandedDirs.includes('skills') &&
+                filteredSkills.slice(0, 15).map((skill) => (
+                  <div
+                    key={skill.id}
+                    className="pl-4 py-0.5 px-1 rounded cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => {
+                      setPreviewFile(`${skill.name}/SKILL.md`);
+                      setPreviewContent(
+                        `---\nname: ${skill.name}\ndescription: ${skill.description || '-'}\nversion: ${skill.current_ver || '-'}\n---`
+                      );
+                    }}
+                    title={skill.description || ''}
+                  >
+                    📄 {skill.name}/
+                  </div>
+                ))}
+              <div
+                className="cursor-pointer py-1 px-1 rounded hover:bg-muted transition-colors mt-1"
+                onClick={() =>
+                  setExpandedDirs((prev) =>
+                    prev.includes('rules')
+                      ? prev.filter((d) => d !== 'rules')
+                      : [...prev, 'rules']
+                  )
+                }
+              >
+                {expandedDirs.includes('rules') ? '📂' : '📁'} rules/
+              </div>
+              {expandedDirs.includes('rules') &&
+                filteredRules.slice(0, 15).map((rule) => (
+                  <div
+                    key={rule.id}
+                    className="pl-4 py-0.5 px-1 rounded cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => {
+                      setPreviewFile(`${rule.name}.${rule.format}`);
+                      setPreviewContent(
+                        rule.content || rule.description || '(空内容)'
+                      );
+                    }}
+                    title={
+                      rule.description
+                        ? `${rule.description}\nscope: ${rule.scope || 'global'}`
+                        : `scope: ${rule.scope || 'global'}`
+                    }
+                  >
+                    📄 {rule.name}.{rule.format}
+                  </div>
+                ))}
+            </div>
+
+            {/* Right: Content preview */}
+            <div className="flex-1 bg-muted/50 rounded-lg p-3 border border-border">
+              <div className="opacity-60 text-xs font-medium mb-1">
+                {previewFile ? previewFile : '单击树节点 → 右侧预览'}
+              </div>
+              {previewFile ? (
+                <div className="font-mono text-xs bg-background rounded p-2 max-h-[130px] overflow-hidden leading-relaxed whitespace-pre-wrap">
+                  {previewContent || '(空内容)'}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-[100px] text-xs text-muted-foreground opacity-50">
+                  单击左侧文件树节点预览内容
+                </div>
+              )}
+              <div className="mt-2 flex justify-between text-xs opacity-40">
+                <span>单击树节点预览 | 无法预览的文件提示从本地打开</span>
+                <span className="underline cursor-pointer">
+                  📂 在 Finder 中打开 →
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Custom Override Toggle */}
+      {/* Section 3: Scene selector (optional) */}
       <div className="mb-4">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={customOverride}
-            onChange={(e) => {
-              setCustomOverride(e.target.checked);
-              if (e.target.checked) setSelectedPlatformIds(allPlatformIds);
-            }}
-            className="rounded border-border"
-          />
-          {t('customOverridePlatforms')}
+        <label className="mb-1.5 block text-sm font-medium text-foreground">
+          {t('scenePackage')}{' '}
+          <span className="font-normal opacity-50 text-xs">
+            (可选 — 快速填充)
+          </span>
         </label>
+        <select
+          value={selectedSceneId || ''}
+          onChange={(e) => setSelectedSceneId(e.target.value || null)}
+          className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="">全部技能 + 规则（无场景过滤）</option>
+          {scenes.map((scene) => (
+            <option key={scene.id} value={scene.id}>
+              {scene.name}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Platform Grid - filtered by scene-bound platforms, or all platforms when custom override is on */}
-      {(customOverride ? syncStatus?.platforms || [] : filteredPlatforms)
-        .length > 0 ? (
-        <div className="grid grid-cols-2 gap-4">
-          {(customOverride
-            ? syncStatus?.platforms || []
-            : filteredPlatforms
-          ).map((platform) => {
-            const ps = (platform.status || 'pending') as SyncStatus;
-            const isSelected = selectedPlatformIds.includes(
-              platform.platform_id
-            );
-            const isDimmed = customOverride && !isSelected;
-            return (
-              <div
-                key={platform.platform_id}
-                className={cn(
-                  'relative rounded-lg border bg-card p-4 transition-opacity',
-                  statusBgMap[ps] || 'border-border',
-                  isDimmed && 'opacity-50'
-                )}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    {(() => {
-                      const PlatformIcon = getPlatformIcon(
-                        platform.platform_id
-                      );
-                      return PlatformIcon ? (
-                        <PlatformIcon className="h-5 w-5" />
-                      ) : (
-                        <Globe className="h-5 w-5 text-primary" />
-                      );
-                    })()}
-                    <span className="text-sm font-semibold text-foreground">
-                      {platform.platform_name}
+      {/* Section 4: Skills + Rules split columns */}
+      <div className="mb-6">
+        <div className="relative mb-3">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            type="text"
+            value={skillSearch}
+            onChange={(e) => setSkillSearch(e.target.value)}
+            placeholder="🔍 搜索技能 / 规则..."
+            className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm"
+          />
+        </div>
+        <div className="flex gap-4 max-h-[250px] overflow-y-auto">
+          {/* Left: Skills */}
+          <div className="flex-1">
+            <div className="text-xs font-semibold text-foreground mb-2">
+              技能 ({filteredSkills.length})
+            </div>
+            <div className="space-y-1">
+              {filteredSkills.map((skill) => (
+                <div
+                  key={skill.id}
+                  onClick={() => toggleSkill(skill.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors',
+                    selectedSkills.includes(skill.id)
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-card border border-border hover:bg-accent/50'
+                  )}
+                  title={`${skill.name} v${skill.current_ver || '?'}\n${skill.description || ''}\n来源: ${skill.source_type}`}
+                >
+                  <span className="text-xs">
+                    {selectedSkills.includes(skill.id) ? '☑' : '☐'}
+                  </span>
+                  <span className="flex-1 truncate">{skill.name}</span>
+                  {skill.current_ver && (
+                    <span className="text-xs opacity-50">
+                      v{skill.current_ver}
                     </span>
-                  </div>
-                  {customOverride ? (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={(e) => {
-                        setSelectedPlatformIds((prev) =>
-                          e.target.checked
-                            ? [...prev, platform.platform_id]
-                            : prev.filter((id) => id !== platform.platform_id)
-                        );
-                      }}
-                      className="rounded border-border"
-                    />
-                  ) : (
-                    statusIconMap[ps] || statusIconMap.pending
                   )}
                 </div>
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>{t('syncProgress')}</span>
-                    <span>
-                      {(() => {
-                        const pdi = globalDistStatus?.platforms.find(
-                          (p) => p.platform_id === platform.platform_id
-                        );
-                        if (pdi) {
-                          return `${pdi.synced_skill_count ?? 0}/${pdi.synced_rule_count ?? 0}`;
-                        }
-                        return `${platform.synced_count}/${platform.total_count}`;
-                      })()}
-                    </span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={cn(
-                        'h-full rounded-full transition-all',
-                        ps === 'synced'
-                          ? 'bg-success'
-                          : ps === 'error'
-                            ? 'bg-error'
-                            : ps === 'outdated'
-                              ? 'bg-warning'
-                              : 'bg-primary'
-                      )}
-                      style={{
-                        width: (() => {
-                          const pdi = globalDistStatus?.platforms.find(
-                            (p) => p.platform_id === platform.platform_id
-                          );
-                          if (pdi && (pdi.scene_skill_count ?? 0) > 0) {
-                            return `${((pdi.synced_skill_count ?? 0) / pdi.scene_skill_count!) * 100}%`;
-                          }
-                          return platform.total_count > 0
-                            ? `${(platform.synced_count / platform.total_count) * 100}%`
-                            : '0%';
-                        })(),
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-xs font-medium',
-                      ps === 'synced' && 'bg-success/10 text-success',
-                      ps === 'outdated' && 'bg-warning/10 text-warning',
-                      ps === 'error' && 'bg-error/10 text-error',
-                      ps === 'pending' && 'bg-muted/50 text-muted-foreground',
-                      ps === 'partial' && 'bg-warning/10 text-warning'
-                    )}
-                  >
-                    {tc(statusLabelMap[ps] || 'status.pending')}
+              ))}
+              {filteredSkills.length === 0 && (
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  无匹配技能
+                </p>
+              )}
+            </div>
+          </div>
+          {/* Right: Rules */}
+          <div className="flex-1">
+            <div className="text-xs font-semibold text-foreground mb-2">
+              规则 ({filteredRules.length})
+            </div>
+            <div className="space-y-1">
+              {filteredRules.map((rule) => (
+                <div
+                  key={rule.id}
+                  onClick={() => toggleRule(rule.id)}
+                  className={cn(
+                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors',
+                    selectedRules.includes(rule.id)
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-card border border-border hover:bg-accent/50'
+                  )}
+                  title={`${rule.name}.${rule.format}\n${rule.description || ''}\nscope: ${rule.scope || 'global'}`}
+                >
+                  <span className="text-xs">
+                    {selectedRules.includes(rule.id) ? '☑' : '☐'}
                   </span>
-                  <button
-                    className={cn(
-                      'flex items-center gap-1 rounded-md bg-secondary px-2.5 py-1',
-                      'text-xs font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors'
-                    )}
-                    onClick={() => handleSyncPlatform(platform.platform_id)}
-                  >
-                    <RefreshCw className="h-3 w-3" />
-                    {t('syncNow')}
-                  </button>
+                  <span className="flex-1 truncate">
+                    {rule.name}.{rule.format}
+                  </span>
                 </div>
-                {/* Platform global path: icon triggers reveal, text is copyable */}
-                {(() => {
-                  const platformInfo = globalDistStatus?.platforms.find(
-                    (p) => p.platform_id === platform.platform_id
-                  );
-                  if (!platformInfo?.skills_dir) return null;
-                  const skillsDir = platformInfo.skills_dir;
-                  const parts = skillsDir.split('/');
-                  const globalDir = parts.slice(0, -1).join('/') || skillsDir;
-                  return (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <button
-                        className="shrink-0 rounded p-0.5 hover:bg-muted transition-colors"
-                        onClick={() => {
-                          const resolved = platformInfo.skills_dir_resolved;
-                          if (resolved) {
-                            const rparts = resolved.split('/');
-                            const parent =
-                              rparts.slice(0, -1).join('/') || resolved;
-                            revealItemInDir(parent);
-                          }
-                        }}
-                        title={tc('actions.openInFileManager')}
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                      </button>
-                      <span
-                        className="truncate cursor-copy hover:text-foreground transition-colors"
-                        onClick={() => navigator.clipboard.writeText(globalDir)}
-                        title={tc('actions.copy')}
-                      >
-                        {globalDir}
-                      </span>
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          })}
+              ))}
+              {filteredRules.length === 0 && (
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  无匹配规则
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      ) : currentScene ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Globe className="mb-3 h-12 w-12 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">
-            {t('noPlatformForScene')}
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Globe className="mb-3 h-12 w-12 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">{t('emptyGlobal')}</p>
-        </div>
-      )}
+      </div>
 
-      <ConfirmDialog
-        open={pendingSceneId !== null}
-        title={tc('messages.confirm')}
-        message={t('confirmSwitchScene')}
-        confirmLabel={t('diffConfirm.confirm')}
-        onConfirm={executeSceneChange}
-        onCancel={() => setPendingSceneId(null)}
-      />
+      {/* Section 5: Distribute button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleDistribute}
+          disabled={!selectedPlatform}
+          className={cn(
+            'px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
+            selectedPlatform
+              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+              : 'bg-muted text-muted-foreground cursor-not-allowed'
+          )}
+        >
+          {selectedPlatform
+            ? `分发到 ${enabledPlatforms.find((p) => p.id === selectedPlatform)?.name || selectedPlatform} →`
+            : '请先选择平台'}
+        </button>
+      </div>
     </div>
   );
 }

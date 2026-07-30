@@ -25,7 +25,6 @@ import type {
   PlatformSyncPreview,
 } from '../types';
 import { ipc } from '../lib/ipc';
-import i18n from '../lib/i18n';
 
 interface Toast {
   id: string;
@@ -126,9 +125,6 @@ interface AppStore {
   removeSkillFromScene: (sceneId: string, skillId: string) => Promise<void>;
   addRuleToScene: (sceneId: string, ruleId: string) => Promise<void>;
   removeRuleFromScene: (sceneId: string, ruleId: string) => Promise<void>;
-  getScenePlatforms: (sceneId: string) => Promise<string[]>;
-  setScenePlatforms: (sceneId: string, platformIds: string[]) => Promise<void>;
-
   // === Project Actions ===
   fetchProjects: () => Promise<void>;
   addProject: (
@@ -146,7 +142,9 @@ interface AppStore {
   // === Distribution Actions ===
   fetchDistributions: () => Promise<void>;
   syncScene: (
-    sceneId: string,
+    skillIds: string[],
+    ruleIds: string[],
+    sceneId: string | null,
     platforms: string[] | null,
     scope: string,
     projectId?: string
@@ -497,25 +495,6 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast(`从场景移除规则失败: ${errMsg}`, 'error');
     }
   },
-  getScenePlatforms: async (sceneId) => {
-    try {
-      return await ipc.getScenePlatforms(sceneId);
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取场景平台关联失败: ${errMsg}`, 'error');
-      return [];
-    }
-  },
-  setScenePlatforms: async (sceneId, platformIds) => {
-    try {
-      await ipc.setScenePlatforms(sceneId, platformIds);
-      get().addToast('保存场景平台关联成功', 'success');
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`保存场景平台关联失败: ${errMsg}`, 'error');
-    }
-  },
-
   // === Project Actions ===
   fetchProjects: async () => {
     try {
@@ -578,46 +557,22 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast(`获取分发列表失败: ${errMsg}`, 'error');
     }
   },
-  syncScene: async (sceneId, platforms, scope, projectId) => {
+  syncScene: async (skillIds, ruleIds, sceneId, platforms, scope, projectId) => {
     try {
-      // L2: 同步前能力检查 — 全局分发时检查是否有平台不支持全局规则
-      if (scope === 'global') {
+      // Non-blocking capability check for global scope
+      if (scope === 'global' && platforms) {
         try {
-          const targetPlatformIds =
-            platforms ?? (await ipc.getScenePlatforms(sceneId));
-          const noGlobalRulesPlatforms: string[] = [];
-          for (const pid of targetPlatformIds) {
+          for (const pid of platforms) {
             const cap = await ipc.getCapabilities(pid);
             if (!cap.rules_global) {
               const p = get().platforms.find((pl) => pl.id === pid);
-              noGlobalRulesPlatforms.push(p?.name || pid);
+              get().addToast(`警告: ${p?.name || pid} 不支持全局规则同步`, 'warning');
             }
           }
-          if (noGlobalRulesPlatforms.length > 0) {
-            get().addToast(
-              i18n.t('common:messages.capabilityWarning', {
-                platforms: noGlobalRulesPlatforms.join('、'),
-              }),
-              'warning'
-            );
-          }
-        } catch {
-          // 能力检查失败不阻断同步
-        }
+        } catch { /* non-blocking */ }
       }
 
-      // Sync confirmation — shows dialog if removals detected
-      const targetPlatformIds =
-        platforms ?? (await ipc.getScenePlatforms(sceneId));
-      const ok = await get().requestSyncConfirm({
-        sceneId,
-        platformIds: targetPlatformIds,
-        scope,
-        projectId,
-      });
-      if (!ok) return null;
-
-      const result = await ipc.syncScene(sceneId, platforms, scope, projectId);
+      const result = await ipc.syncScene(skillIds, ruleIds, sceneId, platforms, scope, projectId);
       await get().fetchDistributions();
       await get().fetchSyncStatus();
       await get().fetchGlobalDistStatus();
