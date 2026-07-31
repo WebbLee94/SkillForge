@@ -46,21 +46,35 @@ function NavSync() {
   // Sync store nav -> browser URL
   useEffect(() => {
     const target = navToRouteMap[activeNav];
-    if (target && window.location.pathname !== target) {
-      navigate(target, { replace: true });
+    if (!target) return;
+    let url = target;
+    if (activeNav === 'globalDistribution') {
+      const pid = useAppStore.getState().globalDistSelectedPlatform;
+      if (pid) url = `${target}?platform=${encodeURIComponent(pid)}`;
+    }
+    const sameUrl =
+      window.location.pathname === target &&
+      window.location.search === url.slice(target.length);
+    if (!sameUrl) {
+      navigate(url, { replace: true });
     }
   }, [activeNav, navigate]);
 
-  // Sync browser URL -> store nav on popstate
   useEffect(() => {
-    const handlePopState = () => {
+    const syncFromUrl = () => {
       const nav = routeToNavMap[window.location.pathname];
       if (nav) {
         useAppStore.getState().setActiveNav(nav);
       }
+      const params = new URLSearchParams(window.location.search);
+      const pid = params.get('platform');
+      if (pid) {
+        useAppStore.getState().setGlobalDistSelectedPlatform(pid);
+      }
     };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
   }, []);
 
   return null;

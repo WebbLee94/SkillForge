@@ -318,77 +318,6 @@ function OpenClawIcon({ className }: IconProps) {
   );
 }
 
-function AntigravityIcon({ className }: IconProps) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect
-        x="3"
-        y="3"
-        width="18"
-        height="18"
-        rx="4"
-        fill="currentColor"
-        opacity="0.15"
-      />
-      <text
-        x="12"
-        y="16.5"
-        textAnchor="middle"
-        fontSize="10"
-        fontWeight="700"
-        fill="currentColor"
-        fontFamily="system-ui"
-      >
-        AG
-      </text>
-    </svg>
-  );
-}
-
-function WindsurfIcon({ className }: IconProps) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <rect
-        x="3"
-        y="3"
-        width="18"
-        height="18"
-        rx="4"
-        fill="currentColor"
-        opacity="0.15"
-      />
-      <path
-        d="M7 12C7 9 9 7 12 7C15 7 17 9 17 12"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M10 12C10 10.5 11 9.5 12 9.5C13 9.5 14 10.5 14 12"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 14L12 17"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
 function DefaultPlatformIcon({ className }: IconProps) {
   return (
     <svg
@@ -429,8 +358,6 @@ const platformIconMap: Record<string, React.FC<IconProps>> = {
   codex: CodexIcon,
   hermes: HermesIcon,
   openclaw: OpenClawIcon,
-  antigravity: AntigravityIcon,
-  windsurf: WindsurfIcon,
 };
 
 export function getPlatformIcon(platformId: string): React.FC<IconProps> {

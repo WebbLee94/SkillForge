@@ -42,5 +42,17 @@
   "bindSceneFirst": "Bind a scene first. Platforms are determined by the scene",
   "confirmSwitchScene": "Switching global scene will redistribute skills and rules. Continue?",
   "recentDistribution": "Recent Distribution",
-  "syncStrategyHint": "Sync only adds/updates skills and rules from the scene; it does not delete existing files in target directories"
+  "syncStrategyHint": "Sync only adds/updates skills and rules from the scene; it does not delete existing files in target directories",
+  "selectTargetPlatform": "Select Target Platform",
+  "scenePackage": "Scene Package (Optional)",
+  "noEnabledPlatforms": "No Agent Platforms Enabled",
+  "noEnabledPlatformsHint": "Please enable at least one Agent platform in Settings",
+  "goToSettings": "Go to Settings",
+  "openInFinder": "Open in Finder",
+  "selectProjectPlaceholder": "Select a project...",
+  "projectNamePlaceholder": "Enter project name",
+  "clickToPreview": "Click a file on the left to preview",
+  "confirmDeleteTitle": "Confirm Delete",
+  "confirmDeleteMessage": "Are you sure you want to remove this project?",
+  "delete": "Delete"
 }

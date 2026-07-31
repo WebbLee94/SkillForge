@@ -10,20 +10,13 @@ import {
   Search,
   Plus,
   Save,
-  RefreshCw,
   Film,
   Package,
   FileText,
   X,
-  Monitor,
-  Info,
   Trash2,
-  CheckCircle2,
-  Users,
-} from 'lucide-react';
-import { getPlatformIcon } from '../components/icons/PlatformIcons';
+  } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
-import type { PlatformCapabilities } from '../types';
 
 export function SceneEditor() {
   const { t } = useTranslation('scenes');
@@ -33,11 +26,9 @@ export function SceneEditor() {
   const currentSceneDetail = useAppStore((s) => s.currentSceneDetail);
   const skills = useAppStore((s) => s.skills);
   const rules = useAppStore((s) => s.rules);
-  const platforms = useAppStore((s) => s.platforms);
   const fetchScenes = useAppStore((s) => s.fetchScenes);
   const fetchSkills = useAppStore((s) => s.fetchSkills);
   const fetchRules = useAppStore((s) => s.fetchRules);
-  const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
   const setCurrentScene = useAppStore((s) => s.setCurrentScene);
   const fetchSceneDetail = useAppStore((s) => s.fetchSceneDetail);
   const createScene = useAppStore((s) => s.createScene);
@@ -46,23 +37,17 @@ export function SceneEditor() {
   const removeSkillFromScene = useAppStore((s) => s.removeSkillFromScene);
   const addRuleToScene = useAppStore((s) => s.addRuleToScene);
   const removeRuleFromScene = useAppStore((s) => s.removeRuleFromScene);
-  const syncScene = useAppStore((s) => s.syncScene);
   const deleteScene = useAppStore((s) => s.deleteScene);
   const addToast = useAppStore((s) => s.addToast);
-  const projects = useAppStore((s) => s.projects);
-  const fetchProjects = useAppStore((s) => s.fetchProjects);
+  
 
   const [leftTab, setLeftTab] = useState<'skills' | 'rules'>('skills');
   const [leftSearch, setLeftSearch] = useState('');
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
   const [showCreateScene, setShowCreateScene] = useState(false);
   const [newSceneName, setNewSceneName] = useState('');
   const [newSceneDesc, setNewSceneDesc] = useState('');
   const [sceneName, setSceneName] = useState('');
   const [sceneDesc, setSceneDesc] = useState('');
-  const [capabilitiesMap, setCapabilitiesMap] = useState<
-    Record<string, PlatformCapabilities>
-  >({});
   const [sceneTagFilter, setSceneTagFilter] = useState<number[]>([]);
   const [sceneTags, setSceneTags] = useState<import('../types').Tag[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -71,9 +56,7 @@ export function SceneEditor() {
     fetchScenes();
     fetchSkills();
     fetchRules();
-    fetchPlatforms();
-    fetchProjects();
-  }, [fetchScenes, fetchSkills, fetchRules, fetchPlatforms, fetchProjects]);
+  }, [fetchScenes, fetchSkills, fetchRules]);
 
   // Auto-select first scene when currentScene is null on mount
   useEffect(() => {
@@ -93,35 +76,14 @@ export function SceneEditor() {
     loadTags();
   }, [leftTab]);
 
-  useEffect(() => {
-    const fetchCaps = async () => {
-      const map: Record<string, PlatformCapabilities> = {};
-      for (const p of platforms) {
-        if (!capabilitiesMap[p.id]) {
-          try {
-            map[p.id] = await ipc.getCapabilities(p.id);
-          } catch (e) {
-            console.error('getCapabilities failed:', e);
-          }
-        }
-      }
-      if (Object.keys(map).length > 0)
-        setCapabilitiesMap((prev) => ({ ...prev, ...map }));
-    };
-    fetchCaps();
-  }, [platforms]);
+  
 
   useEffect(() => {
     if (currentScene) {
       fetchSceneDetail(currentScene.id);
       setSceneName(currentScene.name);
       setSceneDesc(currentScene.description || '');
-      // Load scene-platform associations
-      if (!currentScene.is_system) {
-        Promise.resolve().then(() => { setSelectedPlatforms([]); });
-      } else {
-        setSelectedPlatforms([]);
-      }
+      // Platform selection removed — platforms chosen at distribution entry
     }
   }, [currentScene, fetchSceneDetail]);
 
@@ -228,11 +190,6 @@ export function SceneEditor() {
     });
   }, [currentScene, sceneName, sceneDesc, updateScene]);
 
-  const handleSyncScene = useCallback(async () => {
-    if (!currentScene) return;
-    await syncScene([], [], currentScene.id, selectedPlatforms, 'global');
-  }, [currentScene, selectedPlatforms, syncScene]);
-
   const executeDeleteScene = useCallback(async () => {
     if (!currentScene) return;
     try {
@@ -264,19 +221,7 @@ export function SceneEditor() {
     setNewSceneDesc('');
   }, [newSceneName, newSceneDesc, createScene]);
 
-  const togglePlatform = (platform: string) => {
-    setSelectedPlatforms((prev) => {
-      const next = prev.includes(platform)
-        ? prev.filter((p) => p !== platform)
-        : [...prev, platform];
-      // Persist to backend
-      // setScenePlatforms removed — platform binding no longer stored on scenes
-      if (currentScene && !currentScene.is_system) {
-        // no-op: platforms chosen at distribution entry
-      }
-      return next;
-    });
-  };
+  
 
   return (
     <div className="flex h-full flex-col">
@@ -310,86 +255,24 @@ export function SceneEditor() {
           {t('createScene')}
         </button>
 
-        {/* 2. 一键同步 — always enabled */}
-        {currentScene && (
-          <button
-            className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            onClick={handleSyncScene}
-          >
-            <RefreshCw className="h-4 w-4" />
-            {t('syncScene')}
-          </button>
-        )}
-
         <div className="flex-1" />
 
-        {/* 3. 保存场景 — disabled for system scenes */}
+        {/* 3. 保存场景 */}
         {currentScene && (
           <button
-            className={cn(
-              'flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm transition-colors',
-              currentScene.is_system
-                ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
-                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-            )}
-            onClick={() => !currentScene.is_system && handleSaveScene()}
-            title={currentScene.is_system ? t('systemSceneNoSave') : undefined}
+            className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-sm text-secondary-foreground transition-colors hover:bg-secondary/80"
+            onClick={handleSaveScene}
           >
             <Save className="h-4 w-4" />
             {t('saveScene')}
           </button>
         )}
 
-        {/* 4. 已用于 N 个项目 — disabled for system scenes */}
-        {currentScene &&
-          (() => {
-            const projectCount = projects.filter(
-              (p) => p.scene_id === currentScene.id
-            ).length;
-            return (
-              <button
-                className={cn(
-                  'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs transition-colors',
-                  currentScene.is_system || projectCount === 0
-                    ? 'bg-secondary/50 text-muted-foreground cursor-not-allowed'
-                    : 'bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground'
-                )}
-                onClick={() => {
-                  if (currentScene.is_system || projectCount === 0) return;
-                  window.location.hash = `/project-distribution?scene_id=${currentScene.id}`;
-                }}
-                title={
-                  currentScene.is_system
-                    ? t('systemSceneNoProject')
-                    : projectCount === 0
-                      ? t('noLinkedProjects')
-                      : t('viewLinkedProjects')
-                }
-              >
-                <Users className="h-3 w-3" />
-                {t('usedInProjects', { count: projectCount })}
-              </button>
-            );
-          })()}
-
-        {/* 5. 删除 — disabled for system scenes */}
+        {/* 5. 删除 */}
         {currentScene && (
           <button
-            className={cn(
-              'flex items-center gap-1 rounded-lg border px-2 py-1.5 text-sm transition-colors',
-              currentScene.is_system
-                ? 'border-error/10 bg-error/5 text-error/30 cursor-not-allowed'
-                : 'border-error/30 bg-error/5 text-error hover:bg-error/10'
-            )}
-            onClick={() => {
-              if (currentScene.is_system) return;
-              setShowDeleteConfirm(true);
-            }}
-            title={
-              currentScene.is_system
-                ? t('systemSceneNoDelete')
-                : t('deleteScene')
-            }
+            className="flex items-center gap-1 rounded-lg border border-error/30 px-2 py-1.5 text-sm text-error transition-colors hover:bg-error/10"
+            onClick={() => setShowDeleteConfirm(true)}
           >
             <Trash2 className="h-4 w-4" />
           </button>
@@ -534,26 +417,19 @@ export function SceneEditor() {
           <div className="flex-1 flex flex-col overflow-y-auto p-4">
             {/* Scene Header */}
             <div className="mb-4">
-              {currentScene.is_system && (
-                <p className="mb-1 text-xs text-muted-foreground">
-                  {t('systemSceneHint')}
-                </p>
-              )}
               <input
                 type="text"
                 value={sceneName}
                 onChange={(e) => setSceneName(e.target.value)}
-                className="w-full bg-transparent text-xl font-semibold text-foreground focus:outline-none disabled:opacity-60"
+                className="w-full bg-transparent text-xl font-semibold text-foreground focus:outline-none"
                 placeholder={t('create.namePlaceholder')}
-                disabled={currentScene.is_system}
               />
               <input
                 type="text"
                 value={sceneDesc}
                 onChange={(e) => setSceneDesc(e.target.value)}
-                className="w-full mt-1 bg-transparent text-sm text-muted-foreground focus:outline-none disabled:opacity-60"
+                className="w-full mt-1 bg-transparent text-sm text-muted-foreground focus:outline-none"
                 placeholder={t('create.descriptionPlaceholder')}
-                disabled={currentScene.is_system}
               />
             </div>
 
@@ -570,7 +446,7 @@ export function SceneEditor() {
                 skills={currentSceneDetail?.skills || []}
                 onRemove={handleRemoveSkill}
                 onToggle={handleToggleSkill}
-                disabled={currentScene.is_system}
+                disabled={false}
               />
             </div>
 
@@ -587,102 +463,11 @@ export function SceneEditor() {
                 rules={currentSceneDetail?.rules || []}
                 onRemove={handleRemoveRule}
                 onToggle={handleToggleRule}
-                disabled={currentScene.is_system}
+                disabled={false}
               />
             </div>
 
-            {/* Platform selector removed in Phase 1 — platforms chosen at distribution entry */}
-            <div className="mb-4">
-              <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-                <Monitor className="h-4 w-4 text-primary" />
-                {t('platforms.title')}
-                {currentScene.is_system ? (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({platforms.filter((p) => p.enabled).length}{' '}
-                    {t('platforms.enabled')})
-                  </span>
-                ) : (
-                  <span className="text-xs font-normal text-muted-foreground">
-                    ({selectedPlatforms.length}/
-                    {platforms.filter((p) => p.enabled).length})
-                  </span>
-                )}
-              </h3>
-              {currentScene.is_system && (
-                <p className="mb-2 text-xs text-muted-foreground">
-                  {t('platforms.autoBindHint')}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                {platforms
-                  .filter((p) => p.enabled)
-                  .map((platform) => {
-                    const caps = capabilitiesMap[platform.id];
-                    const IconComp = getPlatformIcon(platform.id);
-                    const limitations: string[] = [];
-                    if (caps && !caps.rules_global)
-                      limitations.push(t('platforms.noGlobalRules'));
-                    if (caps && !caps.rules_project && caps.rules_global)
-                      limitations.push(t('platforms.noProjectRules'));
-                    if (currentScene.is_system) {
-                      // Read-only for system scenes — show selected indicator
-                      const isSystemSelected = true; // All enabled platforms are selected for __all_skills__
-                      return (
-                        <div
-                          key={platform.id}
-                          className="relative flex items-center gap-2.5 rounded-lg border border-primary/30 bg-primary/5 p-3 opacity-60 cursor-not-allowed"
-                        >
-                          {isSystemSelected && (
-                            <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
-                          )}
-                          <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
-                          <span className="text-sm font-medium text-foreground">
-                            {platform.name}
-                          </span>
-                          {limitations.length > 0 && (
-                            <span
-                              className="inline-flex items-center"
-                              title={limitations.join('；')}
-                            >
-                              <Info className="h-3.5 w-3.5 text-warning" />
-                            </span>
-                          )}
-                        </div>
-                      );
-                    }
-                    // Interactive for user scenes
-                    const isSelected = selectedPlatforms.includes(platform.id);
-                    return (
-                      <div
-                        key={platform.id}
-                        onClick={() => togglePlatform(platform.id)}
-                        className={cn(
-                          'relative flex items-center gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors',
-                          isSelected
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border bg-card hover:border-primary/50'
-                        )}
-                      >
-                        {isSelected && (
-                          <CheckCircle2 className="absolute right-2 top-2 h-4 w-4 text-primary" />
-                        )}
-                        <IconComp className="h-5 w-5 text-muted-foreground shrink-0" />
-                        <span className="text-sm font-medium text-foreground">
-                          {platform.name}
-                        </span>
-                        {limitations.length > 0 && (
-                          <span
-                            className="inline-flex items-center"
-                            title={limitations.join('；')}
-                          >
-                            <Info className="h-3.5 w-3.5 text-warning" />
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
+            {/* Platform selection removed — platforms chosen at distribution entry */}
           </div>
         </div>
       ) : (

@@ -260,27 +260,21 @@ export interface AppConfig {
 
 // ===== Global Distribution Status =====
 export interface GlobalDistStatus {
-  scene_id: string | null;
-  scene_name: string | null;
-  skill_count: number;
-  rule_count: number;
   platforms: PlatformDistInfo[];
-  last_synced_at: string | null;
 }
 
 export interface PlatformDistInfo {
   platform_id: string;
   platform_name: string;
-  synced_count: number;
-  total_count: number;
-  last_synced_at: string | null;
-  skills_dir?: string | null;
-  skills_dir_resolved?: string | null;
-  rules_dir?: string | null;
-  scene_skill_count?: number;
   synced_skill_count?: number;
-  scene_rule_count?: number;
   synced_rule_count?: number;
+}
+
+// ===== Platform Entry Count =====
+export interface PlatformEntryCount {
+  platform_id: string;
+  skills: number;
+  rules: number;
 }
 
 // ===== Sync Status =====
@@ -339,4 +333,11 @@ export interface PlatformSyncPreview {
   skills_to_remove: string[];
   rules_to_add: string[];
   rules_to_remove: string[];
+}
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  children: FileTreeNode[];
 }

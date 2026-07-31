@@ -60,6 +60,14 @@ interface AppStore {
   loading: boolean;
   toasts: Toast[];
 
+  // === Distribution Selection Memory ===
+  globalDistSelectedPlatform: string | null;
+  setGlobalDistSelectedPlatform: (id: string | null) => void;
+  projectDistSelectedProjectId: string | null;
+  projectDistSelectedPlatform: string | null;
+  setProjectDistSelectedProjectId: (id: string | null) => void;
+  setProjectDistSelectedPlatform: (id: string | null) => void;
+
   // === Toast Actions ===
   addToast: (message: string, type: Toast['type']) => void;
   removeToast: (id: string) => void;
@@ -200,6 +208,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   tagFilter: [],
   loading: false,
   toasts: [],
+
+  // === Distribution Selection Memory ===
+  globalDistSelectedPlatform: null,
+  setGlobalDistSelectedPlatform: (id) => set({ globalDistSelectedPlatform: id }),
+  projectDistSelectedProjectId: null,
+  projectDistSelectedPlatform: null,
+  setProjectDistSelectedProjectId: (id) => set({ projectDistSelectedProjectId: id }),
+  setProjectDistSelectedPlatform: (id) => set({ projectDistSelectedPlatform: id }),
 
   // === Toast Actions ===
   addToast: (message, type) => {

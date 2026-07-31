@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 5;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -29,6 +29,14 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
 
     if current < 3 {
         apply_v3(conn)?;
+    }
+
+    if current < 4 {
+        apply_v4(conn)?;
+    }
+
+    if current < 5 {
+        apply_v5(conn)?;
     }
 
     Ok(())
@@ -95,6 +103,36 @@ fn apply_v3(conn: &rusqlite::Connection) -> Result<(), AppError> {
     Ok(())
 }
 
+fn apply_v4(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    // distributions.platform_id cascades via FK; sync_logs / watcher_events have no FK.
+    conn.execute_batch(
+        "DELETE FROM platforms WHERE id IN ('antigravity', 'windsurf');
+         DELETE FROM sync_logs WHERE platform_id IN ('antigravity', 'windsurf');
+         DELETE FROM watcher_events WHERE platform IN ('antigravity', 'windsurf');",
+    )?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![4, now],
+    )?;
+    Ok(())
+}
+
+fn apply_v5(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    conn.execute_batch(
+        "DELETE FROM scenes WHERE id = '__all_skills__';
+         UPDATE scenes SET is_system = 0 WHERE is_system = 1;",
+    )?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![5, now],
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,14 +189,14 @@ mod tests {
     }
 
     #[test]
-    fn test_fresh_db_has_12_platforms() {
+    fn test_fresh_db_has_10_platforms() {
         let mut conn = rusqlite::Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
 
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM platforms", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, 12);
+        assert_eq!(count, 10);
     }
 
     #[test]
@@ -219,5 +257,101 @@ mod tests {
             .query_row([], |row| Ok(row.get::<_, String>(0)?))
             .is_ok();
         assert!(!exists, "scene_platforms table should be dropped by v3");
+    }
+
+    #[test]
+    fn test_v4_migration_removes_deprecated_platforms() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        // Simulate a v3-era DB: tables + legacy platform rows + version rows
+        crate::db::schema::create_tables(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO platforms (id, name, adapter, enabled, icon) VALUES (?1, ?2, ?3, 1, NULL)",
+            rusqlite::params!["antigravity", "Antigravity", "antigravity"],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO platforms (id, name, adapter, enabled, icon) VALUES (?1, ?2, ?3, 1, NULL)",
+            rusqlite::params!["windsurf", "Windsurf", "windsurf"],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO sync_logs (action, target_type, target_id, platform_id, status, created_at) VALUES ('install', 'skill', 'x', 'windsurf', 'ok', '2026-01-01T00:00:00Z')",
+            [],
+        )
+        .unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+        for v in [1u32, 2, 3] {
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                rusqlite::params![v, now],
+            )
+            .unwrap();
+        }
+
+        run_migrations(&mut conn).unwrap();
+
+        let platform_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM platforms WHERE id IN ('antigravity','windsurf')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(platform_count, 0);
+        let log_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sync_logs WHERE platform_id = 'windsurf'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(log_count, 0);
+        let version: u32 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 5);
+    }
+
+    #[test]
+    fn test_v5_migration_removes_system_scenes() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::schema::create_tables(&conn).unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT OR IGNORE INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 1, ?4, ?5)",
+            rusqlite::params!["__all_skills__", "All Skills", "Virtual", now, now],
+        ).unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES (?1, ?2, ?3, 0, 1, ?4, ?5)",
+            rusqlite::params!["old-system", "Old System", "Desc", now, now],
+        ).unwrap();
+
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+        ).unwrap();
+        for v in [1u32, 2, 3, 4] {
+            conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)", rusqlite::params![v, now]).unwrap();
+        }
+
+        super::run_migrations(&mut conn).unwrap();
+
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM scenes WHERE id = '__all_skills__'", [], |row| row.get(0)).unwrap();
+        assert_eq!(count, 0);
+
+        let is_system: i32 = conn.query_row("SELECT is_system FROM scenes WHERE id = 'old-system'", [], |row| row.get(0)).unwrap();
+        assert_eq!(is_system, 0);
+
+        let version: u32 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get(0)).unwrap();
+        assert_eq!(version, 5);
     }
 }

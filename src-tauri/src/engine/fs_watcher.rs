@@ -1,5 +1,5 @@
 //! Filesystem watcher using notify crate.
-//! Monitors skill/rule directories across 12 platforms for external changes.
+//! Monitors skill/rule directories across 10 platforms for external changes.
 //! Implements self-write mute mechanism to suppress echo of own sync operations.
 
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
@@ -141,10 +141,8 @@ pub fn collect_watch_paths(_conn: &rusqlite::Connection) -> Vec<PathBuf> {
         ".codebuddy",
         ".codebuddy-cn",
         ".codex",
-        ".windsurf",
         ".hermes",
         ".openclaw",
-        ".antigravity",
     ];
     for p in &platforms {
         paths.push(home.join(p).join("skills"));
@@ -394,10 +392,8 @@ pub fn build_watch_paths(enabled_platform_ids: &[String]) -> Vec<PathBuf> {
         ("codebuddy", ".codebuddy"),
         ("codebuddy-cn", ".codebuddy-cn"),
         ("codex", ".codex"),
-        ("windsurf", ".windsurf"),
         ("hermes", ".hermes"),
         ("openclaw", ".openclaw"),
-        ("antigravity", ".antigravity"),
     ];
     let mut paths = Vec::new();
     for (id, dir) in all {
@@ -489,18 +485,16 @@ mod tests {
             "codebuddy",
             "codebuddy-cn",
             "codex",
-            "windsurf",
             "hermes",
             "openclaw",
-            "antigravity",
         ]
         .iter()
         .map(|s| s.to_string())
         .collect();
         let paths = build_watch_paths(&all_ids);
         assert!(
-            paths.len() >= 36,
-            "expected >=36 paths, got {}",
+            paths.len() >= 30,
+            "expected >=30 paths, got {}",
             paths.len()
         );
         let home = dirs::home_dir().unwrap();

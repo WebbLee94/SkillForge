@@ -401,7 +401,7 @@ pub fn resolve_scene_skills(
     conn: &rusqlite::Connection,
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
-    if scene_id == "__all_skills__" {
+    if scene_id.is_empty() {
         let mut stmt = conn.prepare("SELECT id FROM skills")?;
         let result: Vec<String> = stmt
             .query_map([], |row| row.get(0))?
@@ -422,7 +422,7 @@ pub fn resolve_scene_rules(
     conn: &rusqlite::Connection,
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
-    if scene_id == "__all_skills__" {
+    if scene_id.is_empty() {
         let mut stmt = conn.prepare("SELECT id FROM rules")?;
         let result: Vec<String> = stmt
             .query_map([], |row| row.get(0))?
@@ -1165,7 +1165,7 @@ pub fn switch_global_scene(
     Ok(result)
 }
 /// Count subdirectories in a path (non-hidden, one level).
-fn count_fs_subdirs(path: &std::path::Path) -> i64 {
+pub(crate) fn count_fs_subdirs(path: &std::path::Path) -> i64 {
     if !path.exists() {
         return 0;
     }
@@ -1184,7 +1184,7 @@ fn count_fs_subdirs(path: &std::path::Path) -> i64 {
     count
 }
 /// Count files in a directory (non-hidden, one level).
-fn count_fs_files(path: &std::path::Path) -> i64 {
+pub(crate) fn count_fs_files(path: &std::path::Path) -> i64 {
     if !path.exists() {
         return 0;
     }
@@ -1215,7 +1215,7 @@ mod tests {
     fn test_get_sync_status() {
         let conn = setup_db();
         let status = get_sync_status(&conn).unwrap();
-        assert_eq!(status.platforms.len(), 12); // 12 built-in platforms
+        assert_eq!(status.platforms.len(), 10); // 10 built-in platforms
     }
     #[test]
     fn test_get_distributions_empty() {
@@ -1247,7 +1247,7 @@ mod tests {
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         // sync_scene with empty skill/rule lists and no scene_id should succeed
         // (no skills to install, nothing to fail on)
-        // With no platforms explicitly specified, it auto-resolves to 12 enabled platforms
+        // With no platforms explicitly specified, it auto-resolves to 10 enabled platforms
         // but since plugins list is empty, each platform will fail with "platform not found"
         let result = sync_scene(&conn, &plugins, &[], &[], None, None, "global", None);
         assert!(result.is_err());

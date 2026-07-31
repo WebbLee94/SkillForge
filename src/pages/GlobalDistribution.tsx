@@ -1,105 +1,110 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { cn } from '../lib/utils';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
-import { Search } from 'lucide-react';
-import type { Platform } from '../types';
+import { Settings } from 'lucide-react';
+import Editor from '@monaco-editor/react';
+import { FileTree } from '../components/FileTree';
+import { DistributeDialog } from '../components/DistributeDialog';
+import { ipc } from '../lib/ipc';
+import type { Platform, PlatformEntryCount } from '../types';
+
+const EXT_TO_LANG: Record<string, string> = {
+  md: 'markdown', ts: 'typescript', tsx: 'typescript',
+  js: 'javascript', jsx: 'javascript', json: 'json',
+  xml: 'xml', yaml: 'yaml', yml: 'yaml',
+  toml: 'ini', rs: 'rust', py: 'python',
+  sh: 'shell', bash: 'shell', css: 'css',
+  html: 'html', sql: 'sql', go: 'go',
+  java: 'java', kt: 'kotlin', vue: 'html',
+  svelte: 'html', rb: 'ruby',
+};
+
+const detectLang = (filename: string): string => {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return EXT_TO_LANG[ext] || 'plaintext';
+};
 
 export function GlobalDistribution() {
   const { t } = useTranslation('distribution');
   const platforms = useAppStore((s) => s.platforms);
-  const skills = useAppStore((s) => s.skills);
-  const rules = useAppStore((s) => s.rules);
-  const scenes = useAppStore((s) => s.scenes);
-  const fetchScenes = useAppStore((s) => s.fetchScenes);
-  const fetchSkills = useAppStore((s) => s.fetchSkills);
-  const fetchRules = useAppStore((s) => s.fetchRules);
   const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
-  const syncScene = useAppStore((s) => s.syncScene);
-  const addToast = useAppStore((s) => s.addToast);
 
   const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
-  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
-  const [selectedRules, setSelectedRules] = useState<string[]>([]);
-  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
-  const [skillSearch, setSkillSearch] = useState('');
-  const [expandedDirs, setExpandedDirs] = useState<string[]>(['skills']);
   const [previewFile, setPreviewFile] = useState<string | null>(null);
-  const [previewContent, setPreviewContent] = useState<string>('');
+  const [previewContent, setPreviewContent] = useState<string | null>(null);
+  const [fullScreen, setFullScreen] = useState(false);
+  const [distributeOpen, setDistributeOpen] = useState(false);
+  const [counts, setCounts] = useState<Record<string, PlatformEntryCount>>({});
 
   const enabledPlatforms = platforms.filter((p) => p.enabled) as Platform[];
+  const enabledIds = enabledPlatforms.map((p) => p.id).join(',');
 
-  const filteredSkills = useMemo(() => {
-    const q = skillSearch.toLowerCase();
-    if (!q) return skills;
-    return skills.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        (s.description || '').toLowerCase().includes(q)
-    );
-  }, [skills, skillSearch]);
+  // 拉取各平台真实文件系统计数（技能 = skills/ 子目录数，规则 = rules/ 文件数）
+  useEffect(() => {
+    const ids = enabledPlatforms.map((p) => p.id);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      ids.map((id) => ipc.countPlatformEntries(id).catch(() => null))
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, PlatformEntryCount> = {};
+      for (const r of results) {
+        if (r) next[r.platform_id] = r;
+      }
+      setCounts(next);
+    });
+    return () => { cancelled = true; };
+  }, [enabledIds]);
 
-  const filteredRules = useMemo(() => {
-    const q = skillSearch.toLowerCase();
-    if (!q) return rules;
-    return rules.filter(
-      (r) =>
-        r.name.toLowerCase().includes(q) ||
-        (r.description || '').toLowerCase().includes(q)
-    );
-  }, [rules, skillSearch]);
+  const hasContent = (id: string) =>
+    (counts[id]?.skills ?? 0) + (counts[id]?.rules ?? 0) > 0;
+
+  // 默认选中：URL/记忆平台 → 第一个有内容的平台 → 第一个启用平台
+  useEffect(() => {
+    if (enabledPlatforms.length === 0) return;
+    if (selectedPlatform && enabledPlatforms.some((p) => p.id === selectedPlatform)) return;
+    const store = useAppStore.getState();
+    const saved = store.globalDistSelectedPlatform;
+    if (saved && enabledPlatforms.some(p => p.id === saved)) {
+      setSelectedPlatform(saved);
+      return;
+    }
+    const withContent = enabledPlatforms.find((p) => hasContent(p.id));
+    setSelectedPlatform((withContent ?? enabledPlatforms[0]).id);
+  }, [enabledIds, counts, selectedPlatform, enabledPlatforms]);
 
   useEffect(() => {
-    fetchScenes();
-    fetchSkills();
-    fetchRules();
     fetchPlatforms();
   }, []);
 
-  const toggleSkill = (id: string) => {
-    setSelectedSkills((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
-
-  const toggleRule = (id: string) => {
-    setSelectedRules((prev) =>
-      prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id]
-    );
-  };
-
-  const handleDistribute = async () => {
-    if (!selectedPlatform) return;
-    await syncScene(
-      selectedSkills,
-      selectedRules,
-      selectedSceneId,
-      [selectedPlatform],
-      'global'
-    );
-    addToast('分发完成', 'success');
-    await fetchSkills();
-    await fetchRules();
+  const handleSelectPlatform = (id: string) => {
+    setSelectedPlatform(id);
+    useAppStore.getState().setGlobalDistSelectedPlatform(id);
+    setPreviewFile(null);
+    setPreviewContent(null);
   };
 
   const getPlatformDir = (platformId: string): string => {
-    const map: Record<string, string> = {
-      'claude-code': '~/.claude/',
-      cursor: '~/.cursor/',
-      opencode: '~/.opencode/',
-      trae: '~/.trae/',
-      'trae-cn': '~/.trae-cn/',
-      codebuddy: '~/.codebuddy/',
-      'codebuddy-cn': '~/.codebuddy-cn/',
-      codex: '~/.codex/',
-      hermes: '~/.hermes/',
-      openclaw: '~/.openclaw/',
-      antigravity: '~/.antigravity/',
-      windsurf: '~/.windsurf/',
-    };
-    return map[platformId] || `~/.${platformId}/`;
+    const p = platforms.find((p) => p.id === platformId);
+    if (!p?.paths?.global_skills_dir) return `~/.${platformId}/`;
+    const parts = p.paths.global_skills_dir.split("/").filter(Boolean);
+    return parts.slice(0, -1).join("/") + "/";
   };
+
+  const openInFinder = async (filePath: string) => {
+    try {
+      const { openPath } = await import('@tauri-apps/plugin-opener');
+      await openPath(filePath);
+    } catch (e) {
+      console.error('openInFinder failed:', e);
+    }
+  };
+
+  const selectedPlatformName = enabledPlatforms.find((p) => p.id === selectedPlatform)?.name;
+  const selectedCount = selectedPlatform ? counts[selectedPlatform] : undefined;
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
@@ -110,257 +115,197 @@ export function GlobalDistribution() {
         {t('globalSubtitle')}
       </p>
 
-      {/* Section 1: Platform selector — single-select, enabled only, with logos */}
-      <div className="mb-6">
-        <label className="mb-2 block text-sm font-medium text-foreground">
-          {t('selectTargetPlatform')}
-        </label>
-        <div className="flex gap-2 flex-wrap">
-          {enabledPlatforms.map((platform) => {
-            const isSelected = selectedPlatform === platform.id;
-            const IconComp = getPlatformIcon(platform.id);
-            return (
-              <button
-                key={platform.id}
-                onClick={() => setSelectedPlatform(platform.id)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors',
-                  isSelected
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent/50'
-                )}
-              >
-                {IconComp && <IconComp className="h-5 w-5 shrink-0" />}
-                <span>{platform.name}</span>
-              </button>
-            );
-          })}
+      {enabledPlatforms.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="text-4xl mb-4">&#x1F6D1;</div>
+          <h2 className="text-lg font-semibold text-foreground mb-2">
+            {t('noEnabledPlatforms') || '暂无启用的 Agent 平台'}
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6 max-w-md">
+            {t('noEnabledPlatformsHint') || '请先在设置中开启至少一个 Agent 平台'}
+          </p>
+          <button
+            onClick={() => useAppStore.getState().setActiveNav('settings')}
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Settings className="h-4 w-4" /> {t('goToSettings') || '前往设置'}
+          </button>
         </div>
-      </div>
-
-      {/* Section 2: Local file tree + content preview */}
-      {selectedPlatform && (
-        <div className="mb-6">
-          <label className="mb-2 block text-sm font-medium text-foreground">
-            📂 {getPlatformDir(selectedPlatform)}
-            <span className="font-normal opacity-60 text-xs ml-2">
-              技能 {filteredSkills.length} · 规则 {filteredRules.length}
-            </span>
-          </label>
-          <div className="flex gap-3 min-h-[150px]">
-            {/* Left: File tree */}
-            <div className="flex-1 font-mono text-xs bg-muted/50 rounded-lg p-3 overflow-y-auto max-h-[200px] border border-border">
-              <div
-                className="cursor-pointer py-1 px-1 rounded hover:bg-muted transition-colors"
-                onClick={() =>
-                  setExpandedDirs((prev) =>
-                    prev.includes('skills')
-                      ? prev.filter((d) => d !== 'skills')
-                      : [...prev, 'skills']
-                  )
-                }
-              >
-                {expandedDirs.includes('skills') ? '📂' : '📁'} skills/
-              </div>
-              {expandedDirs.includes('skills') &&
-                filteredSkills.slice(0, 15).map((skill) => (
-                  <div
-                    key={skill.id}
-                    className="pl-4 py-0.5 px-1 rounded cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => {
-                      setPreviewFile(`${skill.name}/SKILL.md`);
-                      setPreviewContent(
-                        `---\nname: ${skill.name}\ndescription: ${skill.description || '-'}\nversion: ${skill.current_ver || '-'}\n---`
-                      );
-                    }}
-                    title={skill.description || ''}
+      ) : (
+        <>
+          <div className="mb-6">
+            <label className="mb-2 block text-sm font-medium text-foreground">
+              {t('selectTargetPlatform') || '选择目标平台'}
+            </label>
+            <div className="flex gap-2 flex-wrap">
+              {enabledPlatforms.map((platform) => {
+                const isSelected = selectedPlatform === platform.id;
+                const IconComp = getPlatformIcon(platform.id);
+                const cnt = counts[platform.id];
+                return (
+                  <button
+                    key={platform.id}
+                    onClick={() => handleSelectPlatform(platform.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors',
+                      isSelected
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent/50'
+                    )}
                   >
-                    📄 {skill.name}/
-                  </div>
-                ))}
-              <div
-                className="cursor-pointer py-1 px-1 rounded hover:bg-muted transition-colors mt-1"
-                onClick={() =>
-                  setExpandedDirs((prev) =>
-                    prev.includes('rules')
-                      ? prev.filter((d) => d !== 'rules')
-                      : [...prev, 'rules']
-                  )
-                }
-              >
-                {expandedDirs.includes('rules') ? '📂' : '📁'} rules/
-              </div>
-              {expandedDirs.includes('rules') &&
-                filteredRules.slice(0, 15).map((rule) => (
-                  <div
-                    key={rule.id}
-                    className="pl-4 py-0.5 px-1 rounded cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => {
-                      setPreviewFile(`${rule.name}.${rule.format}`);
-                      setPreviewContent(
-                        rule.content || rule.description || '(空内容)'
-                      );
-                    }}
-                    title={
-                      rule.description
-                        ? `${rule.description}\nscope: ${rule.scope || 'global'}`
-                        : `scope: ${rule.scope || 'global'}`
-                    }
-                  >
-                    📄 {rule.name}.{rule.format}
-                  </div>
-                ))}
+                    <span
+                      className={cn(
+                        'h-2 w-2 rounded-full shrink-0',
+                        hasContent(platform.id) ? 'bg-green-500' : 'bg-muted-foreground/30'
+                      )}
+                      title={hasContent(platform.id) ? '已安装内容' : '暂无内容'}
+                    />
+                    {IconComp && <IconComp className="h-5 w-5 shrink-0" />}
+                    <span>{platform.name}</span>
+                    {cnt && (
+                      <span
+                        className="text-xs opacity-60 ml-0.5"
+                        title={`${platform.name}: ${cnt.skills} 技能 / ${cnt.rules} 规则`}
+                      >
+                        {cnt.skills}
+                        <span className="mx-0.5 opacity-40">/</span>
+                        {cnt.rules}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
+          </div>
 
-            {/* Right: Content preview */}
-            <div className="flex-1 bg-muted/50 rounded-lg p-3 border border-border">
-              <div className="opacity-60 text-xs font-medium mb-1">
-                {previewFile ? previewFile : '单击树节点 → 右侧预览'}
-              </div>
-              {previewFile ? (
-                <div className="font-mono text-xs bg-background rounded p-2 max-h-[130px] overflow-hidden leading-relaxed whitespace-pre-wrap">
-                  {previewContent || '(空内容)'}
+          {selectedPlatform && (
+            <>
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-foreground">
+                  📂 {getPlatformDir(selectedPlatform)}
+                  <span className="font-normal opacity-60 text-xs ml-2">
+                    技能 {selectedCount?.skills ?? 0} · 规则 {selectedCount?.rules ?? 0}
+                  </span>
+                </label>
+                <div className="flex gap-3 min-h-[350px]">
+                  <div className="w-1/3 font-mono text-xs bg-muted/50 rounded-lg p-3 overflow-y-auto border border-border max-h-[350px]">
+                    <FileTree
+                      rootPath={getPlatformDir(selectedPlatform)}
+                      onFileSelect={async (filePath) => {
+                        const result = await ipc.readFileContent(filePath);
+                        setPreviewFile(filePath);
+                        setPreviewContent(result.is_text ? result.content : null);
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 bg-muted/50 rounded-lg p-3 border border-border flex flex-col h-[350px]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium opacity-60">
+                        {previewFile || (t('clickToPreview') || '单击左侧文件预览')}
+                      </span>
+                      {previewFile && (
+                        <button onClick={() => setFullScreen(true)}
+                          className="text-xs opacity-40 hover:opacity-100">
+                          ⛶ 全屏
+                        </button>
+                      )}
+                    </div>
+                    {previewFile ? (
+                      previewContent !== null ? (
+                        <div className="flex-1 rounded overflow-hidden border border-border">
+                          <Editor
+                            height="100%"
+                            language={detectLang(previewFile)}
+                            theme="vs-dark"
+                            value={previewContent}
+                            options={{
+                              readOnly: true,
+                              minimap: { enabled: false },
+                              fontSize: 13,
+                              lineNumbers: 'on',
+                              scrollBeyondLastLine: false,
+                              wordWrap: 'on',
+                              folding: true,
+                              automaticLayout: true,
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center h-[200px] text-sm text-muted-foreground bg-muted/30 rounded">
+                          <span>⚠️ 无法预览此文件类型</span>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex items-center justify-center h-[200px] text-xs text-muted-foreground opacity-50">
+                        {t('clickToPreview') || '单击左侧文件预览'}
+                      </div>
+                    )}
+                    <div className="mt-auto flex justify-between text-xs opacity-50 border-t border-border pt-2">
+                      <span>💡 仅支持文本文件预览</span>
+                      <button onClick={() => previewFile && openInFinder(previewFile)}
+                        className="underline cursor-pointer hover:opacity-100">
+                        📂 {t('openInFinder') || '在 Finder 中打开'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div className="flex items-center justify-center h-[100px] text-xs text-muted-foreground opacity-50">
-                  单击左侧文件树节点预览内容
-                </div>
-              )}
-              <div className="mt-2 flex justify-between text-xs opacity-40">
-                <span>单击树节点预览 | 无法预览的文件提示从本地打开</span>
-                <span className="underline cursor-pointer">
-                  📂 在 Finder 中打开 →
-                </span>
               </div>
-            </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setDistributeOpen(true)}
+                  disabled={!selectedPlatform}
+                  className={cn(
+                    'px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                    selectedPlatform
+                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      : 'bg-muted text-muted-foreground cursor-not-allowed'
+                  )}
+                >
+                  {selectedPlatform
+                    ? `分发到 ${selectedPlatformName || selectedPlatform} →`
+                    : '请先选择平台'}
+                </button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {fullScreen && previewFile && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col p-4">
+          <div className="flex justify-between items-center mb-2 text-white">
+            <span className="text-sm font-medium">{previewFile}</span>
+            <button onClick={() => setFullScreen(false)}
+              className="text-white/70 hover:text-white text-lg">✕</button>
+          </div>
+          <div className="flex-1 rounded overflow-hidden">
+            <Editor
+              height="100%"
+              language={detectLang(previewFile)}
+              theme="vs-dark"
+              value={previewContent || ''}
+              options={{
+                readOnly: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                wordWrap: 'on',
+                automaticLayout: true,
+              }}
+            />
           </div>
         </div>
       )}
 
-      {/* Section 3: Scene selector (optional) */}
-      <div className="mb-4">
-        <label className="mb-1.5 block text-sm font-medium text-foreground">
-          {t('scenePackage')}{' '}
-          <span className="font-normal opacity-50 text-xs">
-            (可选 — 快速填充)
-          </span>
-        </label>
-        <select
-          value={selectedSceneId || ''}
-          onChange={(e) => setSelectedSceneId(e.target.value || null)}
-          className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="">全部技能 + 规则（无场景过滤）</option>
-          {scenes.map((scene) => (
-            <option key={scene.id} value={scene.id}>
-              {scene.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Section 4: Skills + Rules split columns */}
-      <div className="mb-6">
-        <div className="relative mb-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={skillSearch}
-            onChange={(e) => setSkillSearch(e.target.value)}
-            placeholder="🔍 搜索技能 / 规则..."
-            className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm"
-          />
-        </div>
-        <div className="flex gap-4 max-h-[250px] overflow-y-auto">
-          {/* Left: Skills */}
-          <div className="flex-1">
-            <div className="text-xs font-semibold text-foreground mb-2">
-              技能 ({filteredSkills.length})
-            </div>
-            <div className="space-y-1">
-              {filteredSkills.map((skill) => (
-                <div
-                  key={skill.id}
-                  onClick={() => toggleSkill(skill.id)}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors',
-                    selectedSkills.includes(skill.id)
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-card border border-border hover:bg-accent/50'
-                  )}
-                  title={`${skill.name} v${skill.current_ver || '?'}\n${skill.description || ''}\n来源: ${skill.source_type}`}
-                >
-                  <span className="text-xs">
-                    {selectedSkills.includes(skill.id) ? '☑' : '☐'}
-                  </span>
-                  <span className="flex-1 truncate">{skill.name}</span>
-                  {skill.current_ver && (
-                    <span className="text-xs opacity-50">
-                      v{skill.current_ver}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {filteredSkills.length === 0 && (
-                <p className="py-4 text-center text-xs text-muted-foreground">
-                  无匹配技能
-                </p>
-              )}
-            </div>
-          </div>
-          {/* Right: Rules */}
-          <div className="flex-1">
-            <div className="text-xs font-semibold text-foreground mb-2">
-              规则 ({filteredRules.length})
-            </div>
-            <div className="space-y-1">
-              {filteredRules.map((rule) => (
-                <div
-                  key={rule.id}
-                  onClick={() => toggleRule(rule.id)}
-                  className={cn(
-                    'flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer transition-colors',
-                    selectedRules.includes(rule.id)
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-card border border-border hover:bg-accent/50'
-                  )}
-                  title={`${rule.name}.${rule.format}\n${rule.description || ''}\nscope: ${rule.scope || 'global'}`}
-                >
-                  <span className="text-xs">
-                    {selectedRules.includes(rule.id) ? '☑' : '☐'}
-                  </span>
-                  <span className="flex-1 truncate">
-                    {rule.name}.{rule.format}
-                  </span>
-                </div>
-              ))}
-              {filteredRules.length === 0 && (
-                <p className="py-4 text-center text-xs text-muted-foreground">
-                  无匹配规则
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Section 5: Distribute button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleDistribute}
-          disabled={!selectedPlatform}
-          className={cn(
-            'px-6 py-2.5 rounded-lg text-sm font-medium transition-colors',
-            selectedPlatform
-              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-              : 'bg-muted text-muted-foreground cursor-not-allowed'
-          )}
-        >
-          {selectedPlatform
-            ? `分发到 ${enabledPlatforms.find((p) => p.id === selectedPlatform)?.name || selectedPlatform} →`
-            : '请先选择平台'}
-        </button>
-      </div>
+      <DistributeDialog
+        open={distributeOpen}
+        onClose={() => setDistributeOpen(false)}
+        scope="global"
+        initialPlatformId={selectedPlatform}
+        onDistributed={() => {
+          fetchPlatforms();
+        }}
+      />
     </div>
   );
 }

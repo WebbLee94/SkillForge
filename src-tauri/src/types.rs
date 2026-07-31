@@ -371,3 +371,12 @@ pub struct SkillFilter {
     pub source_type: Option<String>,
     pub tag: Option<String>,
 }
+
+/// 文件树节点，用于分发页面的目录浏览
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FileTreeNode {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub children: Vec<FileTreeNode>,
+}

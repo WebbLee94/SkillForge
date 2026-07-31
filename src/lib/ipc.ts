@@ -9,6 +9,7 @@ import type {
   Project,
   Platform,
   PlatformCapabilities,
+  PlatformEntryCount,
   Distribution,
   SyncLog,
   DashboardStats,
@@ -25,6 +26,7 @@ import type {
   RulePreview,
   ImportResult,
   SyncPreviewResult,
+  FileTreeNode,
 } from '../types';
 
 export interface WatcherEvent {
@@ -99,6 +101,8 @@ export const ipc = {
   bindSceneToProject: (projectId: string, sceneId: string) =>
     invoke<void>('bind_scene_to_project', { projectId, sceneId }),
   removeProject: (id: string) => invoke<void>('remove_project', { id }),
+  renameProject: (id: string, name: string) =>
+    invoke<Project>('rename_project', { id, name }),
 
   // Rules - Rust create_rule takes data: CreateRuleDTO
   listRules: (platform?: string) => invoke<Rule[]>('list_rules', { platform }),
@@ -137,6 +141,8 @@ export const ipc = {
   getDbSize: () => invoke<string>('get_db_size'),
   getCapabilities: (platformId: string) =>
     invoke<PlatformCapabilities>('get_platform_capabilities', { platformId }),
+  countPlatformEntries: (platformId: string) =>
+    invoke<PlatformEntryCount>('count_platform_entries', { platformId }),
 
   // Global Distribution
   getGlobalDistributionStatus: () =>
@@ -164,6 +170,12 @@ export const ipc = {
       scope,
       projectId,
     }),
+
+  // File system (distribution)
+  listDirectoryTree: (path: string, maxDepth?: number) =>
+    invoke<FileTreeNode[]>('list_directory_tree', { path, maxDepth }),
+  readFileContent: (path: string) =>
+    invoke<{ content: string | null; is_text: boolean }>('read_file_content', { path }),
 
   // Watcher
   getWatcherEvents: () => invoke<WatcherStatus>('get_watcher_events'),

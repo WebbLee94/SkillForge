@@ -63,8 +63,8 @@ fn test_get_scene_platforms_returns_all_enabled() {
     let platforms = scene_engine::get_scene_platforms(&conn, "any-scene").unwrap();
     assert_eq!(
         platforms.len(),
-        12,
-        "should return all 12 built-in enabled platforms"
+        10,
+        "should return all 10 built-in enabled platforms"
     );
     assert!(platforms.contains(&"claude-code".to_string()));
     assert!(platforms.contains(&"cursor".to_string()));

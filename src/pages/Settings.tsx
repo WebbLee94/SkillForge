@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ipc } from '../lib/ipc';
 import { cn } from '../lib/utils';
@@ -12,6 +12,7 @@ import {
   FolderOpen,
   Clipboard,
 } from 'lucide-react';
+import { TooltipPortal } from '../components/TooltipPortal';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useAppStore } from '../stores/appStore';
@@ -49,6 +50,8 @@ export function Settings() {
   const [capabilitiesMap, setCapabilitiesMap] = useState<
     Record<string, PlatformCapabilities>
   >({});
+  const [tooltipPlatformId, setTooltipPlatformId] = useState<string | null>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Resolve the effective language for the <select> value
   const effectiveLang = (() => {
@@ -340,7 +343,7 @@ export function Settings() {
                         return (
                           <tr
                             key={platform.id}
-                            className="border-b border-border last:border-0 group"
+                            className="border-b border-border last:border-0"
                           >
                             <td
                               className={cn(
@@ -417,7 +420,12 @@ export function Settings() {
                                 ];
                                 return (
                                   <div className="relative">
-                                    <div className="flex items-center justify-center gap-1.5">
+                                    <div
+                                      ref={tooltipRef}
+                                      onMouseEnter={() => setTooltipPlatformId(platform.id)}
+                                      onMouseLeave={() => setTooltipPlatformId(null)}
+                                      className="flex items-center justify-center gap-1.5"
+                                    >
                                       {capLabels.map((c) => (
                                         <CapBadge
                                           key={c.key}
@@ -426,49 +434,49 @@ export function Settings() {
                                         />
                                       ))}
                                     </div>
-                                    {/* Tooltip on hover — bg-popover 背景不受 row 透明度影响 */}
-                                    <div className="absolute left-1/2 -translate-x-1/2 top-full z-50 mt-1 hidden group-hover:block">
-                                      <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px]">
-                                        {capLabels.map((c) => (
-                                          <div
-                                            key={c.key}
-                                            className="flex items-center gap-2 py-1 text-xs"
-                                          >
-                                            {c.supported ? (
-                                              <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
-                                            ) : (
-                                              <XCircle className="h-3 w-3 text-error shrink-0" />
-                                            )}
-                                            <span className="text-muted-foreground w-16 shrink-0">
-                                              {c.label}
+                                    <TooltipPortal
+                                      open={tooltipPlatformId === platform.id}
+                                      triggerRef={tooltipRef}
+                                    >
+                                      {capLabels.map((c) => (
+                                        <div
+                                          key={c.key}
+                                          className="flex items-center gap-2 py-1 text-xs"
+                                        >
+                                          {c.supported ? (
+                                            <CheckCircle2 className="h-3 w-3 text-success shrink-0" />
+                                          ) : (
+                                            <XCircle className="h-3 w-3 text-error shrink-0" />
+                                          )}
+                                          <span className="text-muted-foreground w-16 shrink-0">
+                                            {c.label}
+                                          </span>
+                                          {c.supported && c.path ? (
+                                            <span className="font-mono text-foreground truncate flex-1">
+                                              {c.path.replace('{project}/', '')}
                                             </span>
-                                            {c.supported && c.path ? (
-                                              <span className="font-mono text-foreground truncate flex-1">
-                                                {c.path}
-                                              </span>
-                                            ) : (
-                                              <span className="text-muted-foreground/50">
-                                                不支持
-                                              </span>
-                                            )}
-                                            {c.supported && c.path && (
-                                              <button
-                                                className="shrink-0 text-muted-foreground hover:text-primary"
-                                                onClick={() => {
-                                                  navigator.clipboard.writeText(
-                                                    c.path
-                                                  );
-                                                  addToast('已复制', 'success');
-                                                }}
-                                                title="复制路径"
-                                              >
-                                                <Clipboard className="h-3 w-3" />
-                                              </button>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
+                                          ) : (
+                                            <span className="text-muted-foreground/50">
+                                              不支持
+                                            </span>
+                                          )}
+                                          {c.supported && c.path && (
+                                            <button
+                                              className="shrink-0 text-muted-foreground hover:text-primary"
+                                              onClick={() => {
+                                                navigator.clipboard.writeText(
+                                                  c.path
+                                                );
+                                                addToast('已复制', 'success');
+                                              }}
+                                              title="复制路径"
+                                            >
+                                              <Clipboard className="h-3 w-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </TooltipPortal>
                                   </div>
                                 );
                               })()}

@@ -39,10 +39,8 @@ pub fn resolve_path_to_capability(path: &Path) -> Option<(String, String)> {
         ("codebuddy", ".codebuddy"),
         ("codebuddy-cn", ".codebuddy-cn"),
         ("codex", ".codex"),
-        ("windsurf", ".windsurf"),
         ("hermes", ".hermes"),
         ("openclaw", ".openclaw"),
-        ("antigravity", ".antigravity"),
     ];
 
     for (key, dir) in platforms {

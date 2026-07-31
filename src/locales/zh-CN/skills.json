@@ -1,6 +1,6 @@
 {
-  "title": "技能库",
-  "subtitle": "管理和安装 AI 技能",
+  "title": "技能",
+  "subtitle": "管理和导入 AI 技能",
   "searchPlaceholder": "搜索技能...",
   "filterSource": "来源筛选",
   "filterTag": "标签筛选",
@@ -20,14 +20,14 @@
     "license": "许可证",
     "source": "来源",
     "localPath": "本地路径",
-    "installedAt": "安装时间",
+    "installedAt": "导入时间",
     "dependencies": "依赖",
     "platformStatus": "平台同步状态",
     "noSkillSelected": "选择一个技能查看详情",
     "openInFinder": "在文件管理器中打开"
   },
   "install": {
-    "title": "安装技能",
+    "title": "导入技能",
     "sourceType": "来源类型",
     "localPath": "本地路径",
     "gitUrl": "Git 仓库地址",
@@ -39,6 +39,6 @@
       "registry": "输入技能 ID 或搜索"
     }
   },
-  "empty": "还没有安装任何技能",
+  "empty": "还没有导入任何技能",
   "count": "共 {{count}} 个技能"
 }

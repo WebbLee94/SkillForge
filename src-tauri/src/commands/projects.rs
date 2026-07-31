@@ -166,6 +166,53 @@ pub fn remove_project(id: String, state: tauri::State<'_, AppState>) -> Result<(
     Ok(())
 }
 
+#[tauri::command]
+pub fn rename_project(
+    id: String,
+    name: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Project, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+
+    let exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM projects WHERE id = ?1",
+            params![id],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|c| c > 0)?;
+
+    if !exists {
+        return Err(AppError::ProjectNotFound(id));
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE projects SET name = ?1, updated_at = ?2 WHERE id = ?3",
+        params![name, now, id],
+    )?;
+
+    conn.query_row(
+        "SELECT id, name, path, scene_id, description, created_at, updated_at FROM projects WHERE id = ?1",
+        params![id],
+        |row| {
+            Ok(Project {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                path: row.get(2)?,
+                scene_id: row.get(3)?,
+                description: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            })
+        },
+    )
+    .map_err(|_| AppError::ProjectNotFound(id))
+}
+
 fn slugify(name: &str) -> String {
     name.to_lowercase()
         .chars()

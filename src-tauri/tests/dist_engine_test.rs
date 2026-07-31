@@ -33,7 +33,7 @@ fn test_get_sync_status_initial_state() {
     let conn = init_db();
 
     let status = dist_engine::get_sync_status(&conn).expect("get_sync_status should succeed");
-    // Initial state: platforms array has entries (12 built-in platforms)
+    // Initial state: platforms array has entries (10 built-in platforms)
     assert!(
         !status.platforms.is_empty(),
         "sync status should have platforms"

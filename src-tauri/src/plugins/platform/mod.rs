@@ -301,17 +301,23 @@ macro_rules! define_symlink_adapter {
 //   SingleFile mode: global_rules_dir = FULL file path, format = Some(SingleFile{file_name})
 //   No rules:        global_rules_dir = None, format = None
 
-// Directory mode platforms (9)
+// Rules format per platform (paths mirror definitions.rs):
+//   claude-code / opencode: SingleFile (CLAUDE.md / AGENTS.md)
+//   cursor / trae / trae-cn / codebuddy / codebuddy-cn: Directory rules
 define_symlink_adapter!(
     ClaudeCodeAdapter,
     "claude-code",
     "Claude Code",
     "~/.claude/skills",
     ".claude/skills",
-    Some("~/.claude/rules"),
-    None,
-    Some(".claude/rules"),
-    None
+    Some("~/.claude/CLAUDE.md"),
+    Some(RulesFormat::SingleFile {
+        file_name: "CLAUDE.md".into()
+    }),
+    Some("CLAUDE.md"),
+    Some(RulesFormat::SingleFile {
+        file_name: "CLAUDE.md".into()
+    })
 );
 
 define_symlink_adapter!(
@@ -320,10 +326,14 @@ define_symlink_adapter!(
     "OpenCode",
     "~/.config/opencode/skills",
     ".opencode/skills",
-    Some("~/.config/opencode/rules"),
-    None,
-    Some(".opencode/rules"),
-    None
+    Some("~/.config/opencode/AGENTS.md"),
+    Some(RulesFormat::SingleFile {
+        file_name: "AGENTS.md".into()
+    }),
+    Some("AGENTS.md"),
+    Some(RulesFormat::SingleFile {
+        file_name: "AGENTS.md".into()
+    })
 );
 
 define_symlink_adapter!(
@@ -344,7 +354,7 @@ define_symlink_adapter!(
     "Trae",
     "~/.trae/skills",
     ".trae/skills",
-    Some("~/.trae/rules"),
+    Some("~/.trae/user_rules"),
     None,
     Some(".trae/rules"),
     None
@@ -378,37 +388,23 @@ define_symlink_adapter!(
     CodebuddyCnAdapter,
     "codebuddy-cn",
     "CodeBuddy CN",
-    "~/.codebuddy-cn/skills",
-    ".codebuddy-cn/skills",
-    Some("~/.codebuddy-cn/rules"),
+    "~/.codebuddy/skills",
+    ".codebuddy/skills",
+    Some("~/.codebuddy/rules"),
     None,
-    Some(".codebuddy-cn/rules"),
+    Some(".codebuddy/rules"),
     None
 );
 
-define_symlink_adapter!(
-    WindsurfAdapter,
-    "windsurf",
-    "Windsurf",
-    "~/.windsurf/skills",
-    ".windsurf/skills",
-    None,
-    None,
-    Some(".windsurf/rules"),
-    None
-);
-
-// SingleFile mode platforms (3)
+// SingleFile project-only platform (no global rules)
 define_symlink_adapter!(
     CodexAdapter,
     "codex",
     "Codex",
     "~/.codex/skills",
     ".codex/skills",
-    Some("~/.codex/AGENTS.md"),
-    Some(RulesFormat::SingleFile {
-        file_name: "AGENTS.md".into()
-    }),
+    Some("~/.codex/rules"),
+    None,
     Some("AGENTS.md"),
     Some(RulesFormat::SingleFile {
         file_name: "AGENTS.md".into()
@@ -421,9 +417,9 @@ define_symlink_adapter!(
     "Hermes Agent",
     "~/.hermes/skills",
     ".hermes/skills",
-    Some("~/.hermes/SOUL.md"),
+    Some("~/.hermes/AGENTS.md"),
     Some(RulesFormat::SingleFile {
-        file_name: "SOUL.md".into()
+        file_name: "AGENTS.md".into()
     }),
     Some(".hermes.md"),
     Some(RulesFormat::SingleFile {
@@ -443,21 +439,6 @@ define_symlink_adapter!(
     Some(RulesFormat::SingleFile {
         file_name: "AGENTS.md".into()
     })
-);
-
-// Mixed mode: global SingleFile + project Directory
-define_symlink_adapter!(
-    AntigravityAdapter,
-    "antigravity",
-    "Antigravity",
-    "~/.antigravity/skills",
-    ".antigravity/skills",
-    Some("~/.gemini/GEMINI.md"),
-    Some(RulesFormat::SingleFile {
-        file_name: "GEMINI.md".into()
-    }),
-    Some(".agent/rules"),
-    None
 );
 
 // ── Registry ────────────────────────────────────────────────────────
@@ -507,8 +488,6 @@ pub fn create_platform_plugin(name: &str) -> Result<Box<dyn PlatformPlugin>, App
         "codex" => Ok(Box::new(CodexAdapter::new())),
         "hermes" => Ok(Box::new(HermesAdapter::new())),
         "openclaw" => Ok(Box::new(OpenclawAdapter::new())),
-        "antigravity" => Ok(Box::new(AntigravityAdapter::new())),
-        "windsurf" => Ok(Box::new(WindsurfAdapter::new())),
         _ => Err(AppError::Platform(format!("未知的平台插件: {}", name))),
     }
 }
@@ -526,8 +505,6 @@ pub fn create_all_platform_plugins() -> PlatformRegistry {
     registry.register(Box::new(CodexAdapter::new()));
     registry.register(Box::new(HermesAdapter::new()));
     registry.register(Box::new(OpenclawAdapter::new()));
-    registry.register(Box::new(AntigravityAdapter::new()));
-    registry.register(Box::new(WindsurfAdapter::new()));
     registry
 }
 
@@ -544,8 +521,6 @@ pub fn create_all_platform_plugins_vec() -> Vec<Box<dyn PlatformPlugin>> {
         Box::new(CodexAdapter::new()),
         Box::new(HermesAdapter::new()),
         Box::new(OpenclawAdapter::new()),
-        Box::new(AntigravityAdapter::new()),
-        Box::new(WindsurfAdapter::new()),
     ]
 }
 
@@ -589,13 +564,23 @@ mod tests {
         let paths = adapter.default_paths();
         assert_eq!(paths.global_skills_dir, "~/.claude/skills");
         assert_eq!(paths.project_skills_pattern, "{project}/.claude/skills");
-        assert_eq!(paths.global_rules_dir, Some("~/.claude/rules".to_string()));
         assert_eq!(
-            paths.project_rules_pattern,
-            Some(".claude/rules".to_string())
+            paths.global_rules_dir,
+            Some("~/.claude/CLAUDE.md".to_string())
         );
-        assert_eq!(paths.global_rules_format, None); // defaults to Directory
-        assert_eq!(paths.project_rules_format, None);
+        assert_eq!(paths.project_rules_pattern, Some("CLAUDE.md".to_string()));
+        assert_eq!(
+            paths.global_rules_format,
+            Some(RulesFormat::SingleFile {
+                file_name: "CLAUDE.md".into()
+            })
+        );
+        assert_eq!(
+            paths.project_rules_format,
+            Some(RulesFormat::SingleFile {
+                file_name: "CLAUDE.md".into()
+            })
+        );
     }
 
     #[test]
@@ -606,14 +591,24 @@ mod tests {
         assert_eq!(paths.project_skills_pattern, "{project}/.opencode/skills");
         assert_eq!(
             paths.global_rules_dir,
-            Some("~/.config/opencode/rules".to_string())
+            Some("~/.config/opencode/AGENTS.md".to_string())
         );
         assert_eq!(
             paths.project_rules_pattern,
-            Some(".opencode/rules".to_string())
+            Some("AGENTS.md".to_string())
         );
-        assert_eq!(paths.global_rules_format, None);
-        assert_eq!(paths.project_rules_format, None);
+        assert_eq!(
+            paths.global_rules_format,
+            Some(RulesFormat::SingleFile {
+                file_name: "AGENTS.md".into()
+            })
+        );
+        assert_eq!(
+            paths.project_rules_format,
+            Some(RulesFormat::SingleFile {
+                file_name: "AGENTS.md".into()
+            })
+        );
     }
 
     #[test]
@@ -632,19 +627,11 @@ mod tests {
     }
 
     #[test]
-    fn test_codex_single_file_format() {
+    fn test_codex_paths() {
         let adapter = CodexAdapter::new();
         let paths = adapter.default_paths();
-        assert_eq!(
-            paths.global_rules_dir,
-            Some("~/.codex/AGENTS.md".to_string())
-        );
-        assert_eq!(
-            paths.global_rules_format,
-            Some(RulesFormat::SingleFile {
-                file_name: "AGENTS.md".into()
-            })
-        );
+        assert_eq!(paths.global_rules_dir, Some("~/.codex/rules".to_string()));
+        assert_eq!(paths.global_rules_format, None);
         assert_eq!(paths.project_rules_pattern, Some("AGENTS.md".to_string()));
         assert_eq!(
             paths.project_rules_format,
@@ -652,42 +639,6 @@ mod tests {
                 file_name: "AGENTS.md".into()
             })
         );
-    }
-
-    #[test]
-    fn test_antigravity_mixed_format() {
-        let adapter = AntigravityAdapter::new();
-        let paths = adapter.default_paths();
-        // Global: SingleFile
-        assert_eq!(
-            paths.global_rules_dir,
-            Some("~/.gemini/GEMINI.md".to_string())
-        );
-        assert_eq!(
-            paths.global_rules_format,
-            Some(RulesFormat::SingleFile {
-                file_name: "GEMINI.md".into()
-            })
-        );
-        // Project: Directory
-        assert_eq!(
-            paths.project_rules_pattern,
-            Some(".agent/rules".to_string())
-        );
-        assert_eq!(paths.project_rules_format, None); // defaults to Directory
-    }
-
-    #[test]
-    fn test_windsurf_no_global_rules() {
-        let adapter = WindsurfAdapter::new();
-        let paths = adapter.default_paths();
-        assert_eq!(paths.global_rules_dir, None);
-        assert_eq!(paths.global_rules_format, None);
-        assert_eq!(
-            paths.project_rules_pattern,
-            Some(".windsurf/rules".to_string())
-        );
-        assert_eq!(paths.project_rules_format, None);
     }
 
     #[test]
@@ -717,24 +668,6 @@ mod tests {
         assert!(
             caps.limitation_notes.is_empty(),
             "Claude Code should have no limitation notes"
-        );
-    }
-
-    #[test]
-    fn test_windsurf_no_global_rules_capability() {
-        let adapter = WindsurfAdapter::new();
-        let caps = adapter.capabilities();
-        assert!(caps.skills_global);
-        assert!(caps.skills_project);
-        assert!(
-            !caps.rules_global,
-            "Windsurf should NOT support global rules"
-        );
-        assert!(caps.rules_project, "Windsurf should support project rules");
-        assert!(
-            caps.limitation_notes
-                .contains(&"no_global_rules".to_string()),
-            "Windsurf limitation_notes should contain 'no_global_rules'"
         );
     }
 

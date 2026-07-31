@@ -222,8 +222,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
         ("codex", "Codex", "codex"),
         ("hermes", "Hermes Agent", "hermes"),
         ("openclaw", "OpenClaw", "openclaw"),
-        ("antigravity", "Antigravity", "antigravity"),
-        ("windsurf", "Windsurf", "windsurf"),
     ];
 
     for (id, name, adapter) in &platforms {
@@ -232,23 +230,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             rusqlite::params![id, name, adapter],
         )?;
     }
-
-    // ── Built-in data: __all_skills__ system scene ────────────────
-    let now = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT OR IGNORE INTO scenes (id, name, description, icon, is_template, is_system, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-        rusqlite::params![
-            "__all_skills__",
-            "All Skills",
-            "Virtual scene containing all installed skills",
-            "grid",
-            0,
-            1,
-            now,
-            now,
-        ],
-    )?;
 
     Ok(())
 }
@@ -281,16 +262,7 @@ mod tests {
         let count: i64 = conn
             .query_row("SELECT COUNT(*) FROM platforms", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(count, 12);
+        assert_eq!(count, 10);
 
-        // Verify __all_skills__ scene
-        let scene_name: String = conn
-            .query_row(
-                "SELECT name FROM scenes WHERE id = '__all_skills__'",
-                [],
-                |row| row.get(0),
-            )
-            .unwrap();
-        assert_eq!(scene_name, "All Skills");
-    }
+        }
 }

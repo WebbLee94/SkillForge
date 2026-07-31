@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { cn } from '../lib/utils';
-import { formatDate } from '../lib/utils';
 import {
   Package,
   FileText,
@@ -222,8 +221,50 @@ export function Dashboard() {
         ))}
       </div>
 
+      {/* Workflow stepper — visible when no skills or rules */}
+      {(dashboardStats?.skill_count ?? 0) === 0 || (dashboardStats?.rule_count ?? 0) === 0 ? (
+        <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Step 1: Import or create content */}
+            <div className="flex flex-col items-center gap-1 flex-1">
+              <button onClick={() => setActiveNav('skills')}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Download className="h-3.5 w-3.5" /> {t('actions.import')} {t('nav.skills')}
+              </button>
+              <button onClick={() => setActiveNav('rules')}
+                className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
+                <FileText className="h-3 w-3" /> +{t('nav.rules')}
+              </button>
+              <span className="text-[10px] text-muted-foreground mt-1">准备内容</span>
+            </div>
+            <span className="text-lg text-muted-foreground/40 shrink-0">→</span>
+            {/* Step 2: Create scene */}
+            <div className="flex flex-col items-center gap-1 flex-1">
+              <button onClick={() => setActiveNav('scenes')}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Plus className="h-3.5 w-3.5" /> {t('actions.create')} {t('nav.scenes')}
+              </button>
+              <span className="text-[10px] text-muted-foreground mt-1">组织内容</span>
+            </div>
+            <span className="text-lg text-muted-foreground/40 shrink-0">→</span>
+            {/* Step 3: Distribute */}
+            <div className="flex flex-col items-center gap-1 flex-1">
+              <button onClick={() => setActiveNav('globalDistribution')}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
+                <RefreshCw className="h-3.5 w-3.5" /> {t('nav.globalDistribution')}
+              </button>
+              <button onClick={() => setActiveNav('projectDistribution')}
+                className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
+                <FolderOpen className="h-3 w-3" /> {t('nav.projectDistribution')}
+              </button>
+              <span className="text-[10px] text-muted-foreground mt-1">分发内容</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div>
-        {/* Global Distribution Status (full width) */}
+        {/* Global Distribution Status - simplified */}
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">
@@ -231,111 +272,88 @@ export function Dashboard() {
             </h2>
             <Globe className="h-4 w-4 text-primary" />
           </div>
-          {globalDistStatus ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {t('dashboard.currentScene')}
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {globalDistStatus.scene_name || t('dashboard.notConfigured')}
-                </span>
-              </div>
-              {!globalDistStatus.scene_id && (
-                <button
-                  className="flex w-full items-center justify-center gap-2 rounded-md bg-primary/10 px-3 py-2 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-                  onClick={() => setActiveNav('globalDistribution')}
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  {t('dashboard.configureGlobalScene')}
-                </button>
-              )}
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">
-                  {t('dashboard.skillRuleCount')}
-                </span>
-                <span className="text-sm font-medium text-foreground">
-                  {globalDistStatus.skill_count} / {globalDistStatus.rule_count}
-                </span>
-              </div>
-              {globalDistStatus.platforms.length > 0 && (
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {globalDistStatus.platforms.map((p) => {
-                    const PlatformIcon = getPlatformIcon(p.platform_id);
-                    // Display synced_skill_count / synced_rule_count
-                    const skillProgress = `${p.synced_skill_count ?? 0}/${p.synced_rule_count ?? 0}`;
-                    const tooltipText = `已同步技能: ${p.synced_skill_count ?? 0} / 已同步规则: ${p.synced_rule_count ?? 0}`;
-                    return (
-                      <button
-                        key={p.platform_id}
-                        className="flex items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-xs hover:bg-muted transition-colors"
-                        onClick={() => setActiveNav('globalDistribution')}
-                        title={tooltipText}
-                      >
-                        {PlatformIcon && (
-                          <PlatformIcon className="h-3.5 w-3.5" />
-                        )}
-                        <span className="font-medium text-foreground">
-                          {p.platform_name}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {skillProgress}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-              {globalDistStatus.last_synced_at && (
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs text-muted-foreground">
-                    {t('distribution:lastSynced')}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {formatDate(globalDistStatus.last_synced_at)}
-                  </span>
-                </div>
-              )}
+          {globalDistStatus && globalDistStatus.platforms.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {globalDistStatus.platforms.map((p) => {
+                const PlatformIcon = getPlatformIcon(p.platform_id);
+                const skillProgress = `${p.synced_skill_count ?? 0}/${p.synced_rule_count ?? 0}`;
+                return (
+                  <button
+                    key={p.platform_id}
+                    title={`${p.platform_name}: ${t('dashboard.skillRuleCount')} ${skillProgress}`}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-accent/50 hover:border-primary/50 transition-colors"
+                    onClick={() => {
+                      useAppStore
+                        .getState()
+                        .setGlobalDistSelectedPlatform(p.platform_id);
+                      setActiveNav('globalDistribution');
+                    }}
+                  >
+                    <span
+                      className={cn(
+                        "h-2 w-2 rounded-full shrink-0",
+                        (p.synced_skill_count ?? 0) + (p.synced_rule_count ?? 0) > 0
+                          ? "bg-green-500"
+                          : "bg-muted-foreground/30"
+                      )}
+                      title={(p.synced_skill_count ?? 0) + (p.synced_rule_count ?? 0) > 0
+                        ? `${p.platform_name}: ${t('dashboard.hasContent')}`
+                        : `${p.platform_name}: ${t('dashboard.noContent')}`}
+                    />
+                    {PlatformIcon && <PlatformIcon className="h-5 w-5 shrink-0" />}
+                    <span className="font-medium text-foreground">{p.platform_name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.synced_skill_count ?? 0}<span className="mx-0.5 opacity-40">/</span>{p.synced_rule_count ?? 0}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {t('messages.noData')}
-            </p>
+            <p className="text-sm text-muted-foreground">{t('messages.noData')}</p>
           )}
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 flex gap-3 flex-wrap">
+        {/* Content preparation */}
         <button
-          className={cn(
-            'flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5',
-            'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
-          )}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           onClick={() => setActiveNav('skills')}
         >
           <Download className="h-4 w-4" />
           {t('actions.import')} {t('nav.skills')}
         </button>
         <button
-          className={cn(
-            'flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5',
-            'text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors'
-          )}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          onClick={() => setActiveNav('rules')}
+        >
+          <FileText className="h-4 w-4" />
+          {t('actions.create')} {t('nav.rules')}
+        </button>
+        {/* Scene orchestration */}
+        <button
+          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
           onClick={() => setActiveNav('scenes')}
         >
           <Plus className="h-4 w-4" />
           {t('actions.create')} {t('nav.scenes')}
         </button>
+        {/* Distribution */}
         <button
-          className={cn(
-            'flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5',
-            'text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors'
-          )}
+          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
           onClick={() => setActiveNav('globalDistribution')}
         >
           <RefreshCw className="h-4 w-4" />
-          {t('actions.syncAll')}
+          {t('nav.globalDistribution')}
+        </button>
+        <button
+          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          onClick={() => setActiveNav('projectDistribution')}
+        >
+          <FolderOpen className="h-4 w-4" />
+          {t('nav.projectDistribution')}
         </button>
       </div>
 

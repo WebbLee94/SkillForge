@@ -87,12 +87,6 @@ pub fn update_scene(
 ) -> Result<(), AppError> {
     let _scene = query_scene_by_id(conn, id)?;
 
-    if id == "__all_skills__" {
-        return Err(AppError::Validation(
-            "无法修改系统场景 '__all_skills__'".to_string(),
-        ));
-    }
-
     let now = chrono::Utc::now().to_rfc3339();
 
     if let Some(ref name) = data.name {
@@ -120,12 +114,6 @@ pub fn update_scene(
 /// Delete a scene. Blocks if the scene is in use by projects or global distribution.
 /// Returns SceneInUse error with project count and names.
 pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppError> {
-    if id == "__all_skills__" {
-        return Err(AppError::Validation(
-            "无法删除系统场景 '__all_skills__'".to_string(),
-        ));
-    }
-
     let scene = query_scene_by_id(conn, id)?;
 
     // Block deletion of system scenes
@@ -303,12 +291,12 @@ pub fn remove_rule_from_scene(
     Ok(())
 }
 
-/// List all scenes. The __all_skills__ scene appears first.
+/// List all scenes.
 pub fn list_scenes(conn: &rusqlite::Connection) -> Result<Vec<Scene>, AppError> {
     let mut stmt = conn.prepare(
         "SELECT id, name, description, icon, is_template, is_system, created_at, updated_at
          FROM scenes
-         ORDER BY CASE WHEN id = '__all_skills__' THEN 0 ELSE 1 END, name ASC",
+         ORDER BY name ASC",
     )?;
 
     let scenes = stmt
@@ -334,19 +322,8 @@ pub fn list_scenes(conn: &rusqlite::Connection) -> Result<Vec<Scene>, AppError> 
 pub fn get_scene_detail(conn: &rusqlite::Connection, id: &str) -> Result<SceneDetail, AppError> {
     let scene = query_scene_by_id(conn, id)?;
 
-    let skills = if id == "__all_skills__" {
-        // Virtual scene: return all installed skills
-        get_all_skills_as_entries(conn)?
-    } else {
-        get_scene_skill_entries(conn, id)?
-    };
-
-    let rules = if id == "__all_skills__" {
-        // Virtual scene: return all rules
-        get_all_rules_as_entries(conn)?
-    } else {
-        get_scene_rule_entries(conn, id)?
-    };
+    let skills = get_scene_skill_entries(conn, id)?;
+    let rules = get_scene_rule_entries(conn, id)?;
 
     Ok(SceneDetail {
         scene,
@@ -361,17 +338,10 @@ pub fn validate_scene(conn: &rusqlite::Connection, id: &str) -> Result<Validatio
     let mut errors = Vec::new();
 
     // Get scene skills
-    let skill_ids: Vec<String> = if id == "__all_skills__" {
-        conn.prepare("SELECT id FROM skills")?
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect()
-    } else {
-        conn.prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?
-            .query_map(params![id], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect()
-    };
+    let skill_ids: Vec<String> = conn.prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?
+        .query_map(params![id], |row| row.get(0))?
+        .filter_map(|r| r.ok())
+        .collect();
 
     // Check each skill is installed
     for skill_id in &skill_ids {
@@ -395,10 +365,7 @@ pub fn validate_scene(conn: &rusqlite::Connection, id: &str) -> Result<Validatio
     })
 }
 
-/// Get the virtual __all_skills__ scene detail.
-pub fn get_all_skills_scene(conn: &rusqlite::Connection) -> Result<SceneDetail, AppError> {
-    get_scene_detail(conn, "__all_skills__")
-}
+
 
 /// Get all enabled platform IDs.
 /// After scene_platforms removal, this returns all enabled platforms directly.
@@ -572,31 +539,10 @@ mod tests {
     }
 
     #[test]
-    fn test_list_scenes() {
+    fn test_list_scenes_empty_db_has_no_system_scenes() {
         let conn = setup_db();
         let scenes = list_scenes(&conn).unwrap();
-        // __all_skills__ is built-in
-        assert_eq!(scenes.len(), 1);
-        assert_eq!(scenes[0].id, "__all_skills__");
-    }
-
-    #[test]
-    fn test_delete_system_scene_blocked() {
-        let conn = setup_db();
-        let result = delete_scene(&conn, "__all_skills__");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_update_system_scene_blocked() {
-        let conn = setup_db();
-        let dto = UpdateSceneDTO {
-            name: Some("New Name".to_string()),
-            description: None,
-            icon: None,
-        };
-        let result = update_scene(&conn, "__all_skills__", &dto);
-        assert!(result.is_err());
+        assert_eq!(scenes.len(), 0);
     }
 
     #[test]

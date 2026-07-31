@@ -1,6 +1,6 @@
 {
-  "title": "Skill Library",
-  "subtitle": "Manage and install AI skills",
+  "title": "Skills",
+  "subtitle": "Manage and import AI skills",
   "searchPlaceholder": "Search skills...",
   "filterSource": "Source Filter",
   "filterTag": "Tag Filter",
@@ -20,14 +20,14 @@
     "license": "License",
     "source": "Source",
     "localPath": "Local Path",
-    "installedAt": "Installed At",
+    "installedAt": "Imported At",
     "dependencies": "Dependencies",
     "platformStatus": "Platform Sync Status",
     "noSkillSelected": "Select a skill to view details",
     "openInFinder": "Open in File Manager"
   },
   "install": {
-    "title": "Install Skill",
+    "title": "Import Skill",
     "sourceType": "Source Type",
     "localPath": "Local Path",
     "gitUrl": "Git Repository URL",
@@ -39,6 +39,6 @@
       "registry": "Enter skill ID or search"
     }
   },
-  "empty": "No skills installed yet",
+  "empty": "No skills imported yet",
   "count": "{{count}} skills total"
 }

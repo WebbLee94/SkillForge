@@ -42,5 +42,17 @@
   "bindSceneFirst": "请先绑定场景，平台由场景自动确定",
   "confirmSwitchScene": "切换全局场景将重新分发技能和规则，是否继续？",
   "recentDistribution": "最近分发",
-  "syncStrategyHint": "同步仅新增/更新场景内的技能和规则，不会删除目标目录中已有的其他文件"
+  "syncStrategyHint": "同步仅新增/更新场景内的技能和规则，不会删除目标目录中已有的其他文件",
+  "selectTargetPlatform": "选择目标平台",
+  "scenePackage": "场景包（可选）",
+  "noEnabledPlatforms": "暂无启用的 Agent 平台",
+  "noEnabledPlatformsHint": "请先在设置中开启至少一个 Agent 平台后使用分发功能",
+  "goToSettings": "前往设置开启 Agent 平台",
+  "openInFinder": "在 Finder 中打开",
+  "selectProjectPlaceholder": "选择项目...",
+  "projectNamePlaceholder": "请输入项目名称",
+  "clickToPreview": "单击左侧文件预览",
+  "confirmDeleteTitle": "确认删除",
+  "confirmDeleteMessage": "确定要移除该项目吗？",
+  "delete": "删除"
 }
