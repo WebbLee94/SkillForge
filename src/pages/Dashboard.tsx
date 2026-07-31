@@ -16,19 +16,19 @@ import {
 } from 'lucide-react';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { ImportPreviewDialog } from '../components/ImportPreviewDialog';
+import { PlatformButton } from '../components/PlatformButton';
 import { WatcherNotification } from '../components/WatcherNotification';
-import type { PlatformScanResult } from '../types';
+import { ipc } from '../lib/ipc';
+import type { PlatformScanResult, PlatformEntryCount } from '../types';
 
 const FIRST_LAUNCH_DISMISSED_KEY = 'skillforge-import-guide-dismissed';
 
 export function Dashboard() {
   const { t } = useTranslation('common');
   const dashboardStats = useAppStore((s) => s.dashboardStats);
-  const globalDistStatus = useAppStore((s) => s.globalDistStatus);
   const platforms = useAppStore((s) => s.platforms);
   const fetchDashboardStats = useAppStore((s) => s.fetchDashboardStats);
   const fetchRecentActivity = useAppStore((s) => s.fetchRecentActivity);
-  const fetchGlobalDistStatus = useAppStore((s) => s.fetchGlobalDistStatus);
   const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
   const scanForImport = useAppStore((s) => s.scanForImport);
   const importScanned = useAppStore((s) => s.importScanned);
@@ -40,6 +40,28 @@ export function Dashboard() {
   const [totalSkipped, setTotalSkipped] = useState(0);
   const [importing, setImporting] = useState(false);
   const [showGuideCard, setShowGuideCard] = useState(false);
+  const [liveCounts, setLiveCounts] = useState<Record<string, PlatformEntryCount>>({});
+
+  const enabledPlatforms = platforms.filter((p) => p.enabled);
+  const enabledIds = enabledPlatforms.map((p) => p.id).join(',');
+
+  // Fetch live filesystem counts (same data source as GlobalDistribution)
+  useEffect(() => {
+    const ids = enabledPlatforms.map((p) => p.id);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      ids.map((id) => ipc.countPlatformEntries(id).catch(() => null))
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, PlatformEntryCount> = {};
+      for (const r of results) {
+        if (r) next[r.platform_id] = r;
+      }
+      setLiveCounts(next);
+    });
+    return () => { cancelled = true; };
+  }, [enabledIds]);
 
   // Load data then check first-launch — uses direct store read to avoid React dep issues
   useEffect(() => {
@@ -47,7 +69,6 @@ export function Dashboard() {
       await fetchDashboardStats();
       await fetchPlatforms();
       fetchRecentActivity();
-      fetchGlobalDistStatus();
 
       const state = useAppStore.getState();
       const enabledCount = (state.platforms || []).filter(
@@ -272,40 +293,23 @@ export function Dashboard() {
             </h2>
             <Globe className="h-4 w-4 text-primary" />
           </div>
-          {globalDistStatus && globalDistStatus.platforms.length > 0 ? (
+          {enabledPlatforms.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              {globalDistStatus.platforms.map((p) => {
-                const PlatformIcon = getPlatformIcon(p.platform_id);
-                const skillProgress = `${p.synced_skill_count ?? 0}/${p.synced_rule_count ?? 0}`;
+              {enabledPlatforms.map((p) => {
+                const cnt = liveCounts[p.id];
                 return (
-                  <button
-                    key={p.platform_id}
-                    title={`${p.platform_name}: ${t('dashboard.skillRuleCount')} ${skillProgress}`}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm hover:bg-accent/50 hover:border-primary/50 transition-colors"
+                  <PlatformButton
+                    key={p.id}
+                    name={p.name}
+                    icon={getPlatformIcon(p.id)}
+                    skillCount={cnt?.skills ?? 0}
+                    ruleCount={cnt?.rules ?? 0}
+                    isInstalled={cnt?.dir_exists ?? false}
                     onClick={() => {
-                      useAppStore
-                        .getState()
-                        .setGlobalDistSelectedPlatform(p.platform_id);
+                      useAppStore.getState().setGlobalDistSelectedPlatform(p.id);
                       setActiveNav('globalDistribution');
                     }}
-                  >
-                    <span
-                      className={cn(
-                        "h-2 w-2 rounded-full shrink-0",
-                        (p.synced_skill_count ?? 0) + (p.synced_rule_count ?? 0) > 0
-                          ? "bg-green-500"
-                          : "bg-muted-foreground/30"
-                      )}
-                      title={(p.synced_skill_count ?? 0) + (p.synced_rule_count ?? 0) > 0
-                        ? `${p.platform_name}: ${t('dashboard.hasContent')}`
-                        : `${p.platform_name}: ${t('dashboard.noContent')}`}
-                    />
-                    {PlatformIcon && <PlatformIcon className="h-5 w-5 shrink-0" />}
-                    <span className="font-medium text-foreground">{p.platform_name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {p.synced_skill_count ?? 0}<span className="mx-0.5 opacity-40">/</span>{p.synced_rule_count ?? 0}
-                    </span>
-                  </button>
+                  />
                 );
               })}
             </div>

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import { cn } from '../lib/utils';
+import { sanitizePath } from '../lib/utils';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
+import { PlatformButton } from '../components/PlatformButton';
 import { Plus, Trash2, Settings, ChevronDown } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import Editor from '@monaco-editor/react';
@@ -45,6 +46,7 @@ export function ProjectDistribution() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
   const [fullScreen, setFullScreen] = useState(false);
@@ -55,13 +57,18 @@ export function ProjectDistribution() {
   const enabledPlatforms = platforms.filter((p) => p.enabled) as Platform[];
   const enabledIds = enabledPlatforms.map((p) => p.id).join(',');
 
-  // 拉取各平台真实文件系统计数（技能 = skills/ 子目录数，规则 = rules/ 文件数）
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === selectedProjectId) || null,
+    [projects, selectedProjectId]
+  );
+
   useEffect(() => {
     const ids = enabledPlatforms.map((p) => p.id);
     if (ids.length === 0) return;
+    const pp = selectedProject?.path;
     let cancelled = false;
     Promise.all(
-      ids.map((id) => ipc.countPlatformEntries(id).catch(() => null))
+      ids.map((id) => ipc.countPlatformEntries(id, pp).catch(() => null))
     ).then((results) => {
       if (cancelled) return;
       const next: Record<string, PlatformEntryCount> = {};
@@ -71,10 +78,10 @@ export function ProjectDistribution() {
       setCounts(next);
     });
     return () => { cancelled = true; };
-  }, [enabledIds]);
+  }, [enabledIds, selectedProjectId]);
 
   const hasContent = (id: string) =>
-    (counts[id]?.skills ?? 0) + (counts[id]?.rules ?? 0) > 0;
+    counts[id]?.dir_exists ?? false;
 
   useEffect(() => {
     if (!dropdownOpen) return;
@@ -102,7 +109,6 @@ export function ProjectDistribution() {
     return projects.filter((p) => p.name.toLowerCase().includes(q));
   }, [projects, searchQuery]);
 
-  const selectedProject = projects.find((p) => p.id === selectedProjectId);
 
   useEffect(() => {
     fetchProjects();
@@ -156,9 +162,13 @@ export function ProjectDistribution() {
     setConfirmDeleteId(null);
   };
 
-  const getPlatformDir = (platformId: string): string =>
-    platforms.find((p) => p.id === platformId)?.paths.project_skills_pattern.replace('{project}', '') ??
-    `/.${platformId}/`;
+  const getPlatformDir = (platformId: string): string => {
+    const p = platforms.find((p) => p.id === platformId);
+    if (!p?.paths?.project_skills_pattern) return `/.${platformId}/`;
+    const cleaned = p.paths.project_skills_pattern.replace('{project}/', '');
+    const parts = cleaned.split('/').filter(Boolean);
+    return '/' + parts.slice(0, -1).join('/') + '/';
+  };
 
   return (
     <div className="flex h-full flex-col overflow-y-auto p-6">
@@ -199,7 +209,18 @@ export function ProjectDistribution() {
           <div className="mb-6">
             <div className="flex items-center gap-3">
               <div ref={dropdownRef} className="relative flex-1 max-w-[400px]">
-                <button onClick={() => setDropdownOpen(!dropdownOpen)}
+                <button onClick={() => {
+                    setDropdownOpen(!dropdownOpen);
+                    if (!dropdownOpen) {
+                      const btn = dropdownRef.current?.querySelector('button');
+                      if (btn) {
+                        const rect = btn.getBoundingClientRect();
+                        setDropdownRect({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+                      }
+                    } else {
+                      setDropdownRect(null);
+                    }
+                  }}
                   className="w-full flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2.5 text-sm hover:border-primary/50 transition-colors">
                   {selectedProject ? (
                     <span className="truncate">{selectedProject.name}</span>
@@ -211,8 +232,11 @@ export function ProjectDistribution() {
                   <ChevronDown className="h-4 w-4 ml-auto text-muted-foreground" />
                 </button>
 
-                {dropdownOpen && (
-                  <div className="absolute z-10 w-full mt-1 rounded-lg border border-border bg-card shadow-lg">
+                {dropdownOpen && dropdownRect && (
+                  <div
+                    className="fixed z-50 rounded-lg border border-border bg-card shadow-lg"
+                    style={{ top: dropdownRect.top, left: dropdownRect.left, width: dropdownRect.width }}
+                  >
                     <div className="p-2">
                       <input autoFocus type="text" value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -308,34 +332,21 @@ export function ProjectDistribution() {
                 <label className="mb-2 block text-sm font-medium text-foreground">{t('selectTargetPlatform') || '选择目标平台'}</label>
                 <div className="flex gap-2 flex-wrap">
                   {enabledPlatforms.map((platform) => {
-                    const isSelected = selectedPlatform === platform.id;
-                    const IconComp = getPlatformIcon(platform.id);
                     const cnt = counts[platform.id];
                     return (
-                      <button key={platform.id} onClick={() => {
-                        setSelectedPlatform(platform.id);
-                        useAppStore.getState().setProjectDistSelectedPlatform(platform.id);
-                      }} className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors',
-                        isSelected
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent/50'
-                      )}>
-                        <span
-                          className={cn(
-                            'h-2 w-2 rounded-full shrink-0',
-                            hasContent(platform.id) ? 'bg-green-500' : 'bg-muted-foreground/30'
-                          )}
-                          title={hasContent(platform.id) ? '已安装内容' : '暂无内容'}
-                        />
-                        {IconComp && <IconComp className="h-5 w-5 shrink-0" />}
-                        <span>{platform.name}</span>
-                        {cnt && (
-                          <span className="text-xs opacity-60 ml-0.5">
-                            {cnt.skills + cnt.rules}
-                          </span>
-                        )}
-                      </button>
+                      <PlatformButton
+                        key={platform.id}
+                        name={platform.name}
+                        icon={getPlatformIcon(platform.id)}
+                        skillCount={cnt?.skills ?? 0}
+                        ruleCount={cnt?.rules ?? 0}
+                        isInstalled={hasContent(platform.id)}
+                        isSelected={selectedPlatform === platform.id}
+                        onClick={() => {
+                          setSelectedPlatform(platform.id);
+                          useAppStore.getState().setProjectDistSelectedPlatform(platform.id);
+                        }}
+                      />
                     );
                   })}
                 </div>
@@ -345,7 +356,7 @@ export function ProjectDistribution() {
               {selectedPlatform && (
                 <div className="mb-6">
                   <label className="mb-2 block text-sm font-medium text-foreground">
-                    📂 {selectedProject.path}{getPlatformDir(selectedPlatform)}
+                    📂 {sanitizePath(selectedProject.path)}{getPlatformDir(selectedPlatform)}
                     <span className="font-normal opacity-60 text-xs ml-2">
                       技能 {counts[selectedPlatform]?.skills ?? 0} · 规则 {counts[selectedPlatform]?.rules ?? 0}
                     </span>
@@ -364,7 +375,7 @@ export function ProjectDistribution() {
                     <div className="flex-1 bg-muted/50 rounded-lg p-3 border border-border flex flex-col h-[350px]">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs font-medium opacity-60">
-                          {previewFile || (t('clickToPreview') || '单击左侧文件预览')}
+                          {t('clickToPreview') || '单击左侧文件预览'}
                         </span>
                         {previewFile && (
                           <button onClick={() => setFullScreen(true)}

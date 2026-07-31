@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { cn } from '../lib/utils';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
+import { PlatformButton } from '../components/PlatformButton';
 import { Settings } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { FileTree } from '../components/FileTree';
@@ -139,40 +140,18 @@ export function GlobalDistribution() {
             </label>
             <div className="flex gap-2 flex-wrap">
               {enabledPlatforms.map((platform) => {
-                const isSelected = selectedPlatform === platform.id;
-                const IconComp = getPlatformIcon(platform.id);
                 const cnt = counts[platform.id];
                 return (
-                  <button
+                  <PlatformButton
                     key={platform.id}
+                    name={platform.name}
+                    icon={getPlatformIcon(platform.id)}
+                    skillCount={cnt?.skills ?? 0}
+                    ruleCount={cnt?.rules ?? 0}
+                    isInstalled={cnt?.dir_exists ?? false}
+                    isSelected={selectedPlatform === platform.id}
                     onClick={() => handleSelectPlatform(platform.id)}
-                    className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors',
-                      isSelected
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border bg-card text-foreground hover:border-primary/50 hover:bg-accent/50'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'h-2 w-2 rounded-full shrink-0',
-                        hasContent(platform.id) ? 'bg-green-500' : 'bg-muted-foreground/30'
-                      )}
-                      title={hasContent(platform.id) ? '已安装内容' : '暂无内容'}
-                    />
-                    {IconComp && <IconComp className="h-5 w-5 shrink-0" />}
-                    <span>{platform.name}</span>
-                    {cnt && (
-                      <span
-                        className="text-xs opacity-60 ml-0.5"
-                        title={`${platform.name}: ${cnt.skills} 技能 / ${cnt.rules} 规则`}
-                      >
-                        {cnt.skills}
-                        <span className="mx-0.5 opacity-40">/</span>
-                        {cnt.rules}
-                      </span>
-                    )}
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -275,7 +254,7 @@ export function GlobalDistribution() {
       {fullScreen && previewFile && (
         <div className="fixed inset-0 z-50 bg-black/80 flex flex-col p-4">
           <div className="flex justify-between items-center mb-2 text-white">
-            <span className="text-sm font-medium">{previewFile}</span>
+            <span className="text-sm font-medium opacity-60">全屏预览</span>
             <button onClick={() => setFullScreen(false)}
               className="text-white/70 hover:text-white text-lg">✕</button>
           </div>

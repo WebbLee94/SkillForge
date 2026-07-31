@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
-import { cn } from '../lib/utils';
+import { cn, sanitizePath } from '../lib/utils';
 import { TagPopover } from '../components/TagPopover';
 import { TagFilterBar } from '../components/TagFilterBar';
 import { TagManagerDialog } from '../components/TagManagerDialog';
@@ -521,7 +521,7 @@ export function SkillLibrary() {
                   </span>
                   <div className="flex items-center gap-1.5">
                     <span className="max-w-[180px] truncate text-xs text-foreground">
-                      {selectedSkill.local_path}
+                      {sanitizePath(selectedSkill.local_path)}
                     </span>
                     {selectedSkill.local_path && (
                       <button

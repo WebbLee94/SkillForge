@@ -275,6 +275,7 @@ export interface PlatformEntryCount {
   platform_id: string;
   skills: number;
   rules: number;
+  dir_exists: boolean;
 }
 
 // ===== Sync Status =====

@@ -460,46 +460,6 @@ fn get_scene_rule_entries(
     Ok(entries)
 }
 
-fn get_all_skills_as_entries(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<SceneSkillEntry>, AppError> {
-    let mut stmt = conn.prepare("SELECT id, name, current_ver FROM skills ORDER BY name ASC")?;
-
-    let entries = stmt
-        .query_map([], |row| {
-            Ok(SceneSkillEntry {
-                skill_id: row.get(0)?,
-                skill_name: row.get(1)?,
-                version: row.get(2)?,
-                enabled: true,
-                sort_order: 0,
-                config: None,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(entries)
-}
-
-fn get_all_rules_as_entries(conn: &rusqlite::Connection) -> Result<Vec<SceneRuleEntry>, AppError> {
-    let mut stmt = conn.prepare("SELECT id, name FROM rules ORDER BY name ASC")?;
-
-    let entries = stmt
-        .query_map([], |row| {
-            Ok(SceneRuleEntry {
-                rule_id: row.get(0)?,
-                rule_name: row.get(1)?,
-                enabled: true,
-                sort_order: 0,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(entries)
-}
-
 /// Convert a name to a URL-safe slug (kebab-case)
 fn slugify(name: &str) -> String {
     name.to_lowercase()

@@ -24,7 +24,7 @@
     "selectFolder": "Select project directory",
     "selectScene": "Select scene",
     "selectPlatforms": "Select target platforms",
-    "confirm": "Confirm & Distribute"
+    "confirm": "Confirm"
   },
   "diffConfirm": {
     "title": "Scene Switch Confirmation",

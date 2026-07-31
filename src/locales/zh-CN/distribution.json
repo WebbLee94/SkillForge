@@ -24,7 +24,7 @@
     "selectFolder": "选择项目目录",
     "selectScene": "选择场景",
     "selectPlatforms": "选择目标平台",
-    "confirm": "确认并分发"
+    "confirm": "确认"
   },
   "diffConfirm": {
     "title": "场景切换确认",

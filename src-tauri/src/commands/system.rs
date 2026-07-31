@@ -290,6 +290,7 @@ pub struct PlatformEntryCount {
     pub platform_id: String,
     pub skills: i64,
     pub rules: i64,
+    pub dir_exists: bool,
 }
 
 fn count_entries_fs(
@@ -308,23 +309,49 @@ fn count_entries_fs(
 }
 
 #[tauri::command]
-pub fn count_platform_entries(platform_id: String) -> Result<PlatformEntryCount, AppError> {
+pub fn count_platform_entries(
+    platform_id: String,
+    project_path: Option<String>,
+) -> Result<PlatformEntryCount, AppError> {
     let plugin = crate::plugins::platform::create_platform_plugin(&platform_id)?;
     let paths = plugin.default_paths();
-    let skills_dir = crate::plugins::platform::expand_home(&paths.global_skills_dir);
-    let rules_path = paths
-        .global_rules_dir
-        .as_ref()
-        .map(|p| crate::plugins::platform::expand_home(p));
-    let rules_single_file = matches!(
-        paths.global_rules_format,
-        Some(crate::types::RulesFormat::SingleFile { .. })
-    );
+
+    let (skills_dir, rules_path, rules_single_file, base_dir) =
+        if let Some(ref pp) = project_path {
+            // Project-scoped: resolve patterns with project path
+            let skills_dir_str = paths.project_skills_pattern.replace("{project}", pp);
+            let skills_dir = std::path::PathBuf::from(&skills_dir_str);
+            let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
+            let rules_path = paths
+                .project_rules_pattern
+                .as_ref()
+                .map(|p| std::path::PathBuf::from(p.replace("{project}", pp)));
+            let rules_single_file = matches!(
+                paths.project_rules_format,
+                Some(crate::types::RulesFormat::SingleFile { .. })
+            );
+            (skills_dir, rules_path, rules_single_file, base_dir)
+        } else {
+            let skills_dir = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+            let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
+            let rules_path = paths
+                .global_rules_dir
+                .as_ref()
+                .map(|p| crate::plugins::platform::expand_home(p));
+            let rules_single_file = matches!(
+                paths.global_rules_format,
+                Some(crate::types::RulesFormat::SingleFile { .. })
+            );
+            (skills_dir, rules_path, rules_single_file, base_dir)
+        };
+
+    let dir_exists = base_dir.is_dir();
     let (skills, rules) = count_entries_fs(&skills_dir, rules_path.as_deref(), rules_single_file);
     Ok(PlatformEntryCount {
         platform_id,
         skills,
         rules,
+        dir_exists,
     })
 }
 

@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function sanitizePath(filePath: string): string {
+  if (!filePath) return filePath;
+  return filePath.replace(/^\/Users\/[^/]+/, '~');
+}
+
 export function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();

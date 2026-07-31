@@ -141,8 +141,11 @@ export const ipc = {
   getDbSize: () => invoke<string>('get_db_size'),
   getCapabilities: (platformId: string) =>
     invoke<PlatformCapabilities>('get_platform_capabilities', { platformId }),
-  countPlatformEntries: (platformId: string) =>
-    invoke<PlatformEntryCount>('count_platform_entries', { platformId }),
+  countPlatformEntries: (platformId: string, projectPath?: string) =>
+    invoke<PlatformEntryCount>('count_platform_entries', {
+      platformId,
+      projectPath: projectPath ?? null,
+    }),
 
   // Global Distribution
   getGlobalDistributionStatus: () =>
