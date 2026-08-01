@@ -91,6 +91,20 @@
     "operationFailed": "Operation failed",
     "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
   },
+  "fileTree": {
+    "loading": "Loading...",
+    "empty": "Directory is empty or doesn't exist",
+    "emptyDir": "(empty)"
+  },
+  "watcher": {
+    "changesDetected": "{{count}} file changes detected",
+    "newFiles": "+{{count}} new",
+    "deletedFiles": "-{{count}} deleted",
+    "modifiedFiles": "~{{count}} modified",
+    "importHint": "Go to Dashboard to import new skills into the library",
+    "goToDashboard": "Go to Dashboard",
+    "dismiss": "Dismiss"
+  },
   "platforms": {
     "title": "Agent Platforms",
     "enabled": "Enabled",
@@ -139,6 +153,11 @@
     "importing": "Importing...",
     "scanning": "Scanning...",
     "noDiscoverable": "No discoverable skills or rules found"
+  },
+  "workflow": {
+    "prepareContent": "Prepare Content",
+    "organizeContent": "Organize Content",
+    "distributeContent": "Distribute Content"
   },
   "syncConfirm": {
     "title": "Sync Confirmation",

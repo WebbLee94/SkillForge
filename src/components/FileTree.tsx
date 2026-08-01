@@ -1,4 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Folder, File } from 'lucide-react';
 import { ipc } from '../lib/ipc';
 import type { FileTreeNode as FTNode } from '../types';
 import { cn } from '../lib/utils';
@@ -26,6 +28,7 @@ function updateNodeChildren(nodes: FTNode[], dirPath: string, children: FTNode[]
 }
 
 export function FileTree({ rootPath, onFileSelect, maxDepth = 1 }: FileTreeProps) {
+  const { t } = useTranslation('common');
   const [tree, setTree] = useState<FTNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -106,7 +109,7 @@ export function FileTree({ rootPath, onFileSelect, maxDepth = 1 }: FileTreeProps
               {isLoading ? (
                 <span
                   className="inline-block h-2 w-2 rounded-full border border-current border-t-transparent animate-spin"
-                  aria-label="加载中"
+                  aria-label={t('messages.loading')}
                 />
               ) : (
                 <span className="text-[10px] leading-none opacity-60">{isOpen ? '▾' : '▸'}</span>
@@ -115,9 +118,9 @@ export function FileTree({ rootPath, onFileSelect, maxDepth = 1 }: FileTreeProps
           ) : (
             <span className="w-3 shrink-0" />
           )}
-          <span className="text-xs shrink-0">{node.is_dir ? '📁' : '📄'}</span>
+          <span className="text-xs shrink-0">{node.is_dir ? <Folder className="h-3.5 w-3.5" /> : <File className="h-3.5 w-3.5" />}</span>
           <span className="truncate text-xs">{node.name}</span>
-          {isEmpty && <span className="text-[10px] opacity-40 shrink-0">（空）</span>}
+          {isEmpty && <span className="text-[10px] opacity-40 shrink-0">{t('fileTree.emptyDir')}</span>}
         </div>
         {node.is_dir && isOpen && !isLoading && node.children.length > 0 && (
           <div>{node.children.map((child) => renderNode(child, depth + 1))}</div>
@@ -127,11 +130,11 @@ export function FileTree({ rootPath, onFileSelect, maxDepth = 1 }: FileTreeProps
   };
 
   if (loading) {
-    return <div className="text-xs text-muted-foreground py-4 text-center">加载中...</div>;
+    return <div className="text-xs text-muted-foreground py-4 text-center">{t('fileTree.loading')}</div>;
   }
 
   if (tree.length === 0) {
-    return <div className="text-xs text-muted-foreground py-4 text-center">目录为空或不存在</div>;
+    return <div className="text-xs text-muted-foreground py-4 text-center">{t('fileTree.empty')}</div>;
   }
 
   return (

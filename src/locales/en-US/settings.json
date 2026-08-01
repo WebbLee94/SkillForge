@@ -25,9 +25,19 @@
   "platforms": {
     "title": "Agent Platform List",
     "addButton": "Add Platform",
-    "columns": { "name": "Name", "status": "Status" },
+    "columns": { "name": "Name", "status": "Status", "capabilities": "Paths & Capabilities" },
     "actions": { "enable": "Enable", "disable": "Disable" },
     "hint": "Manage registered Agent platforms. Enabling/disabling platforms affects visibility in scene editing and distribution.",
-    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed."
+    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed.",
+    "capLabels": {
+      "skillsGlobal": "Global Skills",
+      "skillsProject": "Project Skills",
+      "rulesGlobal": "Global Rules",
+      "rulesProject": "Project Rules",
+      "notSupported": "Not Supported",
+      "copied": "Copied",
+      "copyPath": "Copy Path",
+      "openInFileManager": "Open in File Manager"
+    }
   }
 }

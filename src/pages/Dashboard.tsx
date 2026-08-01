@@ -124,16 +124,16 @@ export function Dashboard() {
       label: t('nav.projectDistribution'),
       value: dashboardStats?.project_count ?? 0,
       icon: <FolderOpen className="h-5 w-5" />,
-      color: 'text-error',
-      bgColor: 'bg-error/10',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-950',
       navKey: 'projectDistribution',
     },
     {
       label: t('nav.scenes'),
       value: dashboardStats?.user_scene_count ?? 0,
       icon: <Film className="h-5 w-5" />,
-      color: 'text-warning',
-      bgColor: 'bg-warning/10',
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bgColor: 'bg-indigo-100 dark:bg-indigo-950',
       navKey: 'scenes',
     },
     {
@@ -148,8 +148,8 @@ export function Dashboard() {
       label: t('nav.rules'),
       value: dashboardStats?.rule_count ?? 0,
       icon: <FileText className="h-5 w-5" />,
-      color: 'text-success',
-      bgColor: 'bg-success/10',
+      color: 'text-violet-600 dark:text-violet-400',
+      bgColor: 'bg-violet-100 dark:bg-violet-950',
       navKey: 'rules',
     },
   ];
@@ -256,7 +256,7 @@ export function Dashboard() {
                 className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
                 <FileText className="h-3 w-3" /> +{t('nav.rules')}
               </button>
-              <span className="text-[10px] text-muted-foreground mt-1">准备内容</span>
+              <span className="text-[10px] text-muted-foreground mt-1">{t('workflow.prepareContent')}</span>
             </div>
             <span className="text-lg text-muted-foreground/40 shrink-0">→</span>
             {/* Step 2: Create scene */}
@@ -265,7 +265,7 @@ export function Dashboard() {
                 className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
                 <Plus className="h-3.5 w-3.5" /> {t('actions.create')} {t('nav.scenes')}
               </button>
-              <span className="text-[10px] text-muted-foreground mt-1">组织内容</span>
+              <span className="text-[10px] text-muted-foreground mt-1">{t('workflow.organizeContent')}</span>
             </div>
             <span className="text-lg text-muted-foreground/40 shrink-0">→</span>
             {/* Step 3: Distribute */}
@@ -278,7 +278,7 @@ export function Dashboard() {
                 className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
                 <FolderOpen className="h-3 w-3" /> {t('nav.projectDistribution')}
               </button>
-              <span className="text-[10px] text-muted-foreground mt-1">分发内容</span>
+              <span className="text-[10px] text-muted-foreground mt-1">{t('workflow.distributeContent')}</span>
             </div>
           </div>
         </div>

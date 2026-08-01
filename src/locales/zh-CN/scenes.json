@@ -1,21 +1,14 @@
 {
-  "title": "场景编排",
-  "subtitle": "组合技能和规则创建场景",
   "createScene": "新建场景",
   "editScene": "编辑场景",
   "sceneName": "场景名称",
   "sceneDescription": "场景描述",
   "selectScene": "选择场景",
-  "availableSkills": "可用技能",
-  "availableRules": "可用规则",
   "sceneSkills": "场景技能",
   "sceneRules": "场景规则",
-  "targetPlatforms": "目标平台",
   "dragHint": "从左侧拖拽技能或规则到右侧",
   "noScene": "请先选择或创建一个场景",
   "saveScene": "保存场景",
-  "syncScene": "一键同步",
-  "exportScene": "导出分享",
   "create": {
     "title": "新建场景",
     "namePlaceholder": "输入场景名称",
@@ -25,28 +18,6 @@
   "count": "共 {{count}} 个场景",
   "skillTab": "技能",
   "ruleTab": "规则",
-  "systemSceneHint": "系统场景不可编辑",
-  "systemSceneNoSave": "系统场景无需保存",
-  "systemSceneNoDelete": "系统场景不可删除",
-  "systemSceneNoProject": "系统场景不绑定项目",
-  "noLinkedProjects": "暂无关联项目",
-  "viewLinkedProjects": "查看关联项目",
-  "usedInProjects": "已用于 {{count}} 个项目",
-  "deleteScene": "删除场景",
   "addSkill": "添加技能",
-  "addRule": "添加规则",
-  "platforms": {
-    "title": "Agent 平台",
-    "enabled": "已启用",
-    "autoBindHint": "系统场景自动关联所有已启用的 Agent 平台",
-    "noGlobalRules": "不支持全局规则",
-    "noProjectRules": "不支持项目规则"
-  },
-  "allScenes": "全部场景",
-  "capabilities": {
-    "no_global_rules": "全局规则不支持",
-    "no_project_rules": "项目规则不支持",
-    "no_rules": "规则不支持",
-    "full": "完整支持"
-  }
+  "addRule": "添加规则"
 }

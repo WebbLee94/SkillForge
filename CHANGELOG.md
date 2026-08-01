@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.0 (2026-08-XX)
+## v1.1.0 (2026-08-01)
 
 ### 🆕 新增
 
@@ -9,6 +9,17 @@
 - **三态同步状态**：看板支持已同步🟢 / 已缺失🔴 / 有更新🟡 三种状态
 - **变更通知栏**：检测到外部变更时自动弹出通知，支持一键导入/忽略
 - **自动更新检测**：Git 来源的技能定时检查新版本（默认 6h）
+
+### 📦 MCP（已归档）
+
+MCP（Model Context Protocol）服务器管理功能已完成完整实现，但因各平台配置格式差异大、维护成本高，经评估决定从 v1.1.0 版本中移除，相关代码归档至分支 `back/mcp_v1.1.0`。未来是否上线待定。
+
+**已归档的成果：**
+- Rust 后端：mcp_servers DB 表 + CRUD 引擎 + 6 平台格式转换 + 6 平台导出适配器 + 健康检查 + MCP 平台计数
+- 前端：McpManager 页面 + McpCard/McpForm/McpDistributeDialog 组件 + 场景编排 MCP tab + 看板 MCP 统计卡片
+- 导出适配器：Claude Desktop / Cursor / VS Code / Cline / Roo Code / Windsurf 6 平台原生格式
+
+详见 [ADR-007](../SkillForge-docs/05-决策记录/007-MCP功能归档决策.md)。
 
 ### 🔧 改进
 

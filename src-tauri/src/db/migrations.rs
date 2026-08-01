@@ -254,7 +254,7 @@ mod tests {
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='scene_platforms'")
             .unwrap();
         let exists: bool = stmt
-            .query_row([], |row| Ok(row.get::<_, String>(0)?))
+            .query_row([], |row| row.get::<_, String>(0))
             .is_ok();
         assert!(!exists, "scene_platforms table should be dropped by v3");
     }

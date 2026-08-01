@@ -134,9 +134,9 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
     setDistributing(false);
     if (result) {
       setResultMsg(result.errors.length === 0
-        ? '✓ 分发成功'
-        : `⚠ 分发完成，${result.errors.length} 项失败`);
-      addToast('分发完成', 'success');
+        ? t('distributeSuccess')
+        : t('distributeWarning', { count: result.errors.length }));
+      addToast(t('distributeComplete'), 'success');
       await fetchSkills();
       await fetchRules();
       onDistributed?.();
@@ -152,7 +152,7 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
       <div className="w-[820px] max-h-[85vh] overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">
-            分发到 {selectedPlatformName || selectedPlatform}
+            {t('distributeDialogTitle', { name: selectedPlatformName || selectedPlatform })}
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="h-5 w-5" />
@@ -164,7 +164,7 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
             {/* 场景包 */}
             <div className="mb-4">
               <label className="mb-1.5 block text-sm font-medium text-foreground">
-                {t('scenePackage') || '场景包'} <span className="font-normal opacity-50 text-xs">(可选)</span>
+                {t('scenePackageOptional')}
               </label>
               <select
                 value={selectedSceneId || ''}
@@ -175,7 +175,7 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
                 }}
                 className="w-full max-w-[400px] rounded-lg border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="">全部技能 + 规则（无场景过滤）</option>
+                <option value="">{t('allSkillsRules')}</option>
                 {scenes.map((scene) => (
                   <option key={scene.id} value={scene.id}>{scene.name}</option>
                 ))}
@@ -190,14 +190,14 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
                   type="text"
                   value={skillSearch}
                   onChange={(e) => setSkillSearch(e.target.value)}
-                  placeholder="🔍 搜索技能 / 规则..."
+                  placeholder={t('searchSkillsRules')}
                   className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm"
                 />
               </div>
               <div className="flex gap-4 max-h-[220px] overflow-y-auto">
                 <div className="flex-1">
                   <div className="text-xs font-semibold text-foreground mb-2">
-                    技能 ({filteredSkills.length})
+                    {t('skillsCount', { count: filteredSkills.length })}
                   </div>
                   <div className="space-y-1">
                     {filteredSkills.map((skill) => (
@@ -221,7 +221,7 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
                 </div>
                 <div className="flex-1">
                   <div className="text-xs font-semibold text-foreground mb-2">
-                    规则 ({filteredRules.length})
+                    {t('rulesCount', { count: filteredRules.length })}
                   </div>
                   <div className="space-y-1">
                     {filteredRules.map((rule) => (
@@ -265,7 +265,7 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
             onClick={onClose}
             className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
           >
-            取消
+            {t('common:actions.cancel')}
           </button>
           <button
             onClick={handleDistribute}
@@ -278,10 +278,10 @@ const [selectedPlatform, setSelectedPlatform] = useState<string | null>(null);
             )}
           >
             {distributing
-              ? '分发中...'
+              ? t('distributing')
               : selectedPlatform
-                ? `分发到 ${selectedPlatformName || selectedPlatform} →`
-                : '请先选择平台'}
+                ? t('distributeTo', { name: selectedPlatformName || selectedPlatform })
+                : t('selectPlatformFirst')}
           </button>
         </div>
       </div>

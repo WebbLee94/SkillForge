@@ -6,12 +6,7 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
-// Helper to create a fresh store for each test
-function createTestStore() {
-  // Reset the store to initial state by calling getState selectors
-  const store = useAppStore.getState();
-  return store;
-}
+
 
 describe('appStore — Skills', () => {
   beforeEach(() => {
@@ -25,8 +20,8 @@ describe('appStore — Skills', () => {
   });
 
   it('fetchSkills loads skills into state on success', async () => {
-    const mockSkills = [
-      { id: 'skill-1', name: 'Test Skill', skill_type: 'custom', source: 'local' },
+    const mockSkills: import('../../types').Skill[] = [
+      { id: 'skill-1', name: 'Test Skill', description: null, source_type: 'custom', source_url: null, current_ver: null, installed_at: '', local_path: '', metadata: null },
     ];
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockResolvedValue(mockSkills);
@@ -64,7 +59,7 @@ describe('appStore — Skills', () => {
 
   it('uninstallSkill updates selectedSkill if it was the uninstalled one', async () => {
     useAppStore.setState({
-      selectedSkill: { id: 'skill-1', name: 'To Delete', skill_type: 'custom', source: 'local' },
+      selectedSkill: { id: 'skill-1', name: 'To Delete', description: null, source_type: 'custom', source_url: null, current_ver: null, installed_at: '', local_path: '', metadata: null },
     });
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockResolvedValue({});
@@ -87,8 +82,8 @@ describe('appStore — Scenes', () => {
   });
 
   it('fetchScenes loads scenes into state', async () => {
-    const mockScenes = [
-      { id: 'scene-1', name: 'Test Scene', icon: 'box', skill_count: 0, rule_count: 0 },
+    const mockScenes: import('../../types').Scene[] = [
+      { id: 'scene-1', name: 'Test Scene', description: null, icon: 'box', is_template: false, is_system: false, created_at: '', updated_at: '' },
     ];
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockResolvedValue(mockScenes);
@@ -115,7 +110,7 @@ describe('appStore — Scenes', () => {
 
   it('deleteScene updates currentScene if deleted scene was selected', async () => {
     useAppStore.setState({
-      currentScene: { id: 'scene-3', name: 'To Delete', icon: 'zap', skill_count: 0, rule_count: 0 },
+      currentScene: { id: 'scene-3', name: 'To Delete', description: null, icon: 'zap', is_template: false, is_system: false, created_at: '', updated_at: '' },
     });
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockResolvedValue({});
@@ -140,13 +135,12 @@ describe('appStore — Dashboard', () => {
   });
 
   it('fetchDashboardStats loads stats', async () => {
-    const mockStats = {
-      total_skills: 10,
-      total_rules: 5,
-      total_platforms: 12,
-      synced_platforms: 8,
-      total_distributions: 20,
-      synced_distributions: 15,
+    const mockStats: import('../../types').DashboardStats = {
+      skill_count: 10,
+      rule_count: 5,
+      scene_count: 12,
+      user_scene_count: 8,
+      project_count: 20,
     };
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockResolvedValue(mockStats);
@@ -181,13 +175,13 @@ describe('appStore — Sync and Selection', () => {
   });
 
   it('selectSkill updates selected skill', () => {
-    const skill = { id: 's1', name: 'Selected', skill_type: 'custom', source: 'local' };
+    const skill: import('../../types').Skill = { id: 's1', name: 'Selected', description: null, source_type: 'custom', source_url: null, current_ver: null, installed_at: '', local_path: '', metadata: null };
     useAppStore.getState().selectSkill(skill);
     expect(useAppStore.getState().selectedSkill).toEqual(skill);
   });
 
   it('setCurrentScene updates current scene and clears detail', () => {
-    const scene = { id: 'sc1', name: 'Current', icon: 'box', skill_count: 1, rule_count: 0 };
+    const scene: import('../../types').Scene = { id: 'sc1', name: 'Current', description: null, icon: 'box', is_template: false, is_system: false, created_at: '', updated_at: '' };
     useAppStore.getState().setCurrentScene(scene);
     expect(useAppStore.getState().currentScene).toEqual(scene);
     expect(useAppStore.getState().currentSceneDetail).toBeNull();

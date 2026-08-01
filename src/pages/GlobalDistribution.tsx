@@ -4,7 +4,7 @@ import { useAppStore } from '../stores/appStore';
 import { cn } from '../lib/utils';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { PlatformButton } from '../components/PlatformButton';
-import { Settings } from 'lucide-react';
+import { Settings, FolderOpen, Maximize2, OctagonX, X } from 'lucide-react';
 import Editor from '@monaco-editor/react';
 import { FileTree } from '../components/FileTree';
 import { DistributeDialog } from '../components/DistributeDialog';
@@ -118,7 +118,7 @@ export function GlobalDistribution() {
 
       {enabledPlatforms.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="text-4xl mb-4">&#x1F6D1;</div>
+          <OctagonX className="h-10 w-10 mb-4 text-muted-foreground" />
           <h2 className="text-lg font-semibold text-foreground mb-2">
             {t('noEnabledPlatforms') || '暂无启用的 Agent 平台'}
           </h2>
@@ -161,9 +161,9 @@ export function GlobalDistribution() {
             <>
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-medium text-foreground">
-                  📂 {getPlatformDir(selectedPlatform)}
+                  <FolderOpen className="h-4 w-4 inline" /> {getPlatformDir(selectedPlatform)}
                   <span className="font-normal opacity-60 text-xs ml-2">
-                    技能 {selectedCount?.skills ?? 0} · 规则 {selectedCount?.rules ?? 0}
+                    {t('skillRuleCount', { skills: selectedCount?.skills ?? 0, rules: selectedCount?.rules ?? 0 })}
                   </span>
                 </label>
                 <div className="flex gap-3 min-h-[350px]">
@@ -185,7 +185,7 @@ export function GlobalDistribution() {
                       {previewFile && (
                         <button onClick={() => setFullScreen(true)}
                           className="text-xs opacity-40 hover:opacity-100">
-                          ⛶ 全屏
+                          <Maximize2 className="h-3.5 w-3.5 inline" /> {t('fullscreen')}
                         </button>
                       )}
                     </div>
@@ -211,7 +211,7 @@ export function GlobalDistribution() {
                         </div>
                       ) : (
                         <div className="flex items-center justify-center h-[200px] text-sm text-muted-foreground bg-muted/30 rounded">
-                          <span>⚠️ 无法预览此文件类型</span>
+                          <span>{t('cannotPreview')}</span>
                         </div>
                       )
                     ) : (
@@ -220,10 +220,10 @@ export function GlobalDistribution() {
                       </div>
                     )}
                     <div className="mt-auto flex justify-between text-xs opacity-50 border-t border-border pt-2">
-                      <span>💡 仅支持文本文件预览</span>
+                      <span>{t('textPreviewOnly')}</span>
                       <button onClick={() => previewFile && openInFinder(previewFile)}
                         className="underline cursor-pointer hover:opacity-100">
-                        📂 {t('openInFinder') || '在 Finder 中打开'}
+                        <FolderOpen className="h-3.5 w-3.5 inline" /> {t('openInFinder') || '在 Finder 中打开'}
                       </button>
                     </div>
                   </div>
@@ -242,8 +242,8 @@ export function GlobalDistribution() {
                   )}
                 >
                   {selectedPlatform
-                    ? `分发到 ${selectedPlatformName || selectedPlatform} →`
-                    : '请先选择平台'}
+                    ? t('distributeTo', { name: selectedPlatformName || selectedPlatform })
+                    : t('selectPlatformFirst')}
                 </button>
               </div>
             </>
@@ -254,9 +254,9 @@ export function GlobalDistribution() {
       {fullScreen && previewFile && (
         <div className="fixed inset-0 z-50 bg-black/80 flex flex-col p-4">
           <div className="flex justify-between items-center mb-2 text-white">
-            <span className="text-sm font-medium opacity-60">全屏预览</span>
+            <span className="text-sm font-medium opacity-60">{t('fullscreenPreview')}</span>
             <button onClick={() => setFullScreen(false)}
-              className="text-white/70 hover:text-white text-lg">✕</button>
+              className="text-white/70 hover:text-white"><X className="h-5 w-5" /></button>
           </div>
           <div className="flex-1 rounded overflow-hidden">
             <Editor

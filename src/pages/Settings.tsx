@@ -236,7 +236,7 @@ export function Settings() {
                         onClick={() =>
                           rawDataDir && revealItemInDir(rawDataDir)
                         }
-                        title="在文件管理器中打开"
+                        title={t('settings:platforms.capLabels.openInFileManager')}
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
                       </button>
@@ -328,7 +328,7 @@ export function Settings() {
                           {t('settings:platforms.columns.name')}
                         </th>
                         <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-[180px]">
-                          路径与能力
+                          {t('settings:platforms.columns.capabilities')}
                         </th>
                         <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-20">
                           {t('settings:platforms.columns.status')}
@@ -390,14 +390,14 @@ export function Settings() {
                                   {
                                     key: 'skills_global',
                                     supported: caps.skills_global,
-                                    label: '全局技能',
+                                    label: t('settings:platforms.capLabels.skillsGlobal'),
                                     path:
                                       platform.paths?.global_skills_dir || '',
                                   },
                                   {
                                     key: 'skills_project',
                                     supported: caps.skills_project,
-                                    label: '项目技能',
+                                    label: t('settings:platforms.capLabels.skillsProject'),
                                     path:
                                       platform.paths?.project_skills_pattern ||
                                       '',
@@ -405,14 +405,14 @@ export function Settings() {
                                   {
                                     key: 'rules_global',
                                     supported: caps.rules_global,
-                                    label: '全局规则',
+                                    label: t('settings:platforms.capLabels.rulesGlobal'),
                                     path:
                                       platform.paths?.global_rules_dir || '',
                                   },
                                   {
                                     key: 'rules_project',
                                     supported: caps.rules_project,
-                                    label: '项目规则',
+                                    label: t('settings:platforms.capLabels.rulesProject'),
                                     path:
                                       platform.paths?.project_rules_pattern ||
                                       '',
@@ -457,7 +457,7 @@ export function Settings() {
                                             </span>
                                           ) : (
                                             <span className="text-muted-foreground/50">
-                                              不支持
+                                              {t('settings:platforms.capLabels.notSupported')}
                                             </span>
                                           )}
                                           {c.supported && c.path && (
@@ -467,9 +467,9 @@ export function Settings() {
                                                 navigator.clipboard.writeText(
                                                   c.path
                                                 );
-                                                addToast('已复制', 'success');
+                                                addToast(t('settings:platforms.capLabels.copied'), 'success');
                                               }}
-                                              title="复制路径"
+                                              title={t('settings:platforms.capLabels.copyPath')}
                                             >
                                               <Clipboard className="h-3 w-3" />
                                             </button>

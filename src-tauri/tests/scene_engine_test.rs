@@ -103,7 +103,7 @@ fn test_scene_deduplication() {
 fn test_create_scene_with_various_icons() {
     let conn = init_db();
 
-    let icons = vec!["box", "star", "shield", "zap"];
+    let icons = ["box", "star", "shield", "zap"];
     for (i, icon) in icons.iter().enumerate() {
         let name = format!("Icon Scene {}", i);
         let dto = CreateSceneDTO {

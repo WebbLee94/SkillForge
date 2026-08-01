@@ -1,21 +1,14 @@
 {
-  "title": "Scene Editor",
-  "subtitle": "Combine skills and rules into scenes",
   "createScene": "New Scene",
   "editScene": "Edit Scene",
   "sceneName": "Scene Name",
   "sceneDescription": "Scene Description",
   "selectScene": "Select Scene",
-  "availableSkills": "Available Skills",
-  "availableRules": "Available Rules",
   "sceneSkills": "Scene Skills",
   "sceneRules": "Scene Rules",
-  "targetPlatforms": "Target Platforms",
   "dragHint": "Drag skills or rules from the left panel",
   "noScene": "Select or create a scene first",
   "saveScene": "Save Scene",
-  "syncScene": "Sync Now",
-  "exportScene": "Export",
   "create": {
     "title": "New Scene",
     "namePlaceholder": "Enter scene name",
@@ -25,28 +18,6 @@
   "count": "{{count}} scenes total",
   "skillTab": "Skills",
   "ruleTab": "Rules",
-  "systemSceneHint": "System scene cannot be edited",
-  "systemSceneNoSave": "System scene does not need saving",
-  "systemSceneNoDelete": "System scene cannot be deleted",
-  "systemSceneNoProject": "System scene does not bind to projects",
-  "noLinkedProjects": "No linked projects",
-  "viewLinkedProjects": "View linked projects",
-  "usedInProjects": "Used in {{count}} project(s)",
-  "deleteScene": "Delete Scene",
   "addSkill": "Add Skill",
-  "addRule": "Add Rule",
-  "platforms": {
-    "title": "Agent Platforms",
-    "enabled": "enabled",
-    "autoBindHint": "System scene automatically associates with all enabled Agent platforms",
-    "noGlobalRules": "No global rules support",
-    "noProjectRules": "No project rules support"
-  },
-  "allScenes": "All Scenes",
-  "capabilities": {
-    "no_global_rules": "No global rules support",
-    "no_project_rules": "No project rules support",
-    "no_rules": "No rules support",
-    "full": "Full support"
-  }
+  "addRule": "Add Rule"
 }

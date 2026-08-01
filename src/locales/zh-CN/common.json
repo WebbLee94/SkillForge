@@ -91,6 +91,20 @@
     "operationFailed": "操作失败",
     "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
   },
+  "fileTree": {
+    "loading": "加载中...",
+    "empty": "目录为空或不存在",
+    "emptyDir": "（空）"
+  },
+  "watcher": {
+    "changesDetected": "检测到 {{count}} 个文件变更",
+    "newFiles": "+{{count}} 新增",
+    "deletedFiles": "-{{count}} 已删除",
+    "modifiedFiles": "~{{count}} 已修改",
+    "importHint": "前往看板使用「一键导入」将新增技能加入技能库",
+    "goToDashboard": "前往看板",
+    "dismiss": "忽略"
+  },
   "platforms": {
     "title": "Agent 平台",
     "enabled": "已启用",
@@ -139,6 +153,11 @@
     "importing": "正在导入...",
     "scanning": "正在扫描...",
     "noDiscoverable": "未发现可导入的技能或规则"
+  },
+  "workflow": {
+    "prepareContent": "准备内容",
+    "organizeContent": "组织内容",
+    "distributeContent": "分发内容"
   },
   "syncConfirm": {
     "title": "同步确认",
