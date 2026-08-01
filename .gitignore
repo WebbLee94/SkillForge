@@ -23,6 +23,7 @@ node_modules
 
 # npm
 dist/
+coverage/
 dist-ssr
 *.local
 
