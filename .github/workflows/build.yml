@@ -22,7 +22,14 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
       - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
-      - run: npx vitest run
+      - run: npm run lint
+      - run: npm run test:coverage
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-macos
+          path: coverage/
 
   build-windows:
     runs-on: windows-latest
@@ -41,7 +48,14 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
       - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
-      - run: npx vitest run
+      - run: npm run lint
+      - run: npm run test:coverage
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-windows
+          path: coverage/
 
   build-linux:
     runs-on: ubuntu-latest
@@ -64,4 +78,11 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
         working-directory: src-tauri
       - run: npx prettier --check "src/**/*.{ts,tsx,css,json}"
-      - run: npx vitest run
+      - run: npm run lint
+      - run: npm run test:coverage
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-linux
+          path: coverage/
