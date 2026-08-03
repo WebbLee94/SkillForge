@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.0 (2026-08-01)
+## v1.1.0 (2026-08-03)
 
 ### 🆕 新增
 
@@ -21,17 +21,35 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 
 详见 [ADR-007](../SkillForge-docs/05-决策记录/007-MCP功能归档决策.md)。
 
-### 🔧 改进
-
-- 技能列表不再将已缺失的技能显示为"已同步"
-- 新增 `watcher_events` 审计表，完整记录所有文件变更事件
-
 ### 📦 依赖
 
 - 新增 `notify` 6.x（跨平台文件系统监控）
 - 新增 `hex` 0.4（哈希编码）
 - 新增 `walkdir` 2.x（目录遍历）
 - 新增 `log` 0.4（日志门面）
+
+### 🧪 质量与测试
+
+- **Vitest 覆盖率门禁 ≥60%**：配置 Vitest 覆盖率阈值，确保前端核心模块最小覆盖，防止未测试代码合入
+- **ESLint flat config + typescript-eslint**：从旧式 `.eslintrc` 迁移至 ESLint flat config，统一前端代码规范
+- **前端 Zustand Store 测试**：覆盖分发状态管理的完整链路，验证同步状态机运转正确
+- **Rust 集成测试**：覆盖完整分发链路（watcher → dist_engine → platform 写入），验证端到端正确性
+
+### 🔧 改进
+
+- 技能列表不再将已缺失的技能显示为"已同步"
+- 新增 `watcher_events` 审计表，完整记录所有文件变更事件
+- **P0/P1 发布前修复**：修复 5 个 TypeScript 类型错误、2 个 clippy 告警
+- **i18n 硬编码迁移**：51 处硬编码中文替换为 i18n `t()` 调用，补齐国际化覆盖
+- **Emoji 替换为 lucide 图标**：移除 UI 中所有 Emoji 字符，统一使用 `@radix-ui/react-icons`（lucide）
+- **Dashboard 统计卡片配色修复**：统计数据卡片颜色值对齐设计规范
+- **清理失效 i18n 键**：移除 19 个未引用的死键，减少产物体积
+
+### 🛠 工具链
+
+- **coverage/ 目录加入 .gitignore**：避免覆盖率报告文件和产物被版本控制追踪
+- **CI build.yml 增加 ESLint 检查 + 覆盖率报告**：PR 自动执行前端 lint 和覆盖率检查
+- **CI release.yml 增加测试门禁**：版本发布前自动运行测试套件，测试失败阻断发布流程
 
 ## v1.0.1 (2026-06-10)
 
