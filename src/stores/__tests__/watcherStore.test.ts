@@ -111,4 +111,32 @@ describe('watcherStore', () => {
     expect(listen).toHaveBeenCalledWith('app-fs-changed', expect.any(Function));
     expect(result).toBe(unlistenFn);
   });
+
+  it('listenToWatcher debounces rapid fs events within 2000ms', async () => {
+    vi.useFakeTimers();
+    try {
+      const unlistenFn = vi.fn();
+      const { listen } = await import('@tauri-apps/api/event');
+      const { invoke } = await import('@tauri-apps/api/core');
+      (invoke as any).mockResolvedValue({ unhandled_count: 0, events: [] });
+      (listen as any).mockResolvedValue(unlistenFn);
+
+      await useWatcherStore.getState().listenToWatcher();
+      const callback = (listen as any).mock.calls[0][1];
+
+      callback();
+      expect(invoke).toHaveBeenCalledWith('get_watcher_events');
+
+      (invoke as any).mockClear();
+      callback();
+      expect(invoke).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(2500);
+      (invoke as any).mockClear();
+      callback();
+      expect(invoke).toHaveBeenCalledWith('get_watcher_events');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

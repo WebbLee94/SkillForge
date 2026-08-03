@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppStore } from '../appStore';
 
 // Mock @tauri-apps/api/core invoke
@@ -6,25 +6,152 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
+/**
+ * Route-based invoke mock. Each key is a raw IPC command name (as produced by
+ * src/lib/ipc.ts); values are resolved payloads or Error instances (rejected).
+ * Unknown commands reject loudly so tests surface unintended calls.
+ */
+async function mockInvoke(routes: Record<string, unknown | Error>) {
+  const { invoke } = await import('@tauri-apps/api/core');
+  (invoke as any).mockImplementation((cmd: string) => {
+    if (cmd in routes) {
+      const v = routes[cmd];
+      return v instanceof Error ? Promise.reject(v) : Promise.resolve(v);
+    }
+    return Promise.reject(new Error(`Unexpected invoke command: ${cmd}`));
+  });
+}
 
+/** Reject every invoke call — for pure failure-path tests. */
+async function mockInvokeRejectAll() {
+  const { invoke } = await import('@tauri-apps/api/core');
+  (invoke as any).mockRejectedValue(new Error('boom'));
+}
+
+const skill = (id: string, name = 'Skill'): import('../../types').Skill => ({
+  id,
+  name,
+  description: null,
+  source_type: 'custom',
+  source_url: null,
+  current_ver: null,
+  installed_at: '',
+  local_path: '',
+  metadata: null,
+});
+
+const scene = (id: string, name = 'Scene'): import('../../types').Scene => ({
+  id,
+  name,
+  description: null,
+  icon: 'box',
+  is_template: false,
+  is_system: false,
+  created_at: '',
+  updated_at: '',
+});
+
+const rule = (id: string, name = 'Rule'): import('../../types').Rule => ({
+  id,
+  name,
+  description: null,
+  format: 'markdown',
+  content: '# rule',
+  platform: 'claude-code',
+  scope: 'global',
+  version: 1,
+  updated_at: '',
+});
+
+const tag = (id: number, tag_type: 'skill' | 'rule' = 'skill'): import('../../types').Tag => ({
+  id,
+  name: `tag-${id}`,
+  color: '#ff0000',
+  category: null,
+  tag_type,
+});
+
+const project = (id: string, name = 'Project'): import('../../types').Project => ({
+  id,
+  name,
+  path: `/tmp/${id}`,
+  scene_id: null,
+  description: null,
+  created_at: '',
+  updated_at: '',
+});
+
+const platform = (id: string, name = 'Platform'): import('../../types').Platform => ({
+  id,
+  name,
+  adapter: 'adapter',
+  enabled: true,
+  icon: null,
+  paths: {
+    global_skills_dir: '/x',
+    project_skills_pattern: 'x',
+    global_rules_dir: null,
+    project_rules_pattern: null,
+    global_rules_format: null,
+    project_rules_format: null,
+  },
+});
+
+const capabilities = (
+  overrides: Partial<import('../../types').PlatformCapabilities> = {}
+): import('../../types').PlatformCapabilities => ({
+  skills_global: true,
+  skills_project: true,
+  rules_global: true,
+  rules_project: true,
+  rules_format_global: null,
+  rules_format_project: null,
+  limitation_notes: [],
+  ...overrides,
+});
+
+/** Reset every data/selection/UI slice so tests start from a clean store. */
+function resetStore() {
+  useAppStore.setState({
+    skills: [],
+    rules: [],
+    tags: [],
+    scenes: [],
+    projects: [],
+    platforms: [],
+    distributions: [],
+    recentActivity: [],
+    dashboardStats: null,
+    syncStatus: null,
+    globalDistStatus: null,
+    selectedSkill: null,
+    currentScene: null,
+    currentSceneDetail: null,
+    editingRule: null,
+    activeNav: 'dashboard',
+    sidebarCollapsed: false,
+    searchQuery: '',
+    tagFilter: [],
+    loading: false,
+    toasts: [],
+    globalDistSelectedPlatform: null,
+    projectDistSelectedProjectId: null,
+    projectDistSelectedPlatform: null,
+    pendingSyncConfirm: null,
+    resolveSyncConfirm: null,
+  });
+}
 
 describe('appStore — Skills', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    // Reset store state
-    useAppStore.setState({
-      skills: [],
-      loading: false,
-      toasts: [],
-    });
+    vi.resetAllMocks();
+    resetStore();
   });
+  afterEach(() => vi.useRealTimers());
 
   it('fetchSkills loads skills into state on success', async () => {
-    const mockSkills: import('../../types').Skill[] = [
-      { id: 'skill-1', name: 'Test Skill', description: null, source_type: 'custom', source_url: null, current_ver: null, installed_at: '', local_path: '', metadata: null },
-    ];
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue(mockSkills);
+    const mockSkills = [skill('skill-1')];
+    await mockInvoke({ list_skills: mockSkills });
 
     await useAppStore.getState().fetchSkills();
 
@@ -34,68 +161,460 @@ describe('appStore — Skills', () => {
   });
 
   it('fetchSkills shows error toast on failure', async () => {
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockRejectedValue(new Error('Network error'));
+    await mockInvoke({ list_skills: new Error('Network error') });
 
     await useAppStore.getState().fetchSkills();
 
     const state = useAppStore.getState();
     expect(state.skills).toEqual([]);
+    expect(state.loading).toBe(false);
     expect(state.toasts.length).toBeGreaterThan(0);
     expect(state.toasts[0].type).toBe('error');
   });
 
-  it('installSkill calls invoke and re-fetches skills', async () => {
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue({ id: 'new-skill' });
+  it('installSkill maps local source and calls invoke + re-fetch', async () => {
+    await mockInvoke({
+      install_skill: { id: 'new-skill' },
+      list_skills: [],
+    });
 
     await useAppStore.getState().installSkill('local', 'new-skill');
 
+    const { invoke } = await import('@tauri-apps/api/core');
     expect(invoke).toHaveBeenCalledWith('install_skill', {
       source: 'local-fs',
       skillId: 'new-skill',
     });
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
   });
 
-  it('uninstallSkill updates selectedSkill if it was the uninstalled one', async () => {
-    useAppStore.setState({
-      selectedSkill: { id: 'skill-1', name: 'To Delete', description: null, source_type: 'custom', source_url: null, current_ver: null, installed_at: '', local_path: '', metadata: null },
+  it('installSkill maps git source and supports silent mode (no toast)', async () => {
+    await mockInvoke({
+      install_skill: { id: 'g1' },
+      list_skills: [],
     });
+
+    await useAppStore.getState().installSkill('git', 'g1', { silent: true });
+
     const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue({});
+    expect(invoke).toHaveBeenCalledWith('install_skill', {
+      source: 'git-repo',
+      skillId: 'g1',
+    });
+    expect(useAppStore.getState().toasts).toEqual([]);
+  });
+
+  it('installSkill shows error toast on failure', async () => {
+    await mockInvoke({ install_skill: new Error('install failed') });
+
+    await useAppStore.getState().installSkill('local', 'bad');
+
+    const state = useAppStore.getState();
+    expect(state.toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('uninstallSkill clears selectedSkill when it matches', async () => {
+    useAppStore.setState({ selectedSkill: skill('skill-1', 'To Delete') });
+    await mockInvoke({
+      uninstall_skill: {},
+      list_skills: [],
+    });
 
     await useAppStore.getState().uninstallSkill('skill-1');
 
     expect(useAppStore.getState().selectedSkill).toBeNull();
   });
+
+  it('uninstallSkill keeps selectedSkill when ids differ', async () => {
+    const kept = skill('other', 'Kept');
+    useAppStore.setState({ selectedSkill: kept });
+    await mockInvoke({
+      uninstall_skill: {},
+      list_skills: [],
+    });
+
+    await useAppStore.getState().uninstallSkill('skill-1');
+
+    expect(useAppStore.getState().selectedSkill).toEqual(kept);
+  });
+
+  it('uninstallSkill shows error toast on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().uninstallSkill('skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('updateSkill refetches and toasts success', async () => {
+    await mockInvoke({
+      update_skill: {},
+      list_skills: [],
+    });
+
+    await useAppStore.getState().updateSkill('skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('updateSkill toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().updateSkill('skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+});
+
+describe('appStore — Rules', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  it('fetchRules loads rules and clears loading', async () => {
+    const mockRules = [rule('r1')];
+    await mockInvoke({ list_rules: mockRules });
+
+    await useAppStore.getState().fetchRules();
+
+    const state = useAppStore.getState();
+    expect(state.rules).toEqual(mockRules);
+    expect(state.loading).toBe(false);
+  });
+
+  it('fetchRules toasts error on failure', async () => {
+    await mockInvoke({ list_rules: new Error('rules down') });
+
+    await useAppStore.getState().fetchRules();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('setEditingRule stores the rule', () => {
+    const r = rule('r2');
+    useAppStore.getState().setEditingRule(r);
+    expect(useAppStore.getState().editingRule).toEqual(r);
+  });
+
+  it('createRule calls create + re-fetch + success toast', async () => {
+    await mockInvoke({
+      create_rule: { id: 'r3' },
+      list_rules: [],
+    });
+
+    await useAppStore.getState().createRule({
+      name: 'New',
+      description: '',
+      format: 'markdown',
+      content: '# x',
+      platform: 'claude-code',
+      scope: 'global',
+    });
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('createRule silent mode adds no toast', async () => {
+    await mockInvoke({
+      create_rule: { id: 'r3' },
+      list_rules: [],
+    });
+
+    await useAppStore.getState().createRule(
+      {
+        name: 'New',
+        description: '',
+        format: 'markdown',
+        content: '# x',
+        platform: 'claude-code',
+        scope: 'global',
+      },
+      { silent: true }
+    );
+
+    expect(useAppStore.getState().toasts).toEqual([]);
+  });
+
+  it('createRule toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().createRule({
+      name: 'New',
+      description: '',
+      format: 'markdown',
+      content: '# x',
+      platform: 'claude-code',
+      scope: 'global',
+    });
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('updateRule saves + re-fetches + success toast', async () => {
+    await mockInvoke({
+      update_rule: {},
+      list_rules: [],
+    });
+
+    await useAppStore.getState().updateRule('r1', { name: 'Renamed' });
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('updateRule toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().updateRule('r1', { name: 'Renamed' });
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('deleteRule clears editingRule when it matches', async () => {
+    useAppStore.setState({ editingRule: rule('r9', 'To Delete') });
+    await mockInvoke({
+      delete_rule: {},
+      list_rules: [],
+      list_tags: [],
+    });
+
+    await useAppStore.getState().deleteRule('r9');
+
+    expect(useAppStore.getState().editingRule).toBeNull();
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('deleteRule keeps unrelated editingRule', async () => {
+    const other = rule('keep', 'Keep');
+    useAppStore.setState({ editingRule: other });
+    await mockInvoke({
+      delete_rule: {},
+      list_rules: [],
+      list_tags: [],
+    });
+
+    await useAppStore.getState().deleteRule('other-id');
+
+    expect(useAppStore.getState().editingRule).toEqual(other);
+  });
+
+  it('deleteRule toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().deleteRule('r1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+});
+
+describe('appStore — Tags', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  it('fetchTags loads tags', async () => {
+    const mockTags = [tag(1)];
+    await mockInvoke({ list_tags: mockTags });
+
+    await useAppStore.getState().fetchTags();
+
+    expect(useAppStore.getState().tags).toEqual(mockTags);
+  });
+
+  it('fetchTags passes tagType through to list_tags', async () => {
+    await mockInvoke({ list_tags: [] });
+
+    await useAppStore.getState().fetchTags('rule');
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('list_tags', {
+      category: undefined,
+      tagType: 'rule',
+      search: undefined,
+    });
+  });
+
+  it('fetchTags toasts error on failure', async () => {
+    await mockInvoke({ list_tags: new Error('tags down') });
+
+    await useAppStore.getState().fetchTags();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('createTag returns the new id and toasts success', async () => {
+    await mockInvoke({
+      create_tag: { id: 42 },
+      list_tags: [],
+    });
+
+    const id = await useAppStore.getState().createTag({
+      name: 'new',
+      color: '#fff',
+      category: 'cat',
+      tag_type: 'skill',
+    });
+
+    expect(id).toBe(42);
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('createTag returns undefined and toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    const id = await useAppStore.getState().createTag({
+      name: 'new',
+      color: '#fff',
+      tag_type: 'skill',
+    });
+
+    expect(id).toBeUndefined();
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('updateTag re-fetches with the tag type found in state', async () => {
+    useAppStore.setState({ tags: [tag(1, 'rule')] });
+    await mockInvoke({
+      update_tag: {},
+      list_tags: [],
+    });
+
+    await useAppStore.getState().updateTag(1, 'renamed');
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    // re-fetch uses tag_type ('rule') of the found tag
+    const listCalls = (invoke as any).mock.calls.filter(
+      (c: any[]) => c[0] === 'list_tags'
+    );
+    expect(listCalls.length).toBeGreaterThan(0);
+    expect(listCalls[0][1].tagType).toBe('rule');
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('updateTag handles tag missing from state (fetches without type)', async () => {
+    await mockInvoke({
+      update_tag: {},
+      list_tags: [],
+    });
+
+    await useAppStore.getState().updateTag(999, 'renamed');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('updateTag toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().updateTag(1, 'renamed');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('deleteTag re-fetches with tag type when tag exists', async () => {
+    useAppStore.setState({ tags: [tag(1, 'skill')] });
+    await mockInvoke({
+      delete_tag: {},
+      list_tags: [],
+    });
+
+    await useAppStore.getState().deleteTag(1);
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    const listCalls = (invoke as any).mock.calls.filter(
+      (c: any[]) => c[0] === 'list_tags'
+    );
+    expect(listCalls.length).toBeGreaterThan(0);
+    expect(listCalls[0][1].tagType).toBe('skill');
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('deleteTag handles tag missing from state', async () => {
+    await mockInvoke({
+      delete_tag: {},
+      list_tags: [],
+    });
+
+    await useAppStore.getState().deleteTag(999);
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('deleteTag toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().deleteTag(1);
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('assignTag toasts success', async () => {
+    await mockInvoke({ assign_tag: {} });
+
+    await useAppStore.getState().assignTag('skill', 's1', 1);
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('assign_tag', {
+      targetType: 'skill',
+      targetId: 's1',
+      tagId: 1,
+    });
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('assignTag toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().assignTag('skill', 's1', 1);
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('removeTag toasts success', async () => {
+    await mockInvoke({ remove_tag: {} });
+
+    await useAppStore.getState().removeTag('skill', 's1', 1);
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('removeTag toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().removeTag('skill', 's1', 1);
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
 });
 
 describe('appStore — Scenes', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    useAppStore.setState({
-      scenes: [],
-      currentScene: null,
-      currentSceneDetail: null,
-      toasts: [],
-    });
+    vi.resetAllMocks();
+    resetStore();
   });
 
   it('fetchScenes loads scenes into state', async () => {
-    const mockScenes: import('../../types').Scene[] = [
-      { id: 'scene-1', name: 'Test Scene', description: null, icon: 'box', is_template: false, is_system: false, created_at: '', updated_at: '' },
-    ];
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue(mockScenes);
+    const mockScenes = [scene('scene-1')];
+    await mockInvoke({ list_scenes: mockScenes });
 
     await useAppStore.getState().fetchScenes();
 
     expect(useAppStore.getState().scenes).toEqual(mockScenes);
   });
 
+  it('fetchScenes toasts error on failure', async () => {
+    await mockInvoke({ list_scenes: new Error('scenes down') });
+
+    await useAppStore.getState().fetchScenes();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
   it('createScene calls invoke and re-fetches scenes', async () => {
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue({ id: 'scene-2' });
+    await mockInvoke({
+      create_scene: { id: 'scene-2' },
+      list_scenes: [],
+    });
 
     await useAppStore.getState().createScene({
       name: 'New Scene',
@@ -103,35 +622,449 @@ describe('appStore — Scenes', () => {
       icon: 'star',
     });
 
+    const { invoke } = await import('@tauri-apps/api/core');
     expect(invoke).toHaveBeenCalledWith('create_scene', {
       data: { name: 'New Scene', description: 'A test scene', icon: 'star' },
     });
   });
 
-  it('deleteScene updates currentScene if deleted scene was selected', async () => {
-    useAppStore.setState({
-      currentScene: { id: 'scene-3', name: 'To Delete', description: null, icon: 'zap', is_template: false, is_system: false, created_at: '', updated_at: '' },
+  it('createScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().createScene({
+      name: 'New',
+      description: '',
     });
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue({});
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('updateScene saves + re-fetches + success toast', async () => {
+    await mockInvoke({
+      update_scene: {},
+      list_scenes: [],
+    });
+
+    await useAppStore.getState().updateScene('scene-1', { name: 'Renamed' });
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('updateScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().updateScene('scene-1', { name: 'Renamed' });
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('deleteScene clears currentScene when deleted scene was selected', async () => {
+    useAppStore.setState({
+      currentScene: scene('scene-3', 'To Delete'),
+      currentSceneDetail: { scene: scene('scene-3'), skills: [], rules: [] },
+    });
+    await mockInvoke({
+      delete_scene: {},
+      list_scenes: [],
+    });
 
     await useAppStore.getState().deleteScene('scene-3');
 
     expect(useAppStore.getState().currentScene).toBeNull();
     expect(useAppStore.getState().currentSceneDetail).toBeNull();
   });
+
+  it('deleteScene keeps unrelated currentScene', async () => {
+    const current = scene('keep', 'Keep');
+    useAppStore.setState({ currentScene: current });
+    await mockInvoke({
+      delete_scene: {},
+      list_scenes: [],
+    });
+
+    await useAppStore.getState().deleteScene('other-id');
+
+    expect(useAppStore.getState().currentScene).toEqual(current);
+  });
+
+  it('deleteScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().deleteScene('scene-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('fetchSceneDetail loads detail into state', async () => {
+    const detail: import('../../types').SceneDetail = {
+      scene: scene('scene-1'),
+      skills: [],
+      rules: [],
+    };
+    await mockInvoke({ get_scene_detail: detail });
+
+    await useAppStore.getState().fetchSceneDetail('scene-1');
+
+    expect(useAppStore.getState().currentSceneDetail).toEqual(detail);
+  });
+
+  it('fetchSceneDetail toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchSceneDetail('scene-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('addSkillToScene adds + re-fetches detail + success toast', async () => {
+    await mockInvoke({
+      add_skill_to_scene: {},
+      get_scene_detail: { scene: scene('scene-1'), skills: [], rules: [] },
+    });
+
+    await useAppStore.getState().addSkillToScene('scene-1', 'skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('addSkillToScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().addSkillToScene('scene-1', 'skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('removeSkillFromScene removes + re-fetches detail + success toast', async () => {
+    await mockInvoke({
+      remove_skill_from_scene: {},
+      get_scene_detail: { scene: scene('scene-1'), skills: [], rules: [] },
+    });
+
+    await useAppStore.getState().removeSkillFromScene('scene-1', 'skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('removeSkillFromScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().removeSkillFromScene('scene-1', 'skill-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('addRuleToScene adds + re-fetches detail + success toast', async () => {
+    await mockInvoke({
+      add_rule_to_scene: {},
+      get_scene_detail: { scene: scene('scene-1'), skills: [], rules: [] },
+    });
+
+    await useAppStore.getState().addRuleToScene('scene-1', 'r1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('addRuleToScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().addRuleToScene('scene-1', 'r1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('removeRuleFromScene removes + re-fetches detail + success toast', async () => {
+    await mockInvoke({
+      remove_rule_from_scene: {},
+      get_scene_detail: { scene: scene('scene-1'), skills: [], rules: [] },
+    });
+
+    await useAppStore.getState().removeRuleFromScene('scene-1', 'r1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('removeRuleFromScene toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().removeRuleFromScene('scene-1', 'r1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
 });
 
-describe('appStore — Dashboard', () => {
+describe('appStore — Projects', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    useAppStore.setState({
-      dashboardStats: null,
-      recentActivity: [],
-      globalDistStatus: null,
-      loading: false,
-      toasts: [],
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  it('fetchProjects loads projects', async () => {
+    const mockProjects = [project('p1')];
+    await mockInvoke({ list_projects: mockProjects });
+
+    await useAppStore.getState().fetchProjects();
+
+    expect(useAppStore.getState().projects).toEqual(mockProjects);
+  });
+
+  it('fetchProjects toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchProjects();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('addProject adds + re-fetches + success toast', async () => {
+    await mockInvoke({
+      add_project: {},
+      list_projects: [],
     });
+
+    await useAppStore.getState().addProject('My Proj', '/tmp/p', 'scene-1', 'desc');
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('add_project', {
+      name: 'My Proj',
+      path: '/tmp/p',
+      sceneId: 'scene-1',
+      description: 'desc',
+    });
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('addProject toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().addProject('My Proj', '/tmp/p');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('removeProject removes + re-fetches + success toast', async () => {
+    await mockInvoke({
+      remove_project: {},
+      list_projects: [],
+    });
+
+    await useAppStore.getState().removeProject('p1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('removeProject toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().removeProject('p1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('bindSceneToProject binds + re-fetches + success toast', async () => {
+    await mockInvoke({
+      bind_scene_to_project: {},
+      list_projects: [],
+    });
+
+    await useAppStore.getState().bindSceneToProject('p1', 'scene-1');
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('bind_scene_to_project', {
+      projectId: 'p1',
+      sceneId: 'scene-1',
+    });
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('bindSceneToProject toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().bindSceneToProject('p1', 'scene-1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+});
+
+describe('appStore — Platforms', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  it('fetchPlatforms loads platforms', async () => {
+    const mockPlatforms = [platform('claude-code')];
+    await mockInvoke({ list_platforms: mockPlatforms });
+
+    await useAppStore.getState().fetchPlatforms();
+
+    expect(useAppStore.getState().platforms).toEqual(mockPlatforms);
+  });
+
+  it('fetchPlatforms toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchPlatforms();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+});
+
+describe('appStore — Distribution', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  it('fetchDistributions loads distribution list', async () => {
+    const mockDists = [{ platform_id: 'claude-code', status: 'synced' }];
+    await mockInvoke({ get_distributions: mockDists });
+
+    await useAppStore.getState().fetchDistributions();
+
+    expect(useAppStore.getState().distributions).toEqual(mockDists);
+  });
+
+  it('fetchDistributions toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchDistributions();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('syncScene toasts success when result has no errors', async () => {
+    await mockInvoke({
+      sync_scene: { installed: [], updated: [], removed: [], errors: [] },
+      get_distributions: [],
+      get_sync_status: { platforms: [] },
+      get_global_distribution_status: { platforms: [] },
+    });
+
+    const result = await useAppStore
+      .getState()
+      .syncScene([], [], null, [], 'project');
+
+    expect(result?.errors).toEqual([]);
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('syncScene toasts warning when result has errors', async () => {
+    await mockInvoke({
+      sync_scene: { installed: [], updated: [], removed: [], errors: ['e1'] },
+      get_distributions: [],
+      get_sync_status: { platforms: [] },
+      get_global_distribution_status: { platforms: [] },
+    });
+
+    const result = await useAppStore
+      .getState()
+      .syncScene([], [], null, [], 'global');
+
+    expect(result?.errors).toEqual(['e1']);
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'warning')).toBe(true);
+  });
+
+  it('syncScene global scope warns when a platform lacks global rules', async () => {
+    useAppStore.setState({ platforms: [platform('claude-code', 'Claude Code')] });
+    await mockInvoke({
+      get_platform_capabilities: capabilities({ rules_global: false }),
+      sync_scene: { installed: [], updated: [], removed: [], errors: [] },
+      get_distributions: [],
+      get_sync_status: { platforms: [] },
+      get_global_distribution_status: { platforms: [] },
+    });
+
+    await useAppStore.getState().syncScene([], [], null, ['claude-code'], 'global');
+
+    const warning = useAppStore.getState().toasts.find((t) => t.type === 'warning');
+    expect(warning?.message).toContain('Claude Code');
+    expect(warning?.message).toContain('不支持全局规则同步');
+  });
+
+  it('syncScene global scope falls back to platform id when name is unknown', async () => {
+    await mockInvoke({
+      get_platform_capabilities: capabilities({ rules_global: false }),
+      sync_scene: { installed: [], updated: [], removed: [], errors: [] },
+      get_distributions: [],
+      get_sync_status: { platforms: [] },
+      get_global_distribution_status: { platforms: [] },
+    });
+
+    await useAppStore.getState().syncScene([], [], null, ['unknown-p'], 'global');
+
+    const warning = useAppStore.getState().toasts.find((t) => t.type === 'warning');
+    expect(warning?.message).toContain('unknown-p');
+  });
+
+  it('syncScene global scope skips warning when capability supports global rules', async () => {
+    useAppStore.setState({ platforms: [platform('claude-code')] });
+    await mockInvoke({
+      get_platform_capabilities: capabilities({ rules_global: true }),
+      sync_scene: { installed: [], updated: [], removed: [], errors: [] },
+      get_distributions: [],
+      get_sync_status: { platforms: [] },
+      get_global_distribution_status: { platforms: [] },
+    });
+
+    await useAppStore.getState().syncScene([], [], null, ['claude-code'], 'global');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'warning')).toBe(false);
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('syncScene global capability check failures are non-blocking', async () => {
+    await mockInvoke({
+      get_platform_capabilities: new Error('cap down'),
+      sync_scene: { installed: [], updated: [], removed: [], errors: [] },
+      get_distributions: [],
+      get_sync_status: { platforms: [] },
+      get_global_distribution_status: { platforms: [] },
+    });
+
+    const result = await useAppStore
+      .getState()
+      .syncScene([], [], null, ['claude-code'], 'global');
+
+    expect(result?.errors).toEqual([]);
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'success')).toBe(true);
+  });
+
+  it('syncScene returns null and toasts error when sync fails', async () => {
+    await mockInvoke({
+      sync_scene: new Error('sync down'),
+    });
+
+    const result = await useAppStore
+      .getState()
+      .syncScene([], [], null, [], 'project');
+
+    expect(result).toBeNull();
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('fetchSyncStatus loads status', async () => {
+    const status: import('../../types').SyncStatusDTO = { platforms: [] };
+    await mockInvoke({ get_sync_status: status });
+
+    await useAppStore.getState().fetchSyncStatus();
+
+    expect(useAppStore.getState().syncStatus).toEqual(status);
+  });
+
+  it('fetchSyncStatus toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchSyncStatus();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+});
+
+describe('appStore — Dashboard & Import', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
   });
 
   it('fetchDashboardStats loads stats', async () => {
@@ -142,8 +1075,7 @@ describe('appStore — Dashboard', () => {
       user_scene_count: 8,
       project_count: 20,
     };
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue(mockStats);
+    await mockInvoke({ get_dashboard_stats: mockStats });
 
     await useAppStore.getState().fetchDashboardStats();
 
@@ -151,58 +1083,321 @@ describe('appStore — Dashboard', () => {
   });
 
   it('fetchDashboardStats handles failure gracefully', async () => {
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockRejectedValue(new Error('DB error'));
+    await mockInvoke({ get_dashboard_stats: new Error('DB error') });
 
     await useAppStore.getState().fetchDashboardStats();
 
     expect(useAppStore.getState().dashboardStats).toBeNull();
     expect(useAppStore.getState().toasts.length).toBeGreaterThan(0);
   });
+
+  it('fetchRecentActivity loads activity', async () => {
+    const activity: import('../../types').SyncLog[] = [
+      {
+        id: 1,
+        action: 'sync',
+        target_type: 'skill',
+        target_id: 's1',
+        platform_id: 'claude-code',
+        status: 'ok',
+        message: null,
+        created_at: '',
+      },
+    ];
+    await mockInvoke({ get_recent_activity: activity });
+
+    await useAppStore.getState().fetchRecentActivity();
+
+    expect(useAppStore.getState().recentActivity).toEqual(activity);
+  });
+
+  it('fetchRecentActivity toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchRecentActivity();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('fetchGlobalDistStatus loads status', async () => {
+    const status: import('../../types').GlobalDistStatus = { platforms: [] };
+    await mockInvoke({ get_global_distribution_status: status });
+
+    await useAppStore.getState().fetchGlobalDistStatus();
+
+    expect(useAppStore.getState().globalDistStatus).toEqual(status);
+  });
+
+  it('fetchGlobalDistStatus toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().fetchGlobalDistStatus();
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('scanForImport returns the scan result', async () => {
+    const scan: import('../../types').ScanForImportResult = {
+      platforms: [],
+      total_new_skills: 1,
+      total_new_rules: 2,
+      total_existing_skills: 0,
+      total_existing_rules: 0,
+    };
+    await mockInvoke({ scan_for_import: scan });
+
+    const result = await useAppStore.getState().scanForImport();
+
+    expect(result).toEqual(scan);
+  });
+
+  it('scanForImport returns null and toasts on failure', async () => {
+    await mockInvokeRejectAll();
+
+    const result = await useAppStore.getState().scanForImport();
+
+    expect(result).toBeNull();
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('importScanned imports + re-fetches + success toast (with skipped info)', async () => {
+    const result: import('../../types').ImportResult = {
+      imported_skills: 1,
+      imported_rules: 2,
+      skipped_skills: 1,
+      skipped_rules: 0,
+      errors: [],
+    };
+    await mockInvoke({
+      import_scanned: result,
+      list_skills: [],
+      list_rules: [],
+      list_tags: [],
+    });
+
+    const returned = await useAppStore
+      .getState()
+      .importScanned([], []);
+
+    expect(returned).toEqual(result);
+    const success = useAppStore.getState().toasts.find((t) => t.type === 'success');
+    expect(success?.message).toContain('1 技能, 2 规则');
+    expect(success?.message).toContain('跳过 1 个已存在');
+  });
+
+  it('importScanned includes error summary in toast', async () => {
+    const result: import('../../types').ImportResult = {
+      imported_skills: 1,
+      imported_rules: 0,
+      skipped_skills: 0,
+      skipped_rules: 0,
+      errors: ['e1', 'e2'],
+    };
+    await mockInvoke({
+      import_scanned: result,
+      list_skills: [],
+      list_rules: [],
+      list_tags: [],
+    });
+
+    await useAppStore.getState().importScanned([], []);
+
+    const success = useAppStore.getState().toasts.find((t) => t.type === 'success');
+    expect(success?.message).toContain('2 个失败: e1; e2');
+  });
+
+  it('importScanned shows error toast when nothing was imported', async () => {
+    const result: import('../../types').ImportResult = {
+      imported_skills: 0,
+      imported_rules: 0,
+      skipped_skills: 3,
+      skipped_rules: 1,
+      errors: ['e1'],
+    };
+    await mockInvoke({
+      import_scanned: result,
+      list_skills: [],
+      list_rules: [],
+      list_tags: [],
+    });
+
+    await useAppStore.getState().importScanned([], []);
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
+
+  it('importScanned returns null and toasts on failure', async () => {
+    await mockInvokeRejectAll();
+
+    const result = await useAppStore.getState().importScanned([], []);
+
+    expect(result).toBeNull();
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(true);
+  });
 });
 
-describe('appStore — Sync and Selection', () => {
+describe('appStore — Sync Confirm', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    useAppStore.setState({
-      distributions: [],
-      syncStatus: null,
-      globalDistStatus: null,
-      selectedSkill: null,
-      currentScene: null,
-      toasts: [],
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  it('requestSyncConfirm returns true immediately when no removals', async () => {
+    await mockInvoke({
+      preview_sync: { platforms: [], has_removals: false },
     });
+
+    const confirmed = await useAppStore
+      .getState()
+      .requestSyncConfirm({ sceneId: 's1', platformIds: ['p1'], scope: 'global' });
+
+    expect(confirmed).toBe(true);
+    expect(useAppStore.getState().pendingSyncConfirm).toBeNull();
   });
 
-  it('selectSkill updates selected skill', () => {
-    const skill: import('../../types').Skill = { id: 's1', name: 'Selected', description: null, source_type: 'custom', source_url: null, current_ver: null, installed_at: '', local_path: '', metadata: null };
-    useAppStore.getState().selectSkill(skill);
-    expect(useAppStore.getState().selectedSkill).toEqual(skill);
+  it('requestSyncConfirm stores pending confirm and resolves via callback', async () => {
+    const preview: import('../../types').SyncPreviewResult = {
+      platforms: [
+        {
+          platform_id: 'p1',
+          platform_name: 'P1',
+          skills_to_add: [],
+          skills_to_remove: ['s1'],
+          rules_to_add: [],
+          rules_to_remove: [],
+        },
+      ],
+      has_removals: true,
+    };
+    await mockInvoke({ preview_sync: preview });
+
+    const promise = useAppStore
+      .getState()
+      .requestSyncConfirm({ sceneId: 's1', platformIds: ['p1'], scope: 'global' });
+
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().pendingSyncConfirm?.platforms).toHaveLength(1);
+    });
+    const resolve = useAppStore.getState().resolveSyncConfirm;
+    expect(resolve).toBeTypeOf('function');
+
+    resolve?.(true);
+    await expect(promise).resolves.toBe(true);
+    expect(useAppStore.getState().pendingSyncConfirm).toBeNull();
+    expect(useAppStore.getState().resolveSyncConfirm).toBeNull();
   });
 
-  it('setCurrentScene updates current scene and clears detail', () => {
-    const scene: import('../../types').Scene = { id: 'sc1', name: 'Current', description: null, icon: 'box', is_template: false, is_system: false, created_at: '', updated_at: '' };
-    useAppStore.getState().setCurrentScene(scene);
-    expect(useAppStore.getState().currentScene).toEqual(scene);
-    expect(useAppStore.getState().currentSceneDetail).toBeNull();
+  it('requestSyncConfirm resolves false when user cancels', async () => {
+    const preview: import('../../types').SyncPreviewResult = {
+      platforms: [],
+      has_removals: true,
+    };
+    await mockInvoke({ preview_sync: preview });
+
+    const promise = useAppStore
+      .getState()
+      .requestSyncConfirm({ sceneId: 's1', platformIds: ['p1'], scope: 'global' });
+
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function');
+    });
+    useAppStore.getState().resolveSyncConfirm?.(false);
+    await expect(promise).resolves.toBe(false);
   });
 
-  it('fetchDistributions loads distribution list', async () => {
-    const mockDists = [{ platform_id: 'claude-code', status: 'synced' }];
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue(mockDists);
+  it('requestSyncConfirm returns true when preview fails (non-blocking)', async () => {
+    await mockInvoke({ preview_sync: new Error('preview down') });
 
-    await useAppStore.getState().fetchDistributions();
+    const confirmed = await useAppStore
+      .getState()
+      .requestSyncConfirm({ sceneId: 's1', platformIds: ['p1'], scope: 'global' });
 
-    expect(useAppStore.getState().distributions).toEqual(mockDists);
+    expect(confirmed).toBe(true);
+  });
+});
+
+describe('appStore — UI State', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
   });
 
-  it('syncScene toast shows success when no errors', async () => {
-    const { invoke } = await import('@tauri-apps/api/core');
-    (invoke as any).mockResolvedValue({ errors: [] });
+  it('setActiveNav updates active navigation', () => {
+    useAppStore.getState().setActiveNav('rules');
+    expect(useAppStore.getState().activeNav).toBe('rules');
+  });
 
-    await useAppStore.getState().syncScene([], [], null, [], 'global');
+  it('toggleSidebar flips collapsed state', () => {
+    expect(useAppStore.getState().sidebarCollapsed).toBe(false);
+    useAppStore.getState().toggleSidebar();
+    expect(useAppStore.getState().sidebarCollapsed).toBe(true);
+    useAppStore.getState().toggleSidebar();
+    expect(useAppStore.getState().sidebarCollapsed).toBe(false);
+  });
 
-    expect(useAppStore.getState().toasts.some(t => t.type === 'success')).toBe(true);
+  it('setSearchQuery updates search query', () => {
+    useAppStore.getState().setSearchQuery('react');
+    expect(useAppStore.getState().searchQuery).toBe('react');
+  });
+
+  it('setTagFilter updates tag filter array', () => {
+    useAppStore.getState().setTagFilter([1, 2]);
+    expect(useAppStore.getState().tagFilter).toEqual([1, 2]);
+  });
+
+  it('setGlobalDistSelectedPlatform updates memory', () => {
+    useAppStore.getState().setGlobalDistSelectedPlatform('claude-code');
+    expect(useAppStore.getState().globalDistSelectedPlatform).toBe('claude-code');
+    useAppStore.getState().setGlobalDistSelectedPlatform(null);
+    expect(useAppStore.getState().globalDistSelectedPlatform).toBeNull();
+  });
+
+  it('setProjectDistSelectedProjectId updates memory', () => {
+    useAppStore.getState().setProjectDistSelectedProjectId('p1');
+    expect(useAppStore.getState().projectDistSelectedProjectId).toBe('p1');
+  });
+
+  it('setProjectDistSelectedPlatform updates memory', () => {
+    useAppStore.getState().setProjectDistSelectedPlatform('claude-code');
+    expect(useAppStore.getState().projectDistSelectedPlatform).toBe('claude-code');
+  });
+});
+
+describe('appStore — Toasts', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('addToast appends a toast to state', () => {
+    useAppStore.getState().addToast('hello', 'info');
+
+    const state = useAppStore.getState();
+    expect(state.toasts).toHaveLength(1);
+    expect(state.toasts[0]).toMatchObject({ message: 'hello', type: 'info' });
+  });
+
+  it('addToast auto-removes the toast after 3000ms', () => {
+    vi.useFakeTimers();
+    useAppStore.getState().addToast('gone soon', 'success');
+    expect(useAppStore.getState().toasts).toHaveLength(1);
+
+    vi.advanceTimersByTime(3000);
+    expect(useAppStore.getState().toasts).toHaveLength(0);
+  });
+
+  it('removeToast removes only the matching toast', () => {
+    vi.useFakeTimers();
+    useAppStore.getState().addToast('first', 'info');
+    vi.advanceTimersByTime(1);
+    useAppStore.getState().addToast('second', 'error');
+    const firstId = useAppStore.getState().toasts[0].id;
+
+    useAppStore.getState().removeToast(firstId);
+
+    const remaining = useAppStore.getState().toasts;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].message).toBe('second');
   });
 });

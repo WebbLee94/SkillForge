@@ -47,4 +47,32 @@ describe('TagChip', () => {
     const button = container.querySelector('button');
     expect(button?.className).toContain('ring-2');
   });
+
+  it('applies sm sizing when size=sm', () => {
+    const { container } = render(<TagChip tag={mockTag} size="sm" />);
+    const button = container.querySelector('button');
+    expect(button?.className).toContain('px-2');
+    expect(button?.className).not.toContain('px-3');
+  });
+
+  it('renders without color-specific styles when tag has no color', () => {
+    const { container } = render(<TagChip tag={{ ...mockTag, color: null }} />);
+    const button = container.querySelector('button');
+    expect(button?.style.backgroundColor).toBe('');
+    const dot = container.querySelector('span.rounded-full');
+    expect(dot?.getAttribute('style')).toBeNull();
+  });
+
+  it('does not render count or close button when absent', () => {
+    const { container } = render(<TagChip tag={mockTag} />);
+    expect(container.textContent).not.toContain('×');
+    expect(container.textContent).not.toMatch(/^\d+$/);
+  });
+
+  it('does not trigger remove without onRemove and no unselected ring', () => {
+    const { container } = render(<TagChip tag={mockTag} />);
+    const button = container.querySelector('button');
+    expect(button?.className).toContain('hover:shadow-sm');
+    expect(button?.className).not.toContain('ring-2');
+  });
 });
