@@ -25,7 +25,9 @@ import type {
   SkillPreview,
   RulePreview,
   ImportResult,
-  SyncPreviewResult,
+  DistributionPlan,
+  DistributionSelection,
+  ManagedDistributionState,
   FileTreeNode,
 } from '../types';
 
@@ -162,13 +164,31 @@ export const ipc = {
   importScanned: (skills: SkillPreview[], rules: RulePreview[]) =>
     invoke<ImportResult>('import_scanned', { skills, rules }),
   previewSync: (
-    sceneId: string,
+    skillIds: string[],
+    ruleIds: string[],
+    sceneId: string | null,
     platformIds: string[],
     scope: string,
     projectId?: string
   ) =>
-    invoke<SyncPreviewResult>('preview_sync', {
+    invoke<DistributionPlan>('preview_sync', {
+      skillIds,
+      ruleIds,
       sceneId,
+      platformIds,
+      scope,
+      projectId,
+    }),
+  previewDistribution: (selection: DistributionSelection) =>
+    invoke<DistributionPlan>('preview_distribution', { ...selection }),
+  executeDistribution: (selection: DistributionSelection, plan: DistributionPlan) =>
+    invoke<SyncResult>('execute_distribution', { selection, plan }),
+  getManagedDistributionState: (
+    platformIds: string[],
+    scope: string,
+    projectId?: string
+  ) =>
+    invoke<ManagedDistributionState>('get_managed_distribution_state', {
       platformIds,
       scope,
       projectId,

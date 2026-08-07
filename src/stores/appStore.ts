@@ -22,9 +22,30 @@ import type {
   SkillPreview,
   RulePreview,
   ImportResult,
-  PlatformSyncPreview,
+  DistributionPlan,
+  DistributionSelection,
+  ManagedDistributionState,
 } from '../types';
 import { ipc } from '../lib/ipc';
+
+export type LegacyDistributionSelection = {
+  skillIds: string[];
+  ruleIds: string[];
+  sceneId: string | null;
+  platformIds: string[];
+  scope: 'global' | 'project';
+  projectId?: string;
+};
+
+type SyncSelection = DistributionSelection | LegacyDistributionSelection;
+
+export type SyncConfirmResult =
+  'confirmed' | 'cancelled' | 'no_changes' | 'preview_failed';
+
+export type ConfirmedDistribution = {
+  selection: DistributionSelection;
+  plan: DistributionPlan;
+};
 
 interface Toast {
   id: string;
@@ -45,6 +66,7 @@ interface AppStore {
   dashboardStats: DashboardStats | null;
   syncStatus: SyncStatusDTO | null;
   globalDistStatus: GlobalDistStatus | null;
+  managedDistributionState: ManagedDistributionState | null;
 
   // === Selection ===
   selectedSkill: Skill | null;
@@ -149,6 +171,15 @@ interface AppStore {
 
   // === Distribution Actions ===
   fetchDistributions: () => Promise<void>;
+  fetchManagedDistributionState: (
+    platformIds: string[],
+    scope: 'global' | 'project',
+    projectId?: string
+  ) => Promise<boolean>;
+  executeDistribution: (
+    selection: DistributionSelection,
+    plan: DistributionPlan
+  ) => Promise<SyncResult | null>;
   syncScene: (
     skillIds: string[],
     ruleIds: string[],
@@ -168,20 +199,22 @@ interface AppStore {
     skills: SkillPreview[],
     rules: RulePreview[]
   ) => Promise<ImportResult | null>;
-  pendingSyncConfirm: {
-    platforms: PlatformSyncPreview[];
-    onConfirm?: () => void;
-  } | null;
+  pendingSyncConfirm: DistributionPlan | null;
+  pendingRemovalConfirmation: boolean;
   resolveSyncConfirm: ((confirmed: boolean) => void) | null;
-  requestSyncConfirm: (params: {
-    sceneId: string;
-    platformIds: string[];
-    scope: string;
-    projectId?: string;
-  }) => Promise<boolean>;
+  cancelPendingSyncConfirm: () => void;
+  confirmedDistribution: ConfirmedDistribution | null;
+  takeConfirmedDistribution: () => ConfirmedDistribution | null;
+  requestSyncConfirm: (
+    params: SyncSelection
+  ) => Promise<SyncConfirmResult>;
 }
 
-export const useAppStore = create<AppStore>((set, get) => ({
+export const useAppStore = create<AppStore>((set, get) => {
+  let confirmationRequestActive = false;
+  let confirmationRequestToken = 0;
+
+  return ({
   // === Data ===
   skills: [],
   rules: [],
@@ -194,6 +227,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   dashboardStats: null,
   syncStatus: null,
   globalDistStatus: null,
+  managedDistributionState: null,
 
   // === Selection ===
   selectedSkill: null,
@@ -211,11 +245,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // === Distribution Selection Memory ===
   globalDistSelectedPlatform: null,
-  setGlobalDistSelectedPlatform: (id) => set({ globalDistSelectedPlatform: id }),
+  setGlobalDistSelectedPlatform: (id) =>
+    set({ globalDistSelectedPlatform: id }),
   projectDistSelectedProjectId: null,
   projectDistSelectedPlatform: null,
-  setProjectDistSelectedProjectId: (id) => set({ projectDistSelectedProjectId: id }),
-  setProjectDistSelectedPlatform: (id) => set({ projectDistSelectedPlatform: id }),
+  setProjectDistSelectedProjectId: (id) =>
+    set({ projectDistSelectedProjectId: id }),
+  setProjectDistSelectedPlatform: (id) =>
+    set({ projectDistSelectedPlatform: id }),
 
   // === Toast Actions ===
   addToast: (message, type) => {
@@ -573,7 +610,43 @@ export const useAppStore = create<AppStore>((set, get) => ({
       get().addToast(`获取分发列表失败: ${errMsg}`, 'error');
     }
   },
-  syncScene: async (skillIds, ruleIds, sceneId, platforms, scope, projectId) => {
+  fetchManagedDistributionState: async (platformIds, scope, projectId) => {
+    try {
+      const state = await ipc.getManagedDistributionState(
+        platformIds,
+        scope,
+        projectId
+      );
+      set({ managedDistributionState: state });
+      return true;
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      set({ managedDistributionState: null });
+      get().addToast(`获取已分发内容失败: ${errMsg}`, 'error');
+      return false;
+    }
+  },
+  executeDistribution: async (selection, plan) => {
+    try {
+      const result = await ipc.executeDistribution(selection, plan);
+      await get().fetchDistributions();
+      await get().fetchSyncStatus();
+      await get().fetchGlobalDistStatus();
+      return result;
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      get().addToast(`分发失败: ${errMsg}`, 'error');
+      return null;
+    }
+  },
+  syncScene: async (
+    skillIds,
+    ruleIds,
+    sceneId,
+    platforms,
+    scope,
+    projectId
+  ) => {
     try {
       // Non-blocking capability check for global scope
       if (scope === 'global' && platforms) {
@@ -582,13 +655,25 @@ export const useAppStore = create<AppStore>((set, get) => ({
             const cap = await ipc.getCapabilities(pid);
             if (!cap.rules_global) {
               const p = get().platforms.find((pl) => pl.id === pid);
-              get().addToast(`警告: ${p?.name || pid} 不支持全局规则同步`, 'warning');
+              get().addToast(
+                `警告: ${p?.name || pid} 不支持全局规则同步`,
+                'warning'
+              );
             }
           }
-        } catch { /* non-blocking */ }
+        } catch {
+          /* non-blocking */
+        }
       }
 
-      const result = await ipc.syncScene(skillIds, ruleIds, sceneId, platforms, scope, projectId);
+      const result = await ipc.syncScene(
+        skillIds,
+        ruleIds,
+        sceneId,
+        platforms,
+        scope,
+        projectId
+      );
       await get().fetchDistributions();
       await get().fetchSyncStatus();
       await get().fetchGlobalDistStatus();
@@ -652,29 +737,125 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }
   },
   pendingSyncConfirm: null,
+  pendingRemovalConfirmation: false,
   resolveSyncConfirm: null,
+  cancelPendingSyncConfirm: () => {
+    const resolver = get().resolveSyncConfirm;
+    if (resolver) {
+      resolver(false);
+      return;
+    }
+    if (confirmationRequestActive) {
+      confirmationRequestActive = false;
+      confirmationRequestToken += 1;
+    }
+  },
+  confirmedDistribution: null,
+  takeConfirmedDistribution: () => {
+    const confirmed = get().confirmedDistribution;
+    set({ confirmedDistribution: null });
+    return confirmed;
+  },
 
-  // Sync confirmation — shows dialog before sync if removals detected
-  requestSyncConfirm: async ({ sceneId, platformIds, scope, projectId }) => {
+  // Sync confirmation — preview changes before syncing; fail-closed on error
+  requestSyncConfirm: async (selection: SyncSelection): Promise<SyncConfirmResult> => {
+    if (confirmationRequestActive) return 'cancelled';
+    confirmationRequestActive = true;
+    const requestToken = ++confirmationRequestToken;
     try {
-      const preview = await ipc.previewSync(
-        sceneId,
-        platformIds,
-        scope,
-        projectId
-      );
-      if (!preview || !preview.has_removals) return true;
+      if (!('skills' in selection)) {
+        const plan = await ipc.previewSync(
+          selection.skillIds,
+          selection.ruleIds,
+          selection.sceneId,
+          selection.platformIds,
+          selection.scope,
+          selection.projectId
+        );
+        if (requestToken !== confirmationRequestToken) return 'cancelled';
+        if (!plan) {
+          confirmationRequestActive = false;
+          get().addToast('预览失败: 未返回数据', 'error');
+          return 'preview_failed';
+        }
+        const hasChanges =
+          plan.has_removals ||
+          plan.platforms.some(
+            (p) =>
+              p.skills_to_add.length > 0 ||
+              p.skills_to_update.length > 0 ||
+              p.rules_to_add.length > 0 ||
+              p.rules_to_update.length > 0
+          );
+        if (!hasChanges) {
+          confirmationRequestActive = false;
+          return 'no_changes';
+        }
+        return new Promise((resolve) => {
+          let resolved = false;
+          set({
+            pendingSyncConfirm: plan,
+            resolveSyncConfirm: (confirmed: boolean) => {
+              if (resolved) return;
+              resolved = true;
+              confirmationRequestActive = false;
+              set({ pendingSyncConfirm: null, resolveSyncConfirm: null, pendingRemovalConfirmation: false });
+              resolve(confirmed ? 'confirmed' : 'cancelled');
+            },
+          });
+        });
+      }
+
+      const normalizedSelection: DistributionSelection =
+        selection;
+      const plan = await ipc.previewDistribution(normalizedSelection);
+      if (requestToken !== confirmationRequestToken) return 'cancelled';
+      if (!plan) {
+        confirmationRequestActive = false;
+        get().addToast('预览失败: 未返回数据', 'error');
+        return 'preview_failed';
+      }
+
+      const hasChanges =
+        plan.has_removals ||
+        plan.platforms.some(
+          (p) =>
+            p.skills_to_add.length > 0 ||
+            p.skills_to_update.length > 0 ||
+            p.rules_to_add.length > 0 ||
+            p.rules_to_update.length > 0
+        );
+
+      if (!hasChanges) {
+        confirmationRequestActive = false;
+        return 'no_changes';
+      }
+
       return new Promise((resolve) => {
+        let resolved = false;
         set({
-          pendingSyncConfirm: { platforms: preview.platforms },
+          pendingSyncConfirm: plan,
+          pendingRemovalConfirmation:
+            normalizedSelection.skills.mode === 'remove_selected' ||
+            normalizedSelection.rules.mode === 'remove_selected',
           resolveSyncConfirm: (confirmed: boolean) => {
-            set({ pendingSyncConfirm: null, resolveSyncConfirm: null });
-            resolve(confirmed);
+            if (resolved) return;
+            resolved = true;
+            confirmationRequestActive = false;
+            if (confirmed) {
+              set({ confirmedDistribution: { selection: normalizedSelection, plan } });
+            }
+            set({ pendingSyncConfirm: null, resolveSyncConfirm: null, pendingRemovalConfirmation: false });
+            resolve(confirmed ? 'confirmed' : 'cancelled');
           },
         });
       });
-    } catch {
-      return true; // 预览失败不阻断同步
+    } catch (e) {
+      if (requestToken !== confirmationRequestToken) return 'cancelled';
+      confirmationRequestActive = false;
+      const errMsg = e instanceof Error ? e.message : String(e);
+      get().addToast(`预览失败: ${errMsg}`, 'error');
+      return 'preview_failed';
     }
   },
 
@@ -703,4 +884,5 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return null;
     }
   },
-}));
+  });
+});

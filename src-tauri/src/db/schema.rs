@@ -263,6 +263,5 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM platforms", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 10);
-
-        }
+    }
 }

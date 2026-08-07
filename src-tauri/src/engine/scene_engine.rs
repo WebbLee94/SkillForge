@@ -338,7 +338,8 @@ pub fn validate_scene(conn: &rusqlite::Connection, id: &str) -> Result<Validatio
     let mut errors = Vec::new();
 
     // Get scene skills
-    let skill_ids: Vec<String> = conn.prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?
+    let skill_ids: Vec<String> = conn
+        .prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?
         .query_map(params![id], |row| row.get(0))?
         .filter_map(|r| r.ok())
         .collect();
@@ -364,8 +365,6 @@ pub fn validate_scene(conn: &rusqlite::Connection, id: &str) -> Result<Validatio
         errors,
     })
 }
-
-
 
 /// Get all enabled platform IDs.
 /// After scene_platforms removal, this returns all enabled platforms directly.

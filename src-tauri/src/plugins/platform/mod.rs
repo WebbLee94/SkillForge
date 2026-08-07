@@ -365,10 +365,10 @@ define_symlink_adapter!(
     "trae-cn",
     "Trae CN",
     "~/.trae-cn/skills",
-    ".trae-cn/skills",
+    ".trae/skills",
     Some("~/.trae-cn/user_rules"),
     None,
-    Some(".trae-cn/user_rules"),
+    Some(".trae/rules"),
     None
 );
 
@@ -593,10 +593,7 @@ mod tests {
             paths.global_rules_dir,
             Some("~/.config/opencode/AGENTS.md".to_string())
         );
-        assert_eq!(
-            paths.project_rules_pattern,
-            Some("AGENTS.md".to_string())
-        );
+        assert_eq!(paths.project_rules_pattern, Some("AGENTS.md".to_string()));
         assert_eq!(
             paths.global_rules_format,
             Some(RulesFormat::SingleFile {
@@ -624,6 +621,15 @@ mod tests {
         );
         assert_eq!(paths.global_rules_format, None);
         assert_eq!(paths.project_rules_format, None);
+    }
+
+    #[test]
+    fn test_trae_cn_project_paths_match_trae() {
+        let trae = TraeAdapter::new().default_paths();
+        let trae_cn = TraeCnAdapter::new().default_paths();
+
+        assert_eq!(trae_cn.project_skills_pattern, trae.project_skills_pattern);
+        assert_eq!(trae_cn.project_rules_pattern, trae.project_rules_pattern);
     }
 
     #[test]

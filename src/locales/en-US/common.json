@@ -163,10 +163,15 @@
     "title": "Sync Confirmation",
     "warning": "The following items will be permanently removed from the platform directory:",
     "addSkills": "Add {{count}} skill(s)",
+    "updateSkills": "Update {{count}} skill(s)",
     "removeSkills": "Remove {{count}} skill(s)",
     "addRules": "Add {{count}} rule(s)",
+    "updateRules": "Update {{count}} rule(s)",
     "removeRules": "Remove {{count}} rule(s)",
-    "summary": "Will add {{add}} item(s), remove {{remove}} item(s). This action cannot be undone.",
-    "confirm": "Confirm Sync"
+    "changes": "The following items will be synced to the platform directory:",
+    "noChanges": "No changes",
+    "summary": "Will add {{add}} item(s), update {{update}} item(s), remove {{remove}} item(s). This action cannot be undone.",
+    "confirm": "Confirm Sync",
+    "confirmRemoval": "Confirm distribution and remove {{count}} item(s)"
   }
 }

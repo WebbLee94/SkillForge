@@ -52,6 +52,7 @@ export function ProjectDistribution() {
   const [fullScreen, setFullScreen] = useState(false);
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [counts, setCounts] = useState<Record<string, PlatformEntryCount>>({});
+  const [distributionRevision, setDistributionRevision] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const enabledPlatforms = platforms.filter((p) => p.enabled) as Platform[];
@@ -78,7 +79,7 @@ export function ProjectDistribution() {
       setCounts(next);
     });
     return () => { cancelled = true; };
-  }, [enabledIds, selectedProjectId]);
+  }, [enabledIds, selectedProjectId, distributionRevision]);
 
   const hasContent = (id: string) =>
     counts[id]?.dir_exists ?? false;
@@ -363,8 +364,9 @@ export function ProjectDistribution() {
                   </label>
                   <div className="flex gap-3 min-h-[350px]">
                     <div className="w-1/3 font-mono text-xs bg-muted/50 rounded-lg p-3 overflow-y-auto border border-border max-h-[350px]">
-                      <FileTree
-                        rootPath={selectedProject.path + getPlatformDir(selectedPlatform)}
+                        <FileTree
+                          key={`${selectedProject.id}:${selectedPlatform}:${distributionRevision}`}
+                          rootPath={selectedProject.path + getPlatformDir(selectedPlatform)}
                         onFileSelect={async (filePath) => {
                           const result = await ipc.readFileContent(filePath);
                           setPreviewFile(filePath);
@@ -460,7 +462,10 @@ export function ProjectDistribution() {
         scope="project"
         project={selectedProject}
         initialPlatformId={selectedPlatform}
-        onDistributed={() => fetchPlatforms()}
+        onDistributed={() => {
+          setDistributionRevision((revision) => revision + 1);
+          void fetchPlatforms();
+        }}
       />
 
       <ConfirmDialog

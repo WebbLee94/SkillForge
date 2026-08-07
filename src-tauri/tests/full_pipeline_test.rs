@@ -25,7 +25,10 @@ fn test_full_pipeline_skills_to_scene_to_resolve() {
     insert_skill(&conn, "skill-b", "Skill B");
 
     // Verify skills are listable
-    let filter = SkillFilter { source_type: None, tag: None };
+    let filter = SkillFilter {
+        source_type: None,
+        tag: None,
+    };
     let skills = skill_engine::list_skills(&conn, &filter).unwrap();
     assert_eq!(skills.len(), 2);
 
@@ -93,7 +96,10 @@ fn test_switch_scene_changes_skill_resolution() {
     // Scene A has skill-a
     let dto_a = CreateSceneDTO {
         name: "Scene A".to_string(),
-        description: None, icon: None, skill_ids: None, rule_ids: None,
+        description: None,
+        icon: None,
+        skill_ids: None,
+        rule_ids: None,
     };
     let scene_a = scene_engine::create_scene(&conn, &dto_a).unwrap();
     scene_engine::add_skill_to_scene(&conn, &scene_a.id, "skill-a").unwrap();
@@ -101,7 +107,10 @@ fn test_switch_scene_changes_skill_resolution() {
     // Scene B has skill-b
     let dto_b = CreateSceneDTO {
         name: "Scene B".to_string(),
-        description: None, icon: None, skill_ids: None, rule_ids: None,
+        description: None,
+        icon: None,
+        skill_ids: None,
+        rule_ids: None,
     };
     let scene_b = scene_engine::create_scene(&conn, &dto_b).unwrap();
     scene_engine::add_skill_to_scene(&conn, &scene_b.id, "skill-b").unwrap();
@@ -118,5 +127,8 @@ fn test_switch_scene_changes_skill_resolution() {
 fn test_distribution_status_no_skills() {
     let conn = init_db();
     let status = dist_engine::get_sync_status(&conn).unwrap();
-    assert!(!status.platforms.is_empty(), "sync status should have platforms");
+    assert!(
+        !status.platforms.is_empty(),
+        "sync status should have platforms"
+    );
 }

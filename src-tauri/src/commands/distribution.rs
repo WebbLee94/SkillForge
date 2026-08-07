@@ -1,6 +1,9 @@
 use crate::engine;
 use crate::error::AppError;
-use crate::types::{Distribution, SyncResult, SyncStatusDTO};
+use crate::types::{
+    Distribution, DistributionPlan, DistributionRequest, ManagedDistributionState, SyncResult,
+    SyncStatusDTO,
+};
 use crate::AppState;
 
 #[tauri::command]
@@ -68,142 +71,146 @@ pub fn switch_global_scene(
     engine::dist_engine::switch_global_scene(&conn, &all_plugins, &new_scene_id)
 }
 
-#[derive(serde::Serialize)]
-pub struct SyncPreviewResult {
-    pub platforms: Vec<PlatformSyncPreview>,
-    pub has_removals: bool,
-}
-
-#[derive(serde::Serialize)]
-pub struct PlatformSyncPreview {
-    pub platform_id: String,
-    pub platform_name: String,
-    pub skills_to_add: Vec<String>,
-    pub skills_to_remove: Vec<String>,
-    pub rules_to_add: Vec<String>,
-    pub rules_to_remove: Vec<String>,
-}
-
 #[tauri::command]
 pub fn preview_sync(
-    scene_id: String,
+    skill_ids: Vec<String>,
+    rule_ids: Vec<String>,
+    scene_id: Option<String>,
     platform_ids: Vec<String>,
-    _scope: String,
-    _project_id: Option<String>,
-    state: tauri::State<'_, crate::AppState>,
-) -> Result<SyncPreviewResult, crate::error::AppError> {
+    scope: String,
+    project_id: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<DistributionPlan, AppError> {
     let conn = state
         .db
         .lock()
-        .map_err(|e| crate::error::AppError::Database(e.to_string()))?;
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
-    let scene_skills =
-        crate::engine::dist_engine::resolve_scene_skills_for_preview(&conn, &scene_id)?;
-    let scene_rules =
-        crate::engine::dist_engine::resolve_scene_rules_for_preview(&conn, &scene_id)?;
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
 
-    let mut platforms = Vec::new();
-    let mut has_removals = false;
+    engine::dist_engine::build_distribution_plan(
+        &conn,
+        &all_plugins,
+        &skill_ids,
+        &rule_ids,
+        scene_id.as_deref(),
+        &platform_ids,
+        &scope,
+        project_id.as_deref(),
+    )
+}
 
-    for pid in &platform_ids {
-        let pname = conn
-            .query_row(
-                "SELECT name FROM platforms WHERE id = ?1",
-                rusqlite::params![pid],
-                |r| r.get::<_, String>(0),
-            )
-            .unwrap_or_else(|_| pid.clone());
+#[tauri::command(rename_all = "camelCase")]
+pub fn preview_distribution(
+    scene_id: Option<String>,
+    platform_ids: Vec<String>,
+    scope: String,
+    project_id: Option<String>,
+    skills: crate::types::DistributionIntent,
+    rules: crate::types::DistributionIntent,
+    state: tauri::State<'_, AppState>,
+) -> Result<DistributionPlan, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
+    let request = DistributionRequest {
+        scene_id,
+        platform_ids,
+        scope,
+        project_id,
+        skills,
+        rules,
+    };
 
-        let mut skills_to_add = Vec::new();
-        let mut skills_to_remove = Vec::new();
-        let mut rules_to_add = Vec::new();
-        let mut rules_to_remove = Vec::new();
+    engine::dist_engine::build_distribution_plan_for_request(&conn, &all_plugins, &request)
+}
 
-        if let Ok(plugin) = crate::plugins::platform::create_platform_plugin(pid) {
-            let paths = plugin.default_paths();
-            let skills_dir = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+#[tauri::command(rename_all = "camelCase")]
+pub fn get_managed_distribution_state(
+    platform_ids: Vec<String>,
+    scope: String,
+    project_id: Option<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<ManagedDistributionState, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
+    engine::dist_engine::get_managed_distribution_state(
+        &conn,
+        &all_plugins,
+        &platform_ids,
+        &scope,
+        project_id.as_deref(),
+    )
+}
 
-            // Read current skills on platform
-            let mut current_skills = Vec::new();
-            if skills_dir.exists() {
-                if let Ok(entries) = std::fs::read_dir(&skills_dir) {
-                    for entry in entries.flatten() {
-                        if entry.path().is_dir() {
-                            if let Some(name) = entry.file_name().to_str() {
-                                if !name.starts_with('.') {
-                                    current_skills.push(name.to_string());
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+#[tauri::command]
+pub fn execute_distribution(
+    selection: DistributionRequest,
+    plan: DistributionPlan,
+    state: tauri::State<'_, AppState>,
+) -> Result<SyncResult, AppError> {
+    selection.validate()?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
+    engine::dist_engine::execute_distribution_request(&conn, &all_plugins, &selection, &plan)
+}
 
-            // Compute skill diff
-            for sid in &scene_skills {
-                if !current_skills.contains(sid) {
-                    skills_to_add.push(sid.clone());
-                }
-            }
-            for sid in &current_skills {
-                if !scene_skills.contains(sid) {
-                    skills_to_remove.push(sid.clone());
-                }
-            }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-            // Rules: Directory mode only
-            if let Some(rules_dir_str) = &paths.global_rules_dir {
-                let rules_dir = crate::plugins::platform::expand_home(rules_dir_str);
-                if rules_dir.is_dir() {
-                    let mut current_rules = Vec::new();
-                    if let Ok(entries) = std::fs::read_dir(&rules_dir) {
-                        for entry in entries.flatten() {
-                            if entry.path().is_file() {
-                                let ext = std::path::Path::new(&entry.file_name())
-                                    .extension()
-                                    .map(|e| e.to_string_lossy().to_string())
-                                    .unwrap_or_default();
-                                if ["md", "mdc", "yaml"].contains(&ext.as_str()) {
-                                    if let Some(stem) =
-                                        std::path::Path::new(&entry.file_name()).file_stem()
-                                    {
-                                        current_rules.push(stem.to_string_lossy().to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
+    #[test]
+    fn frontend_distribution_payload_uses_camel_case_fields() {
+        let request: DistributionRequest = serde_json::from_str(
+            r#"{
+                "sceneId": "scene-1",
+                "platformIds": ["claude-code"],
+                "scope": "global",
+                "projectId": null,
+                "skills": {"mode": "add_or_update", "ids": ["skill-1"]},
+                "rules": {"mode": "preserve", "ids": []}
+            }"#,
+        )
+        .expect("frontend preview payload should deserialize");
 
-                    for rid in &scene_rules {
-                        if !current_rules.contains(rid) {
-                            rules_to_add.push(rid.clone());
-                        }
-                    }
-                    for rid in &current_rules {
-                        if !scene_rules.contains(rid) {
-                            rules_to_remove.push(rid.clone());
-                        }
-                    }
-                }
-            }
-
-            if !skills_to_remove.is_empty() || !rules_to_remove.is_empty() {
-                has_removals = true;
-            }
-
-            platforms.push(PlatformSyncPreview {
-                platform_id: pid.clone(),
-                platform_name: pname,
-                skills_to_add,
-                skills_to_remove,
-                rules_to_add,
-                rules_to_remove,
-            });
-        }
+        assert_eq!(request.scene_id.as_deref(), Some("scene-1"));
+        assert_eq!(request.platform_ids, vec!["claude-code"]);
     }
 
-    Ok(SyncPreviewResult {
-        platforms,
-        has_removals,
-    })
+    #[test]
+    fn frontend_execute_payload_contains_nested_selection_and_plan() {
+        let payload = serde_json::json!({
+            "selection": {
+                "sceneId": null,
+                "platformIds": ["claude-code"],
+                "scope": "global",
+                "skills": {"mode": "add_or_update", "ids": ["skill-1"]},
+                "rules": {"mode": "preserve", "ids": []}
+            },
+            "plan": {
+                "platforms": [],
+                "has_removals": false
+            }
+        });
+
+        let selection: DistributionRequest = serde_json::from_value(payload["selection"].clone())
+            .expect("frontend execute selection should deserialize");
+        let plan: DistributionPlan = serde_json::from_value(payload["plan"].clone())
+            .expect("frontend execute plan should deserialize");
+
+        assert_eq!(selection.skills.ids, vec!["skill-1"]);
+        assert!(!plan.has_removals);
+    }
 }

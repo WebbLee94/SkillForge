@@ -253,9 +253,7 @@ mod tests {
         let mut stmt = conn
             .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='scene_platforms'")
             .unwrap();
-        let exists: bool = stmt
-            .query_row([], |row| row.get::<_, String>(0))
-            .is_ok();
+        let exists: bool = stmt.query_row([], |row| row.get::<_, String>(0)).is_ok();
         assert!(!exists, "scene_platforms table should be dropped by v3");
     }
 
@@ -340,18 +338,38 @@ mod tests {
             "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
         ).unwrap();
         for v in [1u32, 2, 3, 4] {
-            conn.execute("INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)", rusqlite::params![v, now]).unwrap();
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                rusqlite::params![v, now],
+            )
+            .unwrap();
         }
 
         super::run_migrations(&mut conn).unwrap();
 
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM scenes WHERE id = '__all_skills__'", [], |row| row.get(0)).unwrap();
+        let count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM scenes WHERE id = '__all_skills__'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(count, 0);
 
-        let is_system: i32 = conn.query_row("SELECT is_system FROM scenes WHERE id = 'old-system'", [], |row| row.get(0)).unwrap();
+        let is_system: i32 = conn
+            .query_row(
+                "SELECT is_system FROM scenes WHERE id = 'old-system'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
         assert_eq!(is_system, 0);
 
-        let version: u32 = conn.query_row("SELECT MAX(version) FROM schema_version", [], |row| row.get(0)).unwrap();
+        let version: u32 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
         assert_eq!(version, 5);
     }
 }

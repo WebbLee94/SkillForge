@@ -196,6 +196,54 @@ export interface PlatformPaths {
 }
 
 // ===== Distribution =====
+export const DISTRIBUTION_INTENT_MODES = {
+  PRESERVE: 'preserve',
+  ADD_OR_UPDATE: 'add_or_update',
+  REMOVE_SELECTED: 'remove_selected',
+} as const;
+
+export type DistributionIntentMode =
+  (typeof DISTRIBUTION_INTENT_MODES)[keyof typeof DISTRIBUTION_INTENT_MODES];
+
+export interface DistributionIntent {
+  mode: DistributionIntentMode;
+  ids: string[];
+}
+
+export interface DistributionSelection {
+  sceneId: string | null;
+  platformIds: string[];
+  scope: 'global' | 'project';
+  projectId?: string;
+  skills: DistributionIntent;
+  rules: DistributionIntent;
+}
+
+export interface ManagedDistributionState {
+  platforms: ManagedPlatformState[];
+}
+
+export interface ManagedPlatformState {
+  platform_id: string;
+  platform_name: string;
+  scope: string;
+  project_path: string | null;
+  skills: ManagedDistributionEntry[];
+  rules: ManagedDistributionEntry[];
+  local_skills: LocalDistributionEntry[];
+  local_rules: LocalDistributionEntry[];
+}
+
+export interface ManagedDistributionEntry {
+  id: string;
+  path: string;
+}
+
+export interface LocalDistributionEntry {
+  name: string;
+  path: string;
+}
+
 export interface Distribution {
   id: number;
   scene_id: string;
@@ -321,20 +369,28 @@ export interface ImportResult {
   errors: string[];
 }
 
-// ===== Sync Preview =====
-export interface SyncPreviewResult {
-  platforms: PlatformSyncPreview[];
-  has_removals: boolean;
-}
-
-export interface PlatformSyncPreview {
+// ===== Distribution Plan (shared type, returned by both preview_sync and sync_scene) =====
+export interface PlatformDistributionPlan {
   platform_id: string;
   platform_name: string;
   skills_to_add: string[];
+  skills_to_update: string[];
   skills_to_remove: string[];
   rules_to_add: string[];
+  rules_to_update: string[];
   rules_to_remove: string[];
 }
+
+export interface DistributionPlan {
+  platforms: PlatformDistributionPlan[];
+  has_removals: boolean;
+}
+
+/** @deprecated Use DistributionPlan instead — kept for existing callers */
+export type SyncPreviewResult = DistributionPlan;
+
+/** @deprecated Use PlatformDistributionPlan instead — kept for existing callers */
+export type PlatformSyncPreview = PlatformDistributionPlan;
 
 export interface FileTreeNode {
   name: string;

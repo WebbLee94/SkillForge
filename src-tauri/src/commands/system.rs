@@ -2,8 +2,8 @@ use crate::error::AppError;
 use crate::types::{AppConfig, DashboardStats, Platform, SyncLog};
 use crate::AppState;
 
-use rusqlite::params;
 use crate::types::FileTreeNode;
+use rusqlite::params;
 
 // ── Global distribution status types ──────────────────────────────
 
@@ -300,8 +300,12 @@ fn count_entries_fs(
 ) -> (i64, i64) {
     let skills = crate::engine::dist_engine::count_fs_subdirs(skills_dir);
     let rules = match rules_path {
-        // SingleFile 模式：rules 路径指向单个文件，存在即 1 条
-        Some(p) if rules_single_file => i64::from(p.is_file()),
+        Some(p) if rules_single_file => std::fs::read_to_string(p)
+            .ok()
+            .and_then(|content| {
+                crate::engine::dist_engine::count_managed_rule_blocks(&content).ok()
+            })
+            .unwrap_or(0),
         Some(p) => crate::engine::dist_engine::count_fs_files(p),
         None => 0,
     };
@@ -316,34 +320,34 @@ pub fn count_platform_entries(
     let plugin = crate::plugins::platform::create_platform_plugin(&platform_id)?;
     let paths = plugin.default_paths();
 
-    let (skills_dir, rules_path, rules_single_file, base_dir) =
-        if let Some(ref pp) = project_path {
-            // Project-scoped: resolve patterns with project path
-            let skills_dir_str = paths.project_skills_pattern.replace("{project}", pp);
-            let skills_dir = std::path::PathBuf::from(&skills_dir_str);
-            let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
-            let rules_path = paths
-                .project_rules_pattern
-                .as_ref()
-                .map(|p| std::path::PathBuf::from(p.replace("{project}", pp)));
-            let rules_single_file = matches!(
-                paths.project_rules_format,
-                Some(crate::types::RulesFormat::SingleFile { .. })
-            );
-            (skills_dir, rules_path, rules_single_file, base_dir)
-        } else {
-            let skills_dir = crate::plugins::platform::expand_home(&paths.global_skills_dir);
-            let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
-            let rules_path = paths
-                .global_rules_dir
-                .as_ref()
-                .map(|p| crate::plugins::platform::expand_home(p));
-            let rules_single_file = matches!(
-                paths.global_rules_format,
-                Some(crate::types::RulesFormat::SingleFile { .. })
-            );
-            (skills_dir, rules_path, rules_single_file, base_dir)
-        };
+    let (skills_dir, rules_path, rules_single_file, base_dir) = if let Some(ref pp) = project_path {
+        // Project-scoped: resolve patterns with project path
+        let skills_dir_str = paths.project_skills_pattern.replace("{project}", pp);
+        let skills_dir = std::path::PathBuf::from(&skills_dir_str);
+        let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
+        let rules_path = paths
+            .project_rules_pattern
+            .as_ref()
+            .map(|pattern| crate::engine::dist_engine::resolve_project_rules_path(pattern, pp))
+            .transpose()?;
+        let rules_single_file = matches!(
+            paths.project_rules_format,
+            Some(crate::types::RulesFormat::SingleFile { .. })
+        );
+        (skills_dir, rules_path, rules_single_file, base_dir)
+    } else {
+        let skills_dir = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+        let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
+        let rules_path = paths
+            .global_rules_dir
+            .as_ref()
+            .map(|p| crate::plugins::platform::expand_home(p));
+        let rules_single_file = matches!(
+            paths.global_rules_format,
+            Some(crate::types::RulesFormat::SingleFile { .. })
+        );
+        (skills_dir, rules_path, rules_single_file, base_dir)
+    };
 
     let dir_exists = base_dir.is_dir();
     let (skills, rules) = count_entries_fs(&skills_dir, rules_path.as_deref(), rules_single_file);
@@ -432,11 +436,45 @@ fn read_dir_tree(path: &std::path::Path, max_depth: u32) -> Vec<FileTreeNode> {
 
 /// 可预览的文本扩展名白名单
 const TEXT_EXTENSIONS: &[&str] = &[
-    "md", "ts", "tsx", "js", "jsx", "json", "xml", "yaml", "yml",
-    "toml", "ini", "cfg", "conf", "rs", "py", "sh", "bash", "zsh",
-    "bat", "ps1", "txt", "env", "gitignore", "editorconfig", "prettierrc",
-    "css", "scss", "less", "html", "sql", "rb", "go", "java", "kt",
-    "vue", "svelte", "astro", "gradle", "properties",
+    "md",
+    "ts",
+    "tsx",
+    "js",
+    "jsx",
+    "json",
+    "xml",
+    "yaml",
+    "yml",
+    "toml",
+    "ini",
+    "cfg",
+    "conf",
+    "rs",
+    "py",
+    "sh",
+    "bash",
+    "zsh",
+    "bat",
+    "ps1",
+    "txt",
+    "env",
+    "gitignore",
+    "editorconfig",
+    "prettierrc",
+    "css",
+    "scss",
+    "less",
+    "html",
+    "sql",
+    "rb",
+    "go",
+    "java",
+    "kt",
+    "vue",
+    "svelte",
+    "astro",
+    "gradle",
+    "properties",
 ];
 
 #[tauri::command]
@@ -459,7 +497,8 @@ pub fn read_file_content(path: String) -> Result<serde_json::Value, AppError> {
     }
 
     // 检查扩展名
-    let ext = p.extension()
+    let ext = p
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
@@ -469,8 +508,8 @@ pub fn read_file_content(path: String) -> Result<serde_json::Value, AppError> {
         return Ok(serde_json::json!({ "content": null, "is_text": false }));
     }
 
-    let content = std::fs::read_to_string(p)
-        .map_err(|e| AppError::Io(format!("读取文件失败: {}", e)))?;
+    let content =
+        std::fs::read_to_string(p).map_err(|e| AppError::Io(format!("读取文件失败: {}", e)))?;
 
     Ok(serde_json::json!({ "content": content, "is_text": true }))
 }
@@ -514,11 +553,39 @@ mod tests {
         let rules_file = tmp.path().join("CLAUDE.md");
         std::fs::write(&rules_file, "x").unwrap();
         let (_, rules) = count_entries_fs(&skills_dir, Some(&rules_file), true);
-        assert_eq!(rules, 1);
+        assert_eq!(rules, 0);
 
         let missing = tmp.path().join("missing.md");
         let (_, rules) = count_entries_fs(&skills_dir, Some(&missing), true);
         assert_eq!(rules, 0);
+    }
+
+    #[test]
+    fn count_entries_fs_single_file_rules_counts_each_managed_block() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        std::fs::create_dir_all(&skills_dir).unwrap();
+        let rules_file = tmp.path().join("AGENTS.md");
+        std::fs::write(
+            &rules_file,
+            concat!(
+                "<!-- SKILLFORGE:rule:first -->\n",
+                "first<!-- /SKILLFORGE:rule:first -->\n",
+                "<!-- SKILLFORGE:rule:second -->\n",
+                "second<!-- /SKILLFORGE:rule:second -->\n",
+                "<!-- SKILLFORGE:rule:third -->\n",
+                "third<!-- /SKILLFORGE:rule:third -->\n",
+                "<!-- SKILLFORGE:rule:fourth -->\n",
+                "fourth<!-- /SKILLFORGE:rule:fourth -->\n",
+                "<!-- SKILLFORGE:rule:fifth -->\n",
+                "fifth<!-- /SKILLFORGE:rule:fifth -->"
+            ),
+        )
+        .unwrap();
+
+        let (_, rules) = count_entries_fs(&skills_dir, Some(&rules_file), true);
+
+        assert_eq!(rules, 5);
     }
 
     #[test]
@@ -543,5 +610,26 @@ mod tests {
         let (skills, rules) = count_entries_fs(&skills_dir, None, false);
         assert_eq!(skills, 1);
         assert_eq!(rules, 0);
+    }
+
+    #[test]
+    fn project_entry_count_reads_relative_trae_rules_from_project_root() {
+        let project = tempfile::tempdir().expect("create project directory");
+        let trae_dir = project.path().join(".trae");
+        std::fs::create_dir_all(trae_dir.join("skills/example-skill"))
+            .expect("create project skill directory");
+        std::fs::create_dir_all(trae_dir.join("rules")).expect("create project rules directory");
+        std::fs::write(trae_dir.join("rules/first.md"), "first").expect("write first rule");
+        std::fs::write(trae_dir.join("rules/second.md"), "second").expect("write second rule");
+
+        let count = count_platform_entries(
+            "trae".to_string(),
+            Some(project.path().to_string_lossy().into_owned()),
+        )
+        .expect("count project entries");
+
+        assert_eq!(count.skills, 1);
+        assert_eq!(count.rules, 2);
+        assert!(count.dir_exists);
     }
 }

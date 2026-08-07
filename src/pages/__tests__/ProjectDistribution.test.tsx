@@ -9,6 +9,11 @@ vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@monaco-editor/react', () => ({
   default: ({ value }: { value?: string }) => <div data-testid="monaco-editor">{value}</div>,
 }));
+vi.mock('../../components/DistributeDialog', () => ({
+  DistributeDialog: ({ onDistributed }: { onDistributed?: () => void }) => (
+    <button onClick={onDistributed}>completeDistribution</button>
+  ),
+}));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -127,5 +132,30 @@ describe('ProjectDistribution', () => {
       expect(screen.getByText('distributeTo')).toBeDefined();
     });
     expect(screen.getByText('distributeTo')).not.toBeDisabled();
+  });
+
+  it('refreshes project platform counts after distribution completes', async () => {
+    const proj = mkProj('p-1', 'Test');
+    const plat = mkPlat('trae', 'Trae');
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    await __seedRoutes__({
+      list_projects: [proj],
+      list_platforms: [plat],
+      count_platform_entries: mkCount('trae'),
+      list_directory_tree: [],
+    });
+    render(<ProjectDistribution />);
+
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith(
+      'count_platform_entries',
+      { platformId: 'trae', projectPath: '/tmp/p-1' },
+    ));
+    vi.clearAllMocks();
+    fireEvent.click(screen.getByText('completeDistribution'));
+    await waitFor(() => expect(invoke).toHaveBeenCalledWith(
+      'count_platform_entries',
+      { platformId: 'trae', projectPath: '/tmp/p-1' },
+    ));
   });
 });

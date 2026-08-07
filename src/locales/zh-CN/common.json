@@ -162,11 +162,16 @@
   "syncConfirm": {
     "title": "同步确认",
     "warning": "以下内容将从平台目录中永久删除：",
+    "changes": "以下内容将同步到平台目录：",
     "addSkills": "新增 {{count}} 个技能",
+    "updateSkills": "更新 {{count}} 个技能",
     "removeSkills": "移除 {{count}} 个技能",
     "addRules": "新增 {{count}} 条规则",
+    "updateRules": "更新 {{count}} 条规则",
     "removeRules": "移除 {{count}} 条规则",
-    "summary": "将新增 {{add}} 项，移除 {{remove}} 项。此操作不可撤销。",
-    "confirm": "确认同步"
+    "noChanges": "无变更项",
+    "summary": "将新增 {{add}} 项，更新 {{update}} 项，移除 {{remove}} 项。此操作不可撤销。",
+    "confirm": "确认同步",
+    "confirmRemoval": "确认分发并移除 {{count}} 项"
   }
 }

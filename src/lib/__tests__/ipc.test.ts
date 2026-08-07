@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ipc } from '../ipc';
+import type { DistributionSelection } from '../../types';
 
 // vi.mock is hoisted — the mock is in place before ../ipc is loaded
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
@@ -128,6 +129,72 @@ describe('ipc — Scenes', () => {
 });
 
 describe('ipc — Distribution', () => {
+  it('previewDistribution sends independent global Skills and Rules intents', async () => {
+    const invoke = await mockInvoke();
+    invoke.mockResolvedValue({ platforms: [], has_removals: false });
+    const selection: DistributionSelection = {
+      sceneId: null,
+      platformIds: ['platform-1'],
+      scope: 'global',
+      skills: { mode: 'preserve', ids: [] },
+      rules: { mode: 'add_or_update', ids: ['rule-a'] },
+    };
+
+    await ipc.previewDistribution(selection);
+
+    expect(invoke).toHaveBeenCalledWith('preview_distribution', selection);
+  });
+
+  it('previewDistribution sends independent project Skills and Rules intents', async () => {
+    const invoke = await mockInvoke();
+    invoke.mockResolvedValue({ platforms: [], has_removals: false });
+    const selection: DistributionSelection = {
+      sceneId: null,
+      platformIds: ['platform-1'],
+      scope: 'project',
+      projectId: 'project-1',
+      skills: { mode: 'add_or_update', ids: ['skill-a'] },
+      rules: { mode: 'preserve', ids: [] },
+    };
+
+    await ipc.previewDistribution(selection);
+
+    expect(invoke).toHaveBeenCalledWith('preview_distribution', selection);
+  });
+
+  it('executeDistribution sends the confirmed selection and plan', async () => {
+    const invoke = await mockInvoke();
+    invoke.mockResolvedValue({ installed: [], updated: [], removed: [], errors: [] });
+    const selection: DistributionSelection = {
+      sceneId: null,
+      platformIds: ['platform-1'],
+      scope: 'global',
+      skills: { mode: 'remove_selected', ids: ['skill-a'] },
+      rules: { mode: 'preserve', ids: [] },
+    };
+    const plan = { platforms: [], has_removals: true };
+
+    await ipc.executeDistribution(selection, plan);
+
+    expect(invoke).toHaveBeenCalledWith('execute_distribution', {
+      selection,
+      plan,
+    });
+  });
+
+  it('getManagedDistributionState sends camelCase scope arguments', async () => {
+    const invoke = await mockInvoke();
+    invoke.mockResolvedValue({ platforms: [] });
+
+    await ipc.getManagedDistributionState(['platform-1'], 'project', 'project-1');
+
+    expect(invoke).toHaveBeenCalledWith('get_managed_distribution_state', {
+      platformIds: ['platform-1'],
+      scope: 'project',
+      projectId: 'project-1',
+    });
+  });
+
   it('syncScene passes command with all args', async () => {
     const invoke = await mockInvoke();
     invoke.mockResolvedValue({ errors: [] });
@@ -442,18 +509,30 @@ describe('ipc — Import', () => {
     expect(invoke).toHaveBeenCalledWith('import_scanned', { skills, rules });
   });
 
-  it('previewSync passes command with all args', async () => {
+  it('previewSync passes command with all args — null sceneId', async () => {
     const invoke = await mockInvoke();
-    invoke.mockResolvedValue({ platforms: [], has_removals: false } as any);
-    await ipc.previewSync('sc-1', ['p-1'], 'global', 'proj-1');
-    expect(invoke).toHaveBeenCalledWith('preview_sync', { sceneId: 'sc-1', platformIds: ['p-1'], scope: 'global', projectId: 'proj-1' });
+    invoke.mockResolvedValue({
+      platforms: [{ platform_id: 'p-1', platform_name: 'P1', skills_to_add: [], skills_to_update: [], skills_to_remove: [], rules_to_add: [], rules_to_update: [], rules_to_remove: [] }],
+      has_removals: false,
+    } as any);
+    await ipc.previewSync(['sk-1'], ['rl-1'], null, ['p-1'], 'global', 'proj-1');
+    expect(invoke).toHaveBeenCalledWith('preview_sync', {
+      skillIds: ['sk-1'], ruleIds: ['rl-1'], sceneId: null,
+      platformIds: ['p-1'], scope: 'global', projectId: 'proj-1',
+    });
   });
 
-  it('previewSync passes command without projectId', async () => {
+  it('previewSync passes command with non-null sceneId', async () => {
     const invoke = await mockInvoke();
-    invoke.mockResolvedValue({ platforms: [], has_removals: false } as any);
-    await ipc.previewSync('sc-1', ['p-1'], 'local');
-    expect(invoke).toHaveBeenCalledWith('preview_sync', { sceneId: 'sc-1', platformIds: ['p-1'], scope: 'local', projectId: undefined });
+    invoke.mockResolvedValue({
+      platforms: [],
+      has_removals: false,
+    } as any);
+    await ipc.previewSync([], [], 'sc-1', ['p-1'], 'local');
+    expect(invoke).toHaveBeenCalledWith('preview_sync', {
+      skillIds: [], ruleIds: [], sceneId: 'sc-1',
+      platformIds: ['p-1'], scope: 'local', projectId: undefined,
+    });
   });
 });
 
