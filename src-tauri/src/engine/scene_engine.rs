@@ -121,38 +121,11 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
         return Err(AppError::Validation("无法删除系统场景".to_string()));
     }
 
-    // Check global distribution reference
-    let global_scene_id: Option<String> = conn
-        .query_row(
-            "SELECT value FROM app_config WHERE key = 'global_scene_id'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(None);
-
-    if global_scene_id.as_deref() == Some(id) {
-        return Err(AppError::Validation(
-            "该场景正被全局分发使用，请先切换".to_string(),
-        ));
-    }
-
-    // Check project references: collect project names for error message
-    let project_count: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM projects WHERE scene_id = ?1",
-            params![id],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-
-    if project_count > 0 {
-        return Err(AppError::SceneInUse(project_count));
-    }
+    // 全局分发不再绑定 scene（v6：app_config / projects.scene_id 已移除）
 
     // Delete associations (cascading should handle this, but be explicit)
     conn.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM distributions WHERE scene_id = ?1", params![id])?;
     conn.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
 
     Ok(())
@@ -568,20 +541,9 @@ mod tests {
             params!["test-scene", "Test Scene", "A test scene", now, now],
         ).unwrap();
 
-        // Create a project that uses the scene
-        conn.execute(
-            "INSERT INTO projects (id, name, path, scene_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["test-project", "Test Project", "/tmp/test-project", "test-scene", now, now],
-        ).unwrap();
-
-        // Deleting the scene should fail with SceneInUse
+        // v6：projects 不再绑定 scene_id，删除场景不受项目引用影响
         let result = delete_scene(&conn, "test-scene");
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            AppError::SceneInUse(count) => assert_eq!(count, 1),
-            other => panic!("Expected SceneInUse error, got: {:?}", other),
-        }
+        assert!(result.is_ok());
     }
 
     #[test]

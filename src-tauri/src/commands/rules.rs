@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::types::{CreateRuleDTO, Rule, RuleHistory, Tag, UpdateRuleDTO};
+use crate::types::{CreateRuleDTO, Rule, Tag, UpdateRuleDTO};
 use crate::AppState;
 
 use rusqlite::params;
@@ -119,12 +119,6 @@ pub fn create_rule(
         params![id, data.name, data.description, data.format, data.content, data.platform, data.scope, now],
     )?;
 
-    // Record initial version in history
-    conn.execute(
-        "INSERT INTO rule_history (rule_id, version, content, changed_at) VALUES (?1, 1, ?2, ?3)",
-        params![id, data.content, now],
-    )?;
-
     // Also write rule file to disk
     let data_dir = dirs::home_dir()
         .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
@@ -206,12 +200,6 @@ pub fn update_rule(
         params![new_name, new_description, new_content, new_platform, new_scope, new_version, now, id],
     )?;
 
-    // Record in history
-    conn.execute(
-        "INSERT INTO rule_history (rule_id, version, content, changed_at) VALUES (?1, ?2, ?3, ?4)",
-        params![id, new_version, new_content, now],
-    )?;
-
     // Update file on disk
     let data_dir = dirs::home_dir()
         .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?
@@ -249,7 +237,6 @@ pub fn delete_rule(id: String, state: tauri::State<'_, AppState>) -> Result<(), 
     // Delete associations and records
     conn.execute("DELETE FROM scene_rules WHERE rule_id = ?1", params![id])?;
     conn.execute("DELETE FROM rule_tags WHERE rule_id = ?1", params![id])?;
-    conn.execute("DELETE FROM rule_history WHERE rule_id = ?1", params![id])?;
     conn.execute("DELETE FROM rules WHERE id = ?1", params![id])?;
 
     // Delete file from disk
@@ -269,37 +256,6 @@ pub fn delete_rule(id: String, state: tauri::State<'_, AppState>) -> Result<(), 
     }
 
     Ok(())
-}
-
-#[tauri::command]
-pub fn get_rule_history(
-    id: String,
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<RuleHistory>, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-
-    let mut stmt = conn.prepare(
-        "SELECT rule_id, version, content, changed_at
-         FROM rule_history WHERE rule_id = ?1
-         ORDER BY version DESC",
-    )?;
-
-    let history: Vec<RuleHistory> = stmt
-        .query_map(params![id], |row| {
-            Ok(RuleHistory {
-                rule_id: row.get(0)?,
-                version: row.get(1)?,
-                content: row.get(2)?,
-                changed_at: row.get(3)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(history)
 }
 
 fn slugify(name: &str) -> String {

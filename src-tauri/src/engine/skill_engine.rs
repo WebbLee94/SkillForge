@@ -1,6 +1,6 @@
 use crate::error::AppError;
 use crate::plugins::source::SourcePlugin;
-use crate::types::{Skill, SkillFilter, SkillVersion, Tag};
+use crate::types::{Skill, SkillFilter, Tag};
 
 use rusqlite::params;
 
@@ -46,21 +46,6 @@ pub fn install_skill(
                 bundle.meta.id,
             ],
         )?;
-        // Record new version
-        if let Some(ver) = &bundle.meta.version {
-            let fetched_at = chrono::Utc::now().to_rfc3339();
-            conn.execute(
-                "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![
-                    bundle.meta.id,
-                    ver,
-                    bundle.meta.source_url,
-                    Option::<String>::None,
-                    fetched_at
-                ],
-            )?;
-        }
         return query_skill_by_id(conn, &bundle.meta.id);
     }
 
@@ -85,22 +70,6 @@ pub fn install_skill(
             bundle.meta.metadata,
         ],
     )?;
-
-    // Record version
-    if let Some(ver) = &bundle.meta.version {
-        let fetched_at = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![
-                bundle.meta.id,
-                ver,
-                bundle.meta.source_url,
-                Option::<String>::None,
-                fetched_at
-            ],
-        )?;
-    }
 
     // Read back the installed skill
     let skill = query_skill_by_id(conn, &bundle.meta.id)?;
@@ -130,17 +99,12 @@ pub fn uninstall_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Sk
         std::fs::remove_dir_all(&local_path)?;
     }
 
-    // Delete DB records (cascading will handle skill_versions, skill_tags, scene_skills)
     conn.execute(
         "DELETE FROM scene_skills WHERE skill_id = ?1",
         params![skill_id],
     )?;
     conn.execute(
         "DELETE FROM skill_tags WHERE skill_id = ?1",
-        params![skill_id],
-    )?;
-    conn.execute(
-        "DELETE FROM skill_versions WHERE skill_id = ?1",
         params![skill_id],
     )?;
     conn.execute("DELETE FROM skills WHERE id = ?1", params![skill_id])?;
@@ -193,14 +157,6 @@ pub fn update_skill(
             bundle.meta.metadata,
             skill_id,
         ],
-    )?;
-
-    // Record new version
-    let fetched_at = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT OR REPLACE INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![skill_id, new_version, bundle.meta.source_url, Option::<String>::None, fetched_at],
     )?;
 
     query_skill_by_id(conn, skill_id)
@@ -298,37 +254,6 @@ pub fn search_skills(conn: &rusqlite::Connection, query: &str) -> Result<Vec<Ski
         .collect();
 
     Ok(skills)
-}
-
-/// Get version history for a skill.
-pub fn get_skill_versions(
-    conn: &rusqlite::Connection,
-    skill_id: &str,
-) -> Result<Vec<SkillVersion>, AppError> {
-    // Verify skill exists
-    query_skill_by_id(conn, skill_id)?;
-
-    let mut stmt = conn.prepare(
-        "SELECT skill_id, version, source_ref, checksum, fetched_at
-         FROM skill_versions
-         WHERE skill_id = ?1
-         ORDER BY fetched_at DESC",
-    )?;
-
-    let versions = stmt
-        .query_map(params![skill_id], |row| {
-            Ok(SkillVersion {
-                skill_id: row.get(0)?,
-                version: row.get(1)?,
-                source_ref: row.get(2)?,
-                checksum: row.get(3)?,
-                fetched_at: row.get(4)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(versions)
 }
 
 // ── Internal helpers ───────────────────────────────────────────────

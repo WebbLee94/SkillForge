@@ -18,18 +18,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
         );",
     )?;
 
-    // ── skill_versions ─────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS skill_versions (
-            skill_id   TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-            version    TEXT NOT NULL,
-            source_ref TEXT,
-            checksum   TEXT,
-            fetched_at TEXT NOT NULL,
-            PRIMARY KEY (skill_id, version)
-        );",
-    )?;
-
     // ── tags ───────────────────────────────────────────────────────
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS tags (
@@ -62,17 +50,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             scope       TEXT,
             version     INTEGER NOT NULL DEFAULT 1,
             updated_at  TEXT NOT NULL
-        );",
-    )?;
-
-    // ── rule_history ───────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS rule_history (
-            rule_id    TEXT NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
-            version    INTEGER NOT NULL,
-            content    TEXT NOT NULL,
-            changed_at TEXT NOT NULL,
-            PRIMARY KEY (rule_id, version)
         );",
     )?;
 
@@ -129,7 +106,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             id          TEXT PRIMARY KEY,
             name        TEXT NOT NULL,
             path        TEXT UNIQUE NOT NULL,
-            scene_id    TEXT REFERENCES scenes(id) ON DELETE SET NULL,
             description TEXT,
             created_at  TEXT NOT NULL,
             updated_at  TEXT NOT NULL
@@ -145,44 +121,6 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
             enabled      INTEGER NOT NULL DEFAULT 1,
             icon         TEXT
         );",
-    )?;
-
-    // ── distributions ──────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS distributions (
-            id           INTEGER PRIMARY KEY AUTOINCREMENT,
-            scene_id     TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
-            platform_id  TEXT NOT NULL REFERENCES platforms(id) ON DELETE CASCADE,
-            scope        TEXT NOT NULL,
-            project_id   TEXT REFERENCES projects(id) ON DELETE CASCADE,
-            project_path TEXT,
-            status       TEXT NOT NULL,
-            last_synced_at TEXT,
-            checksum     TEXT
-        );",
-    )?;
-
-    // ── sync_logs ──────────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS sync_logs (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            action      TEXT NOT NULL,
-            target_type TEXT NOT NULL,
-            target_id   TEXT NOT NULL,
-            platform_id TEXT,
-            status      TEXT NOT NULL,
-            message     TEXT,
-            created_at  TEXT NOT NULL
-        );",
-    )?;
-
-    // ── app_config ──────────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS app_config (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        );
-        INSERT OR IGNORE INTO app_config (key, value) VALUES ('global_scene_id', NULL);",
     )?;
 
     // ── watcher_events ──────────────────────────────────────────────
@@ -204,10 +142,7 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
     conn.execute_batch(
         "CREATE INDEX IF NOT EXISTS idx_skills_source_type ON skills(source_type);
          CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_type ON tags(name, tag_type);
-         CREATE INDEX IF NOT EXISTS idx_scene_skills_scene ON scene_skills(scene_id);
-         CREATE INDEX IF NOT EXISTS idx_distributions_project ON distributions(project_id, platform_id);
-         CREATE INDEX IF NOT EXISTS idx_distributions_scene ON distributions(scene_id, platform_id, scope);
-         CREATE INDEX IF NOT EXISTS idx_sync_logs_time ON sync_logs(created_at DESC);"
+         CREATE INDEX IF NOT EXISTS idx_scene_skills_scene ON scene_skills(scene_id);",
     )?;
 
     // ── Built-in data: platforms ───────────────────────────────────
@@ -257,6 +192,35 @@ mod tests {
         assert!(tables.contains(&"scenes".to_string()));
         assert!(tables.contains(&"platforms".to_string()));
         assert!(tables.contains(&"projects".to_string()));
+        assert!(tables.contains(&"tags".to_string()));
+        assert!(tables.contains(&"skill_tags".to_string()));
+        assert!(tables.contains(&"rule_tags".to_string()));
+        assert!(tables.contains(&"scene_skills".to_string()));
+        assert!(tables.contains(&"scene_rules".to_string()));
+
+        for table in [
+            "skill_versions",
+            "rule_history",
+            "distributions",
+            "sync_logs",
+            "app_config",
+        ] {
+            assert!(
+                !tables.contains(&table.to_string()),
+                "表 {table} 不应存在于 v6 schema"
+            );
+        }
+
+        let mut stmt = conn.prepare("PRAGMA table_info(projects)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(
+            !columns.contains(&"scene_id".to_string()),
+            "projects.scene_id 不应存在于 v6 schema"
+        );
 
         // Verify built-in platforms
         let count: i64 = conn

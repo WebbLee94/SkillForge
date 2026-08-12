@@ -18,15 +18,6 @@ pub struct Skill {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillVersion {
-    pub skill_id: String,
-    pub version: String,
-    pub source_ref: Option<String>,
-    pub checksum: Option<String>,
-    pub fetched_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tag {
     pub id: i64,
     pub name: String,
@@ -50,14 +41,6 @@ pub struct Rule {
     pub updated_at: String,
     #[serde(default)]
     pub tags: Vec<Tag>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuleHistory {
-    pub rule_id: String,
-    pub version: i32,
-    pub content: String,
-    pub changed_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,7 +78,6 @@ pub struct Project {
     pub id: String,
     pub name: String,
     pub path: String,
-    pub scene_id: Option<String>,
     pub description: Option<String>,
     pub created_at: String,
     pub updated_at: String,
@@ -109,31 +91,6 @@ pub struct Platform {
     pub enabled: bool,
     pub icon: Option<String>,
     pub paths: PlatformPaths,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Distribution {
-    pub id: i64,
-    pub scene_id: String,
-    pub platform_id: String,
-    pub scope: String,
-    pub project_id: Option<String>,
-    pub project_path: Option<String>,
-    pub status: String,
-    pub last_synced_at: Option<String>,
-    pub checksum: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncLog {
-    pub id: i64,
-    pub action: String,
-    pub target_type: String,
-    pub target_id: String,
-    pub platform_id: Option<String>,
-    pub status: String,
-    pub message: Option<String>,
-    pub created_at: String,
 }
 
 // ── DTOs ───────────────────────────────────────────────────────────
@@ -158,7 +115,6 @@ pub struct UpdateSceneDTO {
 pub struct AddProjectDTO {
     pub name: String,
     pub path: String,
-    pub scene_id: Option<String>,
     pub description: Option<String>,
 }
 

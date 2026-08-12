@@ -1,7 +1,7 @@
 use crate::error::AppError;
 
 #[cfg(test)]
-const CURRENT_VERSION: u32 = 5;
+const CURRENT_VERSION: u32 = 6;
 
 pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
     // Create schema_version tracking table
@@ -37,6 +37,10 @@ pub fn run_migrations(conn: &mut rusqlite::Connection) -> Result<(), AppError> {
 
     if current < 5 {
         apply_v5(conn)?;
+    }
+
+    if current < 6 {
+        apply_v6(conn)?;
     }
 
     Ok(())
@@ -104,12 +108,25 @@ fn apply_v3(conn: &rusqlite::Connection) -> Result<(), AppError> {
 }
 
 fn apply_v4(conn: &rusqlite::Connection) -> Result<(), AppError> {
-    // distributions.platform_id cascades via FK; sync_logs / watcher_events have no FK.
     conn.execute_batch(
         "DELETE FROM platforms WHERE id IN ('antigravity', 'windsurf');
-         DELETE FROM sync_logs WHERE platform_id IN ('antigravity', 'windsurf');
          DELETE FROM watcher_events WHERE platform IN ('antigravity', 'windsurf');",
     )?;
+    // sync_logs 表在 v6 已删除；旧库升级时若存在则清理，新库直接跳过
+    let sync_logs_exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sync_logs'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|c| c > 0)
+        .unwrap_or(false);
+    if sync_logs_exists {
+        conn.execute(
+            "DELETE FROM sync_logs WHERE platform_id IN ('antigravity', 'windsurf')",
+            [],
+        )?;
+    }
 
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
@@ -129,6 +146,38 @@ fn apply_v5(conn: &rusqlite::Connection) -> Result<(), AppError> {
     conn.execute(
         "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
         rusqlite::params![5, now],
+    )?;
+    Ok(())
+}
+
+/// v6: 删除五张未闭环表（skill_versions/rule_history/distributions/sync_logs/app_config），
+/// projects 移除 scene_id（Scene 不再绑定项目，仅作临时分发组合）。
+/// 依据：SkillForge-docs 04-方案设计/11-v1.1.0-极简正确Schema与分发状态基线设计.md（设计已确认）。
+fn apply_v6(conn: &rusqlite::Connection) -> Result<(), AppError> {
+    conn.execute_batch(
+        "DROP TABLE IF EXISTS skill_versions;
+         DROP TABLE IF EXISTS rule_history;
+         DROP TABLE IF EXISTS distributions;
+         DROP TABLE IF EXISTS sync_logs;
+         DROP TABLE IF EXISTS app_config;",
+    )?;
+    // projects.scene_id 在 v6 schema 中已不存在；旧库升级时若存在则删除，新库跳过
+    let has_scene_id: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('projects') WHERE name = 'scene_id'",
+            [],
+            |row| row.get::<_, i64>(0),
+        )
+        .map(|c| c > 0)
+        .unwrap_or(false);
+    if has_scene_id {
+        conn.execute("ALTER TABLE projects DROP COLUMN scene_id", [])?;
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+        rusqlite::params![6, now],
     )?;
     Ok(())
 }
@@ -183,9 +232,12 @@ mod tests {
         assert!(tables.contains(&"scenes".to_string()));
         assert!(tables.contains(&"platforms".to_string()));
         assert!(tables.contains(&"projects".to_string()));
-        assert!(tables.contains(&"distributions".to_string()));
         assert!(tables.contains(&"tags".to_string()));
-        assert!(tables.contains(&"app_config".to_string()));
+        assert!(!tables.contains(&"distributions".to_string()));
+        assert!(!tables.contains(&"app_config".to_string()));
+        assert!(!tables.contains(&"sync_logs".to_string()));
+        assert!(!tables.contains(&"skill_versions".to_string()));
+        assert!(!tables.contains(&"rule_history".to_string()));
     }
 
     #[test]
@@ -197,21 +249,6 @@ mod tests {
             .query_row("SELECT COUNT(*) FROM platforms", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 10);
-    }
-
-    #[test]
-    fn test_distributions_has_last_synced_at() {
-        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
-        run_migrations(&mut conn).unwrap();
-
-        let mut stmt = conn.prepare("PRAGMA table_info(distributions)").unwrap();
-        let columns: Vec<String> = stmt
-            .query_map([], |row| row.get::<_, String>(1))
-            .unwrap()
-            .filter_map(|r| r.ok())
-            .collect();
-        assert!(columns.contains(&"last_synced_at".to_string()));
-        assert!(!columns.contains(&"synced_at".to_string()));
     }
 
     #[test]
@@ -272,6 +309,20 @@ mod tests {
             rusqlite::params!["windsurf", "Windsurf", "windsurf"],
         )
         .unwrap();
+        // 模拟 v3-era sync_logs 表（create_tables 现在是 v6 schema，测试里显式重建）
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS sync_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                action TEXT NOT NULL,
+                target_type TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                platform_id TEXT,
+                status TEXT NOT NULL,
+                message TEXT,
+                created_at TEXT NOT NULL
+            );",
+        )
+        .unwrap();
         conn.execute(
             "INSERT INTO sync_logs (action, target_type, target_id, platform_id, status, created_at) VALUES ('install', 'skill', 'x', 'windsurf', 'ok', '2026-01-01T00:00:00Z')",
             [],
@@ -303,20 +354,22 @@ mod tests {
             )
             .unwrap();
         assert_eq!(platform_count, 0);
-        let log_count: i64 = conn
+        // v6 后 sync_logs 表整体删除，不再有逐行清理断言
+        let sync_logs_exists: bool = conn
             .query_row(
-                "SELECT COUNT(*) FROM sync_logs WHERE platform_id = 'windsurf'",
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sync_logs'",
                 [],
-                |row| row.get(0),
+                |row| row.get::<_, i64>(0),
             )
-            .unwrap();
-        assert_eq!(log_count, 0);
+            .unwrap()
+            > 0;
+        assert!(!sync_logs_exists, "sync_logs 表应在 v6 被删除");
         let version: u32 = conn
             .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 6);
     }
 
     #[test]
@@ -370,6 +423,81 @@ mod tests {
                 row.get(0)
             })
             .unwrap();
-        assert_eq!(version, 5);
+        assert_eq!(version, 6);
+    }
+
+    #[test]
+    fn test_v6_migration_drops_unclosed_tables() {
+        let mut conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::schema::create_tables(&conn).unwrap();
+
+        let now = chrono::Utc::now().to_rfc3339();
+        // 模拟 v5 DB：恢复五张表与 projects.scene_id（create_tables 现在是 v6 schema，测试里显式重建旧结构）
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS skill_versions (skill_id TEXT NOT NULL, version TEXT NOT NULL, PRIMARY KEY (skill_id, version));
+             CREATE TABLE IF NOT EXISTS rule_history (rule_id TEXT NOT NULL, version INTEGER NOT NULL, content TEXT NOT NULL, changed_at TEXT NOT NULL, PRIMARY KEY (rule_id, version));
+             CREATE TABLE IF NOT EXISTS distributions (id INTEGER PRIMARY KEY AUTOINCREMENT, scene_id TEXT NOT NULL, platform_id TEXT NOT NULL, scope TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS sync_logs (id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, target_type TEXT NOT NULL, target_id TEXT NOT NULL, created_at TEXT NOT NULL);
+             CREATE TABLE IF NOT EXISTS app_config (key TEXT PRIMARY KEY, value TEXT);",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO scenes (id, name, description, is_template, is_system, created_at, updated_at) VALUES ('s1', 'Scene', '', 0, 0, ?1, ?2)",
+            rusqlite::params![now, now],
+        ).unwrap();
+        conn.execute_batch(
+            "ALTER TABLE projects ADD COLUMN scene_id TEXT REFERENCES scenes(id) ON DELETE SET NULL;",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT OR IGNORE INTO projects (id, name, path, scene_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            rusqlite::params!["p1", "Proj", "/tmp/p1", "s1", now, now],
+        ).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);",
+        ).unwrap();
+        for v in [1u32, 2, 3, 4, 5] {
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (?1, ?2)",
+                rusqlite::params![v, now],
+            )
+            .unwrap();
+        }
+
+        super::run_migrations(&mut conn).unwrap();
+
+        for table in [
+            "skill_versions",
+            "rule_history",
+            "distributions",
+            "sync_logs",
+            "app_config",
+        ] {
+            let mut stmt = conn
+                .prepare(&format!(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='{table}'"
+                ))
+                .unwrap();
+            let exists = stmt.query_row([], |row| row.get::<_, String>(0)).is_ok();
+            assert!(!exists, "表 {table} 应在 v6 被删除");
+        }
+
+        let mut stmt = conn.prepare("PRAGMA table_info(projects)").unwrap();
+        let columns: Vec<String> = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        assert!(
+            !columns.contains(&"scene_id".to_string()),
+            "projects.scene_id 应在 v6 被删除"
+        );
+
+        let version: u32 = conn
+            .query_row("SELECT MAX(version) FROM schema_version", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 6);
     }
 }

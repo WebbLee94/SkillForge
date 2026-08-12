@@ -1,26 +1,9 @@
 use crate::error::AppError;
-use crate::types::{AppConfig, DashboardStats, Platform, SyncLog};
+use crate::types::{AppConfig, DashboardStats, Platform};
 use crate::AppState;
 
 use crate::types::FileTreeNode;
 use rusqlite::params;
-
-// ── Global distribution status types ──────────────────────────────
-
-#[derive(serde::Serialize)]
-pub struct GlobalDistStatus {
-    pub platforms: Vec<PlatformDistInfo>,
-}
-
-#[derive(serde::Serialize)]
-pub struct PlatformDistInfo {
-    pub platform_id: String,
-    pub platform_name: String,
-    #[serde(default)]
-    pub synced_skill_count: u32,
-    #[serde(default)]
-    pub synced_rule_count: u32,
-}
 
 #[tauri::command]
 pub fn get_app_config() -> Result<AppConfig, AppError> {
@@ -70,43 +53,6 @@ pub fn get_dashboard_stats(state: tauri::State<'_, AppState>) -> Result<Dashboar
 }
 
 #[tauri::command]
-pub fn get_recent_activity(
-    limit: Option<i64>,
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<SyncLog>, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    let limit = limit.unwrap_or(50);
-
-    let mut stmt = conn.prepare(
-        "SELECT id, action, target_type, target_id, platform_id, status, message, created_at
-         FROM sync_logs
-         ORDER BY created_at DESC
-         LIMIT ?1",
-    )?;
-
-    let logs = stmt
-        .query_map(params![limit], |row| {
-            Ok(SyncLog {
-                id: row.get(0)?,
-                action: row.get(1)?,
-                target_type: row.get(2)?,
-                target_id: row.get(3)?,
-                platform_id: row.get(4)?,
-                status: row.get(5)?,
-                message: row.get(6)?,
-                created_at: row.get(7)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(logs)
-}
-
-#[tauri::command]
 pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>, AppError> {
     let conn = state
         .db
@@ -146,81 +92,6 @@ pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>
         .filter_map(|r| r.ok())
         .collect();
     Ok(platforms)
-}
-
-#[tauri::command]
-pub fn get_global_config(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    let value: Option<String> = conn
-        .query_row(
-            "SELECT value FROM app_config WHERE key = 'global_scene_id'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(None);
-    Ok(serde_json::json!({ "global_scene_id": value }))
-}
-
-#[tauri::command]
-pub fn set_global_config(
-    key: String,
-    value: Option<String>,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    if let Some(v) = value {
-        conn.execute(
-            "INSERT OR REPLACE INTO app_config (key, value) VALUES (?1, ?2)",
-            rusqlite::params![key, v],
-        )?;
-    } else {
-        conn.execute(
-            "UPDATE app_config SET value = NULL WHERE key = ?1",
-            rusqlite::params![key],
-        )?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn get_global_distribution_status(
-    state: tauri::State<'_, AppState>,
-) -> Result<GlobalDistStatus, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-
-    let mut stmt = conn.prepare(
-        "SELECT p.id, p.name,
-                COALESCE(SUM(CASE WHEN d.scope = 'global' THEN 1 ELSE 0 END), 0),
-                COALESCE(SUM(CASE WHEN d.scope = 'project' THEN 1 ELSE 0 END), 0)
-         FROM platforms p
-         LEFT JOIN distributions d ON p.id = d.platform_id
-         WHERE p.enabled != 0
-         GROUP BY p.id, p.name
-         ORDER BY p.name ASC",
-    )?;
-
-    let platforms: Vec<PlatformDistInfo> = stmt
-        .query_map([], |row| {
-            Ok(PlatformDistInfo {
-                platform_id: row.get(0)?,
-                platform_name: row.get(1)?,
-                synced_skill_count: row.get(2)?,
-                synced_rule_count: row.get(3)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(GlobalDistStatus { platforms })
 }
 
 #[tauri::command]
