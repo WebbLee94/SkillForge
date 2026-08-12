@@ -1,0 +1,87 @@
+name: E2E
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  e2e-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Build Tauri app (debug, embedded frontend with wdio plugin)
+        run: npm run tauri build -- --debug --no-bundle
+        env:
+          VITE_E2E: 'true'
+      - name: Run WebdriverIO E2E suite
+        run: npm run test:e2e
+        env:
+          WDIO_DRIVER_PROVIDER: embedded
+          APP_BINARY_PATH: src-tauri/target/debug/skillforge
+
+  e2e-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Install tauri-driver (external WebDriver)
+        run: cargo install tauri-driver --locked
+      - name: Build Tauri app (debug)
+        run: npm run tauri build -- --debug --no-bundle
+        env:
+          VITE_E2E: 'true'
+      - name: Run WebdriverIO E2E smoke suite (external driver)
+        run: npm run test -- --spec ./specs/smoke.spec.js
+        working-directory: e2e
+        env:
+          WDIO_DRIVER_PROVIDER: external
+          APP_BINARY_PATH: src-tauri/target/debug/skillforge.exe
+
+  e2e-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev xvfb
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Install e2e dependencies
+        working-directory: e2e
+        run: npm ci
+      - name: Install tauri-driver (external WebDriver)
+        run: cargo install tauri-driver --locked
+      - name: Build Tauri app (debug)
+        run: npm run tauri build -- --debug --no-bundle
+        env:
+          VITE_E2E: 'true'
+      - name: Run WebdriverIO E2E smoke suite (external driver, xvfb)
+        run: xvfb-run -a npm run test -- --spec ./specs/smoke.spec.js
+        working-directory: e2e
+        env:
+          WDIO_DRIVER_PROVIDER: external
+          APP_BINARY_PATH: src-tauri/target/debug/skillforge

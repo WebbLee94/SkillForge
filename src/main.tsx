@@ -4,6 +4,10 @@ import App from './App';
 import './lib/i18n';
 import './index.css';
 
+if (import.meta.env.VITE_E2E === 'true') {
+  await import('@wdio/tauri-plugin');
+}
+
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <App />
