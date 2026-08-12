@@ -4,14 +4,11 @@ import type {
   Scene,
   SceneDetail,
   Rule,
-  RuleHistory,
   Tag,
   Project,
   Platform,
   PlatformCapabilities,
   PlatformEntryCount,
-  Distribution,
-  SyncLog,
   DashboardStats,
   AppConfig,
   CreateSceneDTO,
@@ -20,7 +17,6 @@ import type {
   UpdateRuleDTO,
   SyncResult,
   SyncStatusDTO,
-  GlobalDistStatus,
   ScanForImportResult,
   SkillPreview,
   RulePreview,
@@ -89,19 +85,11 @@ export const ipc = {
   ) =>
     invoke<SyncResult>('sync_scene', { skillIds, ruleIds, sceneId, platforms, scope, projectId }),
   getSyncStatus: () => invoke<SyncStatusDTO>('get_sync_status'),
-  getDistributions: (sceneId?: string) =>
-    invoke<Distribution[]>('get_distributions', { sceneId }),
 
   // Projects - Rust uses individual params, not DTO
   listProjects: () => invoke<Project[]>('list_projects'),
-  addProject: (
-    name: string,
-    path: string,
-    sceneId?: string,
-    description?: string
-  ) => invoke<Project>('add_project', { name, path, sceneId, description }),
-  bindSceneToProject: (projectId: string, sceneId: string) =>
-    invoke<void>('bind_scene_to_project', { projectId, sceneId }),
+  addProject: (name: string, path: string, description?: string) =>
+    invoke<Project>('add_project', { name, path, description }),
   removeProject: (id: string) => invoke<void>('remove_project', { id }),
   renameProject: (id: string, name: string) =>
     invoke<Project>('rename_project', { id, name }),
@@ -112,8 +100,6 @@ export const ipc = {
   updateRule: (id: string, data: UpdateRuleDTO) =>
     invoke<void>('update_rule', { id, data }),
   deleteRule: (id: string) => invoke<void>('delete_rule', { id }),
-  getRuleHistory: (id: string) =>
-    invoke<RuleHistory[]>('get_rule_history', { id }),
 
   // Tags - Rust uses individual params, not DTO
   listTags: (category?: string, tagType?: string, search?: string) =>
@@ -135,8 +121,6 @@ export const ipc = {
   // System
   getAppConfig: () => invoke<AppConfig>('get_app_config'),
   getDashboardStats: () => invoke<DashboardStats>('get_dashboard_stats'),
-  getRecentActivity: (limit?: number) =>
-    invoke<SyncLog[]>('get_recent_activity', { limit }),
   listPlatforms: () => invoke<Platform[]>('list_platforms'),
   togglePlatformEnabled: (id: string, enabled: boolean) =>
     invoke<void>('toggle_platform_enabled', { id, enabled }),
@@ -148,16 +132,6 @@ export const ipc = {
       platformId,
       projectPath: projectPath ?? null,
     }),
-
-  // Global Distribution
-  getGlobalDistributionStatus: () =>
-    invoke<GlobalDistStatus>('get_global_distribution_status'),
-  getGlobalConfig: () =>
-    invoke<{ global_scene_id: string | null }>('get_global_config'),
-  setGlobalConfig: (key: string, value: string | null) =>
-    invoke<void>('set_global_config', { key, value }),
-  switchGlobalScene: (newSceneId: string) =>
-    invoke<SyncResult>('switch_global_scene', { newSceneId }),
 
   // Import
   scanForImport: () => invoke<ScanForImportResult>('scan_for_import'),

@@ -28,7 +28,6 @@ export function Dashboard() {
   const dashboardStats = useAppStore((s) => s.dashboardStats);
   const platforms = useAppStore((s) => s.platforms);
   const fetchDashboardStats = useAppStore((s) => s.fetchDashboardStats);
-  const fetchRecentActivity = useAppStore((s) => s.fetchRecentActivity);
   const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
   const scanForImport = useAppStore((s) => s.scanForImport);
   const importScanned = useAppStore((s) => s.importScanned);
@@ -68,7 +67,6 @@ export function Dashboard() {
     const init = async () => {
       await fetchDashboardStats();
       await fetchPlatforms();
-      fetchRecentActivity();
 
       const state = useAppStore.getState();
       const enabledCount = (state.platforms || []).filter(

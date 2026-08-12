@@ -5,9 +5,9 @@ import { expect } from '@wdio/globals';
  *
  * 覆盖：预览 → 取消 → 确认 → 执行 → 幂等 → 重启状态保持。
  *
- * 安全策略：本 spec 以只读 IPC（preview_sync / get_distributions /
- * get_sync_status）为主要断言手段，避免在真实用户环境执行分发写入。
- * 「执行」与「幂等」通过空变更分发验证：向未启用/空目标执行时，
+ * 安全策略：本 spec 以只读 IPC（preview_sync / get_sync_status /
+ * get_managed_distribution_state）为主要断言手段，避免在真实用户环境执行
+ * 分发写入。「执行」与「幂等」通过空变更分发验证：向未启用/空目标执行时，
  * 分发应无副作用返回；重复执行应保持幂等（无新增变更）。
  *
  * 注意：browser.tauri.execute 的回调在页面上下文执行，闭包变量不可用，
@@ -49,7 +49,11 @@ describe('SkillForge 首次分发完整流程', () => {
 
   it('预览 → 取消：空变更分发可取消且不产生分发记录', async () => {
     const before = await browser.tauri.execute(({ core }) =>
-      core.invoke('get_distributions', { scene_id: null })
+      core.invoke('get_managed_distribution_state', {
+        platformIds: [],
+        scope: 'global',
+        projectId: null,
+      })
     );
 
     // 空变更分发：无技能/规则时预览返回 no_changes（无确认对话框触发），
@@ -74,11 +78,15 @@ describe('SkillForge 首次分发完整流程', () => {
           p.rules_to_add.length > 0 ||
           p.rules_to_update.length > 0
       );
-    // 无论是否有变更，取消语义 = 不写入。这里断言分发记录未增加。
+    // 无论是否有变更，取消语义 = 不写入。这里断言受管状态未变化。
     const after = await browser.tauri.execute(({ core }) =>
-      core.invoke('get_distributions', { scene_id: null })
+      core.invoke('get_managed_distribution_state', {
+        platformIds: [],
+        scope: 'global',
+        projectId: null,
+      })
     );
-    expect(after.length).toBe(before.length);
+    expect(JSON.stringify(after)).toBe(JSON.stringify(before));
     // hasChanges 应稳定（首查空库期望无变更；若环境有数据则如实反映）
     expect(typeof hasChanges).toBe('boolean');
   });
@@ -146,17 +154,19 @@ describe('SkillForge 首次分发完整流程', () => {
     expect(JSON.stringify(after)).toBe(JSON.stringify(before));
   });
 
-  it('重启状态保持：分发记录持久化到 DB（等价重启后仍存在）', async () => {
-    // distributions 表持久化在 ~/.skillforge/skillforge.db。
-    // 即使应用重启，历史分发记录仍可读取 —— 这里验证读取路径可用且返回稳定结构。
-    const distributions = await browser.tauri.execute(({ core }) =>
-      core.invoke('get_distributions', { scene_id: null })
+  it('重启状态保持：同步状态可由文件系统扫描派生（等价重启后仍可读）', async () => {
+    // v6 后分发状态由目标文件系统扫描派生（11 号设计基线三段模型）。
+    // 即使应用重启，同步状态仍可读取 —— 这里验证读取路径可用且返回稳定结构。
+    const status = await browser.tauri.execute(({ core }) =>
+      core.invoke('get_sync_status')
     );
-    expect(Array.isArray(distributions)).toBe(true);
-    for (const d of distributions) {
-      expect(typeof d.scene_id).toBe('string');
-      expect(typeof d.platform_id).toBe('string');
-      expect(typeof d.scope).toBe('string');
+    expect(status).toBeDefined();
+    expect(Array.isArray(status.platforms)).toBe(true);
+    for (const p of status.platforms) {
+      expect(typeof p.platform_id).toBe('string');
+      expect(typeof p.status).toBe('string');
+      expect(typeof p.synced_count).toBe('number');
+      expect(typeof p.total_count).toBe('number');
     }
   });
 });

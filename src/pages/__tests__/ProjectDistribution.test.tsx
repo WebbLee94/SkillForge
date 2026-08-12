@@ -24,7 +24,6 @@ vi.mock('react-i18next', () => ({
 /* Factories */
 const mkProj = (id: string, name: string): Project => ({
   id, name, path: `/tmp/${id}`,
-  scene_id: null, scene_name: undefined,
   description: `Project: ${name}`,
   created_at: '', updated_at: '',
 });
@@ -57,8 +56,8 @@ async function __seedRoutes__(routes: Record<string, unknown>) {
 function __resetStore__() {
   useAppStore.setState({
     skills: [], rules: [], tags: [], scenes: [], projects: [],
-    platforms: [], distributions: [], recentActivity: [],
-    dashboardStats: null, syncStatus: null, globalDistStatus: null,
+    platforms: [],
+    dashboardStats: null, syncStatus: null,
     selectedSkill: null, currentScene: null, currentSceneDetail: null,
     editingRule: null, activeNav: 'dashboard', sidebarCollapsed: false,
     searchQuery: '', tagFilter: [], loading: false, toasts: [],

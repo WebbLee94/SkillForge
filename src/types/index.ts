@@ -13,13 +13,6 @@ export interface Skill {
   sync_status?: SyncStatus;
 }
 
-export interface SkillVersion {
-  skill_id: string;
-  version: string;
-  source_ref: string | null;
-  checksum: string | null;
-  fetched_at: string;
-}
 
 export interface SkillMeta {
   id: string;
@@ -68,12 +61,6 @@ export interface Rule {
   tags?: Tag[];
 }
 
-export interface RuleHistory {
-  rule_id: string;
-  version: number;
-  content: string;
-  changed_at: string;
-}
 
 export interface CreateRuleDTO {
   name: string;
@@ -142,8 +129,6 @@ export interface Project {
   id: string;
   name: string;
   path: string;
-  scene_id: string | null;
-  scene_name?: string;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -152,7 +137,6 @@ export interface Project {
 export interface AddProjectDTO {
   name: string;
   path: string;
-  scene_id?: string;
   description?: string;
 }
 
@@ -244,29 +228,6 @@ export interface LocalDistributionEntry {
   path: string;
 }
 
-export interface Distribution {
-  id: number;
-  scene_id: string;
-  platform_id: string;
-  scope: string;
-  project_id: string | null;
-  project_path: string | null;
-  status: string;
-  synced_at: string | null;
-  checksum: string | null;
-}
-
-export interface SyncLog {
-  id: number;
-  action: string;
-  target_type: string;
-  target_id: string;
-  platform_id: string | null;
-  status: string;
-  message: string | null;
-  created_at: string;
-}
-
 export interface SyncResult {
   installed: string[];
   updated: string[];
@@ -306,17 +267,7 @@ export interface AppConfig {
   version: string;
 }
 
-// ===== Global Distribution Status =====
-export interface GlobalDistStatus {
-  platforms: PlatformDistInfo[];
-}
 
-export interface PlatformDistInfo {
-  platform_id: string;
-  platform_name: string;
-  synced_skill_count?: number;
-  synced_rule_count?: number;
-}
 
 // ===== Platform Entry Count =====
 export interface PlatformEntryCount {

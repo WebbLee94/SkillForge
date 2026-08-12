@@ -41,8 +41,8 @@ async function seedRoutes(routes: Record<string, unknown>) {
 function cleanStore() {
   useAppStore.setState({
     skills: [], rules: [], tags: [], scenes: [], projects: [],
-    platforms: [], distributions: [], recentActivity: [],
-    dashboardStats: null, syncStatus: null, globalDistStatus: null,
+    platforms: [],
+    dashboardStats: null, syncStatus: null,
     selectedSkill: null, currentScene: null, currentSceneDetail: null,
     editingRule: null, activeNav: 'dashboard', sidebarCollapsed: false,
     searchQuery: '', tagFilter: [], loading: false, toasts: [],

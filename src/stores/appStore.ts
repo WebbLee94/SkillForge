@@ -7,8 +7,6 @@ import type {
   SceneDetail,
   Project,
   Platform,
-  Distribution,
-  SyncLog,
   DashboardStats,
   SyncStatusDTO,
   CreateSceneDTO,
@@ -17,7 +15,6 @@ import type {
   UpdateRuleDTO,
   CreateTagDTO,
   SyncResult,
-  GlobalDistStatus,
   ScanForImportResult,
   SkillPreview,
   RulePreview,
@@ -61,11 +58,8 @@ interface AppStore {
   scenes: Scene[];
   projects: Project[];
   platforms: Platform[];
-  distributions: Distribution[];
-  recentActivity: SyncLog[];
   dashboardStats: DashboardStats | null;
   syncStatus: SyncStatusDTO | null;
-  globalDistStatus: GlobalDistStatus | null;
   managedDistributionState: ManagedDistributionState | null;
 
   // === Selection ===
@@ -157,20 +151,13 @@ interface AppStore {
   removeRuleFromScene: (sceneId: string, ruleId: string) => Promise<void>;
   // === Project Actions ===
   fetchProjects: () => Promise<void>;
-  addProject: (
-    name: string,
-    path: string,
-    sceneId?: string,
-    description?: string
-  ) => Promise<void>;
+  addProject: (name: string, path: string, description?: string) => Promise<void>;
   removeProject: (id: string) => Promise<void>;
-  bindSceneToProject: (projectId: string, sceneId: string) => Promise<void>;
 
   // === Platform Actions ===
   fetchPlatforms: () => Promise<void>;
 
   // === Distribution Actions ===
-  fetchDistributions: () => Promise<void>;
   fetchManagedDistributionState: (
     platformIds: string[],
     scope: 'global' | 'project',
@@ -192,8 +179,6 @@ interface AppStore {
 
   // === Dashboard ===
   fetchDashboardStats: () => Promise<void>;
-  fetchRecentActivity: () => Promise<void>;
-  fetchGlobalDistStatus: () => Promise<void>;
   scanForImport: () => Promise<ScanForImportResult | null>;
   importScanned: (
     skills: SkillPreview[],
@@ -222,11 +207,8 @@ export const useAppStore = create<AppStore>((set, get) => {
   scenes: [],
   projects: [],
   platforms: [],
-  distributions: [],
-  recentActivity: [],
   dashboardStats: null,
   syncStatus: null,
-  globalDistStatus: null,
   managedDistributionState: null,
 
   // === Selection ===
@@ -558,9 +540,9 @@ export const useAppStore = create<AppStore>((set, get) => {
       get().addToast(`获取项目列表失败: ${errMsg}`, 'error');
     }
   },
-  addProject: async (name, path, sceneId, description) => {
+  addProject: async (name, path, description) => {
     try {
-      await ipc.addProject(name, path, sceneId, description);
+      await ipc.addProject(name, path, description);
       await get().fetchProjects();
       get().addToast('添加项目成功', 'success');
     } catch (e) {
@@ -578,16 +560,6 @@ export const useAppStore = create<AppStore>((set, get) => {
       get().addToast(`移除项目失败: ${errMsg}`, 'error');
     }
   },
-  bindSceneToProject: async (projectId, sceneId) => {
-    try {
-      await ipc.bindSceneToProject(projectId, sceneId);
-      await get().fetchProjects();
-      get().addToast('绑定场景成功', 'success');
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`绑定场景失败: ${errMsg}`, 'error');
-    }
-  },
 
   // === Platform Actions ===
   fetchPlatforms: async () => {
@@ -601,15 +573,6 @@ export const useAppStore = create<AppStore>((set, get) => {
   },
 
   // === Distribution Actions ===
-  fetchDistributions: async () => {
-    try {
-      const distributions = await ipc.getDistributions();
-      set({ distributions });
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取分发列表失败: ${errMsg}`, 'error');
-    }
-  },
   fetchManagedDistributionState: async (platformIds, scope, projectId) => {
     try {
       const state = await ipc.getManagedDistributionState(
@@ -629,9 +592,7 @@ export const useAppStore = create<AppStore>((set, get) => {
   executeDistribution: async (selection, plan) => {
     try {
       const result = await ipc.executeDistribution(selection, plan);
-      await get().fetchDistributions();
       await get().fetchSyncStatus();
-      await get().fetchGlobalDistStatus();
       return result;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -674,9 +635,7 @@ export const useAppStore = create<AppStore>((set, get) => {
         scope,
         projectId
       );
-      await get().fetchDistributions();
       await get().fetchSyncStatus();
-      await get().fetchGlobalDistStatus();
       if (result.errors.length === 0) {
         get().addToast('同步成功', 'success');
       } else {
@@ -707,24 +666,6 @@ export const useAppStore = create<AppStore>((set, get) => {
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       get().addToast(`获取看板统计失败: ${errMsg}`, 'error');
-    }
-  },
-  fetchRecentActivity: async () => {
-    try {
-      const activity = await ipc.getRecentActivity(50);
-      set({ recentActivity: activity });
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取最近活动失败: ${errMsg}`, 'error');
-    }
-  },
-  fetchGlobalDistStatus: async () => {
-    try {
-      const status = await ipc.getGlobalDistributionStatus();
-      set({ globalDistStatus: status });
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      get().addToast(`获取全局分发状态失败: ${errMsg}`, 'error');
     }
   },
   scanForImport: async () => {

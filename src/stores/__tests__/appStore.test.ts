@@ -81,7 +81,6 @@ const project = (
   id,
   name,
   path: `/tmp/${id}`,
-  scene_id: null,
   description: null,
   created_at: '',
   updated_at: '',
@@ -128,11 +127,8 @@ function resetStore() {
     scenes: [],
     projects: [],
     platforms: [],
-    distributions: [],
-    recentActivity: [],
     dashboardStats: null,
     syncStatus: null,
-    globalDistStatus: null,
     selectedSkill: null,
     currentScene: null,
     currentSceneDetail: null,
@@ -912,13 +908,12 @@ describe('appStore — Projects', () => {
 
     await useAppStore
       .getState()
-      .addProject('My Proj', '/tmp/p', 'scene-1', 'desc');
+      .addProject('My Proj', '/tmp/p', 'desc');
 
     const { invoke } = await import('@tauri-apps/api/core');
     expect(invoke).toHaveBeenCalledWith('add_project', {
       name: 'My Proj',
       path: '/tmp/p',
-      sceneId: 'scene-1',
       description: 'desc',
     });
     expect(
@@ -958,34 +953,6 @@ describe('appStore — Projects', () => {
       true
     );
   });
-
-  it('bindSceneToProject binds + re-fetches + success toast', async () => {
-    await mockInvoke({
-      bind_scene_to_project: {},
-      list_projects: [],
-    });
-
-    await useAppStore.getState().bindSceneToProject('p1', 'scene-1');
-
-    const { invoke } = await import('@tauri-apps/api/core');
-    expect(invoke).toHaveBeenCalledWith('bind_scene_to_project', {
-      projectId: 'p1',
-      sceneId: 'scene-1',
-    });
-    expect(
-      useAppStore.getState().toasts.some((t) => t.type === 'success')
-    ).toBe(true);
-  });
-
-  it('bindSceneToProject toasts error on failure', async () => {
-    await mockInvokeRejectAll();
-
-    await useAppStore.getState().bindSceneToProject('p1', 'scene-1');
-
-    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
-      true
-    );
-  });
 });
 
 describe('appStore — Platforms', () => {
@@ -1018,25 +985,6 @@ describe('appStore — Distribution', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     resetStore();
-  });
-
-  it('fetchDistributions loads distribution list', async () => {
-    const mockDists = [{ platform_id: 'claude-code', status: 'synced' }];
-    await mockInvoke({ get_distributions: mockDists });
-
-    await useAppStore.getState().fetchDistributions();
-
-    expect(useAppStore.getState().distributions).toEqual(mockDists);
-  });
-
-  it('fetchDistributions toasts error on failure', async () => {
-    await mockInvokeRejectAll();
-
-    await useAppStore.getState().fetchDistributions();
-
-    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
-      true
-    );
   });
 
   it('syncScene toasts success when result has no errors', async () => {
@@ -1221,55 +1169,6 @@ describe('appStore — Dashboard & Import', () => {
 
     expect(useAppStore.getState().dashboardStats).toBeNull();
     expect(useAppStore.getState().toasts.length).toBeGreaterThan(0);
-  });
-
-  it('fetchRecentActivity loads activity', async () => {
-    const activity: import('../../types').SyncLog[] = [
-      {
-        id: 1,
-        action: 'sync',
-        target_type: 'skill',
-        target_id: 's1',
-        platform_id: 'claude-code',
-        status: 'ok',
-        message: null,
-        created_at: '',
-      },
-    ];
-    await mockInvoke({ get_recent_activity: activity });
-
-    await useAppStore.getState().fetchRecentActivity();
-
-    expect(useAppStore.getState().recentActivity).toEqual(activity);
-  });
-
-  it('fetchRecentActivity toasts error on failure', async () => {
-    await mockInvokeRejectAll();
-
-    await useAppStore.getState().fetchRecentActivity();
-
-    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
-      true
-    );
-  });
-
-  it('fetchGlobalDistStatus loads status', async () => {
-    const status: import('../../types').GlobalDistStatus = { platforms: [] };
-    await mockInvoke({ get_global_distribution_status: status });
-
-    await useAppStore.getState().fetchGlobalDistStatus();
-
-    expect(useAppStore.getState().globalDistStatus).toEqual(status);
-  });
-
-  it('fetchGlobalDistStatus toasts error on failure', async () => {
-    await mockInvokeRejectAll();
-
-    await useAppStore.getState().fetchGlobalDistStatus();
-
-    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
-      true
-    );
   });
 
   it('scanForImport returns the scan result', async () => {

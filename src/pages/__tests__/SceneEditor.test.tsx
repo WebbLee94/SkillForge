@@ -42,8 +42,8 @@ const aDetail = (scene: Scene): SceneDetail => ({
 function resetStore() {
   useAppStore.setState({
     skills: [], rules: [], tags: [], scenes: [], projects: [],
-    platforms: [], distributions: [], recentActivity: [],
-    dashboardStats: null, syncStatus: null, globalDistStatus: null,
+    platforms: [],
+    dashboardStats: null, syncStatus: null,
     selectedSkill: null, currentScene: null, currentSceneDetail: null,
     editingRule: null, activeNav: 'dashboard', sidebarCollapsed: false,
     searchQuery: '', tagFilter: [], loading: false, toasts: [],

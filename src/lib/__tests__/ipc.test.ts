@@ -222,19 +222,7 @@ describe('ipc — Distribution', () => {
     expect(invoke).toHaveBeenCalledWith('get_sync_status');
   });
 
-  it('getDistributions passes command without sceneId', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue([]);
-    await ipc.getDistributions();
-    expect(invoke).toHaveBeenCalledWith('get_distributions', { sceneId: undefined });
-  });
 
-  it('getDistributions passes command with sceneId', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue([]);
-    await ipc.getDistributions('sc-1');
-    expect(invoke).toHaveBeenCalledWith('get_distributions', { sceneId: 'sc-1' });
-  });
 });
 
 describe('ipc — Projects', () => {
@@ -248,10 +236,10 @@ describe('ipc — Projects', () => {
   it('addProject passes command with all args', async () => {
     const invoke = await mockInvoke();
     invoke.mockResolvedValue({ id: 'pj-1' } as any);
-    await ipc.addProject('My Project', '/path/to/proj', 'sc-1', 'A test project');
+    await ipc.addProject('My Project', '/path/to/proj', 'A test project');
     expect(invoke).toHaveBeenCalledWith('add_project', {
       name: 'My Project', path: '/path/to/proj',
-      sceneId: 'sc-1', description: 'A test project',
+      description: 'A test project',
     });
   });
 
@@ -265,12 +253,6 @@ describe('ipc — Projects', () => {
     });
   });
 
-  it('bindSceneToProject passes command and args', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue(undefined);
-    await ipc.bindSceneToProject('pj-1', 'sc-1');
-    expect(invoke).toHaveBeenCalledWith('bind_scene_to_project', { projectId: 'pj-1', sceneId: 'sc-1' });
-  });
 
   it('removeProject passes command and args', async () => {
     const invoke = await mockInvoke();
@@ -324,12 +306,6 @@ describe('ipc — Rules', () => {
     expect(invoke).toHaveBeenCalledWith('delete_rule', { id: 'rl-1' });
   });
 
-  it('getRuleHistory passes command and args', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue([]);
-    await ipc.getRuleHistory('rl-1');
-    expect(invoke).toHaveBeenCalledWith('get_rule_history', { id: 'rl-1' });
-  });
 });
 
 describe('ipc — Tags', () => {
@@ -405,19 +381,7 @@ describe('ipc — System', () => {
     expect(invoke).toHaveBeenCalledWith('get_dashboard_stats');
   });
 
-  it('getRecentActivity passes command with limit', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue([]);
-    await ipc.getRecentActivity(10);
-    expect(invoke).toHaveBeenCalledWith('get_recent_activity', { limit: 10 });
-  });
 
-  it('getRecentActivity passes command without limit', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue([]);
-    await ipc.getRecentActivity();
-    expect(invoke).toHaveBeenCalledWith('get_recent_activity', { limit: undefined });
-  });
 
   it('listPlatforms passes command', async () => {
     const invoke = await mockInvoke();
@@ -452,43 +416,6 @@ describe('ipc — System', () => {
     invoke.mockResolvedValue({} as any);
     await ipc.countPlatformEntries('p-1');
     expect(invoke).toHaveBeenCalledWith('count_platform_entries', { platformId: 'p-1', projectPath: null });
-  });
-});
-
-describe('ipc — Global Distribution', () => {
-  it('getGlobalDistributionStatus passes command', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue({ platforms: [] } as any);
-    await ipc.getGlobalDistributionStatus();
-    expect(invoke).toHaveBeenCalledWith('get_global_distribution_status');
-  });
-
-  it('getGlobalConfig passes command', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue({ global_scene_id: null });
-    await ipc.getGlobalConfig();
-    expect(invoke).toHaveBeenCalledWith('get_global_config');
-  });
-
-  it('setGlobalConfig passes command and args', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue(undefined);
-    await ipc.setGlobalConfig('key1', 'value1');
-    expect(invoke).toHaveBeenCalledWith('set_global_config', { key: 'key1', value: 'value1' });
-  });
-
-  it('setGlobalConfig passes null value', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue(undefined);
-    await ipc.setGlobalConfig('key1', null);
-    expect(invoke).toHaveBeenCalledWith('set_global_config', { key: 'key1', value: null });
-  });
-
-  it('switchGlobalScene passes command and args', async () => {
-    const invoke = await mockInvoke();
-    invoke.mockResolvedValue({ errors: [] } as any);
-    await ipc.switchGlobalScene('sc-1');
-    expect(invoke).toHaveBeenCalledWith('switch_global_scene', { newSceneId: 'sc-1' });
   });
 });
 
