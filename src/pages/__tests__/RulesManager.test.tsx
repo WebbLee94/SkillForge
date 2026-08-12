@@ -223,6 +223,10 @@ describe('RulesManager', () => {
     fireEvent.change(screen.getByPlaceholderText('create.descriptionPlaceholder'), {
       target: { value: 'A test rule' },
     });
+    fireEvent.change(
+      screen.getByPlaceholderText('Write rule content here...'),
+      { target: { value: '# New Test Rule\n\nrule body' } }
+    );
 
     fireEvent.click(screen.getByText('actions.save'));
 
@@ -230,6 +234,86 @@ describe('RulesManager', () => {
       const { invoke } = await import('@tauri-apps/api/core');
       expect(invoke).toHaveBeenCalledWith('create_rule', expect.any(Object));
     });
+  });
+
+  it('blocks create_rule when content is empty and shows error toast', async () => {
+    await seedInvoke({
+      list_rules: [],
+      list_tags: [],
+      create_rule: null,
+    });
+
+    render(<RulesManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText('empty')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getAllByText('createRule')[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('create.title')).toBeDefined();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('create.namePlaceholder'), {
+      target: { value: 'Empty Content Rule' },
+    });
+
+    fireEvent.click(screen.getByText('actions.save'));
+
+    await waitFor(() => {
+      const { toasts } = useAppStore.getState();
+      expect(
+        toasts.some(
+          (t) => t.message === 'create.contentRequired' && t.type === 'error'
+        )
+      ).toBe(true);
+    });
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).not.toHaveBeenCalledWith('create_rule', expect.any(Object));
+  });
+
+  it('blocks create_rule when content is only whitespace and shows error toast', async () => {
+    await seedInvoke({
+      list_rules: [],
+      list_tags: [],
+      create_rule: null,
+    });
+
+    render(<RulesManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText('empty')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getAllByText('createRule')[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText('create.title')).toBeDefined();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText('create.namePlaceholder'), {
+      target: { value: 'Whitespace Content Rule' },
+    });
+    fireEvent.change(
+      screen.getByPlaceholderText('Write rule content here...'),
+      { target: { value: '   \n \t ' } }
+    );
+
+    fireEvent.click(screen.getByText('actions.save'));
+
+    await waitFor(() => {
+      const { toasts } = useAppStore.getState();
+      expect(
+        toasts.some(
+          (t) => t.message === 'create.contentRequired' && t.type === 'error'
+        )
+      ).toBe(true);
+    });
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).not.toHaveBeenCalledWith('create_rule', expect.any(Object));
   });
 
   it('enters batch mode, selects rules, shows delete bar', async () => {

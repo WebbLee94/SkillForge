@@ -174,7 +174,7 @@ fn count_entries_fs(
         Some(p) if rules_single_file => std::fs::read_to_string(p)
             .ok()
             .and_then(|content| {
-                crate::engine::dist_engine::count_managed_rule_blocks(&content).ok()
+                crate::engine::rule_distribution::count_managed_rule_blocks(&content).ok()
             })
             .unwrap_or(0),
         Some(p) => crate::engine::dist_engine::count_fs_files(p),
@@ -199,7 +199,9 @@ pub fn count_platform_entries(
         let rules_path = paths
             .project_rules_pattern
             .as_ref()
-            .map(|pattern| crate::engine::dist_engine::resolve_project_rules_path(pattern, pp))
+            .map(|pattern| {
+                crate::engine::rule_distribution::resolve_project_rules_path(pattern, pp)
+            })
             .transpose()?;
         let rules_single_file = matches!(
             paths.project_rules_format,

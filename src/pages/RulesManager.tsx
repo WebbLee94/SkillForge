@@ -150,6 +150,10 @@ export function RulesManager() {
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
+    if (!newContent.trim()) {
+      addToast(t('create.contentRequired'), 'error');
+      return;
+    }
     const data: CreateRuleDTO = {
       name: newName.trim(),
       description: newDescription.trim(),
@@ -163,7 +167,7 @@ export function RulesManager() {
     setNewName('');
     setNewDescription('');
     setNewContent('');
-  }, [newName, newDescription, newFormat, newContent, createRule]);
+  }, [newName, newDescription, newFormat, newContent, createRule, addToast, t]);
 
   const handleAssignTag = useCallback(
     async (ruleId: string, tagId: number) => {

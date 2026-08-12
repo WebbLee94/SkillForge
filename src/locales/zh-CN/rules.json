@@ -27,6 +27,7 @@
     "namePlaceholder": "输入规则名称",
     "descriptionPlaceholder": "输入规则描述",
     "contentPlaceholder": "编写规则内容...",
+    "contentRequired": "规则内容不能为空",
     "selectFormat": "选择格式",
     "selectPlatform": "选择目标平台"
   },

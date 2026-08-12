@@ -27,6 +27,7 @@
     "namePlaceholder": "Enter rule name",
     "descriptionPlaceholder": "Enter rule description",
     "contentPlaceholder": "Write rule content...",
+    "contentRequired": "Rule content cannot be empty",
     "selectFormat": "Select format",
     "selectPlatform": "Select target platform"
   },
