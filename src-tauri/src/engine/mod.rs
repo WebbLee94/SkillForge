@@ -1,6 +1,9 @@
 pub mod auto_updater;
 pub mod content_hash;
 pub mod dist_engine;
+pub mod dist_execute;
+pub mod dist_managed;
+pub mod dist_plan;
 pub mod fs_watcher;
 pub mod parser;
 pub mod rule_distribution;
