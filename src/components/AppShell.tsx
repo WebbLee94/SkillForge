@@ -13,7 +13,12 @@ export function AppShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <Topbar />
         <main className="flex-1 overflow-hidden">
-          <Outlet />
+          <div
+            data-testid="app-content"
+            className="h-full px-4 py-3 md:px-5"
+          >
+            <Outlet />
+          </div>
         </main>
       </div>
       <ToastProvider />

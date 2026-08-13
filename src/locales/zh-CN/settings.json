@@ -1,8 +1,9 @@
 {
   "title": "设置",
+  "subtitle": "管理应用偏好与 Agent 平台配置。",
   "tabs": {
-    "general": "通用",
-    "platforms": "Agent平台"
+    "general": "通用设置",
+    "platforms": "Agent 平台"
   },
   "general": {
     "language": { "title": "语言 / Language", "desc": "选择界面显示语言" },
@@ -14,17 +15,28 @@
       "title": "分发方式",
       "desc": "技能使用符号链接分发（源目录修改即时生效），规则使用文件复制分发（确保多规则合并的可靠性）。"
     },
+    "darkMode": { "title": "深色模式", "desc": "切换深色或浅色外观" },
+    "autoCheckUpdates": {
+      "title": "自动检查更新",
+      "desc": "启动时自动检查新版本"
+    },
+    "checkUpdates": {
+      "title": "检查更新",
+      "desc": "手动检查是否有新版本",
+      "button": "检查更新"
+    },
     "dbSizeCalculating": "计算中..."
   },
   "platforms": {
     "title": "Agent平台列表",
     "addButton": "添加平台",
     "columns": {
-      "name": "名称",
-      "status": "状态",
-      "capabilities": "路径与能力",
-      "counts": "技能 / 规则"
+      "name": "平台",
+      "status": "启用",
+      "capabilities": "路径与能力"
     },
+    "status": { "enabled": "已启用", "disabled": "未启用" },
+    "countsFormat": "技能 {{skills}} · 规则 {{rules}}",
     "actions": { "enable": "启用", "disable": "禁用" },
     "hint": "管理已注册的 Agent 平台。启用/禁用平台将影响场景编辑和分发中的可见性。",
     "comingSoon": "平台管理功能将在后续版本中开放，当前仅支持查看内置平台",
@@ -33,6 +45,8 @@
       "skillsProject": "项目技能",
       "rulesGlobal": "全局规则",
       "rulesProject": "项目规则",
+      "openTooltip": "查看 {{name}} 的路径与能力",
+      "tooltipTitle": "{{name}} · 路径与能力",
       "notSupported": "不支持",
       "copied": "已复制",
       "copyPath": "复制路径",

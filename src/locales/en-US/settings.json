@@ -1,7 +1,8 @@
 {
   "title": "Settings",
+  "subtitle": "Manage app preferences and Agent platform configuration.",
   "tabs": {
-    "general": "General",
+    "general": "General Settings",
     "platforms": "Agent Platforms"
   },
   "general": {
@@ -20,17 +21,31 @@
       "title": "Distribution Method",
       "desc": "Skills use symbolic links (source changes take effect immediately), rules use file copy (ensures reliability for multi-rule merging)."
     },
+    "darkMode": {
+      "title": "Dark Mode",
+      "desc": "Switch between dark and light appearance"
+    },
+    "autoCheckUpdates": {
+      "title": "Check for updates automatically",
+      "desc": "Automatically check for new versions on startup"
+    },
+    "checkUpdates": {
+      "title": "Check for Updates",
+      "desc": "Manually check for a new version",
+      "button": "Check for Updates"
+    },
     "dbSizeCalculating": "Calculating..."
   },
   "platforms": {
     "title": "Agent Platform List",
     "addButton": "Add Platform",
     "columns": {
-      "name": "Name",
-      "status": "Status",
-      "capabilities": "Paths & Capabilities",
-      "counts": "Skills / Rules"
+      "name": "Platform",
+      "status": "Enabled",
+      "capabilities": "Paths & Capabilities"
     },
+    "status": { "enabled": "Enabled", "disabled": "Disabled" },
+    "countsFormat": "Skills {{skills}} · Rules {{rules}}",
     "actions": { "enable": "Enable", "disable": "Disable" },
     "hint": "Manage registered Agent platforms. Enabling/disabling platforms affects visibility in scene editing and distribution.",
     "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed.",
@@ -39,6 +54,8 @@
       "skillsProject": "Project Skills",
       "rulesGlobal": "Global Rules",
       "rulesProject": "Project Rules",
+      "openTooltip": "View {{name}} paths & capabilities",
+      "tooltipTitle": "{{name}} · Paths & Capabilities",
       "notSupported": "Not Supported",
       "copied": "Copied",
       "copyPath": "Copy Path",

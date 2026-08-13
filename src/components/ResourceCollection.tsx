@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../lib/utils';
-import { ChevronDown, ChevronRight, ChevronsUpDown, Check } from 'lucide-react';
+import { ChevronDown, ChevronRight, Check } from 'lucide-react';
 import type { Tag } from '../types';
 import { groupResourcesByTag } from '../lib/resourceLibrary';
 import { BOUNDED_STEP, useBoundedReveal } from '../lib/useBoundedReveal';
@@ -15,8 +15,6 @@ interface ResourceCollectionProps<T extends { id: string; tags?: Tag[] }> {
   batchMode: boolean;
   selectedIds: Set<string>;
   untaggedLabel: string;
-  collapseAllLabel: string;
-  expandAllLabel: string;
   /** 「显示更多」按钮文案，含 {{count}} 占位符（未渲染项数） */
   showMoreLabel: string;
   onToggleSelect: (id: string) => void;
@@ -24,11 +22,14 @@ interface ResourceCollectionProps<T extends { id: string; tags?: Tag[] }> {
   /** 卡片/行内容（模块专属） */
   renderItem: (item: T) => React.ReactNode;
   emptyLabel?: React.ReactNode;
+  /** 外部「全部展开/收起」控件（筛选行）驱动；true = 全部分组折叠。undefined = 不受外部控制 */
+  collapsedAll?: boolean;
 }
 
 /**
- * 资源集合渲染（Phase 6 §3.3 / §7）：
- * - 分组视图：未分类置顶、多标签资源在各分组重复出现（同一对象，不复制）、单组/全部折叠；
+ * 资源集合渲染（Phase 6 §3.3 / §7 / 决策 7）：
+ * - 分组视图：未分类置顶、多标签资源在各分组重复出现（同一对象，不复制）、单组折叠；
+ *   「全部展开/收起」由外部筛选行控件（collapsedAll）驱动，内容区不再重复渲染切换按钮；
  * - 列表视图：高密度单列表；
  * - 批量模式：显示选择控件，点击切换选中；否则点击打开详情；
  * - 键盘访问：Tab 聚焦卡片，Enter/Space 打开详情或切换选中。
@@ -40,13 +41,12 @@ export function ResourceCollection<T extends { id: string; tags?: Tag[] }>({
   batchMode,
   selectedIds,
   untaggedLabel,
-  collapseAllLabel,
-  expandAllLabel,
   showMoreLabel,
   onToggleSelect,
   onOpenDetail,
   renderItem,
   emptyLabel,
+  collapsedAll,
 }: ResourceCollectionProps<T>) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [revealByGroup, setRevealByGroup] = useState<Record<string, number>>(
@@ -55,6 +55,20 @@ export function ResourceCollection<T extends { id: string; tags?: Tag[] }>({
   const { revealed, hasMore, revealMore } = useBoundedReveal(items.length);
 
   const groups = useMemo(() => groupResourcesByTag(items, tags), [items, tags]);
+
+  const prevCollapsedAll = useRef<boolean | undefined>(undefined);
+  useEffect(() => {
+    if (
+      typeof collapsedAll === 'boolean' &&
+      collapsedAll !== prevCollapsedAll.current
+    ) {
+      prevCollapsedAll.current = collapsedAll;
+      setCollapsed(
+        collapsedAll ? new Set(groups.map((g) => groupKey(g.tag))) : new Set()
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapsedAll, groups]);
 
   if (items.length === 0) return <>{emptyLabel ?? null}</>;
 
@@ -78,16 +92,6 @@ export function ResourceCollection<T extends { id: string; tags?: Tag[] }>({
     });
   };
 
-  const toggleAll = () => {
-    setCollapsed((prev) =>
-      prev.size === groups.length
-        ? new Set()
-        : new Set(groups.map((g) => groupKey(g.tag)))
-    );
-  };
-
-  const allCollapsed = collapsed.size === groups.length;
-
   const handleActivate = (item: T) => {
     if (batchMode) onToggleSelect(item.id);
     else onOpenDetail(item);
@@ -103,11 +107,11 @@ export function ResourceCollection<T extends { id: string; tags?: Tag[] }>({
         tabIndex={0}
         aria-checked={batchMode ? selected : undefined}
         className={cn(
-          'relative rounded-lg border text-left transition-all',
+          'relative rounded-lg border text-left transition-all resource-card',
           row ? 'flex w-full items-center gap-3 px-3 py-2.5' : 'p-4',
           batchMode && selected
             ? 'border-primary/50 bg-primary/5'
-            : 'border-border bg-card hover:border-primary/30 hover:shadow-sm',
+            : 'border-border bg-card',
           'cursor-pointer'
         )}
         onClick={() => handleActivate(item)}
@@ -158,19 +162,10 @@ export function ResourceCollection<T extends { id: string; tags?: Tag[] }>({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <button
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          onClick={toggleAll}
-        >
-          <ChevronsUpDown className="h-3.5 w-3.5" />
-          {allCollapsed ? expandAllLabel : collapseAllLabel}
-        </button>
-      </div>
       {groups.map((group) => {
         const key = groupKey(group.tag);
         const isCollapsed = collapsed.has(key);
-        if (group.items.length === 0 && group.tag !== null) return null;
+        if (group.items.length === 0) return null;
         const revealLimit = revealByGroup[key] ?? BOUNDED_STEP;
         const shownItems = group.items.slice(0, revealLimit);
         const groupHasMore = shownItems.length < group.items.length;

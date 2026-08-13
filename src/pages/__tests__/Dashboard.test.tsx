@@ -148,6 +148,14 @@ describe('Dashboard', () => {
     vi.clearAllMocks();
   });
 
+  it('dashboard 页面根容器不再叠加 p-6', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+    const page = screen.getByTestId('dashboard-page');
+    expect(page).not.toHaveClass('p-6');
+  });
+
   it('renders dashboard title and stat cards from store', async () => {
     useAppStore.setState({ dashboardStats: mkStats() });
     await setupDefaultRoutes();
@@ -187,6 +195,47 @@ describe('Dashboard', () => {
     expect(screen.getByText('dashboard.welcome.step3Title')).toBeDefined();
   });
 
+  it('renders header row with subtitle and right-side primary one-click import button', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('nav.dashboard')).toBeDefined();
+    });
+    // Explanatory subtitle under the title (prototype: "资源、场景、项目与已开启平台的当前概况。")
+    expect(screen.getByText('dashboard.subtitle')).toBeDefined();
+    const importText = screen.getByText('import.scanTitle');
+    const importBtn = importText.closest('button');
+    expect(importBtn).not.toBeNull();
+    expect(importBtn).toHaveClass('bg-primary');
+    expect(screen.queryByText('import.scanTooltip')).toBeNull();
+  });
+
+  it('keeps welcome guide hidden after dismiss persists across re-render', async () => {
+    useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
+    await setupDefaultRoutes({
+      get_dashboard_stats: mkStats({ skill_count: 0 }),
+    });
+    const { unmount } = render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('dashboard.welcome.dismiss')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('dashboard.welcome.dismiss'));
+    await waitFor(() => {
+      expect(screen.queryByText('dashboard.welcome.title')).toBeNull();
+    });
+
+    // Remount with the same persisted dismiss flag — must stay hidden
+    unmount();
+    render(<Dashboard />);
+    await waitFor(() => {
+      expect(screen.getByText('nav.dashboard')).toBeDefined();
+    });
+    expect(screen.queryByText('dashboard.welcome.title')).toBeNull();
+  });
+
   it('dismisses welcome card and persists to localStorage', async () => {
     useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
     await setupDefaultRoutes({
@@ -205,6 +254,48 @@ describe('Dashboard', () => {
     expect(localStorage.getItem('skillforge-import-guide-dismissed')).toBe(
       'true'
     );
+  });
+
+  it('概览页不再渲染 Quick Actions 快捷操作区', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('nav.dashboard')).toBeDefined();
+    });
+    expect(screen.queryByTestId('dashboard-quick-actions')).toBeNull();
+  });
+
+  it('有技能 + 有启用平台 + 未 dismiss 时欢迎卡仍可见（取消数据态门控）', async () => {
+    useAppStore.setState({
+      dashboardStats: mkStats(),
+      platforms: [mkPlatform('claude', 'Claude Code', true)],
+    });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+
+    // 本文件 i18n mock 返回 raw key，按 key 查询而非中文可见文案。
+    expect(await screen.findByTestId('welcome-guide-card')).toBeDefined();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'dashboard.welcome.dismiss' })
+    );
+    expect(localStorage.getItem('skillforge-import-guide-dismissed')).toBe(
+      'true'
+    );
+    expect(screen.queryByTestId('welcome-guide-card')).toBeNull();
+  });
+
+  it('统计卡网格 gap 使用 12px 紧凑令牌', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('dashboard.stats.resources')).toBeDefined();
+    });
+    const grid = screen.getByTestId('dashboard-stats-grid');
+    expect(grid.className).toContain('gap-3');
   });
 
   it('renders quick entry rows for enabled platforms with live counts', async () => {
@@ -256,18 +347,6 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(useAppStore.getState().activeNav).toBe('globalDistribution');
     });
-  });
-
-  it('hides welcome guide card when both skills and rules exist', async () => {
-    useAppStore.setState({ dashboardStats: mkStats() });
-    await setupDefaultRoutes();
-    render(<Dashboard />);
-
-    await waitFor(() => {
-      expect(screen.getByText('nav.dashboard')).toBeDefined();
-    });
-    expect(screen.queryByText('dashboard.welcome.title')).toBeNull();
-    expect(screen.queryByText('dashboard.welcome.step1Title')).toBeNull();
   });
 
   it('navigates when a stat card is clicked', async () => {
@@ -360,31 +439,6 @@ describe('Dashboard', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('import.previewTitle')).toBeNull();
-    });
-  });
-
-  it('navigates via quick action buttons', async () => {
-    useAppStore.setState({ dashboardStats: mkStats() });
-    await setupDefaultRoutes();
-    render(<Dashboard />);
-
-    await waitFor(() => {
-      expect(screen.getByText('nav.dashboard')).toBeDefined();
-    });
-
-    fireEvent.click(screen.getAllByText('nav.globalDistribution')[0]);
-    await waitFor(() => {
-      expect(useAppStore.getState().activeNav).toBe('globalDistribution');
-    });
-
-    // Quick action button text collides with the stat-card label; click the button one
-    const projQuickAction = screen
-      .getAllByText('nav.projectDistribution')
-      .find((el) => el.closest('button')?.className.includes('bg-secondary'));
-    expect(projQuickAction).toBeDefined();
-    fireEvent.click(projQuickAction!);
-    await waitFor(() => {
-      expect(useAppStore.getState().activeNav).toBe('projectDistribution');
     });
   });
 

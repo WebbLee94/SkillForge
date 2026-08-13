@@ -8,15 +8,21 @@ import {
 } from '@testing-library/react';
 import { RulesManager } from '../RulesManager';
 import { useAppStore } from '../../stores/appStore';
+import { SEARCH_INPUT_CLASSES } from '../../lib/ui-tokens';
 import type { Rule, Tag } from '../../types';
 
 /* ===== Module-level mocks ===== */
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
+// zh 测试环境仅映射搜索框 placeholder 为全角中文；生产 JSX 使用 t('searchPlaceholder')（决策 9）
+const { tMap } = vi.hoisted(() => ({
+  tMap: { searchPlaceholder: '搜索规则…' } as Record<string, string>,
+}));
+
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, opts?: Record<string, unknown>) =>
-      opts ? `${key}:${JSON.stringify(opts)}` : key,
+      opts ? `${key}:${JSON.stringify(opts)}` : (tMap[key] ?? key),
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
   }),
 }));
@@ -425,13 +431,36 @@ describe('RulesManager', () => {
       expect(screen.getByText('Database Config')).toBeDefined();
     });
 
-    const searchInput = screen.getByPlaceholderText('searchPlaceholder');
+    const searchInput = screen.getByPlaceholderText('搜索规则…');
     fireEvent.change(searchInput, { target: { value: 'API' } });
 
     await waitFor(() => {
       expect(screen.queryByText('Database Config')).toBeNull();
     });
     expect(screen.getByText('API Gateway')).toBeDefined();
+  });
+
+  it('搜索框使用共享 SEARCH_INPUT_CLASSES 令牌', async () => {
+    await seedInvoke({ list_rules: [], list_tags: [] });
+    render(<RulesManager />);
+    const input = screen.getByPlaceholderText('搜索规则…');
+    expect(input.className).toContain(SEARCH_INPUT_CLASSES.split(' ')[0]);
+    for (const token of SEARCH_INPUT_CLASSES.split(' ')) {
+      expect(input.className).toContain(token);
+    }
+  });
+
+  it('搜索框 placeholder 由 i18n 驱动（en-US 环境渲染英文），禁止硬编码中文', async () => {
+    const prev = tMap.searchPlaceholder;
+    tMap.searchPlaceholder = 'Search rules…';
+    try {
+      await seedInvoke({ list_rules: [], list_tags: [] });
+      render(<RulesManager />);
+      expect(screen.getByPlaceholderText('Search rules…')).toBeDefined();
+      expect(screen.queryByPlaceholderText('搜索规则…')).toBeNull();
+    } finally {
+      tMap.searchPlaceholder = prev;
+    }
   });
 
   it('toggles history panel in editor panel', async () => {
@@ -1032,5 +1061,118 @@ describe('RulesManager — 资源 IPC 集成（受管副本 reveal / 批量删�
       expect(screen.getByText('Style')).toBeDefined();
     });
     expect(screen.queryByText('messages.loadRulesFailed')).toBeNull();
+  });
+});
+
+/* =================================================== */
+/*  Task 5：Rules 统一底部粘性批量栏                    */
+/* =================================================== */
+describe('RulesManager — 统一底部粘性批量栏', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('batch toolbar button toggles 批量操作→完成 (actions.batchSelect / actions.exitSelect)', async () => {
+    await seedInvoke({ list_rules: [aRule('r1', 'Rule A')], list_tags: [] });
+    render(<RulesManager />);
+    await waitFor(() => {
+      expect(screen.getByText('Rule A')).toBeDefined();
+    });
+    expect(screen.getByText('actions.batchSelect')).toBeDefined();
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    expect(screen.getByText('actions.exitSelect')).toBeDefined();
+  });
+
+  it('renders BatchActionBar after the collection with sticky bottom-0 z-40', async () => {
+    await seedInvoke({ list_rules: [aRule('r1', 'Rule A')], list_tags: [] });
+    render(<RulesManager />);
+    await waitFor(() => {
+      expect(screen.getByText('Rule A')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    const bar = screen.getByTestId('batch-action-bar');
+    expect(bar).toHaveClass('sticky', 'bottom-0', 'z-40');
+    const card = screen.getByText('Rule A');
+    const cardPrecedesBar =
+      (bar.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_PRECEDING) !==
+      0;
+    expect(cardPrecedesBar).toBe(true);
+  });
+
+  it('selected bar shows unified action order 管理所选标签→批量删除→清空→去分发→退出选择', async () => {
+    await seedInvoke({ list_rules: [aRule('r1', 'Rule A')], list_tags: [] });
+    render(<RulesManager />);
+    await waitFor(() => {
+      expect(screen.getByText('Rule A')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    fireEvent.click(screen.getByText('Rule A'));
+    const bar = screen.getByTestId('batch-action-bar');
+    const labels = within(bar)
+      .getAllByRole('button')
+      .map((b) => (b.textContent || '').trim());
+    expect(labels).toEqual([
+      'batch.manageTags',
+      'batch.delete',
+      'batch.clear',
+      'batch.goDistribute',
+      'batch.exit',
+    ]);
+  });
+});
+
+/* =================================================== */
+/*  Task 5：规则页头四动作 + Inspector 对齐（决策 7）     */
+/* =================================================== */
+describe('RulesManager — 页头四动作/Inspector 对齐（决策 7）', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('规则页头保留四动作：视图切换 → 批量操作 → 导入(次) → 新建(primary)', async () => {
+    await seedInvoke({ list_rules: [aRule('r1', 'Rule A')], list_tags: [] });
+    render(<RulesManager />);
+    await waitFor(() => {
+      expect(screen.getByText('Rule A')).toBeDefined();
+    });
+    const actions = screen.getByTestId('lib-page-actions');
+    // 视图切换 seg 是 actions 内首个控件（tablist 语义，aria-label="view-toggle"）
+    const seg = within(actions).getByRole('tablist');
+    expect(seg).toHaveAttribute('aria-label', 'view-toggle');
+    const buttons = within(actions).getAllByRole('button');
+    const labels = buttons.map((b) => (b.textContent || '').trim());
+    // 不得收敛为技能页三按钮结构：批量 → 导入（outline）→ 新建（primary）
+    expect(labels).toEqual(['actions.batchSelect', 'importRules', 'createRule']);
+    expect(buttons[buttons.length - 1].className).toContain('bg-primary');
+    expect(buttons[buttons.length - 2].className).not.toContain('bg-primary');
+    expect(
+      seg.compareDocumentPosition(buttons[0]) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
+  it('Inspector 操作区按分发→编辑→删除水平排列', async () => {
+    await seedInvoke({
+      list_rules: [aRule('r1', 'Rule A')],
+      list_tags: [],
+      get_managed_copy_path: null,
+    });
+    render(<RulesManager />);
+    await waitFor(() => {
+      expect(screen.getByText('Rule A')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('Rule A'));
+    await waitFor(() => {
+      expect(screen.getByTestId('inspector-actions')).toBeDefined();
+    });
+    const actions = screen.getByTestId('inspector-actions');
+    const buttons = within(actions).getAllByRole('button');
+    expect(buttons.map((b) => (b.textContent || '').trim())).toEqual([
+      'batch.goDistribute',
+      'actions.edit',
+      'actions.delete',
+    ]);
+    expect(actions.className).toContain('flex-row');
   });
 });

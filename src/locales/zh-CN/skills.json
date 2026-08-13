@@ -1,7 +1,7 @@
 {
   "title": "技能",
   "subtitle": "管理和导入 AI 技能",
-  "searchPlaceholder": "搜索技能...",
+  "searchPlaceholder": "搜索技能…",
   "filterSource": "来源筛选",
   "filterTag": "标签筛选",
   "sourceTypes": {
@@ -40,5 +40,5 @@
     }
   },
   "empty": "还没有导入任何技能",
-  "count": "共 {{count}} 个技能"
+  "count": "{{count}} 个技能"
 }

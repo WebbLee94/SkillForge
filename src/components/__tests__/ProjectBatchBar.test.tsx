@@ -71,4 +71,12 @@ describe('ProjectBatchBar', () => {
     fireEvent.click(screen.getByText(baseLabels.exitLabel));
     expect(props.onExit).toHaveBeenCalledTimes(1);
   });
+
+  it('renders a sticky bottom wrapper with an accent inner bar', () => {
+    renderBar({ selectedCount: 1 });
+    const wrap = screen.getByTestId('project-batch-bar');
+    expect(wrap).toHaveClass('sticky', 'bottom-0', 'z-40', 'bg-background', 'pt-2');
+    const inner = screen.getByTestId('project-batch-bar-inner');
+    expect(inner).toHaveClass('bg-accent', 'border', 'rounded-lg', 'px-3', 'py-2');
+  });
 });

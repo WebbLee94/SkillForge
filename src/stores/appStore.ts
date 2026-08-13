@@ -233,20 +233,25 @@ async function syncSceneMembers(
   draftIds: string[],
   add: (id: string) => Promise<unknown>,
   remove: (id: string) => Promise<unknown>
-): Promise<void> {
-  if (arraysEqual(savedIds, draftIds)) return;
+): Promise<Set<string>> {
+  if (arraysEqual(savedIds, draftIds)) return new Set();
   if (needsMemberRewrite(savedIds, draftIds)) {
     for (const id of savedIds) await remove(id);
     for (const id of draftIds) await add(id);
-    return;
+    return new Set(draftIds);
   }
   const draftSet = new Set(draftIds);
   for (const id of savedIds) {
     if (!draftSet.has(id)) await remove(id);
   }
+  const added = new Set<string>();
   for (const id of draftIds) {
-    if (!savedIds.includes(id)) await add(id);
+    if (!savedIds.includes(id)) {
+      await add(id);
+      added.add(id);
+    }
   }
+  return added;
 }
 
 export const useAppStore = create<AppStore>((set, get) => {
@@ -624,18 +629,62 @@ export const useAppStore = create<AppStore>((set, get) => {
           await ipc.updateScene(sceneId, metaPatch);
         }
 
-        await syncSceneMembers(
+        const reAddedSkillIds = await syncSceneMembers(
           savedSkills.map((s) => s.skill_id),
           draft.skills.map((s) => s.skill_id),
           (id) => ipc.addSkillToScene(sceneId, id),
           (id) => ipc.removeSkillFromScene(sceneId, id)
         );
-        await syncSceneMembers(
+        const reAddedRuleIds = await syncSceneMembers(
           savedRules.map((r) => r.rule_id),
           draft.rules.map((r) => r.rule_id),
           (id) => ipc.addRuleToScene(sceneId, id),
           (id) => ipc.removeRuleFromScene(sceneId, id)
         );
+
+        // 持久化成员启用状态。两类情形需发命令：
+        // 1) 既有成员与 baseline 的 enabled 不一致；
+        // 2) 本次被（重）添加的成员后端 enabled 重置为 1（rewrite 全部重加 / 增量新增），
+        //    因此这些成员在 draft 中若 enabled=false 都要补发禁用命令。
+        // 新增且 enabled=true 的成员无需命令（后端默认即 1）。
+        for (const m of draft.skills) {
+          const baselineEntry = savedSkills.find(
+            (s) => s.skill_id === m.skill_id
+          );
+          const enabledChanged =
+            baselineEntry !== undefined &&
+            m.enabled !== undefined &&
+            m.enabled !== baselineEntry.enabled;
+          const reapplyDisabled =
+            m.enabled === false && reAddedSkillIds.has(m.skill_id);
+          if (enabledChanged || reapplyDisabled) {
+            await ipc.setSceneMemberEnabled(
+              sceneId,
+              'skill',
+              m.skill_id,
+              m.enabled ?? false
+            );
+          }
+        }
+        for (const m of draft.rules) {
+          const baselineEntry = savedRules.find(
+            (r) => r.rule_id === m.rule_id
+          );
+          const enabledChanged =
+            baselineEntry !== undefined &&
+            m.enabled !== undefined &&
+            m.enabled !== baselineEntry.enabled;
+          const reapplyDisabled =
+            m.enabled === false && reAddedRuleIds.has(m.rule_id);
+          if (enabledChanged || reapplyDisabled) {
+            await ipc.setSceneMemberEnabled(
+              sceneId,
+              'rule',
+              m.rule_id,
+              m.enabled ?? false
+            );
+          }
+        }
 
         await get().fetchSceneDetail(sceneId);
         await get().fetchScenes();

@@ -1,6 +1,7 @@
 use skillforge_lib::db::migrations;
 /// Integration test for scene_engine CRUD operations and platform associations.
 use skillforge_lib::engine::scene_engine;
+use skillforge_lib::error::AppError;
 use skillforge_lib::types::{CreateSceneDTO, UpdateSceneDTO};
 
 fn init_db() -> rusqlite::Connection {
@@ -116,5 +117,95 @@ fn test_create_scene_with_various_icons() {
         let scene = scene_engine::create_scene(&conn, &dto).unwrap();
         let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
         assert_eq!(detail.scene.icon, Some(icon.to_string()));
+    }
+}
+
+#[test]
+fn test_set_scene_member_enabled_persists() {
+    let conn = init_db();
+
+    // Insert a skill first
+    conn.execute(
+        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        rusqlite::params!["test-skill", "Test Skill"],
+    )
+    .unwrap();
+
+    let dto = CreateSceneDTO {
+        name: "Toggle Scene".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: Some(vec!["test-skill".to_string()]),
+        rule_ids: None,
+    };
+    let scene = scene_engine::create_scene(&conn, &dto).unwrap();
+
+    // 初始 enabled=true
+    let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
+    assert!(detail.skills[0].enabled);
+    assert_eq!(detail.skills.len(), 1);
+
+    // 禁用后：详情返回 enabled=false 且成员行保留（不删除）
+    scene_engine::set_scene_member_enabled(&conn, &scene.id, "skill", "test-skill", false).unwrap();
+    let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
+    assert!(!detail.skills[0].enabled);
+    assert_eq!(detail.skills.len(), 1, "禁用后成员行应保留");
+
+    // 重新启用后：详情返回 enabled=true（刷新保持）
+    scene_engine::set_scene_member_enabled(&conn, &scene.id, "skill", "test-skill", true).unwrap();
+    let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
+    assert!(detail.skills[0].enabled);
+}
+
+#[test]
+fn test_set_scene_member_enabled_rule_persists() {
+    let conn = init_db();
+
+    // Insert a rule first
+    conn.execute(
+        "INSERT INTO rules (id, name, description, format, content, updated_at) VALUES (?1, ?2, ?3, 'directory', ?4, datetime('now'))",
+        rusqlite::params!["test-rule", "Test Rule", "A test", "rule content"],
+    )
+    .unwrap();
+
+    let dto = CreateSceneDTO {
+        name: "Rule Toggle Scene".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: None,
+        rule_ids: Some(vec!["test-rule".to_string()]),
+    };
+    let scene = scene_engine::create_scene(&conn, &dto).unwrap();
+
+    let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
+    assert!(detail.rules[0].enabled);
+
+    scene_engine::set_scene_member_enabled(&conn, &scene.id, "rule", "test-rule", false).unwrap();
+    let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
+    assert!(!detail.rules[0].enabled);
+    assert_eq!(detail.rules.len(), 1, "禁用后规则成员行应保留");
+
+    scene_engine::set_scene_member_enabled(&conn, &scene.id, "rule", "test-rule", true).unwrap();
+    let detail = scene_engine::get_scene_detail(&conn, &scene.id).unwrap();
+    assert!(detail.rules[0].enabled);
+}
+
+#[test]
+fn test_set_scene_member_enabled_invalid_member_type() {
+    let conn = init_db();
+
+    let dto = CreateSceneDTO {
+        name: "Invalid Type Scene".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: None,
+        rule_ids: None,
+    };
+    let scene = scene_engine::create_scene(&conn, &dto).unwrap();
+
+    let result = scene_engine::set_scene_member_enabled(&conn, &scene.id, "bogus", "x", true);
+    match result {
+        Err(AppError::Validation(msg)) => assert!(msg.contains("member_type")),
+        other => panic!("expected Validation error, got: {:?}", other),
     }
 }

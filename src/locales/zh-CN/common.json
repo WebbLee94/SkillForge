@@ -18,7 +18,8 @@
     "resources": "资源",
     "orchestration": "场景",
     "distribution": "分发",
-    "system": "系统"
+    "system": "系统",
+    "settings": "设置"
   },
   "actions": {
     "add": "添加",
@@ -43,11 +44,11 @@
     "refresh": "刷新",
     "export": "导出",
     "copy": "复制",
-    "batchSelect": "批量选择",
-    "exitSelect": "退出选择",
+    "batchSelect": "批量操作",
+    "exitSelect": "完成",
     "cancelSelect": "取消选择",
     "confirmImport": "确认导入",
-    "searchProjects": "搜索项目...",
+    "searchProjects": "搜索项目…",
     "openInFileManager": "在文件管理器中打开",
     "openDir": "打开目录",
     "undo": "撤销",
@@ -114,10 +115,11 @@
   },
   "batch": {
     "guide": "勾选资源后操作",
-    "exit": "退出批量模式",
+    "exit": "退出选择",
     "goDistribute": "去分发",
     "manageTags": "管理所选标签",
-    "delete": "批量删除"
+    "delete": "批量删除",
+    "clear": "清空"
   },
   "inspector": {
     "unsavedTitle": "有未保存的修改",
@@ -165,6 +167,7 @@
     "manageTags": "管理标签"
   },
   "dashboard": {
+    "subtitle": "资源、场景、项目与已开启平台的当前概况。",
     "globalDistStatus": "全局分发状态",
     "currentScene": "当前场景",
     "notConfigured": "未配置",
@@ -259,6 +262,13 @@
     "implemented": "已实现",
     "notImplemented": "未实现",
     "hint": "以下为常用快捷键指引；未标注「已实现」的快捷键暂未绑定，仅作展示。"
+  },
+  "topbar": {
+    "collapse": {
+      "collapse": "折叠侧边栏",
+      "expand": "展开侧边栏"
+    },
+    "notImplemented": "该功能暂未实现"
   },
   "syncConfirm": {
     "title": "同步确认",

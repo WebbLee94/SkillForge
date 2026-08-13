@@ -65,16 +65,14 @@ describe('Sidebar', () => {
     expect(useAppStore.getState().activeNav).toBe('settings');
   });
 
-  it('toggles sidebar collapse when the toggle button is clicked', () => {
+  it('sidebar footer 仅含设置项，不再渲染折叠按钮', () => {
     render(<Sidebar />);
-    // Not collapsed initially
-    expect(useAppStore.getState().sidebarCollapsed).toBe(false);
-    // The collapse toggle button is the last button in the aside
-    const aside = document.querySelector('aside')!;
-    const buttons = aside.querySelectorAll('button');
-    const toggleBtn = buttons[buttons.length - 1];
-    fireEvent.click(toggleBtn);
-    expect(useAppStore.getState().sidebarCollapsed).toBe(true);
+    const footer = screen.getByTestId('sidebar-footer');
+    expect(footer).toContainElement(
+      screen.getByRole('button', { name: /设置|settings/i })
+    );
+    expect(footer.querySelector('svg.lucide-panel-left-close')).toBeNull();
+    expect(footer.querySelector('svg.lucide-panel-left-open')).toBeNull();
   });
 
   it('hides text labels when collapsed', () => {
@@ -96,5 +94,25 @@ describe('Sidebar', () => {
     // Dashboard button should have a title
     const dashBtn = screen.getByTitle('nav.dashboard');
     expect(dashBtn).toBeDefined();
+  });
+
+  it('renders settings inside the sidebar footer', () => {
+    render(<Sidebar />);
+    expect(screen.getByTestId('sidebar-footer')).toContainElement(
+      screen.getByRole('button', { name: /设置|settings/i })
+    );
+  });
+
+  it('renders the sidebar at 200px when expanded', () => {
+    render(<Sidebar />);
+    const aside = document.querySelector('aside');
+    expect(aside?.className).toContain('w-[200px]');
+  });
+
+  it('renders the sidebar at 64px when collapsed', () => {
+    useAppStore.setState({ sidebarCollapsed: true });
+    render(<Sidebar />);
+    const aside = document.querySelector('aside');
+    expect(aside?.className).toContain('w-[64px]');
   });
 });

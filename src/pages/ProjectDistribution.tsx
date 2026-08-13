@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { sanitizePath } from '../lib/utils';
+import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
+import type { Platform, PlatformEntryCount } from '../types';
 import {
   Plus,
   Settings,
@@ -10,6 +12,7 @@ import {
   Pencil,
   CheckSquare,
   Send,
+  Search,
 } from 'lucide-react';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { ipc } from '../lib/ipc';
@@ -29,6 +32,54 @@ import { useBatchMode } from '../hooks/useBatchMode';
  * 仓库内页面组件普遍超过 250 纯行（替换前的本文件为 449 行），拆分单调用方的
  * 行组件只会引入无意义的间接层。
  */
+
+interface ProjectStatsRowProps {
+  projectId: string;
+  enabledPlatforms: Platform[];
+  stats: Record<string, PlatformEntryCount> | undefined;
+  t: (key: string, options?: Record<string, unknown>) => string;
+}
+
+function ProjectStatsRow({
+  projectId,
+  enabledPlatforms,
+  stats,
+  t,
+}: ProjectStatsRowProps) {
+  const rows = enabledPlatforms.map((platform) => {
+    const entry = stats?.[platform.id];
+    return {
+      platform,
+      skills: entry?.skills ?? 0,
+      rules: entry?.rules ?? 0,
+      dirExists: entry?.dir_exists ?? false,
+    };
+  });
+  const hasContent = rows.some(
+    (r) => r.dirExists && (r.skills > 0 || r.rules > 0)
+  );
+  if (!hasContent) {
+    return (
+      <div className="mt-2 text-xs text-muted-foreground">
+        {t('noDistributionPlaceholder')}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      {rows.map((r) => (
+        <span key={r.platform.id} data-testid={`platform-stats-${projectId}-${r.platform.id}`}>
+          {t('projectPlatformStats', {
+            platform: r.platform.name,
+            skills: r.skills,
+            rules: r.rules,
+          })}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function ProjectDistribution() {
   const { t } = useTranslation(['distribution', 'common']);
   const projects = useAppStore((s) => s.projects);
@@ -47,6 +98,9 @@ export function ProjectDistribution() {
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNameValue, setEditNameValue] = useState('');
+  const [platformStats, setPlatformStats] = useState<
+    Record<string, Record<string, PlatformEntryCount>>
+  >({});
   const batch = useBatchMode();
 
   const selectedProjectsForDelete = useMemo(
@@ -64,6 +118,51 @@ export function ProjectDistribution() {
     fetchProjects();
     fetchPlatforms();
   }, []);
+
+  // 每个项目 × 每个已启用平台并发统计技能/规则数（§22 整改项 2）。
+  // dir_exists=false 或单项失败降级为 0，不阻塞列表。
+  const enabledPlatforms = useMemo(
+    () => platforms.filter((p) => p.enabled),
+    [platforms]
+  );
+  useEffect(() => {
+    if (projects.length === 0 || enabledPlatforms.length === 0) {
+      setPlatformStats({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, Record<string, PlatformEntryCount>> = {};
+      await Promise.all(
+        projects.map(async (project) => {
+          const perPlatform: Record<string, PlatformEntryCount> = {};
+          await Promise.all(
+            enabledPlatforms.map(async (platform) => {
+              try {
+                const res = await ipc.countPlatformEntries(
+                  platform.id,
+                  project.path
+                );
+                perPlatform[platform.id] = res;
+              } catch {
+                perPlatform[platform.id] = {
+                  platform_id: platform.id,
+                  skills: 0,
+                  rules: 0,
+                  dir_exists: false,
+                };
+              }
+            })
+          );
+          next[project.id] = perPlatform;
+        })
+      );
+      if (!cancelled) setPlatformStats(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projects, enabledPlatforms]);
 
   // 「去工作区分发」：携带项目上下文跳转到共享工作区（§7.8）。
   // 同时清空资源库「去分发」可能残留的临时选择，避免与项目上下文混用。
@@ -89,13 +188,40 @@ export function ProjectDistribution() {
   };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-6">
-      <h1 className="text-2xl font-bold text-foreground mb-1">
-        {t('projectTitle')}
-      </h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        {t('projectSubtitle')}
-      </p>
+    <div className="flex h-full flex-col overflow-y-auto">
+      <div className="page-toolbar flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="page-title mb-1 text-foreground">
+            {t('projectTitle')}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {t('projectSubtitle')}
+          </p>
+        </div>
+        <div
+          data-testid="project-page-actions"
+          className="flex shrink-0 items-center gap-2"
+        >
+          <button
+            aria-label="batchMode"
+            onClick={batch.toggle}
+            className={`inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors ${
+              batch.enabled ? 'bg-primary/10 border-primary/30' : ''
+            }`}
+          >
+            <CheckSquare className="h-4 w-4" />
+            {batch.enabled
+              ? t('common:actions.exitSelect')
+              : t('common:actions.batchSelect')}
+          </button>
+          <button
+            onClick={() => setShowAddDialog(true)}
+            className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus className="h-4 w-4" /> {t('addProject')}
+          </button>
+        </div>
+      </div>
 
       {projects.length === 0 &&
       platforms.filter((p) => p.enabled).length === 0 ? (
@@ -107,12 +233,6 @@ export function ProjectDistribution() {
           <p className="text-sm text-muted-foreground mb-6 max-w-md">
             {t('noProjectsHint')}
           </p>
-          <button
-            onClick={() => setShowAddDialog(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" /> {t('addProject')}
-          </button>
         </div>
       ) : platforms.filter((p) => p.enabled).length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -133,52 +253,20 @@ export function ProjectDistribution() {
         </div>
       ) : (
         <>
-          {/* 工具栏：搜索 + 添加 + 批量选择 */}
-          <div className="mb-4 flex items-center gap-3">
-            <div className="relative flex-1 max-w-[400px]">
+          {/* 搜索行：位于标题行下一行 */}
+          <div className="mb-3">
+            <div className="relative w-[220px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('common:actions.searchProjects')}
                 aria-label={t('common:actions.searchProjects')}
-                className="w-full rounded-lg border border-border bg-card px-3 py-2.5 text-sm focus:border-primary/50 focus:outline-none"
+                className={SEARCH_INPUT_CLASSES}
               />
             </div>
-            <button
-              onClick={() => setShowAddDialog(true)}
-              className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" /> {t('addProject')}
-            </button>
-            <button
-              aria-label="batchMode"
-              onClick={batch.toggle}
-              className={`inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors ${
-                batch.enabled ? 'bg-primary/10 border-primary/30' : ''
-              }`}
-            >
-              <CheckSquare className="h-4 w-4" />
-              {batch.enabled
-                ? t('common:actions.exitSelect')
-                : t('common:actions.batchSelect')}
-            </button>
           </div>
-
-          <ProjectBatchBar
-            enabled={batch.enabled}
-            selectedCount={batch.selectedCount}
-            selectedLabel={t('common:messages.selectedCount', {
-              count: batch.selectedCount,
-            })}
-            guideLabel={t('common:batch.guide')}
-            deleteLabel={t('common:batch.delete')}
-            clearLabel={t('common:actions.cancelSelect')}
-            exitLabel={t('common:batch.exit')}
-            onDelete={() => setShowBatchDeleteConfirm(true)}
-            onClear={batch.clear}
-            onExit={batch.exit}
-          />
 
           {/* 项目管理列表 */}
           {filteredProjects.length === 0 ? (
@@ -190,7 +278,8 @@ export function ProjectDistribution() {
               {filteredProjects.map((project) => (
                 <li
                   key={project.id}
-                  className="rounded-lg border border-border bg-card p-3"
+                  data-testid={`project-card-${project.id}`}
+                  className="group rounded-lg border border-border bg-card p-3"
                 >
                   <div className="flex items-center gap-3">
                     {batch.enabled && (
@@ -227,16 +316,14 @@ export function ProjectDistribution() {
                           <span className="truncate font-medium">
                             {project.name}
                           </span>
-                          <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
-                            {t('managedProjectBadge')}
-                          </span>
                           <button
                             aria-label="renameProject"
+                            data-testid={`project-rename-${project.id}`}
                             onClick={() => {
                               setEditingId(project.id);
                               setEditNameValue(project.name);
                             }}
-                            className="shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                            className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
@@ -255,10 +342,31 @@ export function ProjectDistribution() {
                       {t('goDistributeInWorkspace')}
                     </button>
                   </div>
+                  <ProjectStatsRow
+                    projectId={project.id}
+                    enabledPlatforms={enabledPlatforms}
+                    stats={platformStats[project.id]}
+                    t={t}
+                  />
                 </li>
               ))}
             </ul>
           )}
+
+          <ProjectBatchBar
+            enabled={batch.enabled}
+            selectedCount={batch.selectedCount}
+            selectedLabel={t('common:messages.selectedCount', {
+              count: batch.selectedCount,
+            })}
+            guideLabel={t('common:batch.guide')}
+            deleteLabel={t('common:batch.delete')}
+            clearLabel={t('common:actions.cancelSelect')}
+            exitLabel={t('common:batch.exit')}
+            onDelete={() => setShowBatchDeleteConfirm(true)}
+            onClear={batch.clear}
+            onExit={batch.exit}
+          />
 
           <AddProjectDialog
             open={showAddDialog}

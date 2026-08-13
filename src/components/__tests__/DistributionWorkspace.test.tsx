@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { DistributionWorkspace } from '../DistributionWorkspace';
 import { useAppStore } from '../../stores/appStore';
+import { SELECT_CLASSES } from '../../lib/ui-tokens';
 import type { Platform, Project, Scene, Rule, Skill } from '../../types';
 
 /* Hoisted mocks */
@@ -236,6 +237,21 @@ describe('DistributionWorkspace', () => {
     expect(screen.getByText('ws.step4.title')).toBeDefined();
   });
 
+  it('stepper 四步之间渲染连接线', async () => {
+    await setupInvoke({
+      ...baseRoutes(),
+      preview_distribution: mkPlan(),
+      execute_distribution: mkResult(),
+    });
+    const { container } = render(<DistributionWorkspace />);
+    await waitFor(() =>
+      expect(screen.getByText('ws.step1.title')).toBeDefined()
+    );
+    expect(
+      container.querySelectorAll('[data-testid="ws-step-connector"]')
+    ).toHaveLength(3);
+  });
+
   it('shows empty state when no enabled platforms exist', async () => {
     seedStore({
       platforms: [mkPlat('claude-code', 'Claude Code', false)],
@@ -317,8 +333,91 @@ describe('DistributionWorkspace', () => {
       expect(platformSelect).toBeDefined();
       expect(screen.getByText('Claude Code')).toBeDefined();
 
-      // Read-only target path
-      expect(screen.getByText('ws.targetPathLabel')).toBeDefined();
+      // Read-only Skills/Rules target paths
+      expect(screen.getByText('ws.skillsPathLabel')).toBeDefined();
+      expect(screen.getByText('ws.rulesPathLabel')).toBeDefined();
+    });
+
+    it('工作区 select 使用共享 SELECT_CLASSES 令牌', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByTestId('dist-platform')).toBeDefined()
+      );
+      const wsSelect = screen.getByTestId('dist-platform');
+      expect(wsSelect.className).toContain(SELECT_CLASSES.split(' ')[0]);
+      for (const token of SELECT_CLASSES.split(' ')) {
+        expect(wsSelect.className).toContain(token);
+      }
+    });
+
+    it('Step 1 渲染 Skills/Rules 双只读路径', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByLabelText('ws.targetLabel')).toBeDefined()
+      );
+      expect(screen.getByTestId('ws-skills-path')).toBeDefined();
+      expect(screen.getByTestId('ws-rules-path')).toBeDefined();
+    });
+
+    it('项目目标下 Rules 路径按 project_rules_pattern 解析 {project}', async () => {
+      const proj = mkProj('p-1', 'My Project');
+      const plat: Platform = {
+        ...mkPlat('claude-code', 'Claude Code'),
+        paths: {
+          ...mkPlat('claude-code', 'Claude Code').paths,
+          project_rules_pattern: '{project}/.cursor/rules',
+        },
+      };
+      seedStore({ projects: [proj], platforms: [plat] });
+      await setupInvoke({
+        ...baseRoutes(),
+        list_projects: [proj],
+        list_platforms: [plat],
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByLabelText('ws.targetLabel')).toBeDefined()
+      );
+      fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
+        target: { value: 'project:p-1' },
+      });
+      expect(screen.getByTestId('ws-rules-path').textContent).toBe(
+        '/tmp/p-1/.cursor/rules'
+      );
+    });
+
+    it('Rules 单文件模式下显示单文件合并提示', async () => {
+      const plat: Platform = {
+        ...mkPlat('claude-code', 'Claude Code'),
+        paths: {
+          ...mkPlat('claude-code', 'Claude Code').paths,
+          global_rules_format: { SingleFile: { file_name: 'CLAUDE.md' } },
+        },
+      };
+      seedStore({ platforms: [plat] });
+      await setupInvoke({
+        ...baseRoutes(),
+        list_platforms: [plat],
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByLabelText('ws.targetLabel')).toBeDefined()
+      );
+      expect(screen.getByText('ws.rulesSingleFileHint')).toBeDefined();
     });
 
     it('updates the read-only target path when switching to a project', async () => {
@@ -332,11 +431,11 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByLabelText('ws.targetLabel')).toBeDefined()
       );
 
-      const globalPath = screen.getByTestId('ws-target-path').textContent;
+      const globalPath = screen.getByTestId('ws-skills-path').textContent;
       fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
         target: { value: 'project:p-1' },
       });
-      const projectPath = screen.getByTestId('ws-target-path').textContent;
+      const projectPath = screen.getByTestId('ws-skills-path').textContent;
       expect(projectPath).not.toBe(globalPath);
       expect(projectPath).toContain('/tmp/p-1');
     });
@@ -356,7 +455,7 @@ describe('DistributionWorkspace', () => {
       fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
         target: { value: 'project:p-1' },
       });
-      expect(screen.getByTestId('ws-target-path').textContent).toBe(
+      expect(screen.getByTestId('ws-skills-path').textContent).toBe(
         '/tmp/p-1/.claude-code/skills'
       );
     });
@@ -379,7 +478,7 @@ describe('DistributionWorkspace', () => {
       expect(targetSelect.value).toBe('project:p-1');
       // 消费后清除，使后续直接进入工作区时默认回到全局目标
       expect(useAppStore.getState().projectDistSelectedProjectId).toBeNull();
-      expect(screen.getByTestId('ws-target-path').textContent).toContain(
+      expect(screen.getByTestId('ws-skills-path').textContent).toContain(
         '/tmp/p-1'
       );
     });
@@ -461,7 +560,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      expect(screen.getByText('ws.pathUnavailable')).toBeDefined();
+      expect(screen.getByTestId('ws-skills-path').textContent).toBe(
+        'ws.pathUnavailable'
+      );
 
       fireEvent.click(screen.getByText('ws.nextToResources'));
       expect(
@@ -696,6 +797,62 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('React')).toBeDefined();
         expect(screen.getByText('Style')).toBeDefined();
       });
+    });
+
+    it('以含禁用成员的场景为来源时，选择池不含禁用成员（仍为有效引用）', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        get_scene_detail: {
+          scene: { id: 'scene-1', name: 'React 基础' },
+          skills: [
+            {
+              skill_id: 's1',
+              skill_name: 'React',
+              enabled: true,
+              sort_order: 0,
+              version: null,
+            },
+            {
+              skill_id: 's2',
+              skill_name: 'Vue',
+              enabled: false,
+              sort_order: 1,
+              version: null,
+            },
+          ],
+          rules: [
+            { rule_id: 'r1', rule_name: 'Style', enabled: true, sort_order: 0 },
+            { rule_id: 'r2', rule_name: 'Lint', enabled: false, sort_order: 1 },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+
+      fireEvent.change(screen.getByLabelText('ws.sourceLabel'), {
+        target: { value: 'scene:scene-1' },
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('ws-skills-list').textContent).toContain(
+          'React'
+        );
+        expect(
+          screen.getByTestId('ws-skills-list').textContent
+        ).not.toContain('Vue');
+        expect(screen.getByTestId('ws-rules-list').textContent).toContain(
+          'Style'
+        );
+        expect(
+          screen.getByTestId('ws-rules-list').textContent
+        ).not.toContain('Lint');
+      });
+      expect(screen.queryByText('ws.invalidRefsTitle')).toBeNull();
     });
 
     it('surfaces an explicit error when the Scene source members fail to load', async () => {

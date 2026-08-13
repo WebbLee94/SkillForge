@@ -17,8 +17,8 @@ import { useBoundedReveal } from '../lib/useBoundedReveal';
 export interface SceneDraft {
   name: string;
   description: string;
-  skills: { skill_id: string }[];
-  rules: { rule_id: string }[];
+  skills: { skill_id: string; enabled: boolean }[];
+  rules: { rule_id: string; enabled: boolean }[];
 }
 
 interface SceneEditorDrawerProps {
@@ -74,6 +74,8 @@ export function SceneEditorDrawer({
     if (draftDesc !== (saved.scene.description || '')) return true;
     const sk = draftSkills.map((s) => s.skill_id);
     const rk = draftRules.map((r) => r.rule_id);
+    const skEnabled = draftSkills.map((s) => s.enabled);
+    const rkEnabled = draftRules.map((r) => r.enabled);
     return (
       !arraysEqual(
         sk,
@@ -82,6 +84,14 @@ export function SceneEditorDrawer({
       !arraysEqual(
         rk,
         saved.rules.map((r) => r.rule_id)
+      ) ||
+      !arraysEqual(
+        skEnabled,
+        saved.skills.map((s) => s.enabled)
+      ) ||
+      !arraysEqual(
+        rkEnabled,
+        saved.rules.map((r) => r.enabled)
       )
     );
   }, [draftName, draftDesc, draftSkills, draftRules, saved]);
@@ -237,8 +247,14 @@ export function SceneEditorDrawer({
     const ok = await onSave({
       name: draftName,
       description: draftDesc,
-      skills: draftSkills.map((s) => ({ skill_id: s.skill_id })),
-      rules: draftRules.map((r) => ({ rule_id: r.rule_id })),
+      skills: draftSkills.map((s) => ({
+        skill_id: s.skill_id,
+        enabled: s.enabled,
+      })),
+      rules: draftRules.map((r) => ({
+        rule_id: r.rule_id,
+        enabled: r.enabled,
+      })),
     });
     setSaving(false);
     if (ok) onClose();
@@ -265,9 +281,17 @@ export function SceneEditorDrawer({
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Package className="h-5 w-5 text-primary" />
-        <h2 className="text-base font-semibold text-foreground">
-          {t('drawer.title', { name: saved.scene.name })}
-        </h2>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-foreground">
+            {t('drawer.title', { name: saved.scene.name })}
+          </h2>
+          <p
+            className="truncate text-xs text-muted-foreground"
+            data-testid="drawer-save-scope-note"
+          >
+            {t('drawer.saveScopeNote')}
+          </p>
+        </div>
         <div className="flex-1" />
         <button
           className="text-muted-foreground hover:text-foreground"
@@ -453,6 +477,41 @@ export function SceneEditorDrawer({
                   {skill.skill_name || skill.skill_id}
                 </span>
                 <button
+                  type="button"
+                  role="switch"
+                  aria-checked={skill.enabled}
+                  data-testid="scene-member-toggle"
+                  aria-label={
+                    skill.enabled
+                      ? t('detail.memberEnabled')
+                      : t('detail.memberDisabled')
+                  }
+                  title={
+                    skill.enabled
+                      ? t('detail.memberDisabled')
+                      : t('detail.memberEnabled')
+                  }
+                  onClick={() =>
+                    setDraftSkills((prev) =>
+                      prev.map((s) =>
+                        s.skill_id === skill.skill_id
+                          ? { ...s, enabled: !s.enabled }
+                          : s
+                      )
+                    )
+                  }
+                  className={cn(
+                    'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
+                    skill.enabled
+                      ? 'border-success/40 bg-success/10 text-success'
+                      : 'border-border bg-muted text-muted-foreground'
+                  )}
+                >
+                  {skill.enabled
+                    ? t('detail.memberEnabled')
+                    : t('detail.memberDisabled')}
+                </button>
+                <button
                   className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
                   onClick={() =>
                     setDraftSkills((prev) => move(prev, index, -1))
@@ -507,6 +566,41 @@ export function SceneEditorDrawer({
                 <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                   {rule.rule_name || rule.rule_id}
                 </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={rule.enabled}
+                  data-testid="scene-member-toggle"
+                  aria-label={
+                    rule.enabled
+                      ? t('detail.memberEnabled')
+                      : t('detail.memberDisabled')
+                  }
+                  title={
+                    rule.enabled
+                      ? t('detail.memberDisabled')
+                      : t('detail.memberEnabled')
+                  }
+                  onClick={() =>
+                    setDraftRules((prev) =>
+                      prev.map((r) =>
+                        r.rule_id === rule.rule_id
+                          ? { ...r, enabled: !r.enabled }
+                          : r
+                      )
+                    )
+                  }
+                  className={cn(
+                    'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
+                    rule.enabled
+                      ? 'border-success/40 bg-success/10 text-success'
+                      : 'border-border bg-muted text-muted-foreground'
+                  )}
+                >
+                  {rule.enabled
+                    ? t('detail.memberEnabled')
+                    : t('detail.memberDisabled')}
+                </button>
                 <button
                   className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
                   onClick={() => setDraftRules((prev) => move(prev, index, -1))}

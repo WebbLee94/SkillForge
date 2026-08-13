@@ -163,3 +163,28 @@ fn resolve_scene_skills_returns_enabled_scene_skills() {
 
     assert_eq!(resolved, vec!["skill-a".to_string()]);
 }
+
+#[test]
+fn resolve_scene_skills_excludes_disabled_member_and_reenables() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::new("test-plat", "Test Platform");
+    insert_skill(&conn, &plugin, "skill-a");
+    let dto = CreateSceneDTO {
+        name: "Scene".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: Some(vec!["skill-a".to_string()]),
+        rule_ids: None,
+    };
+    let scene = scene_engine::create_scene(&conn, &dto).unwrap();
+
+    // 禁用成员后：resolve 不含该成员
+    scene_engine::set_scene_member_enabled(&conn, &scene.id, "skill", "skill-a", false).unwrap();
+    let resolved = dist_plan::resolve_scene_skills(&conn, &scene.id).unwrap();
+    assert!(resolved.is_empty());
+
+    // 重新启用后：恢复进入
+    scene_engine::set_scene_member_enabled(&conn, &scene.id, "skill", "skill-a", true).unwrap();
+    let resolved = dist_plan::resolve_scene_skills(&conn, &scene.id).unwrap();
+    assert_eq!(resolved, vec!["skill-a".to_string()]);
+}

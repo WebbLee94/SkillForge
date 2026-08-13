@@ -4,14 +4,10 @@ import { useAppStore } from '../stores/appStore';
 import { cn } from '../lib/utils';
 import {
   Package,
-  FileText,
   Film,
   FolderOpen,
-  Download,
   Plus,
-  RefreshCw,
   Globe,
-  HelpCircle,
 } from 'lucide-react';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { ImportPreviewDialog } from '../components/ImportPreviewDialog';
@@ -67,24 +63,16 @@ export function Dashboard() {
     };
   }, [enabledIds]);
 
-  // Load data then check first-launch — uses direct store read to avoid React dep issues
+  // Load data then check first-launch — reads persisted dismiss flag; the guide
+  // stays visible until dismissed, regardless of skill/platform data state.
   useEffect(() => {
     const init = async () => {
       await fetchDashboardStats();
       await fetchPlatforms();
 
-      const state = useAppStore.getState();
-      const enabledCount = (state.platforms || []).filter(
-        (p) => p.enabled
-      ).length;
-      const skillCount = state.dashboardStats?.skill_count ?? 0;
-      console.log('[firstLaunch]', {
-        skillCount,
-        enabledCount,
-        platformCount: state.platforms.length,
-      });
-      if (skillCount === 0 && enabledCount > 0) {
-        // Always show guide when no skills exist, regardless of previous dismiss
+      const dismissed =
+        localStorage.getItem(FIRST_LAUNCH_DISMISSED_KEY) === 'true';
+      if (!dismissed) {
         setShowGuideCard(true);
       }
     };
@@ -168,10 +156,28 @@ export function Dashboard() {
   ];
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-6">
-      <h1 className="mb-6 text-2xl font-bold text-foreground">
-        {t('nav.dashboard')}
-      </h1>
+    <div
+      data-testid="dashboard-page"
+      className="flex h-full flex-col overflow-y-auto"
+    >
+      {/* Header row: title + subtitle on left, primary one-click import on right */}
+      <div className="page-toolbar flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="page-title mb-1 text-foreground">
+            {t('nav.dashboard')}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {t('dashboard.subtitle')}
+          </p>
+        </div>
+        <button
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          onClick={handleScan}
+        >
+          <Plus className="h-4 w-4" />
+          {t('import.scanTitle')}
+        </button>
+      </div>
 
       <WatcherNotification />
 
@@ -183,25 +189,11 @@ export function Dashboard() {
         />
       )}
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="relative inline-flex items-center group">
-          <button
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-            onClick={handleScan}
-          >
-            <Download className="h-3.5 w-3.5" />
-            {t('import.scanTitle')}
-          </button>
-          <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help ml-1.5" />
-          <span className="absolute left-0 bottom-full mb-2 z-50 hidden group-hover:block whitespace-nowrap rounded-lg border border-border bg-popover px-3 py-2 shadow-lg text-xs text-foreground">
-            {t('import.scanTooltip')}
-          </span>
-        </div>
-      </div>
-
       {/* Stat Cards */}
-      <div className="mb-6 grid grid-cols-4 gap-4">
+      <div
+        data-testid="dashboard-stats-grid"
+        className="mb-3 grid grid-cols-4 gap-3"
+      >
         {statCards.map((card) => (
           <button
             key={card.navKey}
@@ -236,7 +228,7 @@ export function Dashboard() {
       <div>
         {/* Quick entry — enabled platforms only */}
         <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-foreground">
               {t('dashboard.quickEntry.title')}
             </h2>
@@ -289,48 +281,6 @@ export function Dashboard() {
             </p>
           )}
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-6 flex gap-3 flex-wrap">
-        {/* Content preparation */}
-        <button
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          onClick={() => setActiveNav('skills')}
-        >
-          <Download className="h-4 w-4" />
-          {t('actions.import')} {t('nav.skills')}
-        </button>
-        <button
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          onClick={() => setActiveNav('rules')}
-        >
-          <FileText className="h-4 w-4" />
-          {t('actions.create')} {t('nav.rules')}
-        </button>
-        {/* Scene orchestration */}
-        <button
-          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          onClick={() => setActiveNav('scenes')}
-        >
-          <Plus className="h-4 w-4" />
-          {t('actions.create')} {t('nav.scenes')}
-        </button>
-        {/* Distribution */}
-        <button
-          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          onClick={() => setActiveNav('globalDistribution')}
-        >
-          <RefreshCw className="h-4 w-4" />
-          {t('nav.globalDistribution')}
-        </button>
-        <button
-          className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 transition-colors"
-          onClick={() => setActiveNav('projectDistribution')}
-        >
-          <FolderOpen className="h-4 w-4" />
-          {t('nav.projectDistribution')}
-        </button>
       </div>
 
       <ImportPreviewDialog

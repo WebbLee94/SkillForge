@@ -126,8 +126,8 @@ export interface UpdateSceneDTO {
 export interface SceneCompositionDraft {
   name?: string;
   description?: string;
-  skills: { skill_id: string }[];
-  rules: { rule_id: string }[];
+  skills: { skill_id: string; enabled?: boolean }[];
+  rules: { rule_id: string; enabled?: boolean }[];
 }
 
 // ===== Project =====

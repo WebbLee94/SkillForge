@@ -1,7 +1,8 @@
-import { memo, useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { memo, Fragment, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { cn, sanitizePath } from '../lib/utils';
+import { SELECT_CLASSES } from '../lib/ui-tokens';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -249,6 +250,24 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     return `${selectedProject.path}/${pattern}`;
   }, [selectedPlatform, isProjectTarget, selectedProject]);
 
+  const getRulesTargetDir = useCallback((): string => {
+    if (!selectedPlatform) return '';
+    if (!isProjectTarget) return selectedPlatform.paths.global_rules_dir || '';
+    if (!selectedProject) return '';
+    const pattern = selectedPlatform.paths.project_rules_pattern || '';
+    if (pattern.includes('{project}')) {
+      return pattern.replace('{project}', selectedProject.path);
+    }
+    if (
+      pattern.startsWith('/') ||
+      pattern.startsWith('~') ||
+      /^[A-Za-z]:[\\/]/.test(pattern)
+    ) {
+      return pattern;
+    }
+    return `${selectedProject.path}/${pattern}`;
+  }, [selectedPlatform, isProjectTarget, selectedProject]);
+
   const togglePlatform = useCallback(
     (id: string) => {
       setPlatformId(id);
@@ -287,13 +306,13 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
       .then((detail) => {
         if (token !== sceneLoadToken.current) return;
         const validSkillIds = detail.skills
-          .filter((s) => s.skill_name)
+          .filter((s) => s.enabled && s.skill_name)
           .map((s) => s.skill_id);
         const validRuleIds = detail.rules
-          .filter((r) => r.rule_name)
+          .filter((r) => r.enabled && r.rule_name)
           .map((r) => r.rule_id);
-        const invalidSkills = detail.skills.length - validSkillIds.length;
-        const invalidRules = detail.rules.length - validRuleIds.length;
+        const invalidSkills = detail.skills.filter((s) => !s.skill_name).length;
+        const invalidRules = detail.rules.filter((r) => !r.rule_name).length;
         setSceneSkillIds(new Set(validSkillIds));
         setSceneRuleIds(new Set(validRuleIds));
         if (invalidSkills > 0 || invalidRules > 0) {
@@ -651,6 +670,14 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
   const revealLabel = isMacOS() ? t('ws.revealMac') : t('ws.revealWin');
   const targetDisplayPath = sanitizePath(getTargetDir());
+  const rulesTargetDisplayPath = sanitizePath(getRulesTargetDir());
+  const rulesSingleFile = useMemo(() => {
+    if (!selectedPlatform) return false;
+    const fmt = isProjectTarget
+      ? selectedPlatform.paths.project_rules_format
+      : selectedPlatform.paths.global_rules_format;
+    return fmt != null && 'SingleFile' in fmt;
+  }, [selectedPlatform, isProjectTarget]);
 
   const nameForSkill = (id: string) =>
     skills.find((s) => s.id === id)?.name || id;
@@ -705,7 +732,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
   const stepper = (
     <div
-      className="flex gap-6 flex-wrap mb-4"
+      className="flex flex-wrap items-center gap-x-2 gap-y-3 mb-4"
       aria-label="distribution stepper"
     >
       {STEP_LABELS.map((label, i) => {
@@ -713,27 +740,38 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
         const done = stepNo < step;
         const current = stepNo === step;
         return (
-          <div
-            key={stepNo}
-            className={cn('flex items-center gap-2', current && 'text-primary')}
-          >
-            <span
+          <Fragment key={stepNo}>
+            <div
               className={cn(
-                'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
-                done && 'bg-primary/15 text-primary',
-                current && 'bg-primary text-primary-foreground',
-                !done && !current && 'bg-muted text-muted-foreground'
+                'flex items-center gap-2',
+                current && 'text-primary'
               )}
             >
-              {done ? '✓' : stepNo}
-            </span>
-            <div>
-              <div className="text-sm font-medium">{t(label.title)}</div>
-              <div className="text-xs text-muted-foreground">
-                {t(label.desc)}
+              <span
+                className={cn(
+                  'flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium',
+                  done && 'bg-primary/15 text-primary',
+                  current && 'bg-primary text-primary-foreground',
+                  !done && !current && 'bg-muted text-muted-foreground'
+                )}
+              >
+                {done ? '✓' : stepNo}
+              </span>
+              <div>
+                <div className="text-sm font-medium">{t(label.title)}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t(label.desc)}
+                </div>
               </div>
             </div>
-          </div>
+            {stepNo < 4 && (
+              <span
+                data-testid="ws-step-connector"
+                aria-hidden="true"
+                className="h-px w-6 bg-border mx-1"
+              />
+            )}
+          </Fragment>
         );
       })}
     </div>
@@ -762,7 +800,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                 aria-label={t('ws.targetLabel')}
                 value={target}
                 onChange={(e) => toggleTarget(e.target.value)}
-                className="w-full max-w-[420px] rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                className={cn(SELECT_CLASSES, 'w-full max-w-[420px]')}
               >
                 <optgroup label={t('ws.targetGlobal')}>
                   <option value="global">{t('ws.targetGlobalOption')}</option>
@@ -789,10 +827,11 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               </label>
               <select
                 id="dist-platform"
+                data-testid="dist-platform"
                 aria-label={t('ws.platformLabel')}
                 value={platformId || ''}
                 onChange={(e) => togglePlatform(e.target.value)}
-                className="w-full max-w-[420px] rounded-lg border border-input bg-background px-3 py-2 text-sm"
+                className={cn(SELECT_CLASSES, 'w-full max-w-[420px]')}
               >
                 {enabledPlatforms.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -802,15 +841,33 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               </select>
             </div>
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-foreground">
-                {t('ws.targetPathLabel')}
-              </label>
-              <div
-                data-testid="ws-target-path"
-                className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground"
-              >
-                {targetDisplayPath || t('ws.pathUnavailable')}
+            <div className="space-y-3">
+              <div>
+                <div className="mb-1 text-sm font-medium text-foreground">
+                  {t('ws.skillsPathLabel')}
+                </div>
+                <div
+                  data-testid="ws-skills-path"
+                  className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground break-all"
+                >
+                  {targetDisplayPath || t('ws.pathUnavailable')}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 text-sm font-medium text-foreground">
+                  {t('ws.rulesPathLabel')}
+                </div>
+                <div
+                  data-testid="ws-rules-path"
+                  className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground break-all"
+                >
+                  {rulesTargetDisplayPath || t('ws.pathUnavailable')}
+                </div>
+                {rulesSingleFile && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('ws.rulesSingleFileHint')}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -990,7 +1047,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                 setPlan(null);
                 setPlanStale(false);
               }}
-              className="w-full max-w-[420px] rounded-lg border border-input bg-background px-3 py-2 text-sm"
+              className={cn(SELECT_CLASSES, 'w-full max-w-[420px]')}
             >
               <optgroup label={t('ws.sourceAll')}>
                 <option value="all">

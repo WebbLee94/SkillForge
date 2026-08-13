@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { cn, sanitizePath } from '../lib/utils';
+import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
 import { TagFilterBar } from '../components/TagFilterBar';
 import { TagManagerDialog } from '../components/TagManagerDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -33,6 +34,7 @@ import {
   CheckSquare,
   Tags,
   AlertTriangle,
+  ChevronsUpDown,
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readDir } from '@tauri-apps/plugin-fs';
@@ -104,6 +106,7 @@ export function SkillLibrary() {
   const [untaggedFilter, setUntaggedFilter] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [view, setView] = useState<ResourceView>('group');
+  const [collapsedAll, setCollapsedAll] = useState(false);
   const [showTagManager, setShowTagManager] = useState(false);
   const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(
     null
@@ -468,66 +471,95 @@ export function SkillLibrary() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* 顶部工具栏（§3.2 共享顺序：搜索 → 视图切换 → 标签管理 → 导入 → 批量开关） */}
+      {/* 页头行（决策 7）：标题 + 副标题 + 右侧 视图切换 seg → 批量操作 → 导入(primary) */}
       <div className="shrink-0 border-b border-border">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <div className="relative flex-1">
+        <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className="min-w-0">
+            <h1 className="page-title">{t('title')}</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t('subtitle')}
+            </p>
+          </div>
+          <div
+            className="flex shrink-0 items-center gap-3"
+            data-testid="lib-page-actions"
+          >
+            <ResourceViewToggle
+              view={view}
+              onChange={setView}
+              groupLabel={tc('view.group')}
+              listLabel={tc('view.list')}
+            />
+            <button
+              className={cn(
+                'shrink-0 flex items-center gap-2 rounded-lg border border-border px-3 py-1.5',
+                'text-sm font-medium text-foreground hover:bg-accent transition-colors',
+                batch.enabled && 'bg-primary/10 border-primary/30',
+                loading && 'pointer-events-none opacity-50'
+              )}
+              onClick={batch.toggle}
+              disabled={loading}
+            >
+              <CheckSquare className="h-4 w-4" />
+              {batch.enabled
+                ? tc('actions.exitSelect')
+                : tc('actions.batchSelect')}
+            </button>
+            <button
+              className={cn(
+                'shrink-0 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5',
+                'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
+              )}
+              onClick={openImportDialog}
+            >
+              <Download className="h-4 w-4" />
+              {tc('actions.import')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 工具栏（决策 7）：左侧搜索 icon+input ~220px、placeholder 全角 …；右侧 管理标签 + 计数 */}
+      <div className="shrink-0 border-b border-border">
+        <div className="flex items-center justify-between gap-3 px-4 py-2">
+          <div className="relative w-[220px] shrink-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               value={localSearch}
               onChange={(e) => handleSearch(e.target.value)}
               placeholder={t('searchPlaceholder')}
-              className={cn(
-                'w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm',
-                'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
-              )}
+              className={SEARCH_INPUT_CLASSES}
             />
           </div>
-          <ResourceViewToggle
-            view={view}
-            onChange={setView}
-            groupLabel={tc('view.group')}
-            listLabel={tc('view.list')}
-          />
-          <button
-            className={cn(
-              'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5',
-              'text-xs font-medium text-foreground hover:bg-accent transition-colors'
-            )}
-            onClick={() => setShowTagManager(true)}
-          >
-            <Tags className="h-3.5 w-3.5" />
-            {tc('tag.manageTags')}
-          </button>
-          <button
-            className={cn(
-              'shrink-0 flex items-center gap-2 rounded-lg border border-border px-3 py-1.5',
-              'text-sm font-medium text-foreground hover:bg-accent transition-colors',
-              batch.enabled && 'bg-primary/10 border-primary/30',
-              loading && 'pointer-events-none opacity-50'
-            )}
-            onClick={batch.toggle}
-            disabled={loading}
-          >
-            <CheckSquare className="h-4 w-4" />
-            {batch.enabled
-              ? tc('actions.exitSelect')
-              : tc('actions.batchSelect')}
-          </button>
-          <button
-            className={cn(
-              'shrink-0 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5',
-              'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
-            )}
-            onClick={openImportDialog}
-          >
-            <Download className="h-4 w-4" />
-            {tc('actions.import')}
-          </button>
+          <div className="flex shrink-0 items-center gap-3">
+            <button
+              className={cn(
+                'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5',
+                'text-xs font-medium text-foreground hover:bg-accent transition-colors'
+              )}
+              onClick={() => setShowTagManager(true)}
+            >
+              <Tags className="h-3.5 w-3.5" />
+              {tc('tag.manageTags')}
+            </button>
+            <span
+              data-testid="lib-toolbar-count"
+              className="text-xs text-muted-foreground"
+            >
+              {t('count', { count: skills.length })}
+            </span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 px-4 pb-2">
-          <div className="flex-1 overflow-hidden">
+      </div>
+
+      {/* 筛选行（决策 7）：标签 chips + 右侧 全部展开/收起 */}
+      <div className="shrink-0 border-b border-border">
+        <div
+          className="flex items-center gap-2 px-4 py-2"
+          data-testid="lib-filters"
+        >
+          <div className="min-w-0 flex-1">
             <TagFilterBar
               tags={tags}
               selectedTagIds={tagFilter}
@@ -538,29 +570,19 @@ export function SkillLibrary() {
               onToggleUntagged={() => setUntaggedFilter(!untaggedFilter)}
             />
           </div>
+          <button
+            aria-label={collapsedAll ? '展开分组' : '收起分组'}
+            className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            onClick={() => setCollapsedAll((prev) => !prev)}
+          >
+            <ChevronsUpDown className="h-3.5 w-3.5" />
+            {collapsedAll ? '展开分组' : '收起分组'}
+          </button>
         </div>
       </div>
 
-      {/* 批量模式操作栏（§3.7 armed/selected/exit） */}
-      <BatchActionBar
-        enabled={batch.enabled}
-        selectedCount={batch.selectedCount}
-        selectedLabel={tc('messages.selectedCount', {
-          count: batch.selectedCount,
-        })}
-        guideLabel={tc('batch.guide')}
-        exitLabel={tc('batch.exit')}
-        manageTagsLabel={tc('batch.manageTags')}
-        goDistributeLabel={tc('batch.goDistribute')}
-        deleteLabel={tc('batch.delete')}
-        onExit={batch.exit}
-        onGoDistribute={() => goDistribute([...batch.selectedIds])}
-        onManageTags={() => setShowBatchTagDialog(true)}
-        onDelete={handleBatchDelete}
-      />
-
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-4 pb-16" data-testid="lib-content">
           {loading ? (
             <div
               className="grid gap-3"
@@ -626,9 +648,8 @@ export function SkillLibrary() {
               batchMode={batch.enabled}
               selectedIds={batch.selectedIds}
               untaggedLabel={tc('tag.untagged')}
-              collapseAllLabel={tc('view.collapseAll')}
-              expandAllLabel={tc('view.expandAll')}
               showMoreLabel={tc('view.showMore')}
+              collapsedAll={collapsedAll}
               onToggleSelect={batch.toggleSelect}
               onOpenDetail={selectSkill}
               renderItem={(skill) =>
@@ -636,6 +657,25 @@ export function SkillLibrary() {
               }
             />
           )}
+
+          <BatchActionBar
+            enabled={batch.enabled}
+            selectedCount={batch.selectedCount}
+            selectedLabel={tc('messages.selectedCount', {
+              count: batch.selectedCount,
+            })}
+            guideLabel={tc('batch.guide')}
+            exitLabel={tc('batch.exit')}
+            manageTagsLabel={tc('batch.manageTags')}
+            goDistributeLabel={tc('batch.goDistribute')}
+            deleteLabel={tc('batch.delete')}
+            clearLabel={tc('batch.clear')}
+            onExit={batch.exit}
+            onGoDistribute={() => goDistribute([...batch.selectedIds])}
+            onManageTags={() => setShowBatchTagDialog(true)}
+            onDelete={handleBatchDelete}
+            onClear={batch.clear}
+          />
         </div>
 
         {/* Inspector（§3.2/§3.5：完整时间戳、来源仅技能、标签脏状态、受管 reveal） */}

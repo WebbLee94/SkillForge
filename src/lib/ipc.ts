@@ -72,6 +72,18 @@ export const ipc = {
     invoke<void>('add_rule_to_scene', { sceneId, ruleId }),
   removeRuleFromScene: (sceneId: string, ruleId: string) =>
     invoke<void>('remove_rule_from_scene', { sceneId, ruleId }),
+  setSceneMemberEnabled: (
+    sceneId: string,
+    memberType: 'skill' | 'rule',
+    memberId: string,
+    enabled: boolean
+  ) =>
+    invoke<void>('set_scene_member_enabled', {
+      sceneId,
+      memberType,
+      memberId,
+      enabled,
+    }),
   getSceneDetail: (id: string) =>
     invoke<SceneDetail>('get_scene_detail', { id }),
   // Distribution - Rust uses skill_ids, rule_ids, optional scene_id

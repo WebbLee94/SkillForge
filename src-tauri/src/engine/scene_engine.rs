@@ -264,6 +264,50 @@ pub fn remove_rule_from_scene(
     Ok(())
 }
 
+/// Toggle a Scene member's enabled state (`member_type` ∈ `"skill" | "rule"`).
+///
+/// 保留成员行（不删除），仅更新 enabled 与场景 updated_at，切换以事务方式原子提交。
+/// 未知 `member_type` 返回 `AppError::Validation`；场景不存在返回 `AppError::SceneNotFound`。
+pub fn set_scene_member_enabled(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+    member_type: &str,
+    member_id: &str,
+    enabled: bool,
+) -> Result<(), AppError> {
+    let _scene = query_scene_by_id(conn, scene_id)?;
+
+    let tx = conn.unchecked_transaction()?;
+    let enabled = if enabled { 1 } else { 0 };
+    match member_type {
+        "skill" => {
+            tx.execute(
+                "UPDATE scene_skills SET enabled = ?1 WHERE scene_id = ?2 AND skill_id = ?3",
+                params![enabled, scene_id, member_id],
+            )?;
+        }
+        "rule" => {
+            tx.execute(
+                "UPDATE scene_rules SET enabled = ?1 WHERE scene_id = ?2 AND rule_id = ?3",
+                params![enabled, scene_id, member_id],
+            )?;
+        }
+        _ => {
+            return Err(AppError::Validation(
+                "member_type 必须为 skill 或 rule".to_string(),
+            ));
+        }
+    }
+    let now = chrono::Utc::now().to_rfc3339();
+    tx.execute(
+        "UPDATE scenes SET updated_at = ?1 WHERE id = ?2",
+        params![now, scene_id],
+    )?;
+    tx.commit()?;
+
+    Ok(())
+}
+
 /// List all scenes.
 pub fn list_scenes(conn: &rusqlite::Connection) -> Result<Vec<Scene>, AppError> {
     let mut stmt = conn.prepare(

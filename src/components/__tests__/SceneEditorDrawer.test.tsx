@@ -262,6 +262,47 @@ describe('SceneEditorDrawer', () => {
     ).toBeDefined();
   });
 
+  it('成员行可切换启用/禁用，保存 draft 携带 enabled', async () => {
+    await seedInvoke({ list_tags: [] });
+    const { props } = renderDrawer({
+      saved: aDetail(
+        aScene('s1', 'Scene One'),
+        [aSceneSkill('sk1', 'S1')],
+        [aSceneRule('r1', 'R1')]
+      ),
+    });
+
+    const toggles = screen.getAllByTestId('scene-member-toggle');
+    expect(toggles.length).toBe(2);
+    fireEvent.click(toggles[0]); // 切换为禁用
+    fireEvent.click(screen.getByRole('button', { name: 'actions.save' }));
+
+    await waitFor(() => expect(props.onSave).toHaveBeenCalledTimes(1));
+    expect(props.onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skills: expect.arrayContaining([
+          expect.objectContaining({ skill_id: 'sk1', enabled: false }),
+        ]),
+        rules: expect.arrayContaining([
+          expect.objectContaining({ rule_id: 'r1', enabled: true }),
+        ]),
+      })
+    );
+  });
+
+  it('切换成员启用状态后视为脏状态：取消触发未保存弹窗', async () => {
+    await seedInvoke({ list_tags: [] });
+    const { props } = renderDrawer({
+      saved: aDetail(aScene('s1', 'Scene One'), [aSceneSkill('sk1', 'S1')]),
+    });
+
+    fireEvent.click(screen.getAllByTestId('scene-member-toggle')[0]);
+    fireEvent.click(screen.getByText('actions.cancel'));
+
+    expect(screen.getByText('drawer.unsavedTitle')).toBeDefined();
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
   it('save calls onSave with the draft and closes on success', async () => {
     await seedInvoke({ list_tags: [] });
     const { props } = renderDrawer({
@@ -282,8 +323,11 @@ describe('SceneEditorDrawer', () => {
     expect(props.onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'Scene One',
-        skills: [{ skill_id: 'sk1' }, { skill_id: 'sk2' }],
-        rules: [{ rule_id: 'r1' }],
+        skills: [
+          { skill_id: 'sk1', enabled: true },
+          { skill_id: 'sk2', enabled: true },
+        ],
+        rules: [{ rule_id: 'r1', enabled: true }],
       })
     );
     expect(props.onClose).toHaveBeenCalledTimes(1);
@@ -424,6 +468,14 @@ describe('SceneEditorDrawer', () => {
     renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')) });
     const dialog = screen.getByRole('dialog') as HTMLElement;
     expect(document.activeElement).toBe(dialog);
+  });
+
+  it('drawer header shows the save-scope note (只写 scenes/scene_skills/scene_rules)', async () => {
+    await seedInvoke({ list_tags: [] });
+    renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')) });
+    expect(screen.getByTestId('drawer-save-scope-note').textContent).toBe(
+      'drawer.saveScopeNote'
+    );
   });
 });
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type FocusEvent } from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipPortalProps {
@@ -6,6 +6,9 @@ interface TooltipPortalProps {
   triggerRef: React.RefObject<HTMLElement | null>;
   open: boolean;
   offsetY?: number;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onBlur?: (e: FocusEvent<HTMLDivElement>) => void;
 }
 
 export function TooltipPortal({
@@ -13,6 +16,9 @@ export function TooltipPortal({
   triggerRef,
   open,
   offsetY = 8,
+  onMouseEnter,
+  onMouseLeave,
+  onBlur,
 }: TooltipPortalProps) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -34,7 +40,13 @@ export function TooltipPortal({
       className="fixed z-[100] pointer-events-none -translate-x-1/2"
       style={{ top: pos.top, left: pos.left }}
     >
-      <div className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px]">
+      <div
+        data-tooltip-panel="true"
+        className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px] pointer-events-auto"
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+        onBlur={onBlur}
+      >
         {children}
       </div>
     </div>,

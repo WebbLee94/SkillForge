@@ -99,6 +99,27 @@ pub fn remove_rule_from_scene(
 }
 
 #[tauri::command]
+pub fn set_scene_member_enabled(
+    scene_id: String,
+    member_type: String,
+    member_id: String,
+    enabled: bool,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    engine::scene_engine::set_scene_member_enabled(
+        &conn,
+        &scene_id,
+        &member_type,
+        &member_id,
+        enabled,
+    )
+}
+
+#[tauri::command]
 pub fn get_scene_detail(
     id: String,
     state: tauri::State<'_, AppState>,

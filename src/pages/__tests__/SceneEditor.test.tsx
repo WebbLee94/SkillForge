@@ -464,6 +464,47 @@ describe('SceneEditor — use for distribution', () => {
     expect(store.activeNav).toBe('globalDistribution');
   });
 
+  it('carryToDistribution 排除禁用成员：enabled=false 不进 pendingDistributionSelection', async () => {
+    const s1 = aScene('s-1', 'Scene One');
+    const det = aDetail(
+      s1,
+      [
+        {
+          skill_id: 'sk1',
+          skill_name: 'S1',
+          version: null,
+          enabled: true,
+          sort_order: 0,
+        },
+        {
+          skill_id: 'sk2',
+          skill_name: 'S2',
+          version: null,
+          enabled: false,
+          sort_order: 1,
+        },
+      ],
+      [
+        { rule_id: 'r1', rule_name: 'R1', enabled: true, sort_order: 0 },
+        { rule_id: 'r2', rule_name: 'R2', enabled: false, sort_order: 1 },
+      ]
+    );
+    await seedInvoke(baseRoutes([s1], det));
+    render(<SceneEditor />);
+
+    await waitFor(() =>
+      expect(screen.getByText('detail.useForDistribution')).toBeDefined()
+    );
+    fireEvent.click(screen.getByText('detail.useForDistribution'));
+
+    expect(useAppStore.getState().pendingDistributionSelection).toEqual({
+      skillIds: ['sk1'],
+      ruleIds: ['r1'],
+      sceneId: 's-1',
+    });
+    expect(useAppStore.getState().activeNav).toBe('globalDistribution');
+  });
+
   it('blocks silently carrying invalid refs; use-valid-only excludes them', async () => {
     const s1 = aScene('s-1', 'Broken');
     const det = aDetail(s1, [
@@ -525,5 +566,99 @@ describe('SceneEditor — use for distribution', () => {
 
     expect(screen.getByRole('dialog')).toBeDefined();
     expect(useAppStore.getState().pendingDistributionSelection).toBeNull();
+  });
+});
+
+describe('SceneEditor — 详情读取态与原型操作顺序', () => {
+  beforeEach(resetStore);
+
+  it('detail header shows localized updated time and read-only state', async () => {
+    const s1 = aScene('s-1', 'Scene One', '2026-01-01T00:00:00Z');
+    const det = aDetail(s1, [
+      {
+        skill_id: 'sk1',
+        skill_name: 'S1',
+        version: null,
+        enabled: true,
+        sort_order: 0,
+      },
+    ]);
+    await seedInvoke(baseRoutes([s1], det));
+    render(<SceneEditor />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('scene-updated-at')).toBeDefined()
+    );
+    expect(screen.getByTestId('scene-updated-at').textContent).toContain(
+      'detail.updatedAt'
+    );
+    expect(screen.getByTestId('scene-read-only').textContent).toBe(
+      'detail.readOnly'
+    );
+  });
+
+  it('members show 启用/禁用 per resource enabled flag', async () => {
+    const s1 = aScene('s-1', 'Scene One');
+    const det = aDetail(
+      s1,
+      [
+        {
+          skill_id: 'sk1',
+          skill_name: 'S1',
+          version: null,
+          enabled: true,
+          sort_order: 0,
+        },
+        {
+          skill_id: 'sk2',
+          skill_name: 'S2',
+          version: null,
+          enabled: false,
+          sort_order: 1,
+        },
+      ],
+      [
+        { rule_id: 'r1', rule_name: 'R1', enabled: true, sort_order: 0 },
+        { rule_id: 'r2', rule_name: 'R2', enabled: false, sort_order: 1 },
+      ]
+    );
+    await seedInvoke(baseRoutes([s1], det));
+    render(<SceneEditor />);
+
+    await waitFor(() =>
+      expect(screen.getAllByText('detail.memberEnabled').length).toBe(2)
+    );
+    expect(screen.getAllByText('detail.memberDisabled').length).toBe(2);
+  });
+
+  it('detail footer notes save scope: only scenes/scene_skills/scene_rules', async () => {
+    const s1 = aScene('s-1', 'Scene One');
+    await seedInvoke(baseRoutes([s1], aDetail(s1)));
+    render(<SceneEditor />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId('scene-save-note')).toBeDefined()
+    );
+    expect(screen.getByTestId('scene-save-note').textContent).toBe(
+      'detail.saveScopeNote'
+    );
+  });
+
+  it('orders actions 用于分发(primary) → 配置内容(outline) → 删除(destructive)', async () => {
+    const s1 = aScene('s-1', 'Scene One');
+    await seedInvoke(baseRoutes([s1], aDetail(s1)));
+    render(<SceneEditor />);
+
+    await waitFor(() => expect(screen.getByTestId('scene-actions')).toBeDefined());
+    const actions = screen.getByTestId('scene-actions');
+    expect(actions.className).toContain('flex-row');
+    const buttons = within(actions).getAllByRole('button');
+    expect(buttons.map((b) => b.textContent)).toEqual([
+      'detail.useForDistribution',
+      'detail.configure',
+      'detail.delete',
+    ]);
+    expect(buttons[0]).toHaveClass('bg-primary');
+    expect(buttons[1]).not.toHaveClass('bg-primary');
   });
 });

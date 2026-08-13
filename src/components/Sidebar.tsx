@@ -9,8 +9,6 @@ import {
   Globe,
   FolderOpen,
   Settings,
-  PanelLeftOpen,
-  PanelLeftClose,
 } from 'lucide-react';
 import { AppLogo } from './AppLogo';
 import type { ReactNode } from 'react';
@@ -45,25 +43,25 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { key: 'rules', icon: <FileText className="h-4 w-4" /> },
     ],
   },
-  {
-    label: 'navGroups.system',
-    items: [{ key: 'settings', icon: <Settings className="h-4 w-4" /> }],
-  },
 ];
+
+const settingsItem: NavItem = {
+  key: 'settings',
+  icon: <Settings className="h-4 w-4" />,
+};
 
 export function Sidebar() {
   const { t } = useTranslation('common');
   const activeNav = useAppStore((s) => s.activeNav);
   const setActiveNav = useAppStore((s) => s.setActiveNav);
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
-  const toggleSidebar = useAppStore((s) => s.toggleSidebar);
 
   return (
     <aside
       className={cn(
         'flex h-full flex-col border-r border-sidebar-border bg-sidebar',
         'transition-all duration-300 ease-in-out',
-        sidebarCollapsed ? 'w-[60px]' : 'w-[260px]'
+        sidebarCollapsed ? 'w-[64px]' : 'w-[200px]'
       )}
     >
       {/* Header */}
@@ -114,20 +112,26 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Collapse Toggle */}
-      <button
-        className={cn(
-          'flex h-8 w-full items-center justify-center border-t border-sidebar-border',
-          'text-muted-foreground hover:bg-accent hover:text-foreground transition-colors'
-        )}
-        onClick={toggleSidebar}
+      {/* Footer: settings */}
+      <div
+        data-testid="sidebar-footer"
+        className="border-t border-sidebar-border"
       >
-        {sidebarCollapsed ? (
-          <PanelLeftOpen className="h-4 w-4" />
-        ) : (
-          <PanelLeftClose className="h-4 w-4" />
-        )}
-      </button>
+        <button
+          className={cn(
+            'flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors',
+            sidebarCollapsed ? 'justify-center px-0' : '',
+            activeNav === 'settings'
+              ? 'bg-primary/10 text-primary font-medium'
+              : 'text-sidebar-foreground hover:bg-accent'
+          )}
+          onClick={() => setActiveNav('settings')}
+          title={sidebarCollapsed ? t(`nav.${settingsItem.key}`) : undefined}
+        >
+          <span className="shrink-0">{settingsItem.icon}</span>
+          {!sidebarCollapsed && <span>{t(`nav.${settingsItem.key}`)}</span>}
+        </button>
+      </div>
     </aside>
   );
 }

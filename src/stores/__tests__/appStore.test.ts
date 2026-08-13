@@ -1167,6 +1167,177 @@ describe('appStore — saveSceneComposition', () => {
     expect(detailCalls.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('persists enabled changes via set_scene_member_enabled for existing members only', async () => {
+    setBaseline(
+      [sceneSkill('s1', 0), sceneSkill('s2', 1)],
+      [sceneRule('r1', 0)]
+    );
+    await mockInvoke({
+      update_scene: {},
+      get_scene_detail: detail(
+        [sceneSkill('s1'), sceneSkill('s2')],
+        [sceneRule('r1')]
+      ),
+      list_scenes: [],
+      set_scene_member_enabled: {},
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [
+        { skill_id: 's1', enabled: false },
+        { skill_id: 's2', enabled: true },
+      ],
+      rules: [{ rule_id: 'r1', enabled: true }],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    expect(calls).toContainEqual([
+      'set_scene_member_enabled',
+      {
+        sceneId: 'scene-1',
+        memberType: 'skill',
+        memberId: 's1',
+        enabled: false,
+      },
+    ]);
+    expect(calls).not.toContainEqual([
+      'set_scene_member_enabled',
+      {
+        sceneId: 'scene-1',
+        memberType: 'skill',
+        memberId: 's2',
+        enabled: true,
+      },
+    ]);
+    expect(calls).not.toContainEqual([
+      'set_scene_member_enabled',
+      {
+        sceneId: 'scene-1',
+        memberType: 'rule',
+        memberId: 'r1',
+        enabled: true,
+      },
+    ]);
+  });
+
+  it('rewrite path reapplies enabled=false for a baseline-disabled member after re-add', async () => {
+    useAppStore.setState({
+      currentSceneDetail: detail(
+        [{ ...sceneSkill('s1', 0), enabled: false }, sceneSkill('s2', 1)],
+        []
+      ),
+    });
+    await mockInvoke({
+      update_scene: {},
+      remove_skill_from_scene: {},
+      add_skill_to_scene: {},
+      get_scene_detail: detail(
+        [sceneSkill('s2'), { ...sceneSkill('s1', 1), enabled: false }],
+        []
+      ),
+      list_scenes: [],
+      set_scene_member_enabled: {},
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [
+        { skill_id: 's2', enabled: true },
+        { skill_id: 's1', enabled: false },
+      ],
+      rules: [],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    const cmds = calls.map((c) => c[0]);
+    expect(cmds).toEqual([
+      'update_scene',
+      'remove_skill_from_scene',
+      'remove_skill_from_scene',
+      'add_skill_to_scene',
+      'add_skill_to_scene',
+      'set_scene_member_enabled',
+      'get_scene_detail',
+      'list_scenes',
+    ]);
+    expect(calls).toContainEqual([
+      'set_scene_member_enabled',
+      {
+        sceneId: 'scene-1',
+        memberType: 'skill',
+        memberId: 's1',
+        enabled: false,
+      },
+    ]);
+  });
+
+  it('non-rewrite save persists enabled=false for a newly added member after add; enabled=true sends no redundant toggle', async () => {
+    setBaseline([], []);
+    await mockInvoke({
+      update_scene: {},
+      add_skill_to_scene: {},
+      add_rule_to_scene: {},
+      get_scene_detail: detail(
+        [{ ...sceneSkill('s9', 0), enabled: false }, sceneSkill('s8', 1)],
+        [sceneRule('r9', 0)]
+      ),
+      list_scenes: [],
+      set_scene_member_enabled: {},
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [
+        { skill_id: 's9', enabled: false },
+        { skill_id: 's8', enabled: true },
+      ],
+      rules: [{ rule_id: 'r9', enabled: false }],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    // s9: add_skill_to_scene 之后紧跟 set_scene_member_enabled(false)
+    const addIdx = calls.findIndex(
+      (c) => c[0] === 'add_skill_to_scene' && c[1]?.skillId === 's9'
+    );
+    const toggleIdx = calls.findIndex(
+      (c) => c[0] === 'set_scene_member_enabled' && c[1]?.memberId === 's9'
+    );
+    expect(addIdx).toBeGreaterThanOrEqual(0);
+    expect(toggleIdx).toBeGreaterThan(addIdx);
+    expect(calls[toggleIdx]).toEqual([
+      'set_scene_member_enabled',
+      {
+        sceneId: 'scene-1',
+        memberType: 'skill',
+        memberId: 's9',
+        enabled: false,
+      },
+    ]);
+    // enabled=true 的新增成员不产生冗余 toggle
+    expect(
+      calls.filter(
+        (c) => c[0] === 'set_scene_member_enabled' && c[1]?.memberId === 's8'
+      )
+    ).toEqual([]);
+    // 规则成员同样补发
+    expect(calls).toContainEqual([
+      'set_scene_member_enabled',
+      {
+        sceneId: 'scene-1',
+        memberType: 'rule',
+        memberId: 'r9',
+        enabled: false,
+      },
+    ]);
+  });
+
   it('aborts without member calls when no baseline can be obtained from backend', async () => {
     // Regression: when currentSceneDetail is null AND the backend refresh
     // yields nothing, we must not proceed with an empty baseline (that would

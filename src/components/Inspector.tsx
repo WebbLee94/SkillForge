@@ -277,42 +277,46 @@ export function Inspector({
               </button>
             </div>
           )}
+        </div>
 
-          <div className="mt-6 space-y-2">
-            {onEdit && (
-              <button
-                className={cn(
-                  'flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2',
-                  'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
-                )}
-                onClick={onEdit}
-              >
-                {editLabel || t('actions.edit')}
-              </button>
-            )}
-            {onGoDistribute && (
-              <button
-                className={cn(
-                  'flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2',
-                  'text-sm font-medium text-foreground hover:bg-accent transition-colors'
-                )}
-                onClick={onGoDistribute}
-              >
-                <Send className="h-4 w-4" />
-                {goDistributeLabel || t('actions.goDistribute')}
-              </button>
-            )}
+        {/* 操作区固定在面板底部（决策 7）：加入本次分发 primary → 编辑 outline → 删除 destructive */}
+        <div
+          data-testid="inspector-actions"
+          className="flex flex-row items-center gap-2 border-t border-border p-4 shrink-0"
+        >
+          {onGoDistribute && (
             <button
               className={cn(
-                'flex w-full items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2',
-                'text-sm font-medium text-error hover:bg-error/10 transition-colors'
+                'flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2',
+                'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
               )}
-              onClick={onDelete}
+              onClick={onGoDistribute}
             >
-              <Trash2 className="h-4 w-4" />
-              {deleteLabel || t('actions.delete')}
+              <Send className="h-4 w-4" />
+              {goDistributeLabel || t('actions.goDistribute')}
             </button>
-          </div>
+          )}
+          {onEdit && (
+            <button
+              className={cn(
+                'flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2',
+                'text-sm font-medium text-foreground hover:bg-accent transition-colors'
+              )}
+              onClick={onEdit}
+            >
+              {editLabel || t('actions.edit')}
+            </button>
+          )}
+          <button
+            className={cn(
+              'flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-error/30 bg-error/5 px-3 py-2',
+              'text-sm font-medium text-error hover:bg-error/10 transition-colors'
+            )}
+            onClick={onDelete}
+          >
+            <Trash2 className="h-4 w-4" />
+            {deleteLabel || t('actions.delete')}
+          </button>
         </div>
       </div>
 

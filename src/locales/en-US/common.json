@@ -18,7 +18,8 @@
     "resources": "Resources",
     "orchestration": "Scenes",
     "distribution": "Distribution",
-    "system": "System"
+    "system": "System",
+    "settings": "Settings"
   },
   "actions": {
     "add": "Add",
@@ -43,11 +44,11 @@
     "refresh": "Refresh",
     "export": "Export",
     "copy": "Copy",
-    "batchSelect": "Batch Select",
-    "exitSelect": "Exit Select",
+    "batchSelect": "Batch Actions",
+    "exitSelect": "Done",
     "cancelSelect": "Cancel Selection",
     "confirmImport": "Confirm Import",
-    "searchProjects": "Search projects...",
+    "searchProjects": "Search projects…",
     "openInFileManager": "Open in File Manager",
     "openDir": "Open Directory",
     "undo": "Undo",
@@ -114,10 +115,11 @@
   },
   "batch": {
     "guide": "Select resources to act on",
-    "exit": "Exit Batch Mode",
+    "exit": "Exit Selection",
     "goDistribute": "Distribute",
     "manageTags": "Manage Selected Tags",
-    "delete": "Delete Selected"
+    "delete": "Delete Selected",
+    "clear": "Clear"
   },
   "inspector": {
     "unsavedTitle": "Unsaved changes",
@@ -165,6 +167,7 @@
     "manageTags": "Manage Tags"
   },
   "dashboard": {
+    "subtitle": "Current overview of resources, scenes, projects, and enabled platforms.",
     "globalDistStatus": "Global Distribution Status",
     "currentScene": "Current Scene",
     "notConfigured": "Not Configured",
@@ -259,6 +262,13 @@
     "implemented": "Implemented",
     "notImplemented": "Not implemented",
     "hint": "Common shortcut reference. Shortcuts not marked \u201cImplemented\u201d are not bound yet and shown for reference only."
+  },
+  "topbar": {
+    "collapse": {
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    },
+    "notImplemented": "This feature is not implemented yet"
   },
   "syncConfirm": {
     "title": "Sync Confirmation",

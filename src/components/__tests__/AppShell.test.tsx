@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from '../AppShell';
 import { useAppStore } from '../../stores/appStore';
+import { setTheme, THEME_STORAGE_KEY } from '../../hooks/useTheme';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -15,6 +16,7 @@ vi.mock('react-i18next', () => ({
         'navGroups.orchestration': '场景',
         'navGroups.resources': '资源',
         'navGroups.system': '系统',
+        'navGroups.settings': '设置',
         'nav.dashboard': '概览',
         'nav.globalDistribution': '全局分发',
         'nav.projectDistribution': '项目分发',
@@ -37,6 +39,8 @@ vi.mock('react-i18next', () => ({
         'shortcuts.notImplemented': '未实现',
         'shortcuts.hint': '以下为常用快捷键指引',
         'actions.close': '关闭',
+        'topbar.collapse.collapse': '折叠侧边栏',
+        'topbar.collapse.expand': '展开侧边栏',
       };
       return map[key] ?? key;
     },
@@ -44,7 +48,9 @@ vi.mock('react-i18next', () => ({
 }));
 
 beforeEach(() => {
-  useAppStore.setState({ activeNav: 'dashboard' });
+  useAppStore.setState({ activeNav: 'dashboard', toasts: [] });
+  localStorage.removeItem(THEME_STORAGE_KEY);
+  setTheme('light');
 });
 
 describe('AppShell', () => {
@@ -114,27 +120,64 @@ describe('AppShell', () => {
     expect(crumb.textContent).toContain('技能');
   });
 
-  it('opens the shortcuts dialog from the topbar button', () => {
+  it('topbar 左侧首元素为折叠按钮，右侧无任何可点击控件', () => {
     render(
       <MemoryRouter>
         <AppShell />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: '快捷键' }));
-    expect(screen.getByRole('dialog')).toBeDefined();
-    expect(screen.getByText('搜索资源')).toBeDefined();
-    expect(screen.getByText('新建资源')).toBeDefined();
+    // 左侧折叠按钮：aria-label 区分 展开/折叠（展开态 = 当前已折叠）
+    const toggle = screen.getByRole('button', {
+      name: /折叠侧边栏|展开侧边栏/i,
+    });
+    expect(toggle).toBeDefined();
+    // 右侧必须无主题/更多/快捷键按钮
+    expect(
+      screen.queryByRole('button', { name: /切换深色模式|toggle theme/i })
+    ).toBeNull();
+    expect(screen.queryByRole('button', { name: /更多|more/i })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: /快捷键|shortcuts/i })
+    ).toBeNull();
+    // 折叠按钮位于面包屑之前（DOM 顺序）
+    const toggleEl = screen.getByRole('button', {
+      name: /折叠侧边栏|展开侧边栏/i,
+    });
+    const crumb = screen.getByRole('navigation', { name: 'breadcrumb' });
+    expect(
+      toggleEl.compareDocumentPosition(crumb) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
   });
 
-  it('closes the shortcuts dialog on Escape', () => {
+  it('renders the topbar at 52px height', () => {
     render(
       <MemoryRouter>
         <AppShell />
       </MemoryRouter>
     );
-    fireEvent.click(screen.getByRole('button', { name: '快捷键' }));
-    expect(screen.getByRole('dialog')).toBeDefined();
-    fireEvent.keyDown(window, { key: 'Escape' });
-    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByTestId('app-topbar')).toHaveClass('h-[52px]');
+  });
+
+  it('内容区使用紧凑壳层 px-5 py-3，宽屏不再限制 1180px', () => {
+    render(
+      <MemoryRouter>
+        <AppShell />
+      </MemoryRouter>
+    );
+    const content = screen.getByTestId('app-content');
+    expect(content).toHaveClass('md:px-5');
+    expect(content).toHaveClass('py-3');
+    expect(content).not.toHaveClass('max-w-[1180px]');
+  });
+
+  it('renders settings inside the sidebar footer', () => {
+    render(
+      <MemoryRouter>
+        <AppShell />
+      </MemoryRouter>
+    );
+    expect(screen.getByTestId('sidebar-footer')).toContainElement(
+      screen.getByRole('button', { name: /设置|settings/i })
+    );
   });
 });

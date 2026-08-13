@@ -42,6 +42,7 @@ pub fn run() {
             commands::scenes::remove_skill_from_scene,
             commands::scenes::add_rule_to_scene,
             commands::scenes::remove_rule_from_scene,
+            commands::scenes::set_scene_member_enabled,
             commands::scenes::get_scene_detail,
             commands::distribution::sync_scene,
             commands::distribution::get_sync_status,

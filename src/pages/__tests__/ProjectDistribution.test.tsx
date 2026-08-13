@@ -8,6 +8,7 @@ import {
 } from '@testing-library/react';
 import { ProjectDistribution } from '../ProjectDistribution';
 import { useAppStore } from '../../stores/appStore';
+import { SEARCH_INPUT_CLASSES } from '../../lib/ui-tokens';
 import type { Project, Platform } from '../../types';
 
 /* Hoisted mocks */
@@ -131,6 +132,26 @@ describe('ProjectDistribution', () => {
     // 行内重命名与「去工作区分发」快捷入口存在
     expect(screen.getByLabelText('renameProject')).toBeDefined();
     expect(screen.getByTestId('go-distribute-p-1')).toBeDefined();
+  });
+
+  it('项目名称铅笔仅在卡片 hover/focus-within 时呈现', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getByTestId('project-card-p-1')).toBeDefined()
+    );
+
+    const card = screen.getByTestId('project-card-p-1');
+    const rename = screen.getByTestId('project-rename-p-1');
+    expect(card.className).toContain('group');
+    expect(rename.className).toContain('opacity-0');
+    expect(rename.className).toContain('group-hover:opacity-100');
+    expect(rename.className).toContain('group-focus-within:opacity-100');
+    expect(rename.className).toContain('focus:opacity-100');
   });
 
   it('「去工作区分发」carries the project context and navigates to the shared workspace', async () => {
@@ -384,5 +405,99 @@ describe('ProjectDistribution', () => {
     fireEvent.change(search, { target: { value: 'Beta' } });
     expect(screen.queryByText('Alpha')).toBeNull();
     expect(screen.getByText('Beta')).toBeDefined();
+  });
+
+  it('项目搜索框使用共享 SEARCH_INPUT_CLASSES 令牌', async () => {
+    const proj = mkProj('p-1', 'Alpha');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getAllByText('Alpha').length).toBeGreaterThanOrEqual(1)
+    );
+    const search = screen.getByPlaceholderText('common:actions.searchProjects');
+    expect(search.className).toContain(SEARCH_INPUT_CLASSES.split(' ')[0]);
+    for (const token of SEARCH_INPUT_CLASSES.split(' ')) {
+      expect(search.className).toContain(token);
+    }
+  });
+
+  it('does not render a managed badge after the project name', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getAllByText('My Project').length).toBeGreaterThanOrEqual(1)
+    );
+    expect(screen.queryByText('managedProjectBadge')).toBeNull();
+  });
+
+  it('title row right side shows batch then add actions; search sits on the next line', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getAllByText('My Project').length).toBeGreaterThanOrEqual(1)
+    );
+
+    const actions = screen.getByTestId('project-page-actions');
+    const buttons = within(actions).getAllByRole('button');
+    expect(buttons[0]).toHaveAttribute('aria-label', 'batchMode');
+    expect(within(buttons[1]).getByText('addProject')).toBeDefined();
+    // 搜索框不在此行内，位于标题行下方独立一行
+    expect(
+      within(actions).queryByPlaceholderText('common:actions.searchProjects')
+    ).toBeNull();
+    expect(
+      screen.getByPlaceholderText('common:actions.searchProjects')
+    ).toBeDefined();
+  });
+
+  it('renders per-project × per-enabled-platform stats lines', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [
+        mkPlat('claude', 'Claude Code'),
+        mkPlat('cursor', 'Cursor'),
+      ],
+      count_platform_entries: {
+        platform_id: 'claude',
+        skills: 2,
+        rules: 1,
+        dir_exists: true,
+      },
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getAllByText('projectPlatformStats').length).toBe(2)
+    );
+  });
+
+  it('shows a localized placeholder when no platform has distributed content', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+      count_platform_entries: {
+        platform_id: 'claude',
+        skills: 0,
+        rules: 0,
+        dir_exists: false,
+      },
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getByText('noDistributionPlaceholder')).toBeDefined()
+    );
+    expect(screen.queryByText('projectPlatformStats')).toBeNull();
   });
 });

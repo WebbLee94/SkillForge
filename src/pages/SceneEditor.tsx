@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import {
   Film,
   List,
@@ -141,10 +141,10 @@ export function SceneEditor() {
   const carryToDistribution = useCallback(
     (detail: SceneDetail) => {
       const skillIds = detail.skills
-        .filter((s) => s.skill_name)
+        .filter((s) => s.enabled && s.skill_name)
         .map((s) => s.skill_id);
       const ruleIds = detail.rules
-        .filter((r) => r.rule_name)
+        .filter((r) => r.enabled && r.rule_name)
         .map((r) => r.rule_id);
       setPendingDistributionSelection({
         skillIds,
@@ -194,15 +194,13 @@ export function SceneEditor() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Top Bar */}
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Film className="h-5 w-5 text-primary" />
-        <h1 className="text-base font-semibold text-foreground">
-          {tc('nav.scenes')}
-        </h1>
-        <div className="flex-1" />
+      {/* 页面壳层标题（决策 3）：统一 page-toolbar / page-title */}
+      <div className="page-toolbar flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="page-title text-foreground">{tc('nav.scenes')}</h1>
+        </div>
         <button
-          className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           onClick={() => setShowCreateScene(true)}
         >
           <Plus className="h-4 w-4" />
@@ -343,11 +341,25 @@ export function SceneEditor() {
               <p className="text-sm text-muted-foreground">{t('loading')}</p>
             ) : (
               <>
-                <h2 className="text-2xl font-semibold text-foreground">
+                <h2 className="text-lg font-semibold text-foreground">
                   {currentSceneDetail.scene.name}
                 </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {currentSceneDetail.scene.description}
+                <p
+                  className="mt-1 text-sm text-muted-foreground"
+                  data-testid="scene-updated-at"
+                >
+                  {currentSceneDetail.scene.description
+                    ? `${currentSceneDetail.scene.description} · `
+                    : ''}
+                  {t('detail.updatedAt', {
+                    time: formatDate(currentSceneDetail.scene.updated_at),
+                  })}
+                </p>
+                <p
+                  className="text-xs text-muted-foreground"
+                  data-testid="scene-read-only"
+                >
+                  {t('detail.readOnly')}
                 </p>
 
                 {hasInvalidRefs && (
@@ -374,22 +386,24 @@ export function SceneEditor() {
                   </div>
                 )}
 
-                <div className="mt-4 flex flex-wrap items-center gap-2">
+                <div
+                  className="mt-4 flex flex-row flex-wrap items-center gap-2"
+                  data-testid="scene-actions"
+                >
                   <button
                     className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                    onClick={() => setDrawerOpen(true)}
-                  >
-                    <Package className="h-4 w-4" />
-                    {t('detail.configure')}
-                  </button>
-                  <button
-                    className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-1.5 text-sm text-secondary-foreground transition-colors hover:bg-secondary/80"
                     onClick={handleUseForDistribution}
                   >
                     <Film className="h-4 w-4" />
                     {t('detail.useForDistribution')}
                   </button>
-                  <div className="flex-1" />
+                  <button
+                    className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-accent/40"
+                    onClick={() => setDrawerOpen(true)}
+                  >
+                    <Package className="h-4 w-4" />
+                    {t('detail.configure')}
+                  </button>
                   <button
                     className="flex items-center gap-1 rounded-lg border border-error/30 px-2 py-1.5 text-sm text-error transition-colors hover:bg-error/10"
                     onClick={() => setShowDeleteConfirm(true)}
@@ -424,6 +438,11 @@ export function SceneEditor() {
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                         {skill.skill_name || `${skill.skill_id}（已删除）`}
                       </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {skill.enabled
+                          ? t('detail.memberEnabled')
+                          : t('detail.memberDisabled')}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -453,9 +472,21 @@ export function SceneEditor() {
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                         {rule.rule_name || `${rule.rule_id}（已删除）`}
                       </span>
+                      <span className="shrink-0 text-xs text-muted-foreground">
+                        {rule.enabled
+                          ? t('detail.memberEnabled')
+                          : t('detail.memberDisabled')}
+                      </span>
                     </div>
                   ))}
                 </div>
+
+                <p
+                  className="mt-4 border-t border-border pt-3 text-xs text-muted-foreground"
+                  data-testid="scene-save-note"
+                >
+                  {t('detail.saveScopeNote')}
+                </p>
               </>
             )}
           </div>
