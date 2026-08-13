@@ -19,5 +19,62 @@
   "skillTab": "Skills",
   "ruleTab": "Rules",
   "addSkill": "Add Skill",
-  "addRule": "Add Rule"
+  "addRule": "Add Rule",
+  "loading": "Loading...",
+  "loadFailed": "Failed to load",
+  "retry": "Retry",
+  "list": {
+    "searchPlaceholder": "Search scenes...",
+    "sortLabel": "Sort",
+    "sortRecent": "Recently updated",
+    "sortName": "Name",
+    "drawerOpen": "Open scene list"
+  },
+  "detail": {
+    "configure": "Configure",
+    "useForDistribution": "Use for distribution",
+    "delete": "Delete",
+    "invalidRefsTitle": "Scene contains invalid references",
+    "invalidRefsHint": "The following resources were deleted and cannot be carried into distribution:",
+    "invalidRefsUseValid": "Use valid resources only",
+    "invalidRefsCleanup": "Go clean up",
+    "invalidSkill": "Skill ({{id}}) was deleted",
+    "invalidRule": "Rule ({{id}}) was deleted",
+    "noSkills": "No skills configured",
+    "noRules": "No rules configured"
+  },
+  "deleteConfirm": {
+    "title": "Delete scene",
+    "message": "Delete scene \"{{name}}\" and its composition.",
+    "confirm": "Delete",
+    "skillLabel": "Skills",
+    "ruleLabel": "Rules",
+    "notAffected": "Library skills and rules will not be deleted"
+  },
+  "drawer": {
+    "title": "Configure — {{name}}",
+    "availableSkills": "Available Skills",
+    "availableRules": "Available Rules",
+    "poolSearchPlaceholder": "Search available resources...",
+    "addSelected": "Add selected",
+    "selectedCount": "{{count}} selected",
+    "showMore": "Show more ({{count}})",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove",
+    "summary": "Changes",
+    "summaryEmpty": "No changes",
+    "summaryAddedSkills": "+{{count}} skills added",
+    "summaryRemovedSkills": "-{{count}} skills removed",
+    "summaryAddedRules": "+{{count}} rules added",
+    "summaryRemovedRules": "-{{count}} rules removed",
+    "summaryReordered": "Order changed",
+    "unsavedTitle": "Unsaved changes",
+    "unsavedMessage": "Your configuration is not saved. Save changes?",
+    "unsavedSave": "Save",
+    "unsavedDiscard": "Discard",
+    "unsavedStay": "Stay",
+    "saveFailed": "Save failed, please retry",
+    "ariaClose": "Close configuration panel"
+  }
 }

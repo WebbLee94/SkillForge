@@ -19,5 +19,62 @@
   "skillTab": "技能",
   "ruleTab": "规则",
   "addSkill": "添加技能",
-  "addRule": "添加规则"
+  "addRule": "添加规则",
+  "loading": "加载中...",
+  "loadFailed": "加载失败",
+  "retry": "重试",
+  "list": {
+    "searchPlaceholder": "搜索场景...",
+    "sortLabel": "排序",
+    "sortRecent": "最近更新",
+    "sortName": "名称",
+    "drawerOpen": "打开场景列表"
+  },
+  "detail": {
+    "configure": "配置内容",
+    "useForDistribution": "用于分发",
+    "delete": "删除",
+    "invalidRefsTitle": "场景包含失效引用",
+    "invalidRefsHint": "以下资源已被删除，无法带入分发：",
+    "invalidRefsUseValid": "仅使用有效资源",
+    "invalidRefsCleanup": "返回清理",
+    "invalidSkill": "技能（{{id}}）已删除",
+    "invalidRule": "规则（{{id}}）已删除",
+    "noSkills": "暂未配置技能",
+    "noRules": "暂未配置规则"
+  },
+  "deleteConfirm": {
+    "title": "删除场景",
+    "message": "将删除场景「{{name}}」及其组合定义。",
+    "confirm": "确认删除",
+    "skillLabel": "技能",
+    "ruleLabel": "规则",
+    "notAffected": "不会删除资源库中的任何技能或规则"
+  },
+  "drawer": {
+    "title": "配置内容 — {{name}}",
+    "availableSkills": "可用技能",
+    "availableRules": "可用规则",
+    "poolSearchPlaceholder": "搜索可用资源...",
+    "addSelected": "添加所选",
+    "selectedCount": "已选 {{count}} 项",
+    "showMore": "显示更多 ({{count}})",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "remove": "移除",
+    "summary": "变更摘要",
+    "summaryEmpty": "暂无变更",
+    "summaryAddedSkills": "新增技能 +{{count}}",
+    "summaryRemovedSkills": "移除技能 -{{count}}",
+    "summaryAddedRules": "新增规则 +{{count}}",
+    "summaryRemovedRules": "移除规则 -{{count}}",
+    "summaryReordered": "已调整顺序",
+    "unsavedTitle": "有未保存的修改",
+    "unsavedMessage": "配置尚未保存。是否保存更改？",
+    "unsavedSave": "保存",
+    "unsavedDiscard": "放弃",
+    "unsavedStay": "取消离开",
+    "saveFailed": "保存失败，请重试",
+    "ariaClose": "关闭配置面板"
+  }
 }

@@ -3,25 +3,76 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { cn, sanitizePath } from '../lib/utils';
-import { TagPopover } from '../components/TagPopover';
 import { TagFilterBar } from '../components/TagFilterBar';
 import { TagManagerDialog } from '../components/TagManagerDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
+  ResourceViewToggle,
+  type ResourceView,
+} from '../components/ResourceViewToggle';
+import { ResourceCollection } from '../components/ResourceCollection';
+import { BatchActionBar } from '../components/BatchActionBar';
+import { BatchTagDialog } from '../components/BatchTagDialog';
+import { Inspector } from '../components/Inspector';
+import {
+  ResourceImportDialog,
+  type ImportItem,
+} from '../components/ResourceImportDialog';
+import { useBatchMode } from '../hooks/useBatchMode';
+import {
+  formatRelativeTime,
+  skillDirName,
+  validateSkillDirPath,
+} from '../lib/resourceLibrary';
+import {
   Search,
   Download,
-  Trash2,
-  RefreshCw,
-  X,
   Package,
   FolderOpen,
-  ChevronRight,
   Clock,
   CheckSquare,
   Tags,
+  AlertTriangle,
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
+import { readDir } from '@tauri-apps/plugin-fs';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
+
+async function buildSkillImportItem(
+  dirPath: string,
+  existingNames: Set<string>
+): Promise<ImportItem> {
+  const name = skillDirName(dirPath);
+  const base = validateSkillDirPath(dirPath, existingNames);
+  if (base.status !== 'valid') {
+    return {
+      key: dirPath,
+      name: name || dirPath,
+      path: dirPath,
+      status: base.status,
+      reason: base.reason,
+    };
+  }
+  try {
+    const entries = await readDir(dirPath);
+    const hasSkillMd = entries.some((e) => e.name === 'SKILL.md');
+    return {
+      key: dirPath,
+      name,
+      path: dirPath,
+      status: hasSkillMd ? 'valid' : 'skip',
+      reason: hasSkillMd ? undefined : 'missingSkillMd',
+    };
+  } catch {
+    return {
+      key: dirPath,
+      name,
+      path: dirPath,
+      status: 'error',
+      reason: 'readFailed',
+    };
+  }
+}
 
 export function SkillLibrary() {
   const { t } = useTranslation('skills');
@@ -37,33 +88,79 @@ export function SkillLibrary() {
   const selectSkill = useAppStore((s) => s.selectSkill);
   const setSearchQuery = useAppStore((s) => s.setSearchQuery);
   const setTagFilter = useAppStore((s) => s.setTagFilter);
+  const setActiveNav = useAppStore((s) => s.setActiveNav);
+  const setPendingDistributionSelection = useAppStore(
+    (s) => s.setPendingDistributionSelection
+  );
   const uninstallSkill = useAppStore((s) => s.uninstallSkill);
   const updateSkill = useAppStore((s) => s.updateSkill);
   const assignTag = useAppStore((s) => s.assignTag);
   const removeTagAction = useAppStore((s) => s.removeTag);
-  const createTag = useAppStore((s) => s.createTag);
 
-  const [showInstallDialog, setShowInstallDialog] = useState(false);
-  const [installSource, setInstallSource] = useState<'local' | 'git'>('local');
-  const [installInput, setInstallInput] = useState('');
-  const [selectedDirs, setSelectedDirs] = useState<string[]>([]);
   const [localSearch, setLocalSearch] = useState('');
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<
     typeof setTimeout
   > | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [batchMode, setBatchMode] = useState(false);
   const [untaggedFilter, setUntaggedFilter] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [view, setView] = useState<ResourceView>('group');
   const [showTagManager, setShowTagManager] = useState(false);
   const [confirmUninstallId, setConfirmUninstallId] = useState<string | null>(
     null
   );
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
+  const [showBatchTagDialog, setShowBatchTagDialog] = useState(false);
+  const [managedCopyPath, setManagedCopyPath] = useState<string | null>(null);
+  const [batchRef, setBatchRef] = useState<{
+    status: 'idle' | 'loading' | 'loaded' | 'error';
+    referenced: number;
+    total: number;
+  }>({ status: 'idle', referenced: 0, total: 0 });
+
+  // 导入预览（§3.8：多目录选择 + 逐项 valid/skip/error + 结果计数）
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importItems, setImportItems] = useState<ImportItem[]>([]);
+  const [importing, setImporting] = useState(false);
+
+  const batch = useBatchMode();
 
   useEffect(() => {
-    fetchSkills();
+    let cancelled = false;
+    fetchSkills().then((ok) => {
+      if (!cancelled) setLoadFailed(!ok);
+    });
     fetchTags('skill');
+    return () => {
+      cancelled = true;
+    };
   }, [fetchSkills, fetchTags]);
+
+  const retryLoad = () => {
+    setLoadFailed(false);
+    fetchSkills().then((ok) => setLoadFailed(!ok));
+  };
+
+  // Inspector 打开时按需解析受管副本路径（避免列表逐项 N+1 查询）
+  const selectedSkillId = selectedSkill?.id ?? null;
+  useEffect(() => {
+    if (!selectedSkillId) {
+      setManagedCopyPath(null);
+      return;
+    }
+    let cancelled = false;
+    setManagedCopyPath(null);
+    ipc
+      .getManagedCopyPath('skill', selectedSkillId)
+      .then((path) => {
+        if (!cancelled) setManagedCopyPath(path ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setManagedCopyPath(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSkillId]);
 
   const handleSearch = useCallback(
     (value: string) => {
@@ -105,88 +202,273 @@ export function SkillLibrary() {
     );
   };
 
+  const clearFilters = useCallback(() => {
+    setTagFilter([]);
+    setUntaggedFilter(false);
+  }, [setTagFilter]);
+
+  // === 去分发（§3.4）：携带选中资源进入分发工作区 ===
+  const goDistribute = useCallback(
+    (skillIds: string[]) => {
+      setPendingDistributionSelection({ skillIds, ruleIds: [] });
+      setActiveNav('globalDistribution');
+      batch.exit();
+    },
+    [setPendingDistributionSelection, setActiveNav, batch]
+  );
+
+  // === 批量删除 ===
+  const handleBatchDelete = useCallback(() => {
+    if (batch.selectedCount === 0) return;
+    setShowBatchDeleteConfirm(true);
+    const ids = [...batch.selectedIds];
+    setBatchRef({ status: 'loading', referenced: 0, total: 0 });
+    Promise.all(ids.map((id) => ipc.countSceneReferences('skill', id)))
+      .then((counts) => {
+        setBatchRef({
+          status: 'loaded',
+          referenced: counts.filter((c) => c > 0).length,
+          total: counts.reduce((sum, c) => sum + c, 0),
+        });
+      })
+      .catch(() => {
+        setBatchRef({ status: 'error', referenced: 0, total: 0 });
+      });
+  }, [batch.selectedCount, batch.selectedIds]);
+
+  const executeBatchDelete = useCallback(async () => {
+    for (const id of batch.selectedIds) {
+      await uninstallSkill(id);
+    }
+    setShowBatchDeleteConfirm(false);
+    batch.exit();
+  }, [batch, uninstallSkill]);
+
+  // === 批量管理所选标签 ===
+  const selectedSkills = useMemo(
+    () => skills.filter((s) => batch.selectedIds.has(s.id)),
+    [skills, batch.selectedIds]
+  );
+
+  const batchTagIntersection = useMemo(() => {
+    if (selectedSkills.length === 0) return [];
+    const common = new Set<number>();
+    selectedSkills.forEach((s, idx) => {
+      const ids = (s.tags || []).map((tg) => tg.id);
+      if (idx === 0) ids.forEach((id) => common.add(id));
+      else {
+        const keep = new Set(ids);
+        for (const id of common) if (!keep.has(id)) common.delete(id);
+      }
+    });
+    return [...common];
+  }, [selectedSkills]);
+
+  const applyBatchTags = useCallback(
+    async (added: number[], removed: number[]) => {
+      for (const tagId of added) {
+        for (const id of batch.selectedIds) await assignTag('skill', id, tagId);
+      }
+      for (const tagId of removed) {
+        for (const id of batch.selectedIds)
+          await removeTagAction('skill', id, tagId);
+      }
+      setShowBatchTagDialog(false);
+      batch.exit();
+      await fetchSkills();
+      await fetchTags('skill');
+    },
+    [batch, assignTag, removeTagAction, fetchSkills, fetchTags]
+  );
+
+  // === 详情面板标签保存 ===
+  const saveSkillTags = useCallback(
+    async (skillId: string, added: number[], removed: number[]) => {
+      for (const tagId of added) await assignTag('skill', skillId, tagId);
+      for (const tagId of removed)
+        await removeTagAction('skill', skillId, tagId);
+      await fetchSkills();
+      const fresh = useAppStore.getState().skills.find((s) => s.id === skillId);
+      if (fresh) selectSkill(fresh);
+    },
+    [assignTag, removeTagAction, fetchSkills, selectSkill]
+  );
+
+  // === 导入预览（技能目录） ===
+  const pickSkillDirs = useCallback(async () => {
+    try {
+      const selected = await open({ directory: true, multiple: true });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      const existingNames = new Set(
+        skills
+          .map((s) => skillDirName(s.local_path))
+          .filter((n): n is string => Boolean(n))
+      );
+      const built = await Promise.all(
+        paths.map((p) => buildSkillImportItem(p, existingNames))
+      );
+      setImportItems((prev) => {
+        const seen = new Set(prev.map((i) => i.key));
+        return [...prev, ...built.filter((i) => !seen.has(i.key))];
+      });
+    } catch {
+      /* 用户取消选择 */
+    }
+  }, [skills]);
+
+  const executeImport = useCallback(async () => {
+    if (importing) return;
+    setImporting(true);
+    const next = [...importItems];
+    for (const item of next) {
+      if (item.status === 'skip') {
+        if (!item.result) item.result = 'skipped';
+        continue;
+      }
+      if (item.status === 'error') {
+        if (!item.result) item.result = 'failed';
+        continue;
+      }
+      if (item.result) continue;
+      try {
+        await ipc.installSkill('local-fs', item.path);
+        item.result = 'success';
+      } catch {
+        item.result = 'failed';
+      }
+    }
+    setImportItems(next);
+    setImporting(false);
+    await fetchSkills();
+  }, [importing, importItems, fetchSkills]);
+
+  const retryImportItem = useCallback(
+    async (key: string) => {
+      if (importing) return;
+      const item = importItems.find((i) => i.key === key);
+      if (!item) return;
+      if (item.result === 'failed') {
+        setImporting(true);
+        const next = [...importItems];
+        const target = next.find((i) => i.key === key)!;
+        try {
+          await ipc.installSkill('local-fs', target.path);
+          target.result = 'success';
+        } catch {
+          target.result = 'failed';
+        }
+        setImportItems(next);
+        setImporting(false);
+        await fetchSkills();
+      } else {
+        const existingNames = new Set(
+          skills
+            .map((s) => skillDirName(s.local_path))
+            .filter((n): n is string => Boolean(n))
+        );
+        const rebuilt = await buildSkillImportItem(item.path, existingNames);
+        setImportItems((prev) =>
+          prev.map((i) =>
+            i.key === key ? { ...rebuilt, result: undefined } : i
+          )
+        );
+      }
+    },
+    [importing, importItems, skills, fetchSkills]
+  );
+
+  const removeImportItem = useCallback((key: string) => {
+    setImportItems((prev) => prev.filter((i) => i.key !== key));
+  }, []);
+
+  const openImportDialog = useCallback(() => {
+    setImportItems([]);
+    setShowImportDialog(true);
+  }, []);
+
+  // === 卡片/行渲染 ===
+  const renderGroupCard = useCallback(
+    (skill: (typeof skills)[number]) => (
+      <>
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-foreground">
+              {skill.name}
+            </h3>
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+              {skill.description || ''}
+            </p>
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            {formatRelativeTime(skill.installed_at)}
+          </span>
+          {skill.current_ver && (
+            <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
+              v{skill.current_ver}
+            </span>
+          )}
+        </div>
+      </>
+    ),
+    []
+  );
+
+  const renderListRow = useCallback(
+    (skill: (typeof skills)[number]) => (
+      <>
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <h3 className="truncate text-sm font-semibold text-foreground">
+              {skill.name}
+            </h3>
+            <p className="truncate text-xs text-muted-foreground">
+              {skill.description || ''}
+            </p>
+          </div>
+          {skill.tags && skill.tags.length > 0 && (
+            <div className="flex shrink-0 flex-wrap items-center gap-1">
+              {skill.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="rounded-full px-2 py-0.5 text-xs font-medium"
+                  style={
+                    tag.color
+                      ? { backgroundColor: tag.color + '20', color: tag.color }
+                      : undefined
+                  }
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {formatRelativeTime(skill.installed_at)}
+        </span>
+      </>
+    ),
+    []
+  );
+
   const parseMetadata = (
     meta: string | null | undefined
   ): Record<string, unknown> => {
     if (!meta) return {};
     try {
       return JSON.parse(meta);
-    } catch (e) {
-      console.error('parseMetadata failed:', e);
+    } catch {
       return {};
     }
   };
 
-  const formatTime = (iso: string) => {
-    try {
-      return new Date(iso).toLocaleDateString('zh-CN', {
-        month: 'short',
-        day: 'numeric',
-      });
-    } catch (e) {
-      console.error('formatTime failed:', e);
-      return iso;
-    }
-  };
-
-  const handleAssignTag = useCallback(
-    async (skillId: string, tagId: number) => {
-      await assignTag('skill', skillId, tagId);
-      await fetchSkills();
-      await fetchTags('skill');
-    },
-    [assignTag, fetchSkills, fetchTags]
-  );
-
-  const handleRemoveTag = useCallback(
-    async (skillId: string, tagId: number) => {
-      await removeTagAction('skill', skillId, tagId);
-      await fetchSkills();
-      await fetchTags('skill');
-    },
-    [removeTagAction, fetchSkills, fetchTags]
-  );
-
-  const executeBatchDelete = useCallback(async () => {
-    if (selectedIds.size === 0) return;
-    for (const id of selectedIds) {
-      await uninstallSkill(id);
-    }
-    setSelectedIds(new Set());
-    setBatchMode(false);
-    setShowBatchDeleteConfirm(false);
-  }, [selectedIds, uninstallSkill]);
-
-  const handleBatchDelete = useCallback(() => {
-    if (selectedIds.size === 0) return;
-    setShowBatchDeleteConfirm(true);
-  }, [selectedIds]);
-
-  // Esc to exit batch mode
-  useEffect(() => {
-    if (!batchMode) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setBatchMode(false);
-        setSelectedIds(new Set());
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [batchMode]);
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
-
   return (
     <div className="flex h-full flex-col">
-      {/* Top Bar: Search + Tag Pills */}
+      {/* 顶部工具栏（§3.2 共享顺序：搜索 → 视图切换 → 标签管理 → 导入 → 批量开关） */}
       <div className="shrink-0 border-b border-border">
         <div className="flex items-center gap-3 px-4 py-3">
           <div className="relative flex-1">
@@ -202,89 +484,82 @@ export function SkillLibrary() {
               )}
             />
           </div>
+          <ResourceViewToggle
+            view={view}
+            onChange={setView}
+            groupLabel={tc('view.group')}
+            listLabel={tc('view.list')}
+          />
           <button
             className={cn(
-              'flex items-center gap-2 rounded-lg border border-border px-3 py-2',
-              'text-sm font-medium text-foreground hover:bg-accent transition-colors',
-              batchMode && 'bg-primary/10 border-primary/30'
+              'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5',
+              'text-xs font-medium text-foreground hover:bg-accent transition-colors'
             )}
-            onClick={() => {
-              setBatchMode(!batchMode);
-              if (batchMode) setSelectedIds(new Set());
-            }}
+            onClick={() => setShowTagManager(true)}
+          >
+            <Tags className="h-3.5 w-3.5" />
+            {tc('tag.manageTags')}
+          </button>
+          <button
+            className={cn(
+              'shrink-0 flex items-center gap-2 rounded-lg border border-border px-3 py-1.5',
+              'text-sm font-medium text-foreground hover:bg-accent transition-colors',
+              batch.enabled && 'bg-primary/10 border-primary/30',
+              loading && 'pointer-events-none opacity-50'
+            )}
+            onClick={batch.toggle}
+            disabled={loading}
           >
             <CheckSquare className="h-4 w-4" />
-            {batchMode ? tc('actions.exitSelect') : tc('actions.batchSelect')}
+            {batch.enabled
+              ? tc('actions.exitSelect')
+              : tc('actions.batchSelect')}
           </button>
           <button
             className={cn(
-              'flex items-center gap-2 rounded-lg bg-primary px-3 py-2',
+              'shrink-0 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5',
               'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
             )}
-            onClick={() => setShowInstallDialog(true)}
+            onClick={openImportDialog}
           >
             <Download className="h-4 w-4" />
-            {tc('actions.install')}
+            {tc('actions.import')}
           </button>
         </div>
-        {/* Tag filter bar + manage button */}
-        {(tags.length > 0 || true) && (
-          <div className="flex items-center gap-2 px-4 pb-2">
-            <div className="flex-1 overflow-hidden">
-              <TagFilterBar
-                tags={tags}
-                selectedTagIds={tagFilter}
-                onToggleTag={toggleTag}
-                onClearAll={() => {
-                  setTagFilter([]);
-                  setUntaggedFilter(false);
-                }}
-                showUntagged
-                untaggedFilter={untaggedFilter}
-                onToggleUntagged={() => setUntaggedFilter(!untaggedFilter)}
-              />
-            </div>
-            <button
-              className={cn(
-                'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1',
-                'text-xs font-medium text-foreground hover:bg-accent transition-colors'
-              )}
-              onClick={() => setShowTagManager(true)}
-            >
-              <Tags className="h-3.5 w-3.5" />
-              {tc('tag.manageTags')}
-            </button>
+        <div className="flex items-center gap-2 px-4 pb-2">
+          <div className="flex-1 overflow-hidden">
+            <TagFilterBar
+              tags={tags}
+              selectedTagIds={tagFilter}
+              onToggleTag={toggleTag}
+              onClearAll={clearFilters}
+              showUntagged
+              untaggedFilter={untaggedFilter}
+              onToggleUntagged={() => setUntaggedFilter(!untaggedFilter)}
+            />
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Batch Action Bar */}
-      {batchMode && selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 border-b border-border bg-primary/5 px-4 py-2">
-          <span className="text-sm font-medium text-foreground">
-            {tc('messages.selectedCount', { count: selectedIds.size })}
-          </span>
-          <button
-            className="flex items-center gap-1.5 rounded-md bg-error/10 px-3 py-1.5 text-sm font-medium text-error hover:bg-error/20 transition-colors"
-            onClick={handleBatchDelete}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            {tc('actions.delete')}
-          </button>
-          <button
-            className="ml-auto text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setBatchMode(false);
-              setSelectedIds(new Set());
-            }}
-          >
-            {tc('actions.cancelSelect')}
-          </button>
-        </div>
-      )}
+      {/* 批量模式操作栏（§3.7 armed/selected/exit） */}
+      <BatchActionBar
+        enabled={batch.enabled}
+        selectedCount={batch.selectedCount}
+        selectedLabel={tc('messages.selectedCount', {
+          count: batch.selectedCount,
+        })}
+        guideLabel={tc('batch.guide')}
+        exitLabel={tc('batch.exit')}
+        manageTagsLabel={tc('batch.manageTags')}
+        goDistributeLabel={tc('batch.goDistribute')}
+        deleteLabel={tc('batch.delete')}
+        onExit={batch.exit}
+        onGoDistribute={() => goDistribute([...batch.selectedIds])}
+        onManageTags={() => setShowBatchTagDialog(true)}
+        onDelete={handleBatchDelete}
+      />
 
-      {/* Card Grid */}
-      <div className="flex-1 overflow-hidden flex">
+      <div className="flex flex-1 overflow-hidden">
         <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div
@@ -301,139 +576,23 @@ export function SkillLibrary() {
                   <div className="h-4 w-32 rounded bg-muted" />
                   <div className="mt-2 h-3 w-full rounded bg-muted" />
                   <div className="mt-1 h-3 w-3/4 rounded bg-muted" />
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="h-5 w-12 rounded-full bg-muted" />
-                    <div className="h-5 w-12 rounded-full bg-muted" />
-                  </div>
                 </div>
               ))}
             </div>
-          ) : filteredSkills.length > 0 ? (
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              }}
-            >
-              {filteredSkills.map((skill) => (
-                <div
-                  key={skill.id}
-                  className={cn(
-                    'rounded-lg border p-4 text-left transition-all relative',
-                    selectedSkill?.id === skill.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
-                      : 'border-border bg-card hover:border-primary/30 hover:shadow-sm',
-                    batchMode &&
-                      selectedIds.has(skill.id) &&
-                      'border-primary/50 bg-primary/5'
-                  )}
-                  onClick={() => {
-                    if (batchMode) {
-                      toggleSelect(skill.id);
-                    } else {
-                      selectSkill(skill);
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {batchMode && (
-                    <div className="absolute left-3 top-3 z-10">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(skill.id)}
-                        onChange={() => toggleSelect(skill.id)}
-                        className="rounded border-border h-4 w-4 cursor-pointer"
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </div>
-                  )}
-                  <div
-                    className={cn(
-                      'flex items-start justify-between gap-2',
-                      batchMode && 'pl-6'
-                    )}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-foreground truncate">
-                        {skill.name}
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-                        {skill.description || ''}
-                      </p>
-                    </div>
-                    {!batchMode && (
-                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50" />
-                    )}
-                  </div>
-                  <div
-                    className={cn(
-                      'mt-3 flex items-center gap-2 flex-wrap',
-                      batchMode && 'pl-6'
-                    )}
-                  >
-                    {skill.current_ver && (
-                      <span className="rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground">
-                        v{skill.current_ver}
-                      </span>
-                    )}
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      {formatTime(skill.installed_at)}
-                    </span>
-                  </div>
-                  <div
-                    className={cn('mt-1.5', batchMode && 'pl-6')}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex flex-wrap items-center gap-1">
-                      {(skill.tags || []).map((tag) => (
-                        <span
-                          key={tag.id}
-                          className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={
-                            tag.color
-                              ? {
-                                  backgroundColor: tag.color + '20',
-                                  color: tag.color,
-                                }
-                              : undefined
-                          }
-                        >
-                          {tag.name}
-                          <button
-                            className="ml-0.5 rounded-full p-0.5 hover:bg-black/10 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveTag(skill.id, tag.id);
-                            }}
-                          >
-                            <X className="h-2.5 w-2.5" />
-                          </button>
-                        </span>
-                      ))}
-                      <TagPopover
-                        tagType="skill"
-                        targetId={skill.id}
-                        assignedTags={skill.tags || []}
-                        allTags={tags}
-                        onAssign={(tagId) => handleAssignTag(skill.id, tagId)}
-                        onRemove={(tagId) => handleRemoveTag(skill.id, tagId)}
-                        onCreate={async (name, color) => {
-                          const result = await createTag({
-                            name,
-                            color,
-                            tag_type: 'skill',
-                          });
-                          await fetchSkills();
-                          return result;
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
+          ) : loadFailed ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <AlertTriangle className="mb-3 h-12 w-12 text-muted-foreground/30" />
+              <p className="mb-1 text-sm font-medium text-muted-foreground">
+                {tc('messages.loadSkillsFailed')}
+              </p>
+              <button
+                className="mt-2 text-sm text-primary hover:underline"
+                onClick={retryLoad}
+              >
+                {tc('actions.retry')}
+              </button>
             </div>
-          ) : (
+          ) : skills.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16">
               <Package className="mb-3 h-12 w-12 text-muted-foreground/30" />
               <p className="mb-1 text-sm font-medium text-muted-foreground">
@@ -441,16 +600,45 @@ export function SkillLibrary() {
               </p>
               <button
                 className="mt-2 text-sm text-primary hover:underline"
-                onClick={() => setShowInstallDialog(true)}
+                onClick={openImportDialog}
               >
-                {tc('actions.install')}
-                {tc('nav.skills')}
+                {tc('actions.import')}
               </button>
             </div>
+          ) : filteredSkills.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Package className="mb-3 h-12 w-12 text-muted-foreground/30" />
+              <p className="mb-1 text-sm font-medium text-muted-foreground">
+                {tc('messages.noResults')}
+              </p>
+              <button
+                className="mt-2 text-sm text-primary hover:underline"
+                onClick={clearFilters}
+              >
+                {tc('messages.clearFilter')}
+              </button>
+            </div>
+          ) : (
+            <ResourceCollection
+              items={filteredSkills}
+              tags={tags}
+              view={view}
+              batchMode={batch.enabled}
+              selectedIds={batch.selectedIds}
+              untaggedLabel={tc('tag.untagged')}
+              collapseAllLabel={tc('view.collapseAll')}
+              expandAllLabel={tc('view.expandAll')}
+              showMoreLabel={tc('view.showMore')}
+              onToggleSelect={batch.toggleSelect}
+              onOpenDetail={selectSkill}
+              renderItem={(skill) =>
+                view === 'group' ? renderGroupCard(skill) : renderListRow(skill)
+              }
+            />
           )}
         </div>
 
-        {/* Right Slide-out Detail Panel */}
+        {/* Inspector（§3.2/§3.5：完整时间戳、来源仅技能、标签脏状态、受管 reveal） */}
         <div
           className={cn(
             'shrink-0 border-l border-border overflow-y-auto transition-all duration-300',
@@ -458,316 +646,148 @@ export function SkillLibrary() {
           )}
         >
           {selectedSkill && (
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {selectedSkill.name}
-                </h2>
-                <button
-                  className="text-muted-foreground hover:text-foreground"
-                  onClick={() => selectSkill(null)}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              {selectedSkill.current_ver && (
-                <p className="text-xs text-muted-foreground">
-                  v{selectedSkill.current_ver}
-                </p>
-              )}
-              <p className="mt-3 text-sm text-foreground">
-                {selectedSkill.description || ''}
-              </p>
-
-              <div className="mt-4 space-y-2">
-                {(() => {
-                  const meta = parseMetadata(selectedSkill.metadata);
-                  return (
-                    <>
-                      {meta.author && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {t('detail.author')}
-                          </span>
-                          <span className="text-foreground">
-                            {meta.author as string}
-                          </span>
-                        </div>
-                      )}
-                      {meta.license && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">
-                            {t('detail.license')}
-                          </span>
-                          <span className="text-foreground">
-                            {meta.license as string}
-                          </span>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {t('detail.source')}
-                  </span>
-                  <span className="text-foreground">
-                    {t(`sourceTypes.${selectedSkill.source_type}`)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {t('detail.localPath')}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="max-w-[180px] truncate text-xs text-foreground">
-                      {sanitizePath(selectedSkill.local_path)}
-                    </span>
-                    {selectedSkill.local_path && (
-                      <button
-                        className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                        onClick={() =>
-                          revealItemInDir(selectedSkill.local_path!)
-                        }
-                        title={t('detail.openInFinder', '在文件管理器中打开')}
-                      >
-                        <FolderOpen className="h-3.5 w-3.5" />
-                      </button>
+            <Inspector
+              key={selectedSkill.id}
+              resourceType="skill"
+              title={selectedSkill.name}
+              subtitle={
+                selectedSkill.current_ver
+                  ? `v${selectedSkill.current_ver}`
+                  : undefined
+              }
+              source={t(`sourceTypes.${selectedSkill.source_type}`)}
+              updatedAt={selectedSkill.installed_at}
+              contentPreview={selectedSkill.description || ''}
+              tags={selectedSkill.tags || []}
+              allTags={tags}
+              managedCopyPath={managedCopyPath}
+              onSaveTags={(added, removed) =>
+                saveSkillTags(selectedSkill.id, added, removed)
+              }
+              onEdit={
+                selectedSkill.source_type === 'git' ||
+                selectedSkill.source_type === 'skills.sh'
+                  ? () => updateSkill(selectedSkill.id)
+                  : undefined
+              }
+              editLabel={tc('actions.update')}
+              deleteLabel={tc('actions.uninstall')}
+              onDelete={() => setConfirmUninstallId(selectedSkill.id)}
+              onGoDistribute={() => goDistribute([selectedSkill.id])}
+              goDistributeLabel={tc('batch.goDistribute')}
+              onClose={() => selectSkill(null)}
+            >
+              {(() => {
+                const meta = parseMetadata(selectedSkill.metadata);
+                return (
+                  <>
+                    {meta.author && (
+                      <div className="flex justify-between gap-3 text-sm">
+                        <span className="shrink-0 text-muted-foreground">
+                          {t('detail.author')}
+                        </span>
+                        <span className="truncate text-foreground">
+                          {meta.author as string}
+                        </span>
+                      </div>
                     )}
-                  </div>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    {t('detail.installedAt')}
-                  </span>
-                  <span className="text-xs text-foreground">
-                    {formatTime(selectedSkill.installed_at)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Detail panel tags: read-only */}
-              {selectedSkill.tags && selectedSkill.tags.length > 0 && (
-                <div className="mt-4">
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {tc('nav.tags')}
-                  </h3>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedSkill.tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="rounded-full px-2.5 py-1 text-xs font-medium"
-                        style={
-                          tag.color
-                            ? {
-                                backgroundColor: tag.color + '20',
-                                color: tag.color,
-                              }
-                            : undefined
-                        }
-                      >
-                        {tag.name}
+                    {meta.license && (
+                      <div className="flex justify-between gap-3 text-sm">
+                        <span className="shrink-0 text-muted-foreground">
+                          {t('detail.license')}
+                        </span>
+                        <span className="truncate text-foreground">
+                          {meta.license as string}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                      <span className="shrink-0 text-muted-foreground">
+                        {t('detail.localPath')}
                       </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-6 space-y-2">
-                {(selectedSkill.source_type === 'git' ||
-                  selectedSkill.source_type === 'skills.sh') && (
-                  <button
-                    className={cn(
-                      'flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2',
-                      'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
-                    )}
-                    onClick={() => updateSkill(selectedSkill.id)}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    {tc('actions.update')}
-                  </button>
-                )}
-                <button
-                  className={cn(
-                    'flex w-full items-center justify-center gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2',
-                    'text-sm font-medium text-error hover:bg-error/10 transition-colors'
-                  )}
-                  onClick={() => setConfirmUninstallId(selectedSkill.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  {tc('actions.uninstall')}
-                </button>
-              </div>
-            </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="max-w-[180px] truncate text-xs text-foreground">
+                          {sanitizePath(selectedSkill.local_path)}
+                        </span>
+                        {selectedSkill.local_path && (
+                          <button
+                            className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                            onClick={() =>
+                              revealItemInDir(selectedSkill.local_path!)
+                            }
+                            title={t('detail.openInFinder')}
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
+            </Inspector>
           )}
         </div>
       </div>
 
-      {/* Install Dialog */}
-      {showInstallDialog && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50">
-          <div className="w-[440px] max-h-[80vh] overflow-y-auto rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">
-                {t('install.title')}
-              </h2>
-              <button
-                onClick={() => setShowInstallDialog(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+      {/* 导入预览对话框（§3.8） */}
+      <ResourceImportDialog
+        open={showImportDialog}
+        title={t('install.title')}
+        items={importItems}
+        importing={importing}
+        itemKindLabel={tc('import.dirs')}
+        appendLabel={tc('import.append')}
+        confirmLabel={tc('actions.confirmImport')}
+        cancelLabel={tc('actions.cancel')}
+        onAppend={pickSkillDirs}
+        onRemoveItem={removeImportItem}
+        onRetryItem={retryImportItem}
+        onConfirm={executeImport}
+        onCancel={() => {
+          setShowImportDialog(false);
+          setImportItems([]);
+        }}
+      />
 
-            <div className="space-y-4">
-              {/* Source type hidden until git support is ready */}
-              {false && (
-                <div>
-                  <label className="mb-1.5 block text-sm font-medium text-foreground">
-                    {t('install.sourceType')}
-                  </label>
-                  <div className="flex gap-2">
-                    {(['local', 'git'] as const).map((source) => (
-                      <button
-                        key={source}
-                        className={cn(
-                          'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                          installSource === source
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                        )}
-                        onClick={() => setInstallSource(source)}
-                      >
-                        {t(`sourceTypes.${source}`)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* 批量管理所选标签 */}
+      <BatchTagDialog
+        open={showBatchTagDialog}
+        allTags={tags}
+        initialTagIds={batchTagIntersection}
+        title={tc('batch.manageTags')}
+        applyLabel={tc('actions.confirm')}
+        onApply={applyBatchTags}
+        onClose={() => setShowBatchTagDialog(false)}
+      />
 
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground">
-                  {installSource === 'local'
-                    ? t('install.localPath')
-                    : installSource === 'git'
-                      ? t('install.gitUrl')
-                      : t('install.registryId')}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={installInput}
-                    onChange={(e) => setInstallInput(e.target.value)}
-                    placeholder={t(`install.placeholder.${installSource}`)}
-                    className={cn(
-                      'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm',
-                      'placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring'
-                    )}
-                  />
-                  {installSource === 'local' && (
-                    <button
-                      type="button"
-                      className={cn(
-                        'shrink-0 flex items-center gap-1.5 rounded-lg border border-input bg-background px-3 py-2',
-                        'text-sm font-medium text-foreground hover:bg-accent transition-colors'
-                      )}
-                      onClick={async () => {
-                        const selected = await open({
-                          directory: true,
-                          multiple: true,
-                        });
-                        if (selected && selected.length > 0) {
-                          setSelectedDirs(selected);
-                          setInstallInput(selected.join('\n'));
-                        }
-                      }}
-                    >
-                      <FolderOpen className="h-4 w-4" />
-                      {t('install.browse')}
-                    </button>
-                  )}
-                  {installSource === 'local' && selectedDirs.length > 1 && (
-                    <div className="mt-2 rounded-lg border border-border bg-muted/50 p-2">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">
-                        {tc('messages.selectedDirectories', {
-                          count: selectedDirs.length,
-                        })}
-                        :
-                      </p>
-                      <ul className="space-y-0.5">
-                        {selectedDirs.map((dir) => (
-                          <li
-                            key={dir}
-                            className="text-xs font-mono text-foreground truncate"
-                          >
-                            {dir.split('/').pop() || dir}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <button
-                  className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-                  onClick={() => setShowInstallDialog(false)}
-                >
-                  {tc('actions.cancel')}
-                </button>
-                <button
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                  onClick={async () => {
-                    if (!installInput.trim()) return;
-                    const addToast = useAppStore.getState().addToast;
-
-                    if (installSource === 'local' && selectedDirs.length > 1) {
-                      // Batch install: use backend batch command
-                      try {
-                        await ipc.installSkillsBatch('local-fs', selectedDirs);
-                        await useAppStore.getState().fetchSkills();
-                        addToast(
-                          `${selectedDirs.length}/${selectedDirs.length} ${tc('messages.installSuccess')}`,
-                          'success'
-                        );
-                      } catch (e) {
-                        const errMsg =
-                          e instanceof Error ? e.message : String(e);
-                        addToast(`批量安装失败: ${errMsg}`, 'error');
-                      }
-                    } else {
-                      // Single install
-                      await useAppStore
-                        .getState()
-                        .installSkill(installSource, installInput.trim());
-                    }
-                    setShowInstallDialog(false);
-                    setInstallInput('');
-                    setSelectedDirs([]);
-                  }}
-                >
-                  {tc('actions.install')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirm Dialogs */}
+      {/* 确认对话框 */}
       <ConfirmDialog
         open={showBatchDeleteConfirm}
         title={tc('messages.confirmBatchDeleteSkills', {
-          count: selectedIds.size,
+          count: batch.selectedCount,
         })}
         message={tc('messages.confirmBatchDeleteSkills', {
-          count: selectedIds.size,
+          count: batch.selectedCount,
         })}
         variant="danger"
         onConfirm={executeBatchDelete}
         onCancel={() => setShowBatchDeleteConfirm(false)}
-      />
+      >
+        {batchRef.status === 'loading' && (
+          <p className="mb-6 text-xs text-muted-foreground">
+            {tc('messages.referenceLoading')}
+          </p>
+        )}
+        {batchRef.status === 'loaded' && batchRef.total > 0 && (
+          <p className="mb-6 text-xs text-warning">
+            {tc('messages.referenceSummary', {
+              referenced: batchRef.referenced,
+              count: batchRef.total,
+            })}
+          </p>
+        )}
+      </ConfirmDialog>
       <ConfirmDialog
         open={confirmUninstallId !== null}
         title={tc('actions.uninstall')}
@@ -781,7 +801,6 @@ export function SkillLibrary() {
         onCancel={() => setConfirmUninstallId(null)}
       />
 
-      {/* Tag Manager Dialog */}
       <TagManagerDialog
         tagType="skill"
         isOpen={showTagManager}

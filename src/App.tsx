@@ -24,8 +24,8 @@ const routeToNavMap: Record<string, string> = {
   '/skills': 'skills',
   '/rules': 'rules',
   '/scenes': 'scenes',
-  '/global-distribution': 'globalDistribution',
-  '/project-distribution': 'projectDistribution',
+  '/workspace': 'globalDistribution',
+  '/projects': 'projectDistribution',
   '/settings': 'settings',
 };
 
@@ -34,8 +34,8 @@ const navToRouteMap: Record<string, string> = {
   skills: '/skills',
   rules: '/rules',
   scenes: '/scenes',
-  globalDistribution: '/global-distribution',
-  projectDistribution: '/project-distribution',
+  globalDistribution: '/workspace',
+  projectDistribution: '/projects',
   settings: '/settings',
 };
 
@@ -103,14 +103,8 @@ function App() {
             <Route path="/skills" element={<SkillLibrary />} />
             <Route path="/rules" element={<RulesManager />} />
             <Route path="/scenes" element={<SceneEditor />} />
-            <Route
-              path="/global-distribution"
-              element={<GlobalDistribution />}
-            />
-            <Route
-              path="/project-distribution"
-              element={<ProjectDistribution />}
-            />
+            <Route path="/workspace" element={<GlobalDistribution />} />
+            <Route path="/projects" element={<ProjectDistribution />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>

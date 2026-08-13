@@ -353,6 +353,32 @@ pub fn get_scene_platforms(
     Ok(platform_ids)
 }
 
+/// Count how many scenes reference a skill (for accurate delete confirmation).
+pub fn count_skill_scene_references(
+    conn: &rusqlite::Connection,
+    skill_id: &str,
+) -> Result<i32, AppError> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM scene_skills WHERE skill_id = ?1",
+        params![skill_id],
+        |row| row.get(0),
+    )?;
+    Ok(count as i32)
+}
+
+/// Count how many scenes reference a rule (for accurate delete confirmation).
+pub fn count_rule_scene_references(
+    conn: &rusqlite::Connection,
+    rule_id: &str,
+) -> Result<i32, AppError> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM scene_rules WHERE rule_id = ?1",
+        params![rule_id],
+        |row| row.get(0),
+    )?;
+    Ok(count as i32)
+}
+
 // ── Internal helpers ───────────────────────────────────────────────
 
 fn query_scene_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Scene, AppError> {

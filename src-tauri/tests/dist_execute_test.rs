@@ -189,3 +189,211 @@ fn sync_scene_scene_id_is_ignored_and_additive_behavior_retained() {
     assert!(skills_dir.join("requested-skill").exists());
     assert!(!skills_dir.join("scene-skill").exists());
 }
+
+// ── skipped counting (v1.1.0 result bucket) ───────────────────────────
+
+fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str, format: &str) {
+    conn.execute(
+        "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        rusqlite::params![id, id, format, content, chrono::Utc::now().to_rfc3339()],
+    )
+    .unwrap();
+}
+
+/// Pre-deploy a skill symlink so it is already in sync (mirrors
+/// `execute_removes_selected_managed_skill`).
+fn presync_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
+    let source: String = conn
+        .query_row("SELECT local_path FROM skills WHERE id = ?1", [id], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    std::fs::create_dir_all(plugin.skills_dir()).unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&source, plugin.skills_dir().join(id)).unwrap();
+    #[cfg(not(unix))]
+    std::fs::create_dir_all(plugin.skills_dir().join(id)).unwrap();
+}
+
+#[test]
+fn execute_distribution_counts_skipped_for_skill_already_in_sync() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::new("test-plat", "Test Platform");
+    insert_skill(&conn, &plugin, "skill-a");
+    presync_skill(&conn, &plugin, "skill-a");
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+    let request = distribution_request(
+        intent(DistributionIntentMode::AddOrUpdate, &["skill-a"]),
+        intent(DistributionIntentMode::Preserve, &[]),
+    );
+    let plan = skillforge_lib::engine::dist_plan::build_distribution_plan_for_request(
+        &conn, &plugins, &request,
+    )
+    .unwrap();
+
+    let result =
+        dist_execute::execute_distribution_request(&conn, &plugins, &request, &plan).unwrap();
+
+    assert!(result.installed.is_empty());
+    assert!(result.updated.is_empty());
+    assert_eq!(result.skipped, 1);
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn execute_distribution_counts_zero_skipped_for_fresh_install() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::new("test-plat", "Test Platform");
+    insert_skill(&conn, &plugin, "skill-a");
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+    let request = distribution_request(
+        intent(DistributionIntentMode::AddOrUpdate, &["skill-a"]),
+        intent(DistributionIntentMode::Preserve, &[]),
+    );
+    let plan = skillforge_lib::engine::dist_plan::build_distribution_plan_for_request(
+        &conn, &plugins, &request,
+    )
+    .unwrap();
+
+    let result =
+        dist_execute::execute_distribution_request(&conn, &plugins, &request, &plan).unwrap();
+
+    assert_eq!(result.installed, vec!["skill-a"]);
+    assert_eq!(result.skipped, 0);
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn execute_distribution_counts_skipped_for_rule_already_in_sync() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", false, "");
+    insert_rule(&conn, "rule-1", "content-1", "md");
+    std::fs::create_dir_all(plugin.rules_dir()).unwrap();
+    std::fs::write(plugin.rules_dir().join("rule-1.md"), "content-1").unwrap();
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+    let request = distribution_request(
+        intent(DistributionIntentMode::Preserve, &[]),
+        intent(DistributionIntentMode::AddOrUpdate, &["rule-1"]),
+    );
+    let plan = skillforge_lib::engine::dist_plan::build_distribution_plan_for_request(
+        &conn, &plugins, &request,
+    )
+    .unwrap();
+
+    let result =
+        dist_execute::execute_distribution_request(&conn, &plugins, &request, &plan).unwrap();
+
+    assert!(result.installed.is_empty());
+    assert!(result.updated.is_empty());
+    assert_eq!(result.skipped, 1);
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn execute_distribution_counts_skipped_for_single_file_rule_already_in_sync() {
+    let conn = init_db();
+    let plugin =
+        support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", true, "AGENTS.md");
+    insert_rule(&conn, "rule-1", "content-1\n", "md");
+    std::fs::create_dir_all(plugin.rules_file().parent().unwrap()).unwrap();
+    std::fs::write(
+        plugin.rules_file(),
+        "<!-- SKILLFORGE:rule:rule-1 -->\ncontent-1\n<!-- /SKILLFORGE:rule:rule-1 -->\n",
+    )
+    .unwrap();
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+    let request = distribution_request(
+        intent(DistributionIntentMode::Preserve, &[]),
+        intent(DistributionIntentMode::AddOrUpdate, &["rule-1"]),
+    );
+    let plan = skillforge_lib::engine::dist_plan::build_distribution_plan_for_request(
+        &conn, &plugins, &request,
+    )
+    .unwrap();
+
+    let result =
+        dist_execute::execute_distribution_request(&conn, &plugins, &request, &plan).unwrap();
+
+    assert!(result.updated.is_empty());
+    assert_eq!(result.skipped, 1);
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn execute_distribution_counts_skipped_across_skills_and_rules() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", false, "");
+    insert_skill(&conn, &plugin, "skill-a");
+    presync_skill(&conn, &plugin, "skill-a");
+    insert_rule(&conn, "rule-1", "content-1", "md");
+    std::fs::create_dir_all(plugin.rules_dir()).unwrap();
+    std::fs::write(plugin.rules_dir().join("rule-1.md"), "content-1").unwrap();
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+    let request = distribution_request(
+        intent(DistributionIntentMode::AddOrUpdate, &["skill-a"]),
+        intent(DistributionIntentMode::AddOrUpdate, &["rule-1"]),
+    );
+    let plan = skillforge_lib::engine::dist_plan::build_distribution_plan_for_request(
+        &conn, &plugins, &request,
+    )
+    .unwrap();
+
+    let result =
+        dist_execute::execute_distribution_request(&conn, &plugins, &request, &plan).unwrap();
+
+    assert_eq!(result.skipped, 2);
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn sync_scene_counts_skipped_for_skill_already_on_disk() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::new("test-plat", "Test Platform");
+    insert_skill(&conn, &plugin, "skill-a");
+    insert_skill(&conn, &plugin, "skill-b");
+    presync_skill(&conn, &plugin, "skill-a");
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+
+    let result = dist_execute::sync_scene(
+        &conn,
+        &plugins,
+        &["skill-a".to_string(), "skill-b".to_string()],
+        &[],
+        None,
+        Some(&["test-plat".to_string()]),
+        "global",
+        None,
+    )
+    .unwrap();
+
+    assert_eq!(result.installed, vec!["skill-b"]);
+    assert_eq!(result.skipped, 1);
+    assert!(result.errors.is_empty());
+}
+
+#[test]
+fn sync_scene_counts_skipped_for_rule_already_in_sync() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", false, "");
+    insert_rule(&conn, "rule-1", "content-1", "md");
+    std::fs::create_dir_all(plugin.rules_dir()).unwrap();
+    std::fs::write(plugin.rules_dir().join("rule-1.md"), "content-1").unwrap();
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+
+    let result = dist_execute::sync_scene(
+        &conn,
+        &plugins,
+        &[],
+        &["rule-1".to_string()],
+        None,
+        Some(&["test-plat".to_string()]),
+        "global",
+        None,
+    )
+    .unwrap();
+
+    assert!(result.installed.is_empty());
+    assert!(result.updated.is_empty());
+    assert_eq!(result.skipped, 1);
+    assert!(result.errors.is_empty());
+}

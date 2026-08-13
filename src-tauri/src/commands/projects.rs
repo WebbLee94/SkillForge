@@ -1,8 +1,9 @@
 use crate::error::AppError;
-use crate::types::Project;
+use crate::types::{DeleteProjectsResult, Project};
 use crate::AppState;
 
 use rusqlite::params;
+use std::collections::HashSet;
 
 #[tauri::command]
 pub fn list_projects(state: tauri::State<'_, AppState>) -> Result<Vec<Project>, AppError> {
@@ -109,6 +110,55 @@ pub fn remove_project(id: String, state: tauri::State<'_, AppState>) -> Result<(
     conn.execute("DELETE FROM projects WHERE id = ?1", params![id])?;
 
     Ok(())
+}
+
+/// Batch project deletion (Phase 7 confirmed semantics).
+///
+/// Core DB logic kept separate from the tauri wrapper so it is directly
+/// testable against an in-memory DB (see `tests/projects_delete_test.rs`).
+pub fn delete_projects_inner(
+    conn: &rusqlite::Connection,
+    ids: Vec<String>,
+) -> Result<DeleteProjectsResult, AppError> {
+    let mut seen = HashSet::new();
+    let ids: Vec<String> = ids.into_iter().filter(|id| seen.insert(id.clone())).collect();
+
+    let tx = conn.unchecked_transaction()?;
+
+    let mut deleted = Vec::new();
+    let mut not_found = Vec::new();
+
+    for id in &ids {
+        let exists: bool = tx
+            .query_row(
+                "SELECT COUNT(*) FROM projects WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, i64>(0),
+            )
+            .map(|c| c > 0)?;
+
+        if exists {
+            tx.execute("DELETE FROM projects WHERE id = ?1", params![id])?;
+            deleted.push(id.clone());
+        } else {
+            not_found.push(id.clone());
+        }
+    }
+
+    tx.commit()?;
+    Ok(DeleteProjectsResult { deleted, not_found })
+}
+
+#[tauri::command]
+pub fn delete_projects(
+    ids: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<DeleteProjectsResult, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    delete_projects_inner(&conn, ids)
 }
 
 #[tauri::command]

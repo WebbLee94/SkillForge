@@ -16,7 +16,11 @@ import { TooltipPortal } from '../components/TooltipPortal';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useAppStore } from '../stores/appStore';
-import type { Platform, PlatformCapabilities } from '../types';
+import type {
+  Platform,
+  PlatformCapabilities,
+  PlatformEntryCount,
+} from '../types';
 
 type SettingsTab = 'general' | 'platforms';
 
@@ -50,7 +54,12 @@ export function Settings() {
   const [capabilitiesMap, setCapabilitiesMap] = useState<
     Record<string, PlatformCapabilities>
   >({});
-  const [tooltipPlatformId, setTooltipPlatformId] = useState<string | null>(null);
+  const [countsMap, setCountsMap] = useState<
+    Record<string, PlatformEntryCount>
+  >({});
+  const [tooltipPlatformId, setTooltipPlatformId] = useState<string | null>(
+    null
+  );
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   // Resolve the effective language for the <select> value
@@ -113,6 +122,24 @@ export function Settings() {
       setCapabilitiesMap(map);
     };
     if (platforms.length > 0) fetchCaps();
+  }, [platforms]);
+
+  useEffect(() => {
+    if (platforms.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      platforms.map((p) => ipc.countPlatformEntries(p.id).catch(() => null))
+    ).then((results) => {
+      if (cancelled) return;
+      const next: Record<string, PlatformEntryCount> = {};
+      for (const r of results) {
+        if (r) next[r.platform_id] = r;
+      }
+      setCountsMap(next);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [platforms]);
 
   const handleLanguageChange = useCallback(
@@ -236,7 +263,9 @@ export function Settings() {
                         onClick={() =>
                           rawDataDir && revealItemInDir(rawDataDir)
                         }
-                        title={t('settings:platforms.capLabels.openInFileManager')}
+                        title={t(
+                          'settings:platforms.capLabels.openInFileManager'
+                        )}
                       >
                         <FolderOpen className="h-3.5 w-3.5" />
                       </button>
@@ -330,6 +359,9 @@ export function Settings() {
                         <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-[180px]">
                           {t('settings:platforms.columns.capabilities')}
                         </th>
+                        <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-[140px]">
+                          {t('settings:platforms.columns.counts')}
+                        </th>
                         <th className="px-4 py-2.5 text-center font-medium text-muted-foreground w-20">
                           {t('settings:platforms.columns.status')}
                         </th>
@@ -363,6 +395,23 @@ export function Settings() {
                             </td>
                             <td className="px-4 py-2.5 text-center">
                               {(() => {
+                                const cnt = countsMap[platform.id];
+                                if (!cnt) {
+                                  return (
+                                    <span className="text-xs text-muted-foreground">
+                                      -
+                                    </span>
+                                  );
+                                }
+                                return (
+                                  <span className="text-xs text-muted-foreground">
+                                    {cnt.skills} · {cnt.rules}
+                                  </span>
+                                );
+                              })()}
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              {(() => {
                                 if (!caps)
                                   return (
                                     <span className="text-xs text-muted-foreground">
@@ -390,14 +439,18 @@ export function Settings() {
                                   {
                                     key: 'skills_global',
                                     supported: caps.skills_global,
-                                    label: t('settings:platforms.capLabels.skillsGlobal'),
+                                    label: t(
+                                      'settings:platforms.capLabels.skillsGlobal'
+                                    ),
                                     path:
                                       platform.paths?.global_skills_dir || '',
                                   },
                                   {
                                     key: 'skills_project',
                                     supported: caps.skills_project,
-                                    label: t('settings:platforms.capLabels.skillsProject'),
+                                    label: t(
+                                      'settings:platforms.capLabels.skillsProject'
+                                    ),
                                     path:
                                       platform.paths?.project_skills_pattern ||
                                       '',
@@ -405,14 +458,18 @@ export function Settings() {
                                   {
                                     key: 'rules_global',
                                     supported: caps.rules_global,
-                                    label: t('settings:platforms.capLabels.rulesGlobal'),
+                                    label: t(
+                                      'settings:platforms.capLabels.rulesGlobal'
+                                    ),
                                     path:
                                       platform.paths?.global_rules_dir || '',
                                   },
                                   {
                                     key: 'rules_project',
                                     supported: caps.rules_project,
-                                    label: t('settings:platforms.capLabels.rulesProject'),
+                                    label: t(
+                                      'settings:platforms.capLabels.rulesProject'
+                                    ),
                                     path:
                                       platform.paths?.project_rules_pattern ||
                                       '',
@@ -422,8 +479,12 @@ export function Settings() {
                                   <div className="relative">
                                     <div
                                       ref={tooltipRef}
-                                      onMouseEnter={() => setTooltipPlatformId(platform.id)}
-                                      onMouseLeave={() => setTooltipPlatformId(null)}
+                                      onMouseEnter={() =>
+                                        setTooltipPlatformId(platform.id)
+                                      }
+                                      onMouseLeave={() =>
+                                        setTooltipPlatformId(null)
+                                      }
                                       className="flex items-center justify-center gap-1.5"
                                     >
                                       {capLabels.map((c) => (
@@ -457,7 +518,9 @@ export function Settings() {
                                             </span>
                                           ) : (
                                             <span className="text-muted-foreground/50">
-                                              {t('settings:platforms.capLabels.notSupported')}
+                                              {t(
+                                                'settings:platforms.capLabels.notSupported'
+                                              )}
                                             </span>
                                           )}
                                           {c.supported && c.path && (
@@ -467,9 +530,16 @@ export function Settings() {
                                                 navigator.clipboard.writeText(
                                                   c.path
                                                 );
-                                                addToast(t('settings:platforms.capLabels.copied'), 'success');
+                                                addToast(
+                                                  t(
+                                                    'settings:platforms.capLabels.copied'
+                                                  ),
+                                                  'success'
+                                                );
                                               }}
-                                              title={t('settings:platforms.capLabels.copyPath')}
+                                              title={t(
+                                                'settings:platforms.capLabels.copyPath'
+                                              )}
                                             >
                                               <Clipboard className="h-3 w-3" />
                                             </button>

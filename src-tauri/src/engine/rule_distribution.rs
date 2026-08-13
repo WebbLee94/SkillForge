@@ -278,6 +278,7 @@ fn sync_rules_to_directory(
                 let existing_rule = match std::fs::read_to_string(&rule_path) {
                     Ok(existing_content) => {
                         if existing_content == content {
+                            result.skipped += 1;
                             continue;
                         }
                         true
@@ -411,6 +412,7 @@ fn sync_rules_to_single_file(
         if let Some(content) = rule_content {
             if let Some(block) = existing_blocks.iter().find(|block| block.id == *rule_id) {
                 if rule_block_content_matches(block, &content) && block.content.ends_with('\n') {
+                    result.skipped += 1;
                     continue;
                 }
                 replacements.push((
@@ -790,6 +792,7 @@ mod tests {
                 installed: vec![],
                 updated: vec![],
                 removed: vec![],
+                skipped: 0,
                 errors: vec![],
             })
         }
@@ -875,6 +878,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
         sync_rules_to_single_file(&conn, &file_path, &rule_ids, true, &mut result).unwrap();
@@ -918,6 +922,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
         sync_rules_to_single_file(&conn, &file_path, &rule_ids, true, &mut result).unwrap();
@@ -962,6 +967,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
 
@@ -1013,6 +1019,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
 
@@ -1051,6 +1058,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
         sync_rules_to_single_file(&conn, &file_path, &rule_ids, true, &mut result).unwrap();
@@ -1228,6 +1236,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
 
@@ -1273,6 +1282,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
 
@@ -1308,6 +1318,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
 
@@ -1342,6 +1353,7 @@ mod tests {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
 

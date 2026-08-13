@@ -29,7 +29,11 @@ vi.mock('../stores/watcherStore', () => ({
 
 vi.mock('../pages/Dashboard', () => ({
   Dashboard: () =>
-    React.createElement('div', { 'data-testid': 'page-dashboard' }, 'Dashboard'),
+    React.createElement(
+      'div',
+      { 'data-testid': 'page-dashboard' },
+      'Dashboard'
+    ),
 }));
 vi.mock('../pages/SkillLibrary', () => ({
   SkillLibrary: () =>
@@ -152,18 +156,18 @@ describe('App routing', () => {
     });
   });
 
-  it('renders GlobalDistribution at /global-distribution', async () => {
+  it('renders GlobalDistribution at /workspace', async () => {
     useAppStore.setState({ activeNav: 'globalDistribution' });
-    window.history.pushState({}, '', '/global-distribution');
+    window.history.pushState({}, '', '/workspace');
     render(<App />);
     await waitFor(() => {
       expect(screen.getByTestId('page-global-distribution')).toBeDefined();
     });
   });
 
-  it('renders ProjectDistribution at /project-distribution', async () => {
+  it('renders ProjectDistribution at /projects', async () => {
     useAppStore.setState({ activeNav: 'projectDistribution' });
-    window.history.pushState({}, '', '/project-distribution');
+    window.history.pushState({}, '', '/projects');
     render(<App />);
     await waitFor(() => {
       expect(screen.getByTestId('page-project-distribution')).toBeDefined();
@@ -217,7 +221,7 @@ describe('App NavSync', () => {
     useAppStore.getState().setGlobalDistSelectedPlatform('claude');
     useAppStore.getState().setActiveNav('globalDistribution');
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/global-distribution');
+      expect(window.location.pathname).toBe('/workspace');
     });
     await waitFor(() => {
       expect(window.location.search).toContain('platform=claude');
@@ -244,7 +248,7 @@ describe('App NavSync', () => {
       expect(screen.getByTestId('page-dashboard')).toBeDefined();
     });
 
-    window.history.pushState({}, '', '/global-distribution?platform=cursor');
+    window.history.pushState({}, '', '/workspace?platform=cursor');
     window.dispatchEvent(new PopStateEvent('popstate'));
 
     await waitFor(() => {

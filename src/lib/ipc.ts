@@ -83,7 +83,14 @@ export const ipc = {
     scope: string,
     projectId?: string
   ) =>
-    invoke<SyncResult>('sync_scene', { skillIds, ruleIds, sceneId, platforms, scope, projectId }),
+    invoke<SyncResult>('sync_scene', {
+      skillIds,
+      ruleIds,
+      sceneId,
+      platforms,
+      scope,
+      projectId,
+    }),
   getSyncStatus: () => invoke<SyncStatusDTO>('get_sync_status'),
 
   // Projects - Rust uses individual params, not DTO
@@ -100,6 +107,15 @@ export const ipc = {
   updateRule: (id: string, data: UpdateRuleDTO) =>
     invoke<void>('update_rule', { id, data }),
   deleteRule: (id: string) => invoke<void>('delete_rule', { id }),
+
+  // Resource library queries (Phase 7)
+  getManagedCopyPath: (resourceType: 'skill' | 'rule', resourceId: string) =>
+    invoke<string | null>('get_managed_copy_path', {
+      resourceType,
+      resourceId,
+    }),
+  countSceneReferences: (resourceType: 'skill' | 'rule', resourceId: string) =>
+    invoke<number>('count_scene_references', { resourceType, resourceId }),
 
   // Tags - Rust uses individual params, not DTO
   listTags: (category?: string, tagType?: string, search?: string) =>
@@ -155,8 +171,10 @@ export const ipc = {
     }),
   previewDistribution: (selection: DistributionSelection) =>
     invoke<DistributionPlan>('preview_distribution', { ...selection }),
-  executeDistribution: (selection: DistributionSelection, plan: DistributionPlan) =>
-    invoke<SyncResult>('execute_distribution', { selection, plan }),
+  executeDistribution: (
+    selection: DistributionSelection,
+    plan: DistributionPlan
+  ) => invoke<SyncResult>('execute_distribution', { selection, plan }),
   getManagedDistributionState: (
     platformIds: string[],
     scope: string,
@@ -172,7 +190,9 @@ export const ipc = {
   listDirectoryTree: (path: string, maxDepth?: number) =>
     invoke<FileTreeNode[]>('list_directory_tree', { path, maxDepth }),
   readFileContent: (path: string) =>
-    invoke<{ content: string | null; is_text: boolean }>('read_file_content', { path }),
+    invoke<{ content: string | null; is_text: boolean }>('read_file_content', {
+      path,
+    }),
 
   // Watcher
   getWatcherEvents: () => invoke<WatcherStatus>('get_watcher_events'),

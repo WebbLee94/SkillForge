@@ -20,8 +20,8 @@ vi.mock('react-i18next', () => ({
         return `${options.count} 个修改`;
       }
       const map: Record<string, string> = {
-        'watcher.importHint': '前往看板查看并导入',
-        'watcher.goToDashboard': '前往看板',
+        'watcher.importHint': '前往概览查看并导入',
+        'watcher.goToDashboard': '前往概览',
         'watcher.dismiss': '忽略',
       };
       return map[key] ?? key;
@@ -90,7 +90,7 @@ describe('WatcherNotification', () => {
       events: [makeEvent(5, 'NEW')],
     });
     render(<WatcherNotification />);
-    expect(screen.getByText('前往看板')).toBeDefined();
+    expect(screen.getByText('前往概览')).toBeDefined();
     expect(screen.getByText('忽略')).toBeDefined();
   });
 
@@ -101,7 +101,7 @@ describe('WatcherNotification', () => {
       events: [makeEvent(6, 'NEW')],
     });
     render(<WatcherNotification />);
-    fireEvent.click(screen.getByText('前往看板'));
+    fireEvent.click(screen.getByText('前往概览'));
     expect(setActiveNav).toHaveBeenCalledWith('dashboard');
   });
 
@@ -121,7 +121,7 @@ describe('WatcherNotification', () => {
       events: [makeEvent(10, 'NEW')],
     });
     render(<WatcherNotification />);
-    expect(screen.getByText('前往看板查看并导入')).toBeDefined();
+    expect(screen.getByText('前往概览查看并导入')).toBeDefined();
   });
 
   it('renders AlertTriangle icon', () => {

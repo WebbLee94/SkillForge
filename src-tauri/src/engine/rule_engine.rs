@@ -281,6 +281,24 @@ pub fn delete_rule(conn: &Connection, id: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Resolve the managed-copy path of a rule.
+///
+/// The path is derived from the rule's storage directory and format as
+/// `{storage}/{id}.{format}`, then validated against the filesystem before
+/// being returned: `Some(path)` only when the file physically exists, `None`
+/// when the DB row still points at a missing file. No distribution status is
+/// consulted or fabricated — the filesystem is the source of truth for
+/// whether a managed copy can be revealed.
+pub fn managed_copy_path(conn: &Connection, rule_id: &str) -> Result<Option<String>, AppError> {
+    let rule = get_rule(conn, rule_id)?;
+    let path = rules_storage_dir()?.join(format!("{}.{}", rule.id, rule.format));
+    if path.exists() {
+        Ok(Some(path.to_string_lossy().to_string()))
+    } else {
+        Ok(None)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -630,6 +648,50 @@ mod tests {
     #[test]
     fn test_validate_rule_content_accepts_normal_content() {
         assert!(validate_rule_content("# Rule\nline\n").is_ok());
+    }
+
+    #[test]
+    fn test_managed_copy_path_returns_path_when_storage_file_exists() {
+        with_rules_storage_dir(|| {
+            let conn = setup_db();
+            let rule = create_rule(&conn, &create_dto("My Rule", "# content")).unwrap();
+
+            let path = managed_copy_path(&conn, &rule.id)
+                .expect("query should succeed")
+                .expect("managed copy exists on disk, so a path must be returned");
+            let expected = rules_storage_dir()
+                .unwrap()
+                .join(format!("{}.{}", rule.id, rule.format));
+            assert_eq!(
+                std::path::Path::new(&path),
+                expected,
+                "returned path must be the rule's managed copy file"
+            );
+        });
+    }
+
+    #[test]
+    fn test_managed_copy_path_returns_none_when_storage_file_is_missing() {
+        with_rules_storage_dir(|| {
+            let conn = setup_db();
+            let rule = create_rule(&conn, &create_dto("Ghost", "# content")).unwrap();
+
+            let storage = rules_storage_dir().unwrap();
+            std::fs::remove_file(storage.join(format!("{}.md", rule.id))).unwrap();
+
+            let path = managed_copy_path(&conn, &rule.id).expect("query should succeed");
+            assert!(
+                path.is_none(),
+                "filesystem-as-truth: a missing managed copy must yield None"
+            );
+        });
+    }
+
+    #[test]
+    fn test_managed_copy_path_missing_rule_errors() {
+        let conn = setup_db();
+        let err = managed_copy_path(&conn, "missing").unwrap_err();
+        assert!(matches!(err, AppError::RuleNotFound(_)));
     }
 
     #[test]

@@ -83,6 +83,20 @@ pub struct Project {
     pub updated_at: String,
 }
 
+/// Result of a batch project deletion (Phase 7 confirmed semantics).
+///
+/// - `deleted`: ids whose SkillForge `projects` row was removed.
+/// - `not_found`: ids that did not exist — reported per-id instead of failing
+///   the whole batch, so a stale id mid-batch never blocks the others.
+///
+/// Deleting a project only removes the SkillForge record: it never deletes the
+/// project directory on disk, nor any skill / rule / scene resources.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteProjectsResult {
+    pub deleted: Vec<String>,
+    pub not_found: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Platform {
     pub id: String,
@@ -229,6 +243,10 @@ pub struct SyncResult {
     pub installed: Vec<String>,
     pub updated: Vec<String>,
     pub removed: Vec<String>,
+    /// Count of requested skills/rules that required no write because the
+    /// target was already in the desired state (AddOrUpdate only).
+    #[serde(default)]
+    pub skipped: u32,
     pub errors: Vec<String>,
 }
 

@@ -4,20 +4,21 @@
     "subtitle": "技能锻造厂"
   },
   "nav": {
-    "dashboard": "看板",
+    "dashboard": "概览",
     "skills": "技能",
     "rules": "规则",
     "tags": "标签管理",
-    "scenes": "场景编排",
-    "globalDistribution": "全局分发",
-    "projectDistribution": "项目分发",
+    "scenes": "场景",
+    "globalDistribution": "工作区",
+    "projectDistribution": "项目",
     "settings": "设置"
   },
   "navGroups": {
     "overview": "概览",
     "resources": "资源",
-    "orchestration": "编排",
-    "distribution": "分发"
+    "orchestration": "场景",
+    "distribution": "分发",
+    "system": "系统"
   },
   "actions": {
     "add": "添加",
@@ -48,7 +49,9 @@
     "confirmImport": "确认导入",
     "searchProjects": "搜索项目...",
     "openInFileManager": "在文件管理器中打开",
-    "openDir": "打开目录"
+    "openDir": "打开目录",
+    "undo": "撤销",
+    "goDistribute": "去分发"
   },
   "status": {
     "synced": "已同步",
@@ -78,6 +81,8 @@
     "totalFiles": "共 {{count}} 个文件",
     "skillInUse": "技能被 {{count}} 个场景使用",
     "sceneInUse": "场景被 {{count}} 个项目使用",
+    "referenceLoading": "正在统计场景引用…",
+    "referenceSummary": "其中 {{referenced}} 个资源被 {{count}} 个场景引用",
     "syncSuccess": "同步成功",
     "syncFailed": "同步失败",
     "installSuccess": "导入成功",
@@ -89,7 +94,36 @@
     "noData": "暂无数据",
     "loading": "加载中...",
     "operationFailed": "操作失败",
+    "noResults": "没有符合当前筛选的资源",
+    "clearFilter": "清除筛选",
+    "loadSkillsFailed": "技能库加载失败",
+    "loadRulesFailed": "规则库加载失败",
     "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
+  },
+  "detail": {
+    "source": "来源",
+    "updatedAt": "更新时间",
+    "preview": "内容预览"
+  },
+  "view": {
+    "group": "分组",
+    "list": "列表",
+    "collapseAll": "全部折叠",
+    "expandAll": "全部展开",
+    "showMore": "显示更多 ({{count}})"
+  },
+  "batch": {
+    "guide": "勾选资源后操作",
+    "exit": "退出批量模式",
+    "goDistribute": "去分发",
+    "manageTags": "管理所选标签",
+    "delete": "批量删除"
+  },
+  "inspector": {
+    "unsavedTitle": "有未保存的修改",
+    "unsavedMessage": "是否保存修改？",
+    "discard": "放弃",
+    "stay": "取消离开"
   },
   "fileTree": {
     "loading": "加载中...",
@@ -101,8 +135,8 @@
     "newFiles": "+{{count}} 新增",
     "deletedFiles": "-{{count}} 已删除",
     "modifiedFiles": "~{{count}} 已修改",
-    "importHint": "前往看板使用「一键导入」将新增技能加入技能库",
-    "goToDashboard": "前往看板",
+    "importHint": "前往概览使用「一键导入」将新增技能加入技能库",
+    "goToDashboard": "前往概览",
     "dismiss": "忽略"
   },
   "platforms": {
@@ -135,7 +169,32 @@
     "currentScene": "当前场景",
     "notConfigured": "未配置",
     "configureGlobalScene": "请先配置全局场景",
-    "skillRuleCount": "技能 / 规则"
+    "skillRuleCount": "技能 / 规则",
+    "stats": {
+      "resources": "资源",
+      "resourcesSubtitle": "技能 {{skills}} · 规则 {{rules}}",
+      "scenes": "场景数量",
+      "scenesSubtitle": "可作为临时资源组合",
+      "projects": "项目数量",
+      "projectsSubtitle": "可作为项目分发目标",
+      "platforms": "Agent 平台",
+      "platformsSubtitle": "已开启 {{enabled}} 个 · 共 {{total}} 个"
+    },
+    "welcome": {
+      "title": "欢迎使用 SkillForge",
+      "dismiss": "知道了",
+      "step1Title": "一键导入",
+      "step1Desc": "扫描已开启平台的 Skills 与 Rules",
+      "step2Title": "可选：组合 Scene",
+      "step2Desc": "把 Skills 与 Rules 组成可复用模板",
+      "step3Title": "进入分发工作区",
+      "step3Desc": "生成计划，确认后写入目标"
+    },
+    "quickEntry": {
+      "title": "快捷入口",
+      "skillRuleCount": "技能 {{skills}} · 规则 {{rules}}",
+      "chooseTarget": "选择为目标"
+    }
   },
   "import": {
     "scanTitle": "一键导入",
@@ -152,12 +211,54 @@
     "confirmImport": "确认导入 ({{count}})",
     "importing": "正在导入...",
     "scanning": "正在扫描...",
-    "noDiscoverable": "未发现可导入的技能或规则"
+    "noDiscoverable": "未发现可导入的技能或规则",
+    "append": "追加选择",
+    "retry": "重试",
+    "ignore": "忽略",
+    "noItems": "尚未选择任何文件",
+    "showMore": "显示更多 ({{count}})",
+    "dirs": "个目录",
+    "files": "个文件",
+    "status": {
+      "valid": "可导入",
+      "skip": "跳过",
+      "error": "错误"
+    },
+    "result": {
+      "success": "成功",
+      "failed": "失败",
+      "skipped": "跳过"
+    },
+    "reason": {
+      "alreadyExists": "已存在",
+      "unsupportedFormat": "格式不支持",
+      "missingSkillMd": "缺少 SKILL.md",
+      "invalidPath": "路径无效",
+      "readFailed": "读取失败"
+    }
   },
   "workflow": {
     "prepareContent": "准备内容",
     "organizeContent": "组织内容",
     "distributeContent": "分发内容"
+  },
+  "breadcrumb": {
+    "dashboard": "精简概览",
+    "globalDistribution": "工作区",
+    "projectDistribution": "项目",
+    "scenes": "可复用组合",
+    "skills": "技能",
+    "rules": "规则",
+    "settings": "设置"
+  },
+  "shortcuts": {
+    "title": "快捷键",
+    "search": "搜索资源",
+    "create": "新建资源",
+    "closeDialog": "关闭当前对话框",
+    "implemented": "已实现",
+    "notImplemented": "未实现",
+    "hint": "以下为常用快捷键指引；未标注「已实现」的快捷键暂未绑定，仅作展示。"
   },
   "syncConfirm": {
     "title": "同步确认",

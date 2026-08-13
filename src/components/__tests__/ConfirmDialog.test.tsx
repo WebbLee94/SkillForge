@@ -24,9 +24,7 @@ describe('ConfirmDialog', () => {
   };
 
   it('returns null when open is false', () => {
-    const { container } = render(
-      <ConfirmDialog {...baseProps} open={false} />
-    );
+    const { container } = render(<ConfirmDialog {...baseProps} open={false} />);
     expect(container.innerHTML).toBe('');
   });
 
@@ -90,5 +88,33 @@ describe('ConfirmDialog', () => {
     const confirmBtn = buttons[buttons.length - 1];
     fireEvent.click(confirmBtn);
     expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onCancel when Escape is pressed while open', () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog {...baseProps} onCancel={onCancel} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not react to Escape when closed', () => {
+    const onCancel = vi.fn();
+    render(<ConfirmDialog {...baseProps} open={false} onCancel={onCancel} />);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('moves focus into the dialog when it opens and restores it on close', () => {
+    const trigger = document.createElement('button');
+    trigger.textContent = 'trigger';
+    document.body.appendChild(trigger);
+    trigger.focus();
+
+    const { rerender } = render(<ConfirmDialog {...baseProps} />);
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+
+    rerender(<ConfirmDialog {...baseProps} open={false} />);
+    expect(document.activeElement).toBe(trigger);
+    trigger.remove();
   });
 });

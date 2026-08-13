@@ -4,20 +4,21 @@
     "subtitle": "Skill Forge"
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Overview",
     "skills": "Skills",
     "rules": "Rules",
     "tags": "Tags",
-    "scenes": "Scene Editor",
-    "globalDistribution": "Global Distribution",
-    "projectDistribution": "Project Distribution",
+    "scenes": "Scenes",
+    "globalDistribution": "Workspace",
+    "projectDistribution": "Projects",
     "settings": "Settings"
   },
   "navGroups": {
     "overview": "Overview",
     "resources": "Resources",
-    "orchestration": "Orchestration",
-    "distribution": "Distribution"
+    "orchestration": "Scenes",
+    "distribution": "Distribution",
+    "system": "System"
   },
   "actions": {
     "add": "Add",
@@ -48,7 +49,9 @@
     "confirmImport": "Confirm Import",
     "searchProjects": "Search projects...",
     "openInFileManager": "Open in File Manager",
-    "openDir": "Open Directory"
+    "openDir": "Open Directory",
+    "undo": "Undo",
+    "goDistribute": "Distribute"
   },
   "status": {
     "synced": "Synced",
@@ -78,6 +81,8 @@
     "totalFiles": "{{count}} file(s) total",
     "skillInUse": "Skill is used by {{count}} scene(s)",
     "sceneInUse": "Scene is used by {{count}} project(s)",
+    "referenceLoading": "Counting scene references…",
+    "referenceSummary": "{{referenced}} of them are referenced by {{count}} scene(s)",
     "syncSuccess": "Sync successful",
     "syncFailed": "Sync failed",
     "installSuccess": "Import successful",
@@ -89,7 +94,36 @@
     "noData": "No data",
     "loading": "Loading...",
     "operationFailed": "Operation failed",
+    "noResults": "No resources match the current filter",
+    "clearFilter": "Clear Filter",
+    "loadSkillsFailed": "Failed to load skills",
+    "loadRulesFailed": "Failed to load rules",
     "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
+  },
+  "detail": {
+    "source": "Source",
+    "updatedAt": "Updated",
+    "preview": "Preview"
+  },
+  "view": {
+    "group": "Grouped",
+    "list": "List",
+    "collapseAll": "Collapse All",
+    "expandAll": "Expand All",
+    "showMore": "Show more ({{count}})"
+  },
+  "batch": {
+    "guide": "Select resources to act on",
+    "exit": "Exit Batch Mode",
+    "goDistribute": "Distribute",
+    "manageTags": "Manage Selected Tags",
+    "delete": "Delete Selected"
+  },
+  "inspector": {
+    "unsavedTitle": "Unsaved changes",
+    "unsavedMessage": "Save your changes?",
+    "discard": "Discard",
+    "stay": "Stay"
   },
   "fileTree": {
     "loading": "Loading...",
@@ -101,8 +135,8 @@
     "newFiles": "+{{count}} new",
     "deletedFiles": "-{{count}} deleted",
     "modifiedFiles": "~{{count}} modified",
-    "importHint": "Go to Dashboard to import new skills into the library",
-    "goToDashboard": "Go to Dashboard",
+    "importHint": "Go to Overview to import new skills into the library",
+    "goToDashboard": "Go to Overview",
     "dismiss": "Dismiss"
   },
   "platforms": {
@@ -135,7 +169,32 @@
     "currentScene": "Current Scene",
     "notConfigured": "Not Configured",
     "configureGlobalScene": "Configure global scene first",
-    "skillRuleCount": "Skills / Rules"
+    "skillRuleCount": "Skills / Rules",
+    "stats": {
+      "resources": "Resources",
+      "resourcesSubtitle": "{{skills}} skills · {{rules}} rules",
+      "scenes": "Scenes",
+      "scenesSubtitle": "Usable as temporary resource combinations",
+      "projects": "Projects",
+      "projectsSubtitle": "Usable as project distribution targets",
+      "platforms": "Agent Platforms",
+      "platformsSubtitle": "{{enabled}} enabled · {{total}} total"
+    },
+    "welcome": {
+      "title": "Welcome to SkillForge",
+      "dismiss": "Got it",
+      "step1Title": "One-Click Import",
+      "step1Desc": "Scan enabled platforms for Skills and Rules",
+      "step2Title": "Optional: Combine Scenes",
+      "step2Desc": "Group Skills and Rules into reusable templates",
+      "step3Title": "Enter Distribution Workspace",
+      "step3Desc": "Generate a plan and confirm before writing to targets"
+    },
+    "quickEntry": {
+      "title": "Quick Access",
+      "skillRuleCount": "{{skills}} skills · {{rules}} rules",
+      "chooseTarget": "Choose as Target"
+    }
   },
   "import": {
     "scanTitle": "One-Click Import",
@@ -152,12 +211,54 @@
     "confirmImport": "Confirm Import ({{count}})",
     "importing": "Importing...",
     "scanning": "Scanning...",
-    "noDiscoverable": "No discoverable skills or rules found"
+    "noDiscoverable": "No importable skills or rules found",
+    "append": "Append",
+    "retry": "Retry",
+    "ignore": "Ignore",
+    "noItems": "No files selected yet",
+    "showMore": "Show more ({{count}})",
+    "dirs": "directories",
+    "files": "files",
+    "status": {
+      "valid": "Importable",
+      "skip": "Skipped",
+      "error": "Error"
+    },
+    "result": {
+      "success": "Succeeded",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    },
+    "reason": {
+      "alreadyExists": "Already exists",
+      "unsupportedFormat": "Unsupported format",
+      "missingSkillMd": "Missing SKILL.md",
+      "invalidPath": "Invalid path",
+      "readFailed": "Read failed"
+    }
   },
   "workflow": {
     "prepareContent": "Prepare Content",
     "organizeContent": "Organize Content",
     "distributeContent": "Distribute Content"
+  },
+  "breadcrumb": {
+    "dashboard": "Compact Overview",
+    "globalDistribution": "Workspace",
+    "projectDistribution": "Projects",
+    "scenes": "Reusable Combinations",
+    "skills": "Skills",
+    "rules": "Rules",
+    "settings": "Settings"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "search": "Search resources",
+    "create": "Create resource",
+    "closeDialog": "Close current dialog",
+    "implemented": "Implemented",
+    "notImplemented": "Not implemented",
+    "hint": "Common shortcut reference. Shortcuts not marked \u201cImplemented\u201d are not bound yet and shown for reference only."
   },
   "syncConfirm": {
     "title": "Sync Confirmation",

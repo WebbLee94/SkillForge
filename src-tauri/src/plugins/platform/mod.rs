@@ -179,6 +179,7 @@ macro_rules! define_symlink_adapter {
                     installed: Vec::new(),
                     updated: Vec::new(),
                     removed: Vec::new(),
+                    skipped: 0,
                     errors: Vec::new(),
                 };
 

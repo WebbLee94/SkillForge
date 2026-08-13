@@ -1,17 +1,16 @@
 import { expect } from '@wdio/globals';
 
 describe('SkillForge 桌面应用交互测试', () => {
-  it('点击侧边栏导航切换到全局分发页面', async () => {
-    const globalDist = await browser.$('//button[contains(., "全局分发")]');
+  it('点击侧边栏导航切换到工作区页面', async () => {
+    const globalDist = await browser.$('//button[contains(., "工作区")]');
     await globalDist.waitForExist({ timeout: 10000 });
     await globalDist.click();
 
     await browser.waitUntil(
-      async () =>
-        ((await browser.getUrl()) ?? '').includes('/global-distribution'),
-      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /global-distribution' }
+      async () => ((await browser.getUrl()) ?? '').includes('/workspace'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /workspace' }
     );
-    expect(await browser.getUrl()).toContain('/global-distribution');
+    expect(await browser.getUrl()).toContain('/workspace');
   });
 
   it('点击侧边栏导航切换到技能页面', async () => {
@@ -26,7 +25,7 @@ describe('SkillForge 桌面应用交互测试', () => {
     expect(await browser.getUrl()).toContain('/skills');
   });
 
-  it('Rust 后端返回看板统计（get_dashboard_stats）', async () => {
+  it('Rust 后端返回概览统计（get_dashboard_stats）', async () => {
     const stats = await browser.tauri.execute(({ core }) =>
       core.invoke('get_dashboard_stats')
     );

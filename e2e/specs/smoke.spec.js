@@ -13,9 +13,9 @@ describe('SkillForge 桌面应用冒烟测试', () => {
     expect(appName).toContain('SkillForge');
   });
 
-  it('侧边栏显示中文导航项（看板/技能/规则/设置）', async () => {
+  it('侧边栏显示中文导航项（概览/技能/规则/设置）', async () => {
     const bodyText = await browser.$('body').getText();
-    expect(bodyText).toContain('看板');
+    expect(bodyText).toContain('概览');
     expect(bodyText).toContain('技能');
     expect(bodyText).toContain('规则');
     expect(bodyText).toContain('设置');

@@ -8,6 +8,7 @@ import type { Skill, Tag } from '../../types';
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('@tauri-apps/plugin-dialog', () => ({ open: vi.fn() }));
 vi.mock('@tauri-apps/plugin-opener', () => ({ revealItemInDir: vi.fn() }));
+vi.mock('@tauri-apps/plugin-fs', () => ({ readDir: vi.fn() }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
@@ -178,8 +179,8 @@ describe('SkillLibrary', () => {
       expect(screen.getByText('React')).toBeDefined();
     });
 
-    // Click the tag filter chip for 'frontend' — use role query to find the <button>
-    const frontendChip = screen.getByRole('button', { name: /frontend/i });
+    // Click the tag filter chip for 'frontend' — exact accessible name (name + count)
+    const frontendChip = screen.getByRole('button', { name: 'frontend2' });
     fireEvent.click(frontendChip);
 
     await waitFor(() => {
@@ -191,7 +192,9 @@ describe('SkillLibrary', () => {
   });
 
   it('shows detail panel when a skill is selected', async () => {
-    const skills: Skill[] = [mkSkill('s1', 'React', { metadata: '{"author":"Test Author"}' })];
+    const skills: Skill[] = [
+      mkSkill('s1', 'React', { metadata: '{"author":"Test Author"}' }),
+    ];
     await setupInvoke({
       list_skills: skills,
       list_tags: [],
@@ -203,7 +206,9 @@ describe('SkillLibrary', () => {
     });
 
     // Click on the skill card
-    const card = screen.getByText('React').closest('[style*="cursor: pointer"]') || screen.getByText('React');
+    const card =
+      screen.getByText('React').closest('[style*="cursor: pointer"]') ||
+      screen.getByText('React');
     fireEvent.click(card);
 
     await waitFor(() => {
@@ -255,5 +260,449 @@ describe('SkillLibrary', () => {
     await waitFor(() => {
       expect(screen.getByText('empty')).toBeDefined();
     });
+  });
+});
+/* =================================================== */
+/*  Phase 6 资源库交互契约（TASK-043）                 */
+/* =================================================== */
+describe('SkillLibrary — Phase 6 资源库交互契约', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('provides group/list view tabs with tab semantics (a11y)', async () => {
+    await setupInvoke({ list_skills: [mkSkill('s1', 'React')], list_tags: [] });
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    expect(screen.getByRole('tablist')).toBeDefined();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.length).toBe(2);
+    // 默认分组视图
+    expect(tabs[0].getAttribute('aria-selected')).toBe('true');
+    fireEvent.click(tabs[1]);
+    expect(screen.getAllByRole('tab')[1].getAttribute('aria-selected')).toBe(
+      'true'
+    );
+  });
+
+  it('group view shows a multi-tag skill in multiple groups (same id, no copy)', async () => {
+    const tags: Tag[] = [mkTag(1, 'frontend'), mkTag(2, 'backend')];
+    const skills: Skill[] = [
+      mkSkill('s1', 'Multi', { tags: [tags[0], tags[1]] }),
+    ];
+    await setupInvoke({ list_skills: skills, list_tags: tags });
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      const names = screen.getAllByText('Multi');
+      expect(names.length).toBe(2);
+    });
+  });
+
+  it('batch mode armed: shows compact guide + exit, no disabled action buttons', async () => {
+    await setupInvoke({ list_skills: [mkSkill('s1', 'React')], list_tags: [] });
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    expect(screen.getByText('batch.guide')).toBeDefined();
+    expect(screen.getByText('batch.exit')).toBeDefined();
+    expect(screen.queryByText('batch.goDistribute')).toBeNull();
+    expect(screen.queryByText('batch.manageTags')).toBeNull();
+    expect(screen.queryByText('batch.delete')).toBeNull();
+  });
+
+  it('batch mode selected: shows the full action matrix', async () => {
+    await setupInvoke({ list_skills: [mkSkill('s1', 'React')], list_tags: [] });
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    fireEvent.click(screen.getByText('React'));
+    expect(screen.getByText('batch.goDistribute')).toBeDefined();
+    expect(screen.getByText('batch.manageTags')).toBeDefined();
+    expect(screen.getByText('batch.delete')).toBeDefined();
+  });
+
+  it('去分发 carries the selected ids into the distribution workspace', async () => {
+    await setupInvoke({ list_skills: [mkSkill('s1', 'React')], list_tags: [] });
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    fireEvent.click(screen.getByText('React'));
+    fireEvent.click(screen.getByText('batch.goDistribute'));
+    const { pendingDistributionSelection, activeNav } = useAppStore.getState();
+    expect(pendingDistributionSelection).toEqual({
+      skillIds: ['s1'],
+      ruleIds: [],
+    });
+    expect(activeNav).toBe('globalDistribution');
+  });
+
+  it('Inspector shows source + full timestamp and hides reveal when not distributed', async () => {
+    const skills: Skill[] = [
+      mkSkill('s1', 'React', { metadata: '{"author":"Test Author"}' }),
+    ];
+    await setupInvoke({
+      list_skills: skills,
+      list_tags: [],
+      get_managed_copy_path: null,
+    });
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('React'));
+    await waitFor(() => {
+      expect(screen.getByText('detail.source')).toBeDefined();
+    });
+    // 卡片相对时间与 Inspector 完整时间戳都可能包含年份
+    expect(screen.getAllByText(/2025/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText('在访达中显示')).toBeNull();
+  });
+
+  it('import dialog lists valid dirs and installs valid dirs on confirm', async () => {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    (open as any).mockResolvedValue(['/p/dir-a', '/p/dir-b']);
+    const { readDir } = await import('@tauri-apps/plugin-fs');
+    (readDir as any).mockResolvedValue([
+      { name: 'SKILL.md', isFile: true },
+      { name: 'other.txt', isFile: true },
+    ]);
+    await setupInvoke({ list_skills: [], list_tags: [], install_skill: {} });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('empty')).toBeDefined();
+    });
+
+    // 工具栏「导入技能」主操作（空态也有一个「导入」按钮）
+    fireEvent.click(screen.getAllByText('actions.import')[0]);
+    await waitFor(() => {
+      expect(screen.getByText('install.title')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('import.append'));
+    await waitFor(() => {
+      expect(screen.getByText('dir-a')).toBeDefined();
+      expect(screen.getByText('dir-b')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.confirmImport'));
+    await waitFor(async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      expect(invoke).toHaveBeenCalledWith('install_skill', {
+        source: 'local-fs',
+        skillId: '/p/dir-a',
+      });
+      expect(invoke).toHaveBeenCalledWith('install_skill', {
+        source: 'local-fs',
+        skillId: '/p/dir-b',
+      });
+    });
+  });
+
+  it('marks an already-imported dir as skip and does not install it', async () => {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    (open as any).mockResolvedValue(['/p/existing', '/p/new-a']);
+    const { readDir } = await import('@tauri-apps/plugin-fs');
+    (readDir as any).mockResolvedValue([{ name: 'SKILL.md', isFile: true }]);
+    const existing = mkSkill('s1', 'Existing', { local_path: '/p/existing' });
+    await setupInvoke({
+      list_skills: [existing],
+      list_tags: [],
+      install_skill: {},
+    });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('Existing')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getAllByText('actions.import')[0]);
+    await waitFor(() => {
+      expect(screen.getByText('install.title')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('import.append'));
+    await waitFor(() => {
+      // 已存在目录标记 skip（附原因），新目录 valid
+      expect(screen.getByText('import.reason.alreadyExists')).toBeDefined();
+      expect(screen.getByText('new-a')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.confirmImport'));
+    await waitFor(async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      expect(invoke).not.toHaveBeenCalledWith('install_skill', {
+        source: 'local-fs',
+        skillId: '/p/existing',
+      });
+      expect(invoke).toHaveBeenCalledWith('install_skill', {
+        source: 'local-fs',
+        skillId: '/p/new-a',
+      });
+    });
+  });
+});
+
+/* =================================================== */
+/*  TASK-043 修复回归：Inspector 保存→刷新→脏状态清除    */
+/* =================================================== */
+describe('SkillLibrary — Inspector 标签保存后刷新（H1）', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('after saving a tag, the selected skill refreshes and dirty state clears', async () => {
+    const tags: Tag[] = [mkTag(1, 'urgent')];
+    const skill = mkSkill('s1', 'React', { tags: [] });
+    const { invoke } = await import('@tauri-apps/api/core');
+    let assigned = false;
+    (invoke as any).mockImplementation((cmd: string) => {
+      if (cmd === 'list_skills') {
+        return Promise.resolve(
+          assigned ? [{ ...skill, tags: [tags[0]] }] : [skill]
+        );
+      }
+      if (cmd === 'list_tags') return Promise.resolve(tags);
+      if (cmd === 'assign_tag') {
+        assigned = true;
+        return Promise.resolve(null);
+      }
+      return Promise.reject(new Error(`Unexpected invoke: ${cmd}`));
+    });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('React'));
+    await waitFor(() => {
+      expect(screen.getByLabelText('urgent')).toBeDefined();
+    });
+
+    // 勾选标签 → 脏状态出现
+    fireEvent.click(screen.getByLabelText('urgent'));
+    expect(screen.getByText('actions.save')).toBeDefined();
+
+    // 保存 → assign_tag → refetch 返回带标签的 skill → 脏状态清除
+    fireEvent.click(screen.getByText('actions.save'));
+    await waitFor(() => {
+      expect(screen.queryByText('actions.undo')).toBeNull();
+      expect(screen.queryByText('actions.save')).toBeNull();
+    });
+    const { invoke: inv } = await import('@tauri-apps/api/core');
+    expect(inv).toHaveBeenCalledWith('assign_tag', {
+      targetType: 'skill',
+      targetId: 's1',
+      tagId: 1,
+    });
+  });
+});
+
+describe('SkillLibrary — 加载中禁用批量操作（M2）', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('disables the batch toggle while loading', async () => {
+    await setupInvoke({ list_skills: [], list_tags: [] });
+    useAppStore.setState({ loading: true });
+    render(<SkillLibrary />);
+    const btn = screen.getByText('actions.batchSelect').closest('button')!;
+    expect(btn.disabled).toBe(true);
+  });
+});
+
+describe('SkillLibrary — 混合 valid+error 导入结果（M3）', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('error dir shows failed result with retry in result phase', async () => {
+    const { open } = await import('@tauri-apps/plugin-dialog');
+    (open as any).mockResolvedValue(['/p/dir-a', '/p/dir-b']);
+    const { readDir } = await import('@tauri-apps/plugin-fs');
+    (readDir as any).mockImplementation((p: string) =>
+      p === '/p/dir-a'
+        ? Promise.resolve([{ name: 'SKILL.md', isFile: true }])
+        : Promise.reject(new Error('read failed'))
+    );
+    await setupInvoke({ list_skills: [], list_tags: [], install_skill: {} });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('empty')).toBeDefined();
+    });
+    fireEvent.click(screen.getAllByText('actions.import')[0]);
+    await waitFor(() => {
+      expect(screen.getByText('install.title')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('import.append'));
+    await waitFor(() => {
+      expect(screen.getByText('dir-b')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.confirmImport'));
+    await waitFor(() => {
+      // 失败项徽标 + 汇总标签各出现一次；失败项可重试
+      expect(
+        screen.getAllByText('import.result.failed').length
+      ).toBeGreaterThanOrEqual(2);
+      expect(screen.getAllByText('import.retry').length).toBeGreaterThanOrEqual(
+        1
+      );
+    });
+  });
+});
+
+/* =================================================== */
+/*  资源 IPC 集成：get_managed_copy_path / count_scene_references */
+/* =================================================== */
+describe('SkillLibrary — 资源 IPC 集成（受管副本 reveal / 批量删除引用统计）', () => {
+  beforeEach(() => {
+    resetStore();
+    vi.clearAllMocks();
+  });
+
+  it('selecting a skill fetches managed copy path and reveals the reveal button when a copy exists', async () => {
+    const skills: Skill[] = [mkSkill('s1', 'React')];
+    await setupInvoke({
+      list_skills: skills,
+      list_tags: [],
+      get_managed_copy_path: '/platform/skills/react',
+    });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('React'));
+
+    await waitFor(() => {
+      expect(screen.getByText('在文件夹中显示')).toBeDefined();
+    });
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('get_managed_copy_path', {
+      resourceType: 'skill',
+      resourceId: 's1',
+    });
+  });
+
+  it('does not reveal the reveal button when get_managed_copy_path resolves null', async () => {
+    const skills: Skill[] = [mkSkill('s1', 'React')];
+    await setupInvoke({
+      list_skills: skills,
+      list_tags: [],
+      get_managed_copy_path: null,
+    });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('React'));
+    await waitFor(() => {
+      expect(screen.getByText('detail.source')).toBeDefined();
+    });
+    expect(screen.queryByText('在文件夹中显示')).toBeNull();
+  });
+
+  it('batch delete confirmation displays summed real scene reference counts', async () => {
+    const skills: Skill[] = [
+      mkSkill('s1', 'Alpha'),
+      mkSkill('s2', 'Beta'),
+      mkSkill('s3', 'Gamma'),
+    ];
+    const counts: Record<string, number> = { s1: 2, s2: 1, s3: 0 };
+    const { invoke } = await import('@tauri-apps/api/core');
+    (invoke as any).mockImplementation((cmd: string, args?: any) => {
+      if (cmd === 'list_skills') return Promise.resolve(skills);
+      if (cmd === 'list_tags') return Promise.resolve([]);
+      if (cmd === 'count_scene_references')
+        return Promise.resolve(counts[args?.resourceId] ?? 0);
+      if (cmd === 'uninstall_skill') return Promise.resolve({});
+      return Promise.reject(new Error(`Unexpected invoke: ${cmd}`));
+    });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('Alpha')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    fireEvent.click(screen.getByText('Alpha'));
+    fireEvent.click(screen.getByText('Beta'));
+    fireEvent.click(screen.getByText('Gamma'));
+    fireEvent.click(screen.getByText('batch.delete'));
+
+    await waitFor(() => {
+      expect(screen.getByText('messages.referenceSummary')).toBeDefined();
+    });
+    expect(invoke).toHaveBeenCalledWith('count_scene_references', {
+      resourceType: 'skill',
+      resourceId: 's1',
+    });
+    expect(invoke).toHaveBeenCalledWith('count_scene_references', {
+      resourceType: 'skill',
+      resourceId: 's3',
+    });
+  });
+
+  it('batch delete confirmation tolerates reference-count errors and still allows deletion', async () => {
+    const skills: Skill[] = [mkSkill('s1', 'Alpha')];
+    await setupInvoke({
+      list_skills: skills,
+      list_tags: [],
+      count_scene_references: new Error('db busy'),
+      uninstall_skill: {},
+    });
+
+    render(<SkillLibrary />);
+    await waitFor(() => {
+      expect(screen.getByText('Alpha')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('actions.batchSelect'));
+    fireEvent.click(screen.getByText('Alpha'));
+    fireEvent.click(screen.getByText('batch.delete'));
+
+    await waitFor(() => {
+      expect(screen.getByText('actions.confirm')).toBeDefined();
+    });
+    expect(screen.queryByText('messages.referenceSummary')).toBeNull();
+
+    fireEvent.click(screen.getByText('actions.confirm'));
+    await waitFor(async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      expect(invoke).toHaveBeenCalledWith('uninstall_skill', {
+        skillId: 's1',
+      });
+    });
+  });
+
+  it('renders load-failure empty state with retry and re-fetches on retry', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    // First list_skills call fails; the retry (subsequent calls) succeeds.
+    (invoke as any).mockImplementationOnce(() =>
+      Promise.reject(new Error('backend unavailable'))
+    );
+    await setupInvoke({ list_skills: [mkSkill('s1', 'React')], list_tags: [] });
+
+    render(<SkillLibrary />);
+
+    await waitFor(() => {
+      expect(screen.getByText('messages.loadSkillsFailed')).toBeDefined();
+    });
+    expect(screen.getByText('actions.retry')).toBeDefined();
+
+    fireEvent.click(screen.getByText('actions.retry'));
+    await waitFor(() => {
+      expect(screen.getByText('React')).toBeDefined();
+    });
+    expect(screen.queryByText('messages.loadSkillsFailed')).toBeNull();
   });
 });

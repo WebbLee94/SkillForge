@@ -12,12 +12,11 @@ import {
   RefreshCw,
   Globe,
   HelpCircle,
-  Sparkles,
 } from 'lucide-react';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { ImportPreviewDialog } from '../components/ImportPreviewDialog';
-import { PlatformButton } from '../components/PlatformButton';
 import { WatcherNotification } from '../components/WatcherNotification';
+import { WelcomeGuideCard } from '../components/WelcomeGuideCard';
 import { ipc } from '../lib/ipc';
 import type { PlatformScanResult, PlatformEntryCount } from '../types';
 
@@ -39,10 +38,14 @@ export function Dashboard() {
   const [totalSkipped, setTotalSkipped] = useState(0);
   const [importing, setImporting] = useState(false);
   const [showGuideCard, setShowGuideCard] = useState(false);
-  const [liveCounts, setLiveCounts] = useState<Record<string, PlatformEntryCount>>({});
+  const [liveCounts, setLiveCounts] = useState<
+    Record<string, PlatformEntryCount>
+  >({});
 
   const enabledPlatforms = platforms.filter((p) => p.enabled);
   const enabledIds = enabledPlatforms.map((p) => p.id).join(',');
+  const skillCount = dashboardStats?.skill_count ?? 0;
+  const ruleCount = dashboardStats?.rule_count ?? 0;
 
   // Fetch live filesystem counts (same data source as GlobalDistribution)
   useEffect(() => {
@@ -59,7 +62,9 @@ export function Dashboard() {
       }
       setLiveCounts(next);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [enabledIds]);
 
   // Load data then check first-launch — uses direct store read to avoid React dep issues
@@ -119,36 +124,46 @@ export function Dashboard() {
 
   const statCards = [
     {
-      label: t('nav.projectDistribution'),
-      value: dashboardStats?.project_count ?? 0,
-      icon: <FolderOpen className="h-5 w-5" />,
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-100 dark:bg-blue-950',
-      navKey: 'projectDistribution',
-    },
-    {
-      label: t('nav.scenes'),
-      value: dashboardStats?.user_scene_count ?? 0,
-      icon: <Film className="h-5 w-5" />,
-      color: 'text-indigo-600 dark:text-indigo-400',
-      bgColor: 'bg-indigo-100 dark:bg-indigo-950',
-      navKey: 'scenes',
-    },
-    {
-      label: t('nav.skills'),
-      value: dashboardStats?.skill_count ?? 0,
+      label: t('dashboard.stats.resources'),
+      value: `${skillCount} / ${ruleCount}`,
+      subtitle: t('dashboard.stats.resourcesSubtitle', {
+        skills: skillCount,
+        rules: ruleCount,
+      }),
       icon: <Package className="h-5 w-5" />,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
       navKey: 'skills',
     },
     {
-      label: t('nav.rules'),
-      value: dashboardStats?.rule_count ?? 0,
-      icon: <FileText className="h-5 w-5" />,
+      label: t('dashboard.stats.scenes'),
+      value: dashboardStats?.user_scene_count ?? 0,
+      subtitle: t('dashboard.stats.scenesSubtitle'),
+      icon: <Film className="h-5 w-5" />,
+      color: 'text-indigo-600 dark:text-indigo-400',
+      bgColor: 'bg-indigo-100 dark:bg-indigo-950',
+      navKey: 'scenes',
+    },
+    {
+      label: t('dashboard.stats.projects'),
+      value: dashboardStats?.project_count ?? 0,
+      subtitle: t('dashboard.stats.projectsSubtitle'),
+      icon: <FolderOpen className="h-5 w-5" />,
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-950',
+      navKey: 'projectDistribution',
+    },
+    {
+      label: t('dashboard.stats.platforms'),
+      value: `${enabledPlatforms.length} / ${platforms.length}`,
+      subtitle: t('dashboard.stats.platformsSubtitle', {
+        enabled: enabledPlatforms.length,
+        total: platforms.length,
+      }),
+      icon: <Globe className="h-5 w-5" />,
       color: 'text-violet-600 dark:text-violet-400',
       bgColor: 'bg-violet-100 dark:bg-violet-950',
-      navKey: 'rules',
+      navKey: 'settings',
     },
   ];
 
@@ -160,37 +175,12 @@ export function Dashboard() {
 
       <WatcherNotification />
 
-      {/* First-launch guide card */}
+      {/* Welcome guide card — first launch; contains the 3-step stepper */}
       {showGuideCard && (
-        <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="text-sm font-semibold text-foreground">
-                {t('import.firstLaunchTitle')}
-              </h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('import.firstLaunchDesc', {
-                  count: platforms.filter((p) => p.enabled).length,
-                })}
-              </p>
-              <div className="mt-3 flex gap-2">
-                <button
-                  className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                  onClick={handleScan}
-                >
-                  {t('import.firstLaunchAction')}
-                </button>
-                <button
-                  className="rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-secondary-foreground hover:bg-secondary/80"
-                  onClick={handleDismissGuide}
-                >
-                  {t('import.firstLaunchDismiss')}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <WelcomeGuideCard
+          onDismiss={handleDismissGuide}
+          onNavigate={setActiveNav}
+        />
       )}
 
       {/* Toolbar */}
@@ -231,88 +221,72 @@ export function Dashboard() {
               {card.icon}
             </div>
             <div>
+              <div className="text-sm text-muted-foreground">{card.label}</div>
               <div className="text-2xl font-bold text-foreground">
                 {card.value}
               </div>
-              <div className="text-sm text-muted-foreground">{card.label}</div>
+              <div className="text-xs text-muted-foreground">
+                {card.subtitle}
+              </div>
             </div>
           </button>
         ))}
       </div>
 
-      {/* Workflow stepper — visible when no skills or rules */}
-      {(dashboardStats?.skill_count ?? 0) === 0 || (dashboardStats?.rule_count ?? 0) === 0 ? (
-        <div className="mb-6 rounded-lg border border-primary/20 bg-primary/5 p-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Step 1: Import or create content */}
-            <div className="flex flex-col items-center gap-1 flex-1">
-              <button onClick={() => setActiveNav('skills')}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                <Download className="h-3.5 w-3.5" /> {t('actions.import')} {t('nav.skills')}
-              </button>
-              <button onClick={() => setActiveNav('rules')}
-                className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
-                <FileText className="h-3 w-3" /> +{t('nav.rules')}
-              </button>
-              <span className="text-[10px] text-muted-foreground mt-1">{t('workflow.prepareContent')}</span>
-            </div>
-            <span className="text-lg text-muted-foreground/40 shrink-0">→</span>
-            {/* Step 2: Create scene */}
-            <div className="flex flex-col items-center gap-1 flex-1">
-              <button onClick={() => setActiveNav('scenes')}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                <Plus className="h-3.5 w-3.5" /> {t('actions.create')} {t('nav.scenes')}
-              </button>
-              <span className="text-[10px] text-muted-foreground mt-1">{t('workflow.organizeContent')}</span>
-            </div>
-            <span className="text-lg text-muted-foreground/40 shrink-0">→</span>
-            {/* Step 3: Distribute */}
-            <div className="flex flex-col items-center gap-1 flex-1">
-              <button onClick={() => setActiveNav('globalDistribution')}
-                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-                <RefreshCw className="h-3.5 w-3.5" /> {t('nav.globalDistribution')}
-              </button>
-              <button onClick={() => setActiveNav('projectDistribution')}
-                className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:bg-accent transition-colors">
-                <FolderOpen className="h-3 w-3" /> {t('nav.projectDistribution')}
-              </button>
-              <span className="text-[10px] text-muted-foreground mt-1">{t('workflow.distributeContent')}</span>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       <div>
-        {/* Global Distribution Status - simplified */}
+        {/* Quick entry — enabled platforms only */}
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">
-              {t('dashboard.globalDistStatus')}
+              {t('dashboard.quickEntry.title')}
             </h2>
             <Globe className="h-4 w-4 text-primary" />
           </div>
           {enabledPlatforms.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="divide-y divide-border rounded-lg border border-border">
               {enabledPlatforms.map((p) => {
                 const cnt = liveCounts[p.id];
+                const skills = cnt?.skills ?? 0;
+                const rules = cnt?.rules ?? 0;
+                const Icon = getPlatformIcon(p.id);
                 return (
-                  <PlatformButton
+                  <div
                     key={p.id}
-                    name={p.name}
-                    icon={getPlatformIcon(p.id)}
-                    skillCount={cnt?.skills ?? 0}
-                    ruleCount={cnt?.rules ?? 0}
-                    isInstalled={cnt?.dir_exists ?? false}
-                    onClick={() => {
-                      useAppStore.getState().setGlobalDistSelectedPlatform(p.id);
-                      setActiveNav('globalDistribution');
-                    }}
-                  />
+                    className="flex items-center justify-between gap-3 px-4 py-2.5"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Icon className="h-5 w-5 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground truncate">
+                          {p.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {t('dashboard.quickEntry.skillRuleCount', {
+                            skills,
+                            rules,
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-accent/50 transition-colors shrink-0"
+                      onClick={() => {
+                        useAppStore
+                          .getState()
+                          .setGlobalDistSelectedPlatform(p.id);
+                        setActiveNav('globalDistribution');
+                      }}
+                    >
+                      {t('dashboard.quickEntry.chooseTarget')}
+                    </button>
+                  </div>
                 );
               })}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{t('messages.noData')}</p>
+            <p className="text-sm text-muted-foreground">
+              {t('messages.noData')}
+            </p>
           )}
         </div>
       </div>

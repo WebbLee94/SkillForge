@@ -59,6 +59,7 @@ pub fn sync_scene(
         installed: Vec::new(),
         updated: Vec::new(),
         removed: Vec::new(),
+        skipped: 0,
         errors: Vec::new(),
     };
     // Legacy sync is additive/preserving: omitted IDs never imply removal.
@@ -128,6 +129,8 @@ pub fn sync_scene(
             .iter()
             .filter(|id| !current_skill_ids.contains(id))
             .collect();
+        // Skills already present on disk require no work (skipped).
+        result.skipped += (skill_ids.len() - to_install.len()) as u32;
         let to_remove: Vec<&String> = Vec::new();
         // Execute installs
         for skill_id in &to_install {
@@ -216,6 +219,7 @@ pub fn execute_distribution_request(
         installed: vec![],
         updated: vec![],
         removed: vec![],
+        skipped: 0,
         errors: vec![],
     };
     for platform in &recomputed_plan.platforms {
@@ -234,6 +238,9 @@ pub fn execute_distribution_request(
             for id in &request.skills.ids {
                 let skill = get_skill(conn, id)?;
                 let sync_result = plugin.sync(&skill, &instance)?;
+                if sync_result.installed.is_empty() && sync_result.updated.is_empty() {
+                    result.skipped += 1;
+                }
                 result.installed.extend(sync_result.installed);
                 result.updated.extend(sync_result.updated);
             }

@@ -2,6 +2,7 @@ pub mod distribution;
 pub mod import;
 pub mod platform;
 pub mod projects;
+pub mod resources;
 pub mod rules;
 pub mod scenes;
 pub mod skills;

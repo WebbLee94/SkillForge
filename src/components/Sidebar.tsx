@@ -45,6 +45,10 @@ const navGroups: { label: string; items: NavItem[] }[] = [
       { key: 'rules', icon: <FileText className="h-4 w-4" /> },
     ],
   },
+  {
+    label: 'navGroups.system',
+    items: [{ key: 'settings', icon: <Settings className="h-4 w-4" /> }],
+  },
 ];
 
 export function Sidebar() {
@@ -109,24 +113,6 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-
-      {/* Settings */}
-      <div className="border-t border-sidebar-border py-1">
-        <button
-          className={cn(
-            'flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors',
-            activeNav === 'settings'
-              ? 'bg-primary/10 text-primary font-medium'
-              : 'text-sidebar-foreground hover:bg-accent',
-            sidebarCollapsed ? 'justify-center px-0' : ''
-          )}
-          onClick={() => setActiveNav('settings')}
-          title={sidebarCollapsed ? t('nav.settings') : undefined}
-        >
-          <Settings className="h-4 w-4 shrink-0" />
-          {!sidebarCollapsed && <span>{t('nav.settings')}</span>}
-        </button>
-      </div>
 
       {/* Collapse Toggle */}
       <button

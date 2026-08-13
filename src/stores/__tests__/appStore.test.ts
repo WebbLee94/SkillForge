@@ -875,6 +875,326 @@ describe('appStore — Scenes', () => {
   });
 });
 
+describe('appStore — saveSceneComposition', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    resetStore();
+  });
+
+  const sceneSkill = (id: string, sortOrder = 0) => ({
+    skill_id: id,
+    skill_name: `Skill-${id}`,
+    version: null,
+    enabled: true,
+    sort_order: sortOrder,
+  });
+
+  const sceneRule = (id: string, sortOrder = 0) => ({
+    rule_id: id,
+    rule_name: `Rule-${id}`,
+    enabled: true,
+    sort_order: sortOrder,
+  });
+
+  const detail = (
+    skills: ReturnType<typeof sceneSkill>[],
+    rules: ReturnType<typeof sceneRule>[]
+  ) => ({
+    scene: scene('scene-1', 'Scene One'),
+    skills,
+    rules,
+  });
+
+  const setBaseline = (
+    skills: ReturnType<typeof sceneSkill>[],
+    rules: ReturnType<typeof sceneRule>[]
+  ) => {
+    useAppStore.setState({ currentSceneDetail: detail(skills, rules) });
+  };
+
+  const invokeCalls = async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+    return (invoke as any).mock.calls as [string, Record<string, unknown>][];
+  };
+
+  it('adds missing members and removes stale members when order is unchanged', async () => {
+    setBaseline(
+      [sceneSkill('s1', 0), sceneSkill('s2', 1)],
+      [sceneRule('r1', 0)]
+    );
+    await mockInvoke({
+      update_scene: {},
+      remove_skill_from_scene: {},
+      add_skill_to_scene: {},
+      remove_rule_from_scene: {},
+      add_rule_to_scene: {},
+      get_scene_detail: detail(
+        [sceneSkill('s2'), sceneSkill('s3')],
+        [sceneRule('r2')]
+      ),
+      list_scenes: [],
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [{ skill_id: 's2' }, { skill_id: 's3' }],
+      rules: [{ rule_id: 'r2' }],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    expect(calls).toContainEqual([
+      'remove_skill_from_scene',
+      { sceneId: 'scene-1', skillId: 's1' },
+    ]);
+    expect(calls).toContainEqual([
+      'add_skill_to_scene',
+      { sceneId: 'scene-1', skillId: 's3' },
+    ]);
+    expect(calls).toContainEqual([
+      'remove_rule_from_scene',
+      { sceneId: 'scene-1', ruleId: 'r1' },
+    ]);
+    expect(calls).toContainEqual([
+      'add_rule_to_scene',
+      { sceneId: 'scene-1', ruleId: 'r2' },
+    ]);
+    expect(calls).not.toContainEqual([
+      'remove_skill_from_scene',
+      { sceneId: 'scene-1', skillId: 's2' },
+    ]);
+  });
+
+  it('rewrites members in draft order (remove-all then add-all) when order changed', async () => {
+    setBaseline([sceneSkill('s1', 0), sceneSkill('s2', 1)], []);
+    await mockInvoke({
+      update_scene: {},
+      remove_skill_from_scene: {},
+      add_skill_to_scene: {},
+      get_scene_detail: detail([sceneSkill('s2'), sceneSkill('s1')], []),
+      list_scenes: [],
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [{ skill_id: 's2' }, { skill_id: 's1' }],
+      rules: [],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    const cmds = calls.map((c) => c[0]);
+    // Both members removed first, then re-added in draft order
+    expect(cmds).toEqual([
+      'update_scene',
+      'remove_skill_from_scene',
+      'remove_skill_from_scene',
+      'add_skill_to_scene',
+      'add_skill_to_scene',
+      'get_scene_detail',
+      'list_scenes',
+    ]);
+    const addOrder = calls
+      .filter((c) => c[0] === 'add_skill_to_scene')
+      .map((c) => c[1].skillId);
+    expect(addOrder).toEqual(['s2', 's1']);
+  });
+
+  it('updates scene metadata when name/description provided', async () => {
+    setBaseline([sceneSkill('s1', 0)], []);
+    await mockInvoke({
+      update_scene: {},
+      get_scene_detail: detail([sceneSkill('s1')], []),
+      list_scenes: [],
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Renamed',
+      description: 'New desc',
+      skills: [{ skill_id: 's1' }],
+      rules: [],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    expect(calls).toContainEqual([
+      'update_scene',
+      { id: 'scene-1', data: { name: 'Renamed', description: 'New desc' } },
+    ]);
+    // Composition unchanged → no member add/remove calls
+    expect(
+      calls.filter((c) => c[0].includes('skill') || c[0].includes('rule'))
+    ).toEqual([]);
+  });
+
+  it('skips metadata and member calls entirely when nothing changed', async () => {
+    setBaseline([sceneSkill('s1', 0)], [sceneRule('r1', 0)]);
+    await mockInvoke({
+      get_scene_detail: detail([sceneSkill('s1')], [sceneRule('r1')]),
+      list_scenes: [],
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: null as unknown as string,
+      skills: [{ skill_id: 's1' }],
+      rules: [{ rule_id: 'r1' }],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    expect(calls).not.toContainEqual(expect.arrayContaining(['update_scene']));
+    expect(
+      calls.filter((c) => c[0].includes('skill') || c[0].includes('rule'))
+    ).toEqual([]);
+  });
+
+  it('toasts success and refreshes detail + scenes after save', async () => {
+    setBaseline([], []);
+    await mockInvoke({
+      update_scene: {},
+      get_scene_detail: detail([], []),
+      list_scenes: [],
+    });
+
+    await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [],
+      rules: [],
+    });
+
+    expect(
+      useAppStore.getState().toasts.some((t) => t.type === 'success')
+    ).toBe(true);
+  });
+
+  it('returns false and toasts error when a member call fails', async () => {
+    setBaseline([sceneSkill('s1', 0)], []);
+    await mockInvokeRejectAll();
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [{ skill_id: 's2' }],
+      rules: [],
+    });
+
+    expect(ok).toBe(false);
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
+      true
+    );
+  });
+
+  it('refreshes scene detail from backend and returns false on partial member failure', async () => {
+    // Regression: one removal succeeds, a later one fails → backend is now
+    // ahead of the store. saveSceneComposition must re-sync currentSceneDetail
+    // from the backend (so the UI shows backend truth) and still return false.
+    setBaseline(
+      [sceneSkill('s1', 0), sceneSkill('s2', 1), sceneSkill('s3', 2)],
+      []
+    );
+    const { invoke } = await import('@tauri-apps/api/core');
+    (invoke as any).mockImplementation((cmd: string, args: any) => {
+      if (cmd === 'remove_skill_from_scene' && args?.skillId === 's3') {
+        return Promise.reject(new Error('remove s3 failed'));
+      }
+      switch (cmd) {
+        case 'update_scene':
+        case 'remove_skill_from_scene':
+          return Promise.resolve({});
+        case 'get_scene_detail':
+          return Promise.resolve(
+            detail([sceneSkill('s1'), sceneSkill('s3')], [])
+          );
+        case 'list_scenes':
+          return Promise.resolve([]);
+        default:
+          return Promise.reject(new Error(`Unexpected invoke command: ${cmd}`));
+      }
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [{ skill_id: 's1' }],
+      rules: [],
+    });
+
+    expect(ok).toBe(false);
+    expect(useAppStore.getState().currentSceneDetail).toEqual(
+      detail([sceneSkill('s1'), sceneSkill('s3')], [])
+    );
+    expect(
+      useAppStore
+        .getState()
+        .toasts.some(
+          (t) => t.type === 'error' && t.message.includes('保存场景失败')
+        )
+    ).toBe(true);
+    const calls = await invokeCalls();
+    expect(calls).toContainEqual(['get_scene_detail', { id: 'scene-1' }]);
+    expect(calls).not.toContainEqual(['list_scenes', undefined]);
+  });
+
+  it('fetches baseline from backend when currentSceneDetail is null so removals are not silently skipped', async () => {
+    // Regression: a null baseline previously diffed against [] → removals were
+    // silently skipped (s2 would survive on the backend). saveSceneComposition
+    // must fetch an authoritative baseline first, then remove s2.
+    await mockInvoke({
+      update_scene: {},
+      remove_skill_from_scene: {},
+      get_scene_detail: detail([sceneSkill('s1'), sceneSkill('s2')], []),
+      list_scenes: [],
+    });
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [{ skill_id: 's1' }],
+      rules: [],
+    });
+
+    expect(ok).toBe(true);
+    const calls = await invokeCalls();
+    expect(calls).toContainEqual([
+      'remove_skill_from_scene',
+      { sceneId: 'scene-1', skillId: 's2' },
+    ]);
+    const detailCalls = calls.filter((c) => c[0] === 'get_scene_detail');
+    expect(detailCalls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('aborts without member calls when no baseline can be obtained from backend', async () => {
+    // Regression: when currentSceneDetail is null AND the backend refresh
+    // yields nothing, we must not proceed with an empty baseline (that would
+    // silently skip every removal). Fail the save instead.
+    await mockInvokeRejectAll();
+
+    const ok = await useAppStore.getState().saveSceneComposition('scene-1', {
+      name: 'Scene One',
+      description: 'desc',
+      skills: [{ skill_id: 's1' }],
+      rules: [],
+    });
+
+    expect(ok).toBe(false);
+    const calls = await invokeCalls();
+    expect(
+      calls.filter((c) => c[0].includes('skill') || c[0].includes('rule'))
+    ).toEqual([]);
+    expect(
+      useAppStore
+        .getState()
+        .toasts.some(
+          (t) => t.type === 'error' && t.message.includes('保存场景失败')
+        )
+    ).toBe(true);
+  });
+});
+
 describe('appStore — Projects', () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -906,9 +1226,7 @@ describe('appStore — Projects', () => {
       list_projects: [],
     });
 
-    await useAppStore
-      .getState()
-      .addProject('My Proj', '/tmp/p', 'desc');
+    await useAppStore.getState().addProject('My Proj', '/tmp/p', 'desc');
 
     const { invoke } = await import('@tauri-apps/api/core');
     expect(invoke).toHaveBeenCalledWith('add_project', {
@@ -948,6 +1266,48 @@ describe('appStore — Projects', () => {
     await mockInvokeRejectAll();
 
     await useAppStore.getState().removeProject('p1');
+
+    expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
+      true
+    );
+  });
+
+  it('removeProjects removes each id + single refetch + success toast', async () => {
+    await mockInvoke({
+      remove_project: {},
+      list_projects: [],
+    });
+
+    await useAppStore.getState().removeProjects(['p1', 'p2', 'p3']);
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('remove_project', { id: 'p1' });
+    expect(invoke).toHaveBeenCalledWith('remove_project', { id: 'p2' });
+    expect(invoke).toHaveBeenCalledWith('remove_project', { id: 'p3' });
+    expect(
+      (invoke as any).mock.calls.filter(
+        (c: string[]) => c[0] === 'list_projects'
+      ).length
+    ).toBe(1);
+    expect(
+      useAppStore.getState().toasts.filter((t) => t.type === 'success').length
+    ).toBe(1);
+  });
+
+  it('removeProjects with empty ids does not call IPC or toast', async () => {
+    await mockInvoke({});
+
+    await useAppStore.getState().removeProjects([]);
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).not.toHaveBeenCalled();
+    expect(useAppStore.getState().toasts.length).toBe(0);
+  });
+
+  it('removeProjects toasts error on failure', async () => {
+    await mockInvokeRejectAll();
+
+    await useAppStore.getState().removeProjects(['p1']);
 
     expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
       true
@@ -1290,15 +1650,13 @@ describe('appStore — Sync Confirm', () => {
       preview_sync: { platforms: [], has_removals: false },
     });
 
-    const result = await useAppStore
-      .getState()
-      .requestSyncConfirm({
-        skillIds: [],
-        ruleIds: [],
-        sceneId: 's1',
-        platformIds: ['p1'],
-        scope: 'global',
-      });
+    const result = await useAppStore.getState().requestSyncConfirm({
+      skillIds: [],
+      ruleIds: [],
+      sceneId: 's1',
+      platformIds: ['p1'],
+      scope: 'global',
+    });
 
     expect(result).toBe('no_changes');
     expect(useAppStore.getState().pendingSyncConfirm).toBeNull();
@@ -1445,7 +1803,12 @@ describe('appStore — Sync Confirm', () => {
       has_removals: false,
     };
     await mockInvoke({
-      execute_distribution: { installed: ['s1'], updated: [], removed: [], errors: [] },
+      execute_distribution: {
+        installed: ['s1'],
+        updated: [],
+        removed: [],
+        errors: [],
+      },
       get_distributions: [],
       get_sync_status: { platforms: [] },
       get_global_distribution_status: { platforms: [] },
@@ -1481,7 +1844,12 @@ describe('appStore — Sync Confirm', () => {
       has_removals: false,
     };
     await mockInvoke({
-      execute_distribution: { installed: [], updated: [], removed: [], errors: [] },
+      execute_distribution: {
+        installed: [],
+        updated: [],
+        removed: [],
+        errors: [],
+      },
       get_distributions: [],
       get_sync_status: { platforms: [] },
       get_global_distribution_status: { platforms: [] },
@@ -1516,7 +1884,12 @@ describe('appStore — Sync Confirm', () => {
       has_removals: false,
     };
     await mockInvoke({
-      execute_distribution: { installed: ['s1'], updated: [], removed: [], errors: [] },
+      execute_distribution: {
+        installed: ['s1'],
+        updated: [],
+        removed: [],
+        errors: [],
+      },
       get_distributions: [],
       get_sync_status: { platforms: [] },
       get_global_distribution_status: { platforms: [] },
@@ -1557,15 +1930,13 @@ describe('appStore — Sync Confirm', () => {
       },
     });
 
-    const result = await useAppStore
-      .getState()
-      .requestSyncConfirm({
-        sceneId: null,
-        platformIds: ['p1'],
-        scope: 'global',
-        skills: { mode: 'add_or_update', ids: ['s1'] },
-        rules: { mode: 'preserve', ids: [] },
-      });
+    const result = await useAppStore.getState().requestSyncConfirm({
+      sceneId: null,
+      platformIds: ['p1'],
+      scope: 'global',
+      skills: { mode: 'add_or_update', ids: ['s1'] },
+      rules: { mode: 'preserve', ids: [] },
+    });
 
     expect(result).toBe('no_changes');
     expect(useAppStore.getState().pendingSyncConfirm).toBeNull();
@@ -1589,15 +1960,13 @@ describe('appStore — Sync Confirm', () => {
     };
     await mockInvoke({ preview_sync: plan });
 
-    const promise = useAppStore
-      .getState()
-      .requestSyncConfirm({
-        skillIds: ['s1'],
-        ruleIds: [],
-        sceneId: null,
-        platformIds: ['p1'],
-        scope: 'global',
-      });
+    const promise = useAppStore.getState().requestSyncConfirm({
+      skillIds: ['s1'],
+      ruleIds: [],
+      sceneId: null,
+      platformIds: ['p1'],
+      scope: 'global',
+    });
 
     await vi.waitFor(() => {
       const pending = useAppStore.getState().pendingSyncConfirm;
@@ -1637,15 +2006,13 @@ describe('appStore — Sync Confirm', () => {
       },
     });
 
-    const promise = useAppStore
-      .getState()
-      .requestSyncConfirm({
-        skillIds: ['s1'],
-        ruleIds: [],
-        sceneId: null,
-        platformIds: ['p1'],
-        scope: 'global',
-      });
+    const promise = useAppStore.getState().requestSyncConfirm({
+      skillIds: ['s1'],
+      ruleIds: [],
+      sceneId: null,
+      platformIds: ['p1'],
+      scope: 'global',
+    });
 
     await vi.waitFor(() => {
       expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function');
@@ -1657,15 +2024,13 @@ describe('appStore — Sync Confirm', () => {
   it('requestSyncConfirm returns preview_failed and toasts error on failure (fail-closed)', async () => {
     await mockInvoke({ preview_sync: new Error('preview down') });
 
-    const result = await useAppStore
-      .getState()
-      .requestSyncConfirm({
-        skillIds: [],
-        ruleIds: [],
-        sceneId: 's1',
-        platformIds: ['p1'],
-        scope: 'global',
-      });
+    const result = await useAppStore.getState().requestSyncConfirm({
+      skillIds: [],
+      ruleIds: [],
+      sceneId: 's1',
+      platformIds: ['p1'],
+      scope: 'global',
+    });
 
     expect(result).toBe('preview_failed');
     expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
@@ -1692,15 +2057,13 @@ describe('appStore — Sync Confirm', () => {
       },
     });
 
-    const promise = useAppStore
-      .getState()
-      .requestSyncConfirm({
-        skillIds: ['s1'],
-        ruleIds: [],
-        sceneId: null,
-        platformIds: ['p1'],
-        scope: 'global',
-      });
+    const promise = useAppStore.getState().requestSyncConfirm({
+      skillIds: ['s1'],
+      ruleIds: [],
+      sceneId: null,
+      platformIds: ['p1'],
+      scope: 'global',
+    });
 
     await vi.waitFor(() => {
       expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function');
@@ -1720,16 +2083,18 @@ describe('appStore — Sync Confirm', () => {
   it('cancels a concurrent confirmation request without overwriting the first resolver', async () => {
     await mockInvoke({
       preview_distribution: {
-        platforms: [{
-          platform_id: 'p1',
-          platform_name: 'P1',
-          skills_to_add: ['s1'],
-          skills_to_update: [],
-          skills_to_remove: [],
-          rules_to_add: [],
-          rules_to_update: [],
-          rules_to_remove: [],
-        }],
+        platforms: [
+          {
+            platform_id: 'p1',
+            platform_name: 'P1',
+            skills_to_add: ['s1'],
+            skills_to_update: [],
+            skills_to_remove: [],
+            rules_to_add: [],
+            rules_to_update: [],
+            rules_to_remove: [],
+          },
+        ],
         has_removals: false,
       },
     });
@@ -1742,7 +2107,9 @@ describe('appStore — Sync Confirm', () => {
     };
 
     const first = useAppStore.getState().requestSyncConfirm(selection);
-    await vi.waitFor(() => expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function'));
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function')
+    );
     const firstResolver = useAppStore.getState().resolveSyncConfirm!;
     const second = useAppStore.getState().requestSyncConfirm(selection);
 
@@ -1757,16 +2124,18 @@ describe('appStore — Sync Confirm', () => {
   it('cancels an externally dismissed confirmation exactly once and cleans up state', async () => {
     await mockInvoke({
       preview_distribution: {
-        platforms: [{
-          platform_id: 'p1',
-          platform_name: 'P1',
-          skills_to_add: ['s1'],
-          skills_to_update: [],
-          skills_to_remove: [],
-          rules_to_add: [],
-          rules_to_update: [],
-          rules_to_remove: [],
-        }],
+        platforms: [
+          {
+            platform_id: 'p1',
+            platform_name: 'P1',
+            skills_to_add: ['s1'],
+            skills_to_update: [],
+            skills_to_remove: [],
+            rules_to_add: [],
+            rules_to_update: [],
+            rules_to_remove: [],
+          },
+        ],
         has_removals: false,
       },
     });
@@ -1777,7 +2146,9 @@ describe('appStore — Sync Confirm', () => {
       skills: { mode: 'add_or_update', ids: ['s1'] },
       rules: { mode: 'preserve', ids: [] },
     });
-    await vi.waitFor(() => expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function'));
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function')
+    );
 
     useAppStore.getState().cancelPendingSyncConfirm();
     useAppStore.getState().cancelPendingSyncConfirm();
@@ -1800,7 +2171,9 @@ describe('appStore — Sync Confirm', () => {
     const { invoke } = await import('@tauri-apps/api/core');
     (invoke as any).mockImplementation((command: string) => {
       if (command !== 'preview_distribution') {
-        return Promise.reject(new Error(`Unexpected invoke command: ${command}`));
+        return Promise.reject(
+          new Error(`Unexpected invoke command: ${command}`)
+        );
       }
       return (invoke as any).mock.calls.length === 1 ? previewA : previewB;
     });
@@ -1817,16 +2190,30 @@ describe('appStore — Sync Confirm', () => {
     const requestB = useAppStore.getState().requestSyncConfirm(selection);
     rejectA(new Error('A failed'));
     await expect(requestA).resolves.toBe('cancelled');
-    expect(useAppStore.getState().toasts.some((toast) => toast.message.includes('预览失败'))).toBe(false);
+    expect(
+      useAppStore
+        .getState()
+        .toasts.some((toast) => toast.message.includes('预览失败'))
+    ).toBe(false);
 
     resolveB({
-      platforms: [{
-        platform_id: 'p1', platform_name: 'P1', skills_to_add: ['s1'], skills_to_update: [],
-        skills_to_remove: [], rules_to_add: [], rules_to_update: [], rules_to_remove: [],
-      }],
+      platforms: [
+        {
+          platform_id: 'p1',
+          platform_name: 'P1',
+          skills_to_add: ['s1'],
+          skills_to_update: [],
+          skills_to_remove: [],
+          rules_to_add: [],
+          rules_to_update: [],
+          rules_to_remove: [],
+        },
+      ],
       has_removals: false,
     });
-    await vi.waitFor(() => expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function'));
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().resolveSyncConfirm).toBeTypeOf('function')
+    );
     useAppStore.getState().cancelPendingSyncConfirm();
     await expect(requestB).resolves.toBe('cancelled');
     expect(useAppStore.getState().pendingSyncConfirm).toBeNull();
@@ -1852,15 +2239,13 @@ describe('appStore — Sync Confirm', () => {
       },
     });
 
-    const promise = useAppStore
-      .getState()
-      .requestSyncConfirm({
-        skillIds: ['s1', 's2'],
-        ruleIds: ['r1'],
-        sceneId: null,
-        platformIds: ['p1'],
-        scope: 'global',
-      });
+    const promise = useAppStore.getState().requestSyncConfirm({
+      skillIds: ['s1', 's2'],
+      ruleIds: ['r1'],
+      sceneId: null,
+      platformIds: ['p1'],
+      scope: 'global',
+    });
 
     await vi.waitFor(() => {
       expect(useAppStore.getState().pendingSyncConfirm).not.toBeNull();
@@ -1923,6 +2308,32 @@ describe('appStore — UI State', () => {
     expect(useAppStore.getState().projectDistSelectedPlatform).toBe(
       'claude-code'
     );
+  });
+
+  it('setPendingDistributionSelection stores the carried resource selection', () => {
+    expect(useAppStore.getState().pendingDistributionSelection).toBeNull();
+    useAppStore
+      .getState()
+      .setPendingDistributionSelection({ skillIds: ['s1', 's2'], ruleIds: [] });
+    expect(useAppStore.getState().pendingDistributionSelection).toEqual({
+      skillIds: ['s1', 's2'],
+      ruleIds: [],
+    });
+    useAppStore.getState().setPendingDistributionSelection(null);
+    expect(useAppStore.getState().pendingDistributionSelection).toBeNull();
+  });
+
+  it('setPendingDistributionSelection carries an optional sceneId', () => {
+    useAppStore.getState().setPendingDistributionSelection({
+      skillIds: ['s1'],
+      ruleIds: [],
+      sceneId: 'scene-1',
+    });
+    expect(useAppStore.getState().pendingDistributionSelection).toEqual({
+      skillIds: ['s1'],
+      ruleIds: [],
+      sceneId: 'scene-1',
+    });
   });
 });
 

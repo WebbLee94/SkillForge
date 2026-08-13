@@ -13,7 +13,6 @@ export interface Skill {
   sync_status?: SyncStatus;
 }
 
-
 export interface SkillMeta {
   id: string;
   name: string;
@@ -60,7 +59,6 @@ export interface Rule {
   updated_at: string;
   tags?: Tag[];
 }
-
 
 export interface CreateRuleDTO {
   name: string;
@@ -122,6 +120,14 @@ export interface UpdateSceneDTO {
   name?: string;
   description?: string;
   icon?: string;
+}
+
+/** 场景编辑器保存时提交的组合草稿：全量有序成员 + 可选元数据变更 */
+export interface SceneCompositionDraft {
+  name?: string;
+  description?: string;
+  skills: { skill_id: string }[];
+  rules: { rule_id: string }[];
 }
 
 // ===== Project =====
@@ -232,6 +238,7 @@ export interface SyncResult {
   installed: string[];
   updated: string[];
   removed: string[];
+  skipped?: number;
   errors: string[];
 }
 
@@ -266,8 +273,6 @@ export interface AppConfig {
   db_path: string;
   version: string;
 }
-
-
 
 // ===== Platform Entry Count =====
 export interface PlatformEntryCount {

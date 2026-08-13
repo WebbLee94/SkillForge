@@ -256,6 +256,38 @@ pub fn search_skills(conn: &rusqlite::Connection, query: &str) -> Result<Vec<Ski
     Ok(skills)
 }
 
+/// Resolve the managed-copy path of an installed skill.
+///
+/// The path is read from `skills.local_path` (the recorded `~/.skillforge/
+/// skills/{id}` directory) and validated against the filesystem before being
+/// returned: `Some(path)` only when the directory physically exists, `None`
+/// when the DB row still points at a missing directory. No distribution
+/// status is consulted or fabricated — the filesystem is the source of truth
+/// for whether a managed copy can be revealed.
+pub fn managed_copy_path(
+    conn: &rusqlite::Connection,
+    skill_id: &str,
+) -> Result<Option<String>, AppError> {
+    let local_path: String = match conn.query_row(
+        "SELECT local_path FROM skills WHERE id = ?1",
+        params![skill_id],
+        |row| row.get(0),
+    ) {
+        Ok(local_path) => local_path,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            return Err(AppError::SkillNotFound(skill_id.to_string()))
+        }
+        Err(e) => return Err(e.into()),
+    };
+
+    let path = std::path::PathBuf::from(&local_path);
+    if path.exists() {
+        Ok(Some(local_path))
+    } else {
+        Ok(None)
+    }
+}
+
 // ── Internal helpers ───────────────────────────────────────────────
 
 /// Parse the JSON string produced by `json_group_array` into `Vec<Tag>`.
@@ -550,5 +582,65 @@ mod tests {
         let skills = list_skills(&conn, &filter).unwrap();
         assert_eq!(skills.len(), 1);
         assert!(skills[0].tags.is_empty());
+    }
+
+    #[test]
+    fn test_managed_copy_path_returns_path_when_dir_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["existing-skill", "Existing", "desc", "local-fs", now, dir.path().to_str().unwrap()],
+        )
+        .unwrap();
+
+        let path = managed_copy_path(&conn, "existing-skill")
+            .expect("query should succeed")
+            .expect("managed copy exists on disk, so a path must be returned");
+        assert_eq!(path, dir.path().to_str().unwrap());
+    }
+
+    #[test]
+    fn test_managed_copy_path_returns_none_when_dir_is_missing() {
+        let conn = setup_db();
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params!["ghost-skill", "Ghost", "desc", "local-fs", now, "/tmp/skillforge-test/ghost-skill"],
+        )
+        .unwrap();
+
+        let path = managed_copy_path(&conn, "ghost-skill").expect("query should succeed");
+        assert!(
+            path.is_none(),
+            "filesystem-as-truth: a missing managed copy must yield None"
+        );
+    }
+
+    #[test]
+    fn test_managed_copy_path_missing_skill_returns_not_found() {
+        let conn = setup_db();
+        let err = managed_copy_path(&conn, "missing").unwrap_err();
+        assert!(matches!(&err, AppError::SkillNotFound(_)), "got: {err}");
+    }
+
+    #[test]
+    fn test_managed_copy_path_other_db_errors_surface_as_database_error() {
+        // A `skills` table that lacks the `local_path` column makes the SELECT
+        // fail with a genuine SQLite error ("no such column"), NOT
+        // QueryReturnedNoRows. Such failures must surface as AppError::Database
+        // and never be masked as SkillNotFound.
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE skills (
+                id   TEXT PRIMARY KEY,
+                name TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+
+        let err = managed_copy_path(&conn, "any-id").unwrap_err();
+        assert!(matches!(&err, AppError::Database(_)), "got: {err}");
     }
 }

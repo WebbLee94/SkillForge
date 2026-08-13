@@ -62,9 +62,7 @@ const mkScanResult = (): ScanForImportResult => ({
     {
       platform_id: 'claude',
       platform_name: 'Claude Code',
-      new_skills: [
-        { id: 's1', name: 'NewSkill', source_path: '/tmp/s1' },
-      ],
+      new_skills: [{ id: 's1', name: 'NewSkill', source_path: '/tmp/s1' }],
       new_rules: [
         { id: 'r1', name: 'NewRule', format: 'md', source_path: '/tmp/r1' },
       ],
@@ -157,16 +155,21 @@ describe('Dashboard', () => {
 
     expect(screen.getByText('nav.dashboard')).toBeDefined();
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeDefined();
+      // Resources card value combines skill / rule counts
+      expect(screen.getByText('3 / 2')).toBeDefined();
     });
-    // nav.projectDistribution appears in both stat-card label and quick action button
-    expect(screen.getAllByText('nav.projectDistribution').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('nav.scenes').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('nav.skills').length).toBeGreaterThanOrEqual(1);
-    expect(screen.getAllByText('nav.rules').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('dashboard.stats.resources')).toBeDefined();
+    expect(screen.getByText('dashboard.stats.scenes')).toBeDefined();
+    expect(screen.getByText('dashboard.stats.projects')).toBeDefined();
+    expect(screen.getByText('dashboard.stats.platforms')).toBeDefined();
+    // Agent platform card shows enabled / total = 1 / 1
+    expect(screen.getByText('1 / 1')).toBeDefined();
+    // Stat card subtitles are rendered via i18n format keys
+    expect(screen.getByText('dashboard.stats.resourcesSubtitle')).toBeDefined();
+    expect(screen.getByText('dashboard.stats.platformsSubtitle')).toBeDefined();
   });
 
-  it('shows first-launch guide card when no skills exist', async () => {
+  it('shows welcome guide card when no skills exist', async () => {
     useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
     // init effect re-fetches stats via get_dashboard_stats route — must override the route,
     // otherwise skill_count would be overwritten back to the default (3).
@@ -176,13 +179,15 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('import.firstLaunchTitle')).toBeDefined();
+      expect(screen.getByText('dashboard.welcome.title')).toBeDefined();
     });
-    expect(screen.getByText('import.firstLaunchAction')).toBeDefined();
-    expect(screen.getByText('import.firstLaunchDismiss')).toBeDefined();
+    expect(screen.getByText('dashboard.welcome.dismiss')).toBeDefined();
+    expect(screen.getByText('dashboard.welcome.step1Title')).toBeDefined();
+    expect(screen.getByText('dashboard.welcome.step2Title')).toBeDefined();
+    expect(screen.getByText('dashboard.welcome.step3Title')).toBeDefined();
   });
 
-  it('dismisses guide card and persists to localStorage', async () => {
+  it('dismisses welcome card and persists to localStorage', async () => {
     useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
     await setupDefaultRoutes({
       get_dashboard_stats: mkStats({ skill_count: 0 }),
@@ -190,17 +195,19 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('import.firstLaunchDismiss')).toBeDefined();
+      expect(screen.getByText('dashboard.welcome.dismiss')).toBeDefined();
     });
-    fireEvent.click(screen.getByText('import.firstLaunchDismiss'));
+    fireEvent.click(screen.getByText('dashboard.welcome.dismiss'));
 
     await waitFor(() => {
-      expect(screen.queryByText('import.firstLaunchTitle')).toBeNull();
+      expect(screen.queryByText('dashboard.welcome.title')).toBeNull();
     });
-    expect(localStorage.getItem('skillforge-import-guide-dismissed')).toBe('true');
+    expect(localStorage.getItem('skillforge-import-guide-dismissed')).toBe(
+      'true'
+    );
   });
 
-  it('renders platform buttons for enabled platforms with live counts', async () => {
+  it('renders quick entry rows for enabled platforms with live counts', async () => {
     useAppStore.setState({
       dashboardStats: mkStats(),
       platforms: [mkPlatform('claude', 'Claude Code', true)],
@@ -211,11 +218,13 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('Claude Code')).toBeDefined();
     });
-    // PlatformButton renders "skillCount / ruleCount" => "1/2" (async live counts);
-    // use textContent because getByText's getNodeText skips the nested slash span
+    expect(screen.getByText('dashboard.quickEntry.title')).toBeDefined();
+    expect(screen.getByText('dashboard.quickEntry.chooseTarget')).toBeDefined();
+    // Live counts feed the "技能 N · 规则 N" summary (rendered via i18n format key)
     await waitFor(() => {
-      const btn = screen.getByText('Claude Code').closest('button');
-      expect(btn?.textContent).toContain('1/2');
+      expect(
+        screen.getByText('dashboard.quickEntry.skillRuleCount')
+      ).toBeDefined();
     });
   });
 
@@ -232,7 +241,7 @@ describe('Dashboard', () => {
     });
   });
 
-  it('shows workflow stepper when skills or rules are zero', async () => {
+  it('navigates via welcome guide stepper steps', async () => {
     useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
     await setupDefaultRoutes({
       get_dashboard_stats: mkStats({ skill_count: 0 }),
@@ -240,13 +249,16 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('workflow.prepareContent')).toBeDefined();
+      expect(screen.getByText('dashboard.welcome.step3Title')).toBeDefined();
     });
-    expect(screen.getByText('workflow.organizeContent')).toBeDefined();
-    expect(screen.getByText('workflow.distributeContent')).toBeDefined();
+    fireEvent.click(screen.getByText('dashboard.welcome.step3Title'));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().activeNav).toBe('globalDistribution');
+    });
   });
 
-  it('hides workflow stepper when both skills and rules exist', async () => {
+  it('hides welcome guide card when both skills and rules exist', async () => {
     useAppStore.setState({ dashboardStats: mkStats() });
     await setupDefaultRoutes();
     render(<Dashboard />);
@@ -254,7 +266,8 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('nav.dashboard')).toBeDefined();
     });
-    expect(screen.queryByText('workflow.prepareContent')).toBeNull();
+    expect(screen.queryByText('dashboard.welcome.title')).toBeNull();
+    expect(screen.queryByText('dashboard.welcome.step1Title')).toBeNull();
   });
 
   it('navigates when a stat card is clicked', async () => {
@@ -263,16 +276,31 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('3')).toBeDefined();
+      expect(screen.getByText('dashboard.stats.resources')).toBeDefined();
     });
-    fireEvent.click(screen.getByText('nav.skills'));
+    fireEvent.click(screen.getByText('dashboard.stats.resources'));
 
     await waitFor(() => {
       expect(useAppStore.getState().activeNav).toBe('skills');
     });
   });
 
-  it('navigates to global distribution when a platform button is clicked', async () => {
+  it('navigates to settings when Agent platform stat card is clicked', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+
+    await waitFor(() => {
+      expect(screen.getByText('dashboard.stats.platforms')).toBeDefined();
+    });
+    fireEvent.click(screen.getByText('dashboard.stats.platforms'));
+
+    await waitFor(() => {
+      expect(useAppStore.getState().activeNav).toBe('settings');
+    });
+  });
+
+  it('navigates to global distribution when choose-target is clicked', async () => {
     useAppStore.setState({
       dashboardStats: mkStats(),
       platforms: [mkPlatform('claude', 'Claude Code', true)],
@@ -281,9 +309,11 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('Claude Code')).toBeDefined();
+      expect(
+        screen.getByText('dashboard.quickEntry.chooseTarget')
+      ).toBeDefined();
     });
-    fireEvent.click(screen.getByText('Claude Code'));
+    fireEvent.click(screen.getByText('dashboard.quickEntry.chooseTarget'));
 
     await waitFor(() => {
       expect(useAppStore.getState().globalDistSelectedPlatform).toBe('claude');
@@ -299,15 +329,15 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('import.firstLaunchAction')).toBeDefined();
+      expect(screen.getByText('import.scanTitle')).toBeDefined();
     });
-    fireEvent.click(screen.getByText('import.firstLaunchAction'));
+    fireEvent.click(screen.getByText('import.scanTitle'));
 
     // ImportPreviewDialog renders counts (not skill names) once open
     await waitFor(() => {
       expect(screen.getByText('import.previewTitle')).toBeDefined();
     });
-    // "Claude Code" appears in both the platform button and the dialog header
+    // "Claude Code" appears in both the quick entry row and the dialog header
     expect(screen.getAllByText('Claude Code').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -319,9 +349,9 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('import.firstLaunchAction')).toBeDefined();
+      expect(screen.getByText('import.scanTitle')).toBeDefined();
     });
-    fireEvent.click(screen.getByText('import.firstLaunchAction'));
+    fireEvent.click(screen.getByText('import.scanTitle'));
 
     await waitFor(() => {
       expect(screen.getByText('import.previewTitle')).toBeDefined();
@@ -367,13 +397,13 @@ describe('Dashboard', () => {
     render(<Dashboard />);
 
     await waitFor(() => {
-      expect(screen.getByText('import.firstLaunchTitle')).toBeDefined();
+      expect(screen.getByText('dashboard.welcome.title')).toBeDefined();
     });
-    fireEvent.click(screen.getByText('import.firstLaunchAction'));
+    fireEvent.click(screen.getByText('import.scanTitle'));
 
-    // No dialog should open; guide card remains
+    // No dialog should open; welcome card remains
     await waitFor(() => {
-      expect(screen.getByText('import.firstLaunchTitle')).toBeDefined();
+      expect(screen.getByText('dashboard.welcome.title')).toBeDefined();
     });
     expect(screen.queryByText('import.previewTitle')).toBeNull();
   });

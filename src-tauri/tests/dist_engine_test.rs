@@ -1343,6 +1343,7 @@ mod failing_detect {
                 installed: vec![],
                 updated: vec![],
                 removed: vec![],
+                skipped: 0,
                 errors: vec![],
             })
         }
@@ -1882,6 +1883,7 @@ mod project_only_rules {
                 installed: vec![],
                 updated: vec![],
                 removed: vec![],
+                skipped: 0,
                 errors: vec![],
             })
         }

@@ -255,6 +255,7 @@ impl PlatformPlugin for TestPlatformPlugin {
             installed: vec![],
             updated: vec![],
             removed: vec![],
+            skipped: 0,
             errors: vec![],
         };
         if target.exists() || target.symlink_metadata().is_ok() {

@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { X } from 'lucide-react';
@@ -12,6 +12,7 @@ interface ConfirmDialogProps {
   variant?: 'danger' | 'primary';
   onConfirm: () => void;
   onCancel: () => void;
+  children?: React.ReactNode;
 }
 
 export const ConfirmDialog = memo(function ConfirmDialog({
@@ -23,14 +24,41 @@ export const ConfirmDialog = memo(function ConfirmDialog({
   variant = 'primary',
   onConfirm,
   onCancel,
+  children,
 }: ConfirmDialogProps) {
   const { t } = useTranslation('common');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      previouslyFocused.current?.focus?.();
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onCancel]);
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-[400px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        className="w-[400px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in"
+      >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <button
@@ -41,6 +69,7 @@ export const ConfirmDialog = memo(function ConfirmDialog({
           </button>
         </div>
         <p className="text-sm text-muted-foreground mb-6">{message}</p>
+        {children}
         <div className="flex justify-end gap-2">
           <button
             className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
