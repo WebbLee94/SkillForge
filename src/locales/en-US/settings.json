@@ -8,31 +8,29 @@
   "general": {
     "language": { "title": "Language", "desc": "Choose display language" },
     "languageSystem": "Follow System",
+    "darkMode": {
+      "title": "Dark Mode",
+      "desc": "Enable dark mode",
+      "current": "Current: {{mode}}",
+      "modeDark": "Dark",
+      "modeLight": "Light"
+    },
+    "update": {
+      "title": "Update",
+      "desc": "Automatically check for new versions on startup",
+      "checkButton": "Check for Updates",
+      "autoCheckLabel": "Check for updates automatically"
+    },
     "dataDir": {
       "title": "Data Directory",
       "desc": "SkillForge data storage location"
     },
-    "version": { "title": "Version", "desc": "Current application version" },
-    "github": {
-      "title": "GitHub",
-      "desc": "View source code and submit feedback"
+    "community": {
+      "title": "Version & Community",
+      "desc": "v{{version}} · Release Notes / Feedback"
     },
     "distribution": {
-      "title": "Distribution Method",
       "desc": "Skills use symbolic links (source changes take effect immediately), rules use file copy (ensures reliability for multi-rule merging)."
-    },
-    "darkMode": {
-      "title": "Dark Mode",
-      "desc": "Switch between dark and light appearance"
-    },
-    "autoCheckUpdates": {
-      "title": "Check for updates automatically",
-      "desc": "Automatically check for new versions on startup"
-    },
-    "checkUpdates": {
-      "title": "Check for Updates",
-      "desc": "Manually check for a new version",
-      "button": "Check for Updates"
     },
     "dbSizeCalculating": "Calculating..."
   },

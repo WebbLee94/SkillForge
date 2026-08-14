@@ -234,6 +234,11 @@ export interface LocalDistributionEntry {
   path: string;
 }
 
+export interface RevealPathResult {
+  revealed_path: string;
+  fallback: boolean;
+}
+
 export interface SyncResult {
   installed: string[];
   updated: string[];

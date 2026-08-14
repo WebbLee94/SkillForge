@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { Dashboard } from '../Dashboard';
 import { useAppStore } from '../../stores/appStore';
 import { useWatcherStore } from '../../stores/watcherStore';
@@ -296,6 +302,49 @@ describe('Dashboard', () => {
     });
     const grid = screen.getByTestId('dashboard-stats-grid');
     expect(grid.className).toContain('gap-3');
+  });
+
+  it('统计卡网格响应式 4/2×2/1 列（grid-cols-1 md:grid-cols-2 md:min-[1180px]:grid-cols-4）', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+    await waitFor(() =>
+      expect(screen.getByText('dashboard.stats.resources')).toBeDefined()
+    );
+    const grid = screen.getByTestId('dashboard-stats-grid');
+    expect(grid.className).toContain('grid-cols-1');
+    expect(grid.className).toContain('md:grid-cols-2');
+    // md:min-[1180px] 复合变体（外层 md 使 4 列规则排到 md:grid-cols-2 之后，
+    // 内层 min-[1180px] 保持 ≥1180px 断点语义）——修复 Tailwind v4 将 arbitrary
+    // 变体排在标准 md 之前导致 ≥1180px 级联回退为 2 列的问题（P1 回归）。
+    expect(grid.className).toContain('md:min-[1180px]:grid-cols-4');
+    expect(grid.className).toContain('gap-3');
+  });
+
+  it('每张统计卡为整卡边框且 label/value/subtitle 位于同一卡内容器', async () => {
+    useAppStore.setState({ dashboardStats: mkStats() });
+    await setupDefaultRoutes();
+    render(<Dashboard />);
+    await waitFor(() =>
+      expect(screen.getByText('dashboard.stats.resources')).toBeDefined()
+    );
+    const grid = screen.getByTestId('dashboard-stats-grid');
+    const cards = within(grid).getAllByRole('button');
+    expect(cards.length).toBe(4);
+    const labels = [
+      'dashboard.stats.resources',
+      'dashboard.stats.scenes',
+      'dashboard.stats.projects',
+      'dashboard.stats.platforms',
+    ];
+    cards.forEach((card, idx) => {
+      expect(card.className).toContain('border');
+      expect(card.className).toContain('rounded-lg');
+      // 三段文案（label/value/subtitle）均位于同一卡内容器内
+      expect(within(card).getByText(labels[idx])).toBeDefined();
+      expect(card.querySelector('.text-2xl')).not.toBeNull();
+      expect(card.querySelector('.text-xs')).not.toBeNull();
+    });
   });
 
   it('renders quick entry rows for enabled platforms with live counts', async () => {

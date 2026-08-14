@@ -2,6 +2,7 @@ pub mod commands;
 pub mod db;
 pub mod engine;
 pub mod error;
+pub mod fs_reveal;
 pub mod plugins;
 pub mod types;
 
@@ -72,6 +73,7 @@ pub fn run() {
             commands::system::list_platforms,
             commands::system::toggle_platform_enabled,
             commands::system::count_platform_entries,
+            commands::system::reveal_path,
             commands::system::get_db_size,
             commands::system::get_watcher_events,
             commands::system::handle_watcher_event,

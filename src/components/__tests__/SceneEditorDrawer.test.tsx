@@ -5,6 +5,7 @@ import {
   fireEvent,
   waitFor,
   within,
+  act,
 } from '@testing-library/react';
 import { SceneEditorDrawer } from '../SceneEditorDrawer';
 import { BOUNDED_STEP } from '../../lib/useBoundedReveal';
@@ -476,6 +477,65 @@ describe('SceneEditorDrawer', () => {
     expect(screen.getByTestId('drawer-save-scope-note').textContent).toBe(
       'drawer.saveScopeNote'
     );
+  });
+
+  it('配置内容为右侧抽屉 + 半透明遮罩（不覆盖整个窗口为不透明层）', async () => {
+    await seedInvoke({ list_tags: [] });
+    renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')) });
+
+    const drawer = screen.getByTestId('scene-drawer');
+    expect(drawer.className).toContain('fixed');
+    expect(drawer.className).toContain('right-0');
+    expect(drawer.className).toContain('w-[min(920px,96vw)]');
+    expect(drawer.className).toContain('transition-transform');
+
+    const overlay = screen.getByTestId('scene-drawer-overlay');
+    expect(overlay.className).toContain('bg-black/40');
+    expect(overlay.className).not.toContain('bg-background');
+  });
+
+  it('抽屉初始处于右侧外（translate-x-full/closed），两帧后过渡到稳定态（translate-x-0/open）', async () => {
+    vi.useFakeTimers();
+    try {
+      await seedInvoke({ list_tags: [] });
+      renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')) });
+
+      const drawer = screen.getByTestId('scene-drawer');
+      expect(drawer.className).toContain('translate-x-full');
+      expect(drawer.className).not.toContain('translate-x-0');
+      expect(drawer).toHaveAttribute('data-state', 'closed');
+
+      act(() => {
+        vi.advanceTimersByTime(40);
+      });
+
+      expect(drawer.className).toContain('translate-x-0');
+      expect(drawer.className).not.toContain('translate-x-full');
+      expect(drawer).toHaveAttribute('data-state', 'open');
+      expect(drawer.className).toContain('transition-transform');
+      expect(drawer.className).toContain('duration-200');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('未保存弹层位于 wrapper 层级，不在带 transform 的抽屉面板内（保持全视口 fixed 几何）', async () => {
+    await seedInvoke({ list_tags: [] });
+    renderDrawer({
+      saved: aDetail(aScene('s1', 'Scene One')),
+      skills: [aSkill('sk1', 'S1')],
+    });
+
+    fireEvent.click(screen.getAllByRole('checkbox')[0]);
+    fireEvent.click(screen.getByText('drawer.addSelected'));
+    fireEvent.click(screen.getByText('actions.cancel'));
+
+    const unsavedDialog = screen
+      .getByText('drawer.unsavedTitle')
+      .closest('[role="dialog"]') as HTMLElement;
+    const drawer = screen.getByTestId('scene-drawer');
+    expect(unsavedDialog).not.toBeNull();
+    expect(drawer.contains(unsavedDialog)).toBe(false);
   });
 });
 

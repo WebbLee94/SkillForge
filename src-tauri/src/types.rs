@@ -408,6 +408,13 @@ pub struct LocalDistributionEntry {
     pub path: String,
 }
 
+/// reveal_path 命令返回：实际揭示的路径 + 是否发生了祖先回退。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RevealPathResult {
+    pub revealed_path: String,
+    pub fallback: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DistributionIntentMode {

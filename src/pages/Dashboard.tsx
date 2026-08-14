@@ -114,10 +114,7 @@ export function Dashboard() {
     {
       label: t('dashboard.stats.resources'),
       value: `${skillCount} / ${ruleCount}`,
-      subtitle: t('dashboard.stats.resourcesSubtitle', {
-        skills: skillCount,
-        rules: ruleCount,
-      }),
+      subtitle: t('dashboard.stats.resourcesSubtitle'),
       icon: <Package className="h-5 w-5" />,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
@@ -144,10 +141,7 @@ export function Dashboard() {
     {
       label: t('dashboard.stats.platforms'),
       value: `${enabledPlatforms.length} / ${platforms.length}`,
-      subtitle: t('dashboard.stats.platformsSubtitle', {
-        enabled: enabledPlatforms.length,
-        total: platforms.length,
-      }),
+      subtitle: t('dashboard.stats.platformsSubtitle'),
       icon: <Globe className="h-5 w-5" />,
       color: 'text-violet-600 dark:text-violet-400',
       bgColor: 'bg-violet-100 dark:bg-violet-950',
@@ -181,24 +175,16 @@ export function Dashboard() {
 
       <WatcherNotification />
 
-      {/* Welcome guide card — first launch; contains the 3-step stepper */}
-      {showGuideCard && (
-        <WelcomeGuideCard
-          onDismiss={handleDismissGuide}
-          onNavigate={setActiveNav}
-        />
-      )}
-
       {/* Stat Cards */}
       <div
         data-testid="dashboard-stats-grid"
-        className="mb-3 grid grid-cols-4 gap-3"
+        className="mb-3 grid grid-cols-1 md:grid-cols-2 md:min-[1180px]:grid-cols-4 gap-3"
       >
         {statCards.map((card) => (
           <button
             key={card.navKey}
             className={cn(
-              'flex items-center gap-4 rounded-lg border border-border bg-card p-4',
+              'flex h-auto items-center gap-4 rounded-lg border border-border bg-card p-4',
               'hover:shadow-md transition-shadow text-left'
             )}
             onClick={() => setActiveNav(card.navKey)}
@@ -224,6 +210,14 @@ export function Dashboard() {
           </button>
         ))}
       </div>
+
+      {/* Welcome guide card — first launch; contains the 3-step stepper */}
+      {showGuideCard && (
+        <WelcomeGuideCard
+          onDismiss={handleDismissGuide}
+          onNavigate={setActiveNav}
+        />
+      )}
 
       <div>
         {/* Quick entry — enabled platforms only */}

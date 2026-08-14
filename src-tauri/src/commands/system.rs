@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::types::{AppConfig, DashboardStats, Platform};
+use crate::types::{AppConfig, DashboardStats, Platform, RevealPathResult};
 use crate::AppState;
 
 use crate::types::FileTreeNode;
@@ -109,6 +109,16 @@ pub fn toggle_platform_enabled(
         params![enabled as i32, id],
     )?;
     Ok(())
+}
+
+/// 29 号 2b：在系统文件管理器中揭示目标目录。
+/// - path 可含 ~（Rust 统一展开）；as_skills_dir=true 时推导主目录（skills 子目录 → 父目录）。
+/// - 目标不存在时回退到最近存在祖先（fallback=true）；全部不存在或系统调用失败返回 Err。
+#[tauri::command]
+pub fn reveal_path(path: String, as_skills_dir: bool) -> Result<RevealPathResult, AppError> {
+    crate::fs_reveal::reveal_path_with_opener(&path, as_skills_dir, |p| {
+        tauri_plugin_opener::open_path(p, None::<&str>).map_err(|e| e.to_string())
+    })
 }
 
 #[tauri::command]

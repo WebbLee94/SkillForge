@@ -11,7 +11,12 @@
   "noMatchProjects": "No matching projects",
   "goDistributeInWorkspace": "Distribute in Workspace",
   "projectPlatformStats": "{{platform}}: {{skills}} skills · {{rules}} rules",
+  "projectPlatformStatsShort": "{{platform}}: {{skills}} · {{rules}}",
+  "projectPlatformStatsFull": "{{platform}}: {{skills}} skills · {{rules}} rules",
   "noDistributionPlaceholder": "No distributed content yet",
+  "projects": {
+    "statsEmpty": "No distributed content yet"
+  },
   "noEnabledPlatforms": "No Agent Platforms Enabled",
   "noEnabledPlatformsHint": "Please enable at least one Agent platform in Settings",
   "goToSettings": "Go to Settings",
@@ -91,8 +96,18 @@
     "managedToggleHide": "Collapse distributed content",
     "managedPanelTitle": "Managed content",
     "managedHint": "Filesystem browsing is handled by the system file manager; the panel shows only SkillForge-recognized items.",
+    "managed": {
+      "pendingRemove": "{{count}} item(s) pending removal (double-confirm before execution). Removal only affects SkillForge-managed content.",
+      "sectionSkills": "Skills ({{count}})",
+      "sectionRules": "Rules ({{count}})",
+      "badgeManaged": "Managed",
+      "badgeKeep": "Keep",
+      "unknownNote": "Unmanaged / user-owned content, kept read-only; cannot be deleted from this page"
+    },
     "revealMac": "Show in Finder",
     "revealWin": "Show in Folder",
+    "revealFallback": "Target directory does not exist; opened the nearest available directory",
+    "revealFailed": "Target directory does not exist or cannot be opened",
     "remove": "Remove",
     "undoRemove": "Undo remove",
     "removeSkill": "Remove skill",

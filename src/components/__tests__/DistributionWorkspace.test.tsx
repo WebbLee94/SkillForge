@@ -6,26 +6,29 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { DistributionWorkspace } from '../DistributionWorkspace';
+import { DistributionWorkspace, resolveRevealAsSkillsDir } from '../DistributionWorkspace';
 import { useAppStore } from '../../stores/appStore';
 import { SELECT_CLASSES } from '../../lib/ui-tokens';
 import type { Platform, Project, Scene, Rule, Skill } from '../../types';
+import { invoke } from '@tauri-apps/api/core';
 
 /* Hoisted mocks */
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-
-const openerMocks = vi.hoisted(() => ({
-  openPath: vi.fn().mockResolvedValue(undefined),
-}));
-vi.mock('@tauri-apps/plugin-opener', () => ({
-  openPath: openerMocks.openPath,
-}));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       if (key === 'ws.sourceFromScene') {
-        return `来自 Scene：${params?.name ?? ''}`;
+        return `来自场景：${params?.name ?? ''}`;
+      }
+      if (key === 'ws.managed.pendingRemove') {
+        return `当前待移除 ${params?.count ?? 0} 项（进入计划后二次确认才执行）`;
+      }
+      if (key === 'ws.managed.sectionSkills') {
+        return `技能（${params?.count ?? 0}）`;
+      }
+      if (key === 'ws.managed.sectionRules') {
+        return `规则（${params?.count ?? 0}）`;
       }
       return key;
     },
@@ -219,7 +222,6 @@ describe('DistributionWorkspace', () => {
   beforeEach(() => {
     seedStore();
     vi.clearAllMocks();
-    openerMocks.openPath.mockClear();
   });
 
   it('renders the four-step stepper (选择目标/选择资源/确认计划/查看结果)', async () => {
@@ -250,6 +252,43 @@ describe('DistributionWorkspace', () => {
     expect(
       container.querySelectorAll('[data-testid="ws-step-connector"]')
     ).toHaveLength(3);
+  });
+
+  it('Step1 操作区仅「下一步」，无「上一步」；Step2 保留「上一步」', async () => {
+    await setupInvoke({
+      ...baseRoutes(),
+      preview_distribution: mkPlan(),
+      execute_distribution: mkResult(),
+    });
+    render(<DistributionWorkspace />);
+    await waitFor(() =>
+      expect(screen.getByText('ws.step1.title')).toBeDefined()
+    );
+    expect(
+      screen.queryByRole('button', { name: /ws.backStep|上一步/i })
+    ).toBeNull();
+    fireEvent.click(screen.getByText('ws.nextToResources'));
+    await waitForStep2();
+    expect(
+      screen.getByRole('button', { name: /ws.backStep|上一步/i })
+    ).toBeDefined();
+  });
+
+  it('workspace-actions 操作区容器支持 flex-wrap（窄屏可换行）', async () => {
+    await setupInvoke({
+      ...baseRoutes(),
+      preview_distribution: mkPlan(),
+      execute_distribution: mkResult(),
+    });
+    const { container } = render(<DistributionWorkspace />);
+    await waitFor(() =>
+      expect(screen.getByText('ws.step1.title')).toBeDefined()
+    );
+    const step1Actions = container.querySelector(
+      '[data-testid="ws-step1-actions"]'
+    );
+    expect(step1Actions).not.toBeNull();
+    expect(step1Actions?.className).toContain('flex-wrap');
   });
 
   it('shows empty state when no enabled platforms exist', async () => {
@@ -528,6 +567,10 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByLabelText('ws.targetLabel')).toBeDefined()
       );
+      // 2d：回到 Step1 后不应再有「上一步」按钮
+      expect(
+        screen.queryByRole('button', { name: /ws.backStep|上一步/i })
+      ).toBeNull();
 
       fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
         target: { value: 'project:p-1' },
@@ -544,7 +587,10 @@ describe('DistributionWorkspace', () => {
       const lastSelection = previewCalls[previewCalls.length - 1][1];
       expect(lastSelection.scope).toBe('project');
       expect(lastSelection.projectId).toBe('p-1');
-      expect(screen.getByText('/tmp/p-1/.claude-code/skills')).toBeDefined();
+      // Step3 双路径布局下同一路径出现于 planTarget 摘要与 skills-path 行，改用 getAllByText
+      expect(
+        screen.getAllByText('/tmp/p-1/.claude-code/skills').length
+      ).toBeGreaterThan(0);
     });
 
     it('blocks advancing when the project target no longer exists', async () => {
@@ -668,12 +714,12 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.managedPanelTitle')).toBeDefined()
       );
       expect(screen.getByText('ws.revealMac')).toBeDefined();
-      expect(screen.getByText('ws.managedSkills')).toBeDefined();
-      expect(screen.getByText('ws.managedRules')).toBeDefined();
+      expect(screen.getByText('技能（1）')).toBeDefined();
+      expect(screen.getByText('规则（1）')).toBeDefined();
       expect(screen.getByText('user-skill')).toBeDefined();
     });
 
-    it('calls the platform-native reveal action when the reveal button is clicked', async () => {
+    it('全局目标点击「在访达中显示」→ invoke reveal_path(path, asSkillsDir=true)', async () => {
       setMacPlatform();
       await setupInvoke({
         ...baseRoutes(),
@@ -691,6 +737,7 @@ describe('DistributionWorkspace', () => {
             },
           ],
         },
+        reveal_path: { revealed_path: '/home/.claude-code', fallback: false },
         preview_distribution: mkPlan(),
         execute_distribution: mkResult(),
       });
@@ -703,8 +750,120 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
       fireEvent.click(screen.getByText('ws.revealMac'));
-      await waitFor(() => expect(openerMocks.openPath).toHaveBeenCalled());
-      expect(openerMocks.openPath.mock.calls[0][0]).toContain('.claude-code');
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('reveal_path', {
+          path: '/home/.claude-code/skills',
+          asSkillsDir: true,
+        })
+      );
+    });
+
+    it('项目目标点击 → invoke reveal_path(project.path, asSkillsDir=false)', async () => {
+      setMacPlatform();
+      seedStore({ projects: [mkProj('p-1', 'My Project')] });
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'project',
+              project_path: '/tmp/p-1',
+              skills: [],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        reveal_path: { revealed_path: '/tmp/p-1', fallback: false },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace scope="project" initialProjectId="p-1" />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      await waitFor(() =>
+        expect(screen.getByText('ws.revealMac')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.revealMac'));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('reveal_path', {
+          path: '/tmp/p-1',
+          asSkillsDir: false,
+        })
+      );
+    });
+
+    it('reveal_path 返回 fallback=true → ws.revealFallback toast；reject → ws.revealFailed toast', async () => {
+      setMacPlatform();
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      await waitFor(() =>
+        expect(screen.getByText('ws.revealMac')).toBeDefined()
+      );
+
+      // 两段断言均用 toasts.some(...) 按 message 区分，互不干扰；toasts 由 seedStore 初始化为 []
+      (invoke as any).mockResolvedValueOnce({
+        revealed_path: '/home/.claude-code',
+        fallback: true,
+      });
+      fireEvent.click(screen.getByText('ws.revealMac'));
+      await waitFor(() => {
+        const { toasts } = useAppStore.getState();
+        expect(
+          toasts.some(
+            (t) => t.message === 'ws.revealFallback' && t.type === 'info'
+          )
+        ).toBe(true);
+      });
+
+      (invoke as any).mockRejectedValueOnce(new Error('boom'));
+      fireEvent.click(screen.getByText('ws.revealMac'));
+      await waitFor(() => {
+        const { toasts } = useAppStore.getState();
+        expect(
+          toasts.some(
+            (t) => t.message === 'ws.revealFailed' && t.type === 'error'
+          )
+        ).toBe(true);
+      });
+    });
+
+    it('resolveRevealAsSkillsDir 白名单机制：项目目标恒 false；注入非空白名单验证根目录平台揭示自身', () => {
+      expect(resolveRevealAsSkillsDir('trae-cn', true)).toBe(false);
+      expect(resolveRevealAsSkillsDir('trae-cn', false)).toBe(true);
+      // 生产默认白名单为空（REVEAL_ROOT_SELF_PLATFORMS = new Set([])）；
+      // 为验证机制，注入非空白名单（skills 目录即平台根目录的平台在全局目标下揭示自身 → false）
+      const rootSelf = new Set(['opencode-root-self']);
+      expect(resolveRevealAsSkillsDir('opencode-root-self', false, rootSelf)).toBe(false);
+      expect(resolveRevealAsSkillsDir('opencode-root-self', true, rootSelf)).toBe(false); // 项目目标恒 false
+      expect(resolveRevealAsSkillsDir('trae-cn', false, rootSelf)).toBe(true); // 非白名单不受注入影响
     });
   });
 
@@ -1207,6 +1366,76 @@ describe('DistributionWorkspace', () => {
         )
       );
     });
+
+    it('Step3 计划展开后渲染 Skills/Rules 双只读路径（Directory + {project} 替换）', async () => {
+      // 项目目标下 Rules 路径由 project_rules_pattern 解析：必须显式 seed 该 pattern，
+      // 否则 mkPlat 默认 project_rules_pattern=null → 渲染 ws.pathUnavailable。
+      const plat = mkPlat('claude-code', 'Claude Code');
+      plat.paths.project_rules_pattern = '{project}/.claude-code/rules';
+      seedStore({
+        projects: [mkProj('p-1', 'My Project')],
+        platforms: [plat],
+      });
+      await setupInvoke({
+        ...baseRoutes(),
+        list_platforms: [plat],
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
+        target: { value: 'project:p-1' },
+      });
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      // Skills 路径 = project_skills_pattern 解析；Rules 路径 = project_rules_pattern 解析
+      expect(screen.getByTestId('ws-step3-skills-path').textContent).toBe(
+        '/tmp/p-1/.claude-code/skills'
+      );
+      expect(screen.getByTestId('ws-step3-rules-path').textContent).toBe(
+        '/tmp/p-1/.claude-code/rules'
+      );
+    });
+
+    it('Step3 SingleFile 模式附「规则写入目标 AGENTS.md」提示', async () => {
+      // SingleFile：project_rules_pattern 即目标文件相对路径（如 codex 的 "AGENTS.md"），
+      // 解析为 {project}/AGENTS.md；同时 seed project_rules_format 触发 rulesSingleFile。
+      const plat = mkPlat('claude-code', 'Claude Code');
+      plat.paths.project_rules_pattern = 'AGENTS.md';
+      plat.paths.project_rules_format = { SingleFile: { file_name: 'AGENTS.md' } };
+      seedStore({
+        projects: [mkProj('p-1', 'My Project')],
+        platforms: [plat],
+      });
+      await setupInvoke({
+        ...baseRoutes(),
+        list_platforms: [plat],
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
+        target: { value: 'project:p-1' },
+      });
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      expect(screen.getByTestId('ws-step3-rules-path').textContent).toBe(
+        '/tmp/p-1/AGENTS.md'
+      );
+      expect(screen.getByText('ws.rulesSingleFileHint')).toBeDefined();
+    });
   });
 
   describe('step 4 — execute and result', () => {
@@ -1513,7 +1742,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() => expect(execCalls).toBe(2));
     });
 
-    it('back at step 1 cancels the distribution with a no-rollback toast', async () => {
+    it('back at step 1 is not available (no backStep button on the first step)', async () => {
       await setupInvoke({
         ...baseRoutes(),
         preview_distribution: mkPlan(),
@@ -1523,12 +1752,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.backStep'));
       expect(
-        useAppStore
-          .getState()
-          .toasts.some((t) => t.message.includes('ws.cancelNoRollback'))
-      ).toBe(true);
+        screen.queryByRole('button', { name: /ws.backStep|上一步/i })
+      ).toBeNull();
     });
   });
 
@@ -1568,7 +1794,7 @@ describe('DistributionWorkspace', () => {
         'ws.sourceLabel'
       ) as HTMLSelectElement;
       expect(sourceSelect.value).toBe('scene:scene-1');
-      expect(screen.getByText('来自 Scene：React 基础')).toBeDefined();
+      expect(screen.getByText('来自场景：React 基础')).toBeDefined();
       expect(screen.getByText('ws.noWritebackHint')).toBeDefined();
       expect(screen.getByTestId('ws-scene-source')).toBeDefined();
       expect(screen.getAllByText('ws.sourceHint').length).toBeGreaterThan(0);
@@ -1910,6 +2136,233 @@ describe('DistributionWorkspace', () => {
         ).toBe(true)
       );
       expect(screen.queryByText('ws.managedPanelTitle')).toBeNull();
+    });
+  });
+
+  describe('managed panel (29 号 2c)', () => {
+    it('受管面板：aria-live 摘要 + 技能/规则分区 + 每行「受管」徽标与移除按钮', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [],
+              local_skills: [
+                {
+                  name: 'local-helper',
+                  path: '/home/.claude-code/skills/local-helper',
+                },
+              ],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // 面板打开依赖 get_managed_distribution_state 异步返回，先等摘要出现
+      const summary = await screen.findByTestId('ws-managed-summary');
+      expect(summary.getAttribute('aria-live')).toBe('polite');
+      expect(summary.textContent).toContain('当前待移除 0 项');
+      // 分区标题按 mock 插值渲染：managedSkills.length=1、managedRules.length=0
+      expect(screen.getByText('技能（1）')).toBeDefined();
+      expect(screen.getByText('规则（0）')).toBeDefined();
+      expect(screen.getByText('ws.managed.badgeManaged')).toBeDefined();
+
+      // 点击「移除」→ 按钮切「取消移除」且摘要计数 +1
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByText('ws.remove')
+      );
+      await waitFor(() => expect(screen.getByText('ws.undoRemove')).toBeDefined());
+      expect(screen.getByTestId('ws-managed-summary').textContent).toContain(
+        '当前待移除 1 项'
+      );
+    });
+
+    it('非受管/本地行含「保留」徽标且无移除按钮', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [],
+              local_skills: [
+                {
+                  name: 'local-helper',
+                  path: '/home/.claude-code/skills/local-helper',
+                },
+              ],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+
+      const localRow = await screen.findByTestId('ws-managed-local-local-helper');
+      expect(localRow).toBeDefined();
+      expect(within(localRow).queryByRole('button')).toBeNull();
+      expect(within(localRow).getByText('ws.managed.badgeKeep')).toBeDefined();
+      expect(within(localRow).getByText('ws.managed.unknownNote')).toBeDefined();
+    });
+  });
+
+  describe('managed panel context switch reset (review fix)', () => {
+    it('切换平台后受管面板关闭且移除标记清空（重新打开需重新拉取）', async () => {
+      seedStore({
+        platforms: [
+          mkPlat('claude-code', 'Claude Code'),
+          mkPlat('opencode', 'OpenCode'),
+        ],
+      });
+      await setupInvoke({
+        ...baseRoutes(),
+        list_platforms: [
+          mkPlat('claude-code', 'Claude Code'),
+          mkPlat('opencode', 'OpenCode'),
+        ],
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+            {
+              platform_id: 'opencode',
+              platform_name: 'OpenCode',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.opencode/skills/React' }],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+
+      // 打开受管面板并标记 s1 移除
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      await screen.findByTestId('ws-managed-skill-s1');
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByText('ws.remove')
+      );
+      await waitFor(() => expect(screen.getByText('ws.undoRemove')).toBeDefined());
+
+      // 切换平台 → 面板关闭
+      fireEvent.change(screen.getByTestId('dist-platform'), {
+        target: { value: 'opencode' },
+      });
+      await waitFor(() =>
+        expect(screen.queryByTestId('ws-managed-panel')).toBeNull()
+      );
+
+      // 重新打开面板：移除标记已清空（计数 0、按钮回到「移除」）
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      const summary = await screen.findByTestId('ws-managed-summary');
+      expect(summary.textContent).toContain('当前待移除 0 项');
+      expect(
+        within(screen.getByTestId('ws-managed-skill-s1')).queryByText(
+          'ws.undoRemove'
+        )
+      ).toBeNull();
+    });
+
+    it('切换目标后受管面板关闭且移除标记清空（重新打开需重新拉取）', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'project',
+              project_path: '/tmp/p-1',
+              skills: [
+                { id: 's1', path: '/tmp/p-1/.claude-code/skills/React' },
+              ],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+
+      // 打开受管面板并标记 s1 移除
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      await screen.findByTestId('ws-managed-skill-s1');
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByText('ws.remove')
+      );
+      await waitFor(() => expect(screen.getByText('ws.undoRemove')).toBeDefined());
+
+      // 切换目标：global → project:p-1 → 面板关闭
+      fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
+        target: { value: 'project:p-1' },
+      });
+      await waitFor(() =>
+        expect(screen.queryByTestId('ws-managed-panel')).toBeNull()
+      );
+
+      // 重新打开面板：移除标记已清空
+      fireEvent.click(screen.getByText('ws.managedToggle'));
+      const summary = await screen.findByTestId('ws-managed-summary');
+      expect(summary.textContent).toContain('当前待移除 0 项');
+      expect(
+        within(screen.getByTestId('ws-managed-skill-s1')).queryByText(
+          'ws.undoRemove'
+        )
+      ).toBeNull();
     });
   });
 });

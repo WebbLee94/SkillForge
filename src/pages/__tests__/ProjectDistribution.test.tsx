@@ -31,12 +31,37 @@ vi.mock('../../components/DistributionWorkspace', () => ({
     </div>
   ),
 }));
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-    i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
-  }),
-}));
+vi.mock('react-i18next', () => {
+  // 与 distribution.json 保持一致的插值模板（平台统计 chips 断言实际文案）；
+  // 其余 key 沿用原始 key 返回，避免破坏既有按 key 断言的用例。
+  const templates: Record<string, string> = {
+    projectPlatformStatsShort: '{{platform}}：{{skills}} · {{rules}}',
+    projectPlatformStatsFull: '{{platform}}：技能 {{skills}} · 规则 {{rules}}',
+    'projects.statsEmpty': '暂无已分发内容',
+  };
+  return {
+    useTranslation: () => ({
+      t: (key: string, options?: Record<string, unknown>) => {
+        let out = templates[key] ?? key;
+        if (options) {
+          for (const [k, v] of Object.entries(options)) {
+            out = out.split(`{{${k}}}`).join(String(v));
+          }
+        }
+        return out;
+      },
+      i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
+    }),
+  };
+});
+
+/* Simulate macOS for platform-native reveal label tests */
+function setMacPlatform() {
+  Object.defineProperty(window.navigator, 'platform', {
+    value: 'MacIntel',
+    configurable: true,
+  });
+}
 
 const mkProj = (id: string, name: string): Project => ({
   id,
@@ -65,10 +90,20 @@ const mkPlat = (id: string, name: string, enabled = true): Platform => ({
 
 async function seedRoutes(routes: Record<string, unknown>) {
   const { invoke } = await import('@tauri-apps/api/core');
-  (invoke as any).mockImplementation((cmd: string) => {
-    if (cmd in routes) return Promise.resolve(routes[cmd]);
-    return Promise.reject(new Error(`Unexpected: ${cmd}`));
-  });
+  (invoke as any).mockImplementation(
+    (cmd: string, args?: Record<string, unknown>) => {
+      if (cmd in routes) {
+        const route = routes[cmd];
+        if (typeof route === 'function') {
+          return Promise.resolve(
+            (route as (a?: Record<string, unknown>) => unknown)(args)
+          );
+        }
+        return Promise.resolve(route);
+      }
+      return Promise.reject(new Error(`Unexpected: ${cmd}`));
+    }
+  );
 }
 
 function resetStore() {
@@ -152,6 +187,93 @@ describe('ProjectDistribution', () => {
     expect(rename.className).toContain('group-hover:opacity-100');
     expect(rename.className).toContain('group-focus-within:opacity-100');
     expect(rename.className).toContain('focus:opacity-100');
+  });
+
+  it('项目路径行 hover 显示目录图标，点击调用 revealPath(project.path, false)', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getByTestId('project-card-p-1')).toBeDefined()
+    );
+
+    const reveal = screen.getByTestId('project-reveal-p-1');
+    expect(reveal.className).toContain('opacity-0');
+    expect(reveal.className).toContain('group-hover:opacity-100');
+    expect(reveal.className).toContain('group-focus-within:opacity-100');
+    expect(reveal.className).toContain('focus:opacity-100');
+    fireEvent.click(reveal);
+    const { invoke } = await import('@tauri-apps/api/core');
+    expect(invoke).toHaveBeenCalledWith('reveal_path', {
+      path: '/tmp/p-1',
+      asSkillsDir: false,
+    });
+  });
+
+  it('项目 reveal 失败 → ws.revealFailed toast', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    // seedRoutes 对未映射命令（含 reveal_path）默认 reject，失败分支由此触发。
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getByTestId('project-card-p-1')).toBeDefined()
+    );
+    fireEvent.click(screen.getByTestId('project-reveal-p-1'));
+    await waitFor(() => {
+      const { toasts } = useAppStore.getState();
+      // i18n mock 返回 raw key，toast message 即为 'ws.revealFailed'
+      expect(
+        toasts.some((t) => t.message === 'ws.revealFailed' && t.type === 'error')
+      ).toBe(true);
+    });
+  });
+
+  it('项目 reveal 返回 fallback=true → ws.revealFallback info toast', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    // 等统计请求 settle，避免 mockResolvedValueOnce 被 count_platform_entries 抢先消费
+    await waitFor(() =>
+      expect(screen.getByTestId('project-stats-empty')).toBeDefined()
+    );
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    (invoke as any).mockResolvedValueOnce({
+      revealed_path: '/tmp/p-1',
+      fallback: true,
+    });
+    fireEvent.click(screen.getByTestId('project-reveal-p-1'));
+    await waitFor(() => {
+      const { toasts } = useAppStore.getState();
+      expect(
+        toasts.some(
+          (t) => t.message === 'ws.revealFallback' && t.type === 'info'
+        )
+      ).toBe(true);
+    });
+  });
+
+  it('reveal 按钮 aria-label 按平台显示（Mac → ws.revealMac）', async () => {
+    setMacPlatform();
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() =>
+      expect(screen.getByTestId('project-reveal-p-1')).toBeDefined()
+    );
+    expect(screen.getByLabelText('ws.revealMac')).toBeDefined();
   });
 
   it('「去工作区分发」carries the project context and navigates to the shared workspace', async () => {
@@ -461,7 +583,7 @@ describe('ProjectDistribution', () => {
     ).toBeDefined();
   });
 
-  it('renders per-project × per-enabled-platform stats lines', async () => {
+  it('renders per-project × per-enabled-platform stats chips with distinct content and full titles', async () => {
     const proj = mkProj('p-1', 'My Project');
     await seedRoutes({
       list_projects: [proj],
@@ -469,20 +591,29 @@ describe('ProjectDistribution', () => {
         mkPlat('claude', 'Claude Code'),
         mkPlat('cursor', 'Cursor'),
       ],
-      count_platform_entries: {
-        platform_id: 'claude',
-        skills: 2,
-        rules: 1,
-        dir_exists: true,
+      // 各平台返回不同统计：若 claude/cursor 内容串线，相同值无法暴露，必须差异化
+      count_platform_entries: async (p: { platformId: string }) => {
+        if (p.platformId === 'claude') {
+          return { platform_id: 'claude', skills: 2, rules: 1, dir_exists: true };
+        }
+        return { platform_id: 'cursor', skills: 5, rules: 3, dir_exists: true };
       },
     });
     render(<ProjectDistribution />);
     await waitFor(() =>
-      expect(screen.getAllByText('projectPlatformStats').length).toBe(2)
+      expect(screen.getByTestId('project-stats-chip-claude')).toBeDefined()
     );
+    const claude = screen.getByTestId('project-stats-chip-claude');
+    const cursor = screen.getByTestId('project-stats-chip-cursor');
+    // 可见 body 仅短文案：{{platform}}：N · N（误渲染完整文案会在此失败）
+    expect(claude.textContent).toBe('Claude Code：2 · 1');
+    expect(cursor.textContent).toBe('Cursor：5 · 3');
+    // title 为完整文案：{{platform}}：技能 N · 规则 N（缺失/截断会在此失败）
+    expect(claude.getAttribute('title')).toBe('Claude Code：技能 2 · 规则 1');
+    expect(cursor.getAttribute('title')).toBe('Cursor：技能 5 · 规则 3');
   });
 
-  it('shows a localized placeholder when no platform has distributed content', async () => {
+  it('shows a localized empty state when no platform has distributed content', async () => {
     const proj = mkProj('p-1', 'My Project');
     await seedRoutes({
       list_projects: [proj],
@@ -496,8 +627,60 @@ describe('ProjectDistribution', () => {
     });
     render(<ProjectDistribution />);
     await waitFor(() =>
-      expect(screen.getByText('noDistributionPlaceholder')).toBeDefined()
+      expect(screen.getByTestId('project-stats-empty')).toBeDefined()
     );
-    expect(screen.queryByText('projectPlatformStats')).toBeNull();
+    // 空状态文案来自 distribution namespace 的 projects.statsEmpty
+    expect(screen.getByText('暂无已分发内容')).toBeDefined();
+    expect(screen.queryByTestId(/project-stats-chip-/)).toBeNull();
+  });
+
+  it('平台统计渲染为 chips：可见仅内容「{{platform}}：N · N」、title 完整「技能 N · 规则 N」', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    const plat = mkPlat('claude', 'Claude Code');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [plat],
+      count_platform_entries: { platform_id: 'claude', skills: 2, rules: 1, dir_exists: true },
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() => expect(screen.getByTestId('project-stats-chip-claude')).toBeDefined());
+    const chip = screen.getByTestId('project-stats-chip-claude');
+    expect(chip.textContent).toContain('2');
+    expect(chip.textContent).toContain('1');
+    expect(chip.getAttribute('title')).toContain('技能 2');
+    expect(chip.getAttribute('title')).toContain('规则 1');
+    expect(chip.className).toContain('rounded-md');
+    expect(chip.className).toContain('border');
+  });
+
+  it('dirExists=false 或双零平台不渲染 chip', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    const a = mkPlat('a', 'A'); const b = mkPlat('b', 'B'); const c = mkPlat('c', 'C');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [a, b, c],
+      // a: 无目录；b: 双零；c: 有内容
+      count_platform_entries: async (p: { platformId: string }) => {
+        if (p.platformId === 'a') return { platform_id: 'a', skills: 0, rules: 0, dir_exists: false };
+        if (p.platformId === 'b') return { platform_id: 'b', skills: 0, rules: 0, dir_exists: true };
+        return { platform_id: 'c', skills: 3, rules: 0, dir_exists: true };
+      },
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() => expect(screen.getByTestId('project-stats-chip-c')).toBeDefined());
+    expect(screen.queryByTestId('project-stats-chip-a')).toBeNull();
+    expect(screen.queryByTestId('project-stats-chip-b')).toBeNull();
+  });
+
+  it('全部平台无内容 → 显示空状态且无 chip', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+      count_platform_entries: { platform_id: 'claude', skills: 0, rules: 0, dir_exists: false },
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() => expect(screen.getByTestId('project-stats-empty')).toBeDefined());
+    expect(screen.queryByTestId(/project-stats-chip-/)).toBeNull();
   });
 });

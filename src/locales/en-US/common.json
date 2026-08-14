@@ -175,13 +175,13 @@
     "skillRuleCount": "Skills / Rules",
     "stats": {
       "resources": "Resources",
-      "resourcesSubtitle": "{{skills}} skills · {{rules}} rules",
+      "resourcesSubtitle": "Skills / Rules",
       "scenes": "Scenes",
       "scenesSubtitle": "Usable as temporary resource combinations",
       "projects": "Projects",
       "projectsSubtitle": "Usable as project distribution targets",
       "platforms": "Agent Platforms",
-      "platformsSubtitle": "{{enabled}} enabled · {{total}} total"
+      "platformsSubtitle": "Enabled / Total Count"
     },
     "welcome": {
       "title": "Welcome to SkillForge",

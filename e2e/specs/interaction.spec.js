@@ -205,11 +205,13 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
       document.documentElement.classList.contains('dark')
     );
 
-    const darkCheckbox = await browser.$('input[aria-label="深色模式"]');
-    await darkCheckbox.waitForExist({ timeout: 10000 });
-    expect(await darkCheckbox.isSelected()).toBe(initialDark);
+    const darkSwitch = await browser.$('[role="switch"][aria-label="深色模式"]');
+    await darkSwitch.waitForExist({ timeout: 10000 });
+    expect(await darkSwitch.getAttribute('aria-checked')).toBe(
+      initialDark ? 'true' : 'false'
+    );
 
-    await darkCheckbox.click();
+    await darkSwitch.click();
     const targetDark = !initialDark;
     await browser.waitUntil(
       async () =>
@@ -221,9 +223,11 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
     expect(
       await browser.execute(() => localStorage.getItem('skillforge-theme'))
     ).toBe(targetDark ? 'dark' : 'light');
-    expect(await darkCheckbox.isSelected()).toBe(targetDark);
+    expect(await darkSwitch.getAttribute('aria-checked')).toBe(
+      targetDark ? 'true' : 'false'
+    );
 
-    await darkCheckbox.click();
+    await darkSwitch.click();
     await browser.waitUntil(
       async () =>
         (await browser.execute(() =>
@@ -234,7 +238,9 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
     expect(
       await browser.execute(() => localStorage.getItem('skillforge-theme'))
     ).toBe(initialDark ? 'dark' : 'light');
-    expect(await darkCheckbox.isSelected()).toBe(initialDark);
+    expect(await darkSwitch.getAttribute('aria-checked')).toBe(
+      initialDark ? 'true' : 'false'
+    );
   });
 });
 
@@ -496,5 +502,136 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
         { sceneId }
       );
     }
+  });
+});
+
+describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
+  it('概览统计卡在 768px 视口为 2×2', async () => {
+    // setWindowSize 以物理像素计；乘以 dpr 使 CSS 视口为 768px（覆盖 768–1179px 的 md 断点区间）
+    const dpr = await browser.execute(() => window.devicePixelRatio);
+    await browser.setWindowSize(768 * dpr, 900 * dpr);
+    await browser.url('/');
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('[data-testid="dashboard-stats-grid"]').isExisting()) ===
+        true,
+      { timeout: 10000, timeoutMsg: '统计卡网格未渲染' }
+    );
+    const cols = await browser.execute(() =>
+      getComputedStyle(
+        document.querySelector('[data-testid="dashboard-stats-grid"]')
+      ).gridTemplateColumns.split(' ').length
+    );
+    expect(cols).toBe(2);
+    const grid = await browser.$('[data-testid="dashboard-stats-grid"]');
+    expect(await grid.getAttribute('class')).toContain('md:grid-cols-2');
+  });
+
+  it('工作区 Step1 无「上一步」，Step3 渲染 Skills/Rules 双路径', async () => {
+    const wsNav = await browser.$('//button[contains(., "工作区")]');
+    await wsNav.waitForExist({ timeout: 10000 });
+    await wsNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/workspace'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /workspace' }
+    );
+    expect(await browser.$$('//button[contains(., "上一步")]')).toHaveLength(0);
+    await (await browser.$('//button[contains(., "下一步")]')).click();
+    await (await browser.$('//button[contains(., "下一步")]')).click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('[data-testid="ws-step3-skills-path"]').isExisting()) ===
+        true,
+      { timeout: 10000, timeoutMsg: 'Step3 Skills 路径未渲染' }
+    );
+    expect(
+      await browser.$('[data-testid="ws-step3-rules-path"]').isExisting()
+    ).toBe(true);
+  });
+
+  it('场景「配置内容」为右侧抽屉 + 半透明遮罩', async () => {
+    const scenesNav = await browser.$('//button[contains(., "场景")]');
+    await scenesNav.waitForExist({ timeout: 10000 });
+    await scenesNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/scenes'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /scenes' }
+    );
+    const firstScene = await browser.$('[data-testid="scene-list-item"]');
+    await firstScene.waitForExist({ timeout: 10000 });
+    await firstScene.click();
+    const configBtn = await browser.$('//button[contains(., "配置内容")]');
+    await configBtn.waitForExist({ timeout: 10000 });
+    await configBtn.click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('[data-testid="scene-drawer"]').isExisting()) === true,
+      { timeout: 10000, timeoutMsg: '场景抽屉未打开' }
+    );
+    const drawer = await browser.$('[data-testid="scene-drawer"]');
+    expect(await drawer.getAttribute('class')).toContain('right-0');
+    expect(await drawer.getAttribute('class')).toContain('w-[min(920px,96vw)]');
+    const overlay = await browser.$('[data-testid="scene-drawer-overlay"]');
+    expect(await overlay.getAttribute('class')).toContain('bg-black/40');
+    await browser.execute(() =>
+      document.querySelector('[data-testid="scene-drawer-overlay"]').click()
+    );
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('[data-testid="scene-drawer"]').isExisting()) === false,
+      { timeout: 5000, timeoutMsg: '遮罩点击未关闭抽屉' }
+    );
+  });
+
+  it('技能页两行工具栏顺序；规则页新建/导入均为 primary 且导入图标向下', async () => {
+    const skillsNav = await browser.$('//button[contains(., "技能")]');
+    await skillsNav.waitForExist({ timeout: 10000 });
+    await skillsNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/skills'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /skills' }
+    );
+    let pageActions = await browser.$('[data-testid="lib-page-actions"]');
+    await pageActions.waitForExist({ timeout: 10000 });
+    let pageButtons = await pageActions.$$('button');
+    expect(pageButtons.length).toBe(2);
+    expect(await pageButtons[0].getAttribute('class')).toContain('bg-primary');
+
+    const rulesNav = await browser.$('//button[contains(., "规则")]');
+    await rulesNav.waitForExist({ timeout: 10000 });
+    await rulesNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/rules'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /rules' }
+    );
+    pageActions = await browser.$('[data-testid="lib-page-actions"]');
+    await pageActions.waitForExist({ timeout: 10000 });
+    pageButtons = await pageActions.$$('button');
+    expect(pageButtons.length).toBe(3);
+    expect(await pageButtons[0].getAttribute('class')).toContain('bg-primary');
+    expect(await pageButtons[1].getAttribute('class')).toContain('bg-primary');
+    expect(await pageButtons[1].$('svg.lucide-download').isExisting()).toBe(true);
+    expect(await pageButtons[1].$('svg.lucide-upload').isExisting()).toBe(false);
+  });
+
+  it('设置通用恰好 5 张卡：更新卡含检查更新按钮与自动检查 switch', async () => {
+    const footer = await browser.$('[data-testid="sidebar-footer"]');
+    await footer.waitForExist({ timeout: 10000 });
+    const settingsBtn = await browser.$(
+      '//*[@data-testid="sidebar-footer"]//button[contains(., "设置")]'
+    );
+    await settingsBtn.waitForExist({ timeout: 10000 });
+    await settingsBtn.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/settings'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /settings' }
+    );
+    const cards = await browser.$$('[data-testid="general-card"]');
+    expect(cards.length).toBe(5);
+    const updateCard = cards[2];
+    expect(
+      await updateCard.$('//button[contains(., "检查更新")]').isExisting()
+    ).toBe(true);
+    expect(await updateCard.$('[role="switch"]').isExisting()).toBe(true);
   });
 });

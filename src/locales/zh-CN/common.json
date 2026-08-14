@@ -175,20 +175,20 @@
     "skillRuleCount": "技能 / 规则",
     "stats": {
       "resources": "资源",
-      "resourcesSubtitle": "技能 {{skills}} · 规则 {{rules}}",
+      "resourcesSubtitle": "技能数 / 规则数",
       "scenes": "场景数量",
       "scenesSubtitle": "可作为临时资源组合",
       "projects": "项目数量",
       "projectsSubtitle": "可作为项目分发目标",
       "platforms": "Agent 平台",
-      "platformsSubtitle": "已开启 {{enabled}} 个 · 共 {{total}} 个"
+      "platformsSubtitle": "已开启数 / 总数"
     },
     "welcome": {
       "title": "欢迎使用 SkillForge",
       "dismiss": "知道了",
       "step1Title": "一键导入",
       "step1Desc": "扫描已开启平台的 Skills 与 Rules",
-      "step2Title": "可选：组合 Scene",
+      "step2Title": "可选：组合场景",
       "step2Desc": "把 Skills 与 Rules 组成可复用模板",
       "step3Title": "进入分发工作区",
       "step3Desc": "生成计划，确认后写入目标"

@@ -420,6 +420,22 @@ describe('SceneEditor — configuration drawer', () => {
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
+
+  it('打开「配置内容」后页面仍在 DOM，遮罩点击关闭', async () => {
+    const s1 = aScene('s-1', 'Scene One');
+    await seedInvoke(baseRoutes([s1], aDetail(s1)));
+    render(<SceneEditor />);
+
+    await waitFor(() =>
+      expect(screen.getByText('detail.configure')).toBeDefined()
+    );
+    fireEvent.click(screen.getByText('detail.configure'));
+    await waitFor(() => expect(screen.getByTestId('scene-drawer')).toBeDefined());
+    expect(screen.getByTestId('scene-page-content')).toBeDefined();
+
+    fireEvent.click(screen.getByTestId('scene-drawer-overlay'));
+    await waitFor(() => expect(screen.queryByTestId('scene-drawer')).toBeNull());
+  });
 });
 
 describe('SceneEditor — use for distribution', () => {

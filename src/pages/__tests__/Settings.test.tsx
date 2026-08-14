@@ -19,11 +19,12 @@ const tMap: Record<string, string> = {
   'topbar.notImplemented': '该功能暂未实现',
   'settings:general.darkMode.title': '深色模式',
   'settings:general.darkMode.desc': '切换深色或浅色外观',
-  'settings:general.autoCheckUpdates.title': '自动检查更新',
-  'settings:general.autoCheckUpdates.desc': '启动时自动检查新版本',
-  'settings:general.checkUpdates.title': '检查更新',
-  'settings:general.checkUpdates.desc': '手动检查是否有新版本',
-  'settings:general.checkUpdates.button': '检查更新',
+  'settings:general.darkMode.current': '当前：{{mode}}',
+  'settings:general.darkMode.modeDark': '深色',
+  'settings:general.darkMode.modeLight': '浅色',
+  'settings:general.update.desc': '每次启动时自动检查新版本',
+  'settings:general.update.checkButton': '检查更新',
+  'settings:general.update.autoCheckLabel': '自动检查更新',
   'settings:platforms.countsFormat': '技能 {{skills}} · 规则 {{rules}}',
   'settings:platforms.capLabels.openTooltip': '查看 {{name}} 的路径与能力',
   'settings:platforms.capLabels.tooltipTitle': '{{name}} · 路径与能力',
@@ -134,7 +135,7 @@ describe('Settings', () => {
     setTheme('light');
   });
 
-  it('renders general tab with all sections', async () => {
+  it('通用设置恰好 5 张卡：语言/深色模式/更新/数据目录/版本与社区；更新卡含按钮+switch；社区卡含版本/GitHub/分发说明', async () => {
     await seedRoutes({
       get_app_config: {
         data_dir: '/u/test/.skillforge',
@@ -144,18 +145,32 @@ describe('Settings', () => {
       get_db_size: '2.3 MB',
     });
     render(<Settings />);
-
-    await waitFor(() =>
-      expect(screen.getByText('settings:title')).toBeDefined()
-    );
-    expect(screen.getByText('settings:tabs.general')).toBeDefined();
-    expect(screen.getByText('~/.skillforge')).toBeDefined();
-    expect(screen.getByText('2.3 MB')).toBeDefined();
+    const cards = screen.getAllByTestId('general-card');
+    expect(cards.length).toBe(5);
     expect(screen.getByText('settings:general.language.title')).toBeDefined();
-    expect(screen.getByText('settings:general.version.title')).toBeDefined();
-    expect(screen.getByText('settings:general.github.title')).toBeDefined();
+    expect(screen.getByText('深色模式')).toBeDefined();
+    expect(screen.getByText('settings:general.update.title')).toBeDefined();
+    expect(screen.getByText('settings:general.dataDir.title')).toBeDefined();
+    expect(screen.getByText('settings:general.community.title')).toBeDefined();
+    // 旧卡不残留
+    expect(screen.queryByText('settings:general.autoCheckUpdates.title')).toBeNull();
+    expect(screen.queryByText('settings:general.checkUpdates.title')).toBeNull();
+    expect(screen.queryByText('settings:general.version.title')).toBeNull();
+    expect(screen.queryByText('settings:general.github.title')).toBeNull();
+    // 更新卡：检查更新按钮（toast 占位）+ 自动检查 switch（role=switch）
+    const updateCard = cards[2];
     expect(
-      screen.getByText('settings:general.distribution.title')
+      within(updateCard).getByRole('button', { name: '检查更新' })
+    ).toBeDefined();
+    expect(within(updateCard).getByRole('switch')).toBeDefined();
+    // 版本与社区卡：版本徽标 + GitHub 链接 + 分发方式说明
+    const communityCard = cards[4];
+    expect(within(communityCard).getByText('v1.1.0')).toBeDefined();
+    expect(
+      within(communityCard).getByText('github.com/WebbLee94/SkillForge')
+    ).toBeDefined(); // 生产显示 GITHUB_URL.replace('https://', '')
+    expect(
+      within(communityCard).getByText('settings:general.distribution.desc')
     ).toBeDefined();
   });
 
@@ -320,7 +335,7 @@ describe('Settings', () => {
     await waitFor(() => expect(screen.getByText('3.1 MB')).toBeDefined());
   });
 
-  it('renders dark mode, auto-check-updates and manual check cards', async () => {
+  it('renders dark mode and the consolidated update card (switch + check button)', async () => {
     await seedRoutes({
       get_app_config: {
         data_dir: '/d/.skillforge',
@@ -334,14 +349,14 @@ describe('Settings', () => {
       expect(screen.getByText('settings:title')).toBeDefined()
     );
     expect(
-      screen.getByRole('checkbox', { name: /深色模式|dark mode/i })
+      screen.getByRole('switch', { name: /深色模式|dark mode/i })
     ).toBeDefined();
     expect(
-      screen.getByRole('checkbox', {
+      screen.getByRole('switch', {
         name: /自动检查更新|check for updates automatically/i,
       })
     ).toBeDefined();
-    expect(screen.getByText('手动检查是否有新版本')).toBeDefined();
+    expect(screen.getByText('每次启动时自动检查新版本')).toBeDefined();
     expect(
       screen.getByRole('button', { name: /检查更新|check for updates/i })
     ).toBeDefined();
@@ -361,12 +376,64 @@ describe('Settings', () => {
       expect(screen.getByText('settings:title')).toBeDefined()
     );
     fireEvent.click(
-      screen.getByRole('checkbox', { name: /深色模式|dark mode/i })
+      screen.getByRole('switch', { name: /深色模式|dark mode/i })
     );
     expect(document.documentElement).toHaveClass('dark');
     expect(
-      screen.getByRole('checkbox', { name: /深色模式|dark mode/i })
-    ).toBeChecked();
+      screen.getByRole('switch', { name: /深色模式|dark mode/i }).getAttribute(
+        'aria-checked'
+      )
+    ).toBe('true');
+  });
+
+  it('深色模式为开关：开=深色、关=浅色，持久化不回退，当前模式小字联动', async () => {
+    await seedRoutes({
+      get_app_config: {
+        data_dir: '/u/test/.skillforge',
+        db_path: '/u/test/.skillforge/db.sqlite',
+        version: '1.1.0',
+      },
+      get_db_size: '2.3 MB',
+    });
+    render(<Settings />);
+    const darkSwitch = screen.getByRole('switch', {
+      name: /深色模式|dark mode/i,
+    });
+    // 初始浅色：开关关 + 当前模式小字「浅色」
+    expect(darkSwitch.getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByText('当前：浅色')).toBeDefined();
+    expect(screen.queryByText('当前：深色')).toBeNull();
+
+    fireEvent.click(darkSwitch);
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+    expect(darkSwitch.getAttribute('aria-checked')).toBe('true');
+    // 当前模式小字随主题联动为「深色」
+    expect(screen.getByText('当前：深色')).toBeDefined();
+    expect(screen.queryByText('当前：浅色')).toBeNull();
+  });
+
+  it('深色模式开关带聚焦环样式（与平台表 switch 一致）', async () => {
+    await seedRoutes({
+      get_app_config: {
+        data_dir: '/d/.skillforge',
+        db_path: '',
+        version: '1.1.0',
+      },
+      get_db_size: '1.1 MB',
+    });
+    render(<Settings />);
+    const darkSwitch = screen.getByRole('switch', {
+      name: /深色模式|dark mode/i,
+    });
+    for (const token of [
+      'focus:outline-none',
+      'focus:ring-2',
+      'focus:ring-ring',
+      'focus:ring-offset-2',
+    ]) {
+      expect(darkSwitch.className).toContain(token);
+    }
   });
 
   it('keeps Settings as the sole theme entry that toggles and persists the dark class', async () => {
@@ -387,7 +454,7 @@ describe('Settings', () => {
       screen.queryByRole('button', { name: /切换深色模式|toggle theme/i })
     ).toBeNull();
 
-    const darkSwitch = screen.getByRole('checkbox', {
+    const darkSwitch = screen.getByRole('switch', {
       name: /深色模式|dark mode/i,
     });
     fireEvent.click(darkSwitch);
@@ -395,7 +462,7 @@ describe('Settings', () => {
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
 
     fireEvent.click(
-      screen.getByRole('checkbox', { name: /深色模式|dark mode/i })
+      screen.getByRole('switch', { name: /深色模式|dark mode/i })
     );
     expect(document.documentElement).not.toHaveClass('dark');
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
@@ -995,6 +1062,25 @@ describe('Settings', () => {
     const wrap = screen.getByTestId('platform-table-wrap');
     expect(wrap.className).not.toContain('max-w-[800px]');
     expect(wrap.className).not.toContain('overflow-hidden');
+  });
+
+  it('通用设置宽度与平台表一致（max-w-[1180px]）且两 Tab 首卡有上间距 pt-3', async () => {
+    await seedRoutes({
+      get_app_config: {
+        data_dir: '/u/test/.skillforge',
+        db_path: '/u/test/.skillforge/db.sqlite',
+        version: '1.1.0',
+      },
+      get_db_size: '2.3 MB',
+    });
+    render(<Settings />);
+    const general = screen.getByTestId('general-content');
+    expect(general.className).not.toContain('max-w-[600px]');
+    expect(general.className).toContain('max-w-[1180px]');
+    expect(general.className).toContain('pt-3');
+    fireEvent.click(screen.getByRole('tab', { name: /settings:tabs.platforms/ }));
+    const platformWrap = screen.getByTestId('platform-table-wrap');
+    expect(platformWrap.className).toContain('pt-3');
   });
 
   it('平台名称下不再显示冗余启用状态文字', async () => {

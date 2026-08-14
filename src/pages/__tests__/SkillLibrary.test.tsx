@@ -787,24 +787,37 @@ describe('SkillLibrary — 页头/工具栏/筛选/Inspector 对齐（决策 7�
     vi.clearAllMocks();
   });
 
-  it('页头右侧控件顺序：视图切换 seg → 批量操作 → 导入(primary)', async () => {
+  it('页头行：导入(primary+Download) → 管理标签(outline)；工具栏行：计数 → view seg → 批量', async () => {
     await setupInvoke({ list_skills: [mkSkill('s1', 'React')], list_tags: [] });
     render(<SkillLibrary />);
     await waitFor(() => {
       expect(screen.getByText('React')).toBeDefined();
     });
-    const actions = screen.getByTestId('lib-page-actions');
-    // 视图切换 seg 是 actions 内首个控件（tablist 语义，aria-label="view-toggle"）
-    const seg = within(actions).getByRole('tablist');
+    // 页头行：仅 导入(primary+Download) → 管理标签(outline) 两个操作
+    const pageActions = screen.getByTestId('lib-page-actions');
+    const pageButtons = within(pageActions).getAllByRole('button');
+    expect(pageButtons).toHaveLength(2);
+    expect(pageButtons[0].className).toContain('bg-primary');
+    expect(pageButtons[0].querySelector('svg.lucide-download')).not.toBeNull();
+    expect(within(pageButtons[0]).getByText('actions.import')).toBeDefined();
+    expect(pageButtons[1].className).toContain('border');
+    expect(within(pageButtons[1]).getByText('tag.manageTags')).toBeDefined();
+    // 产品差异：技能页无「新建技能」入口
+    expect(screen.queryByText(/create/)).toBeNull();
+
+    // 工具栏行：计数 → view seg → 批量
+    const toolbarActions = screen.getByTestId('lib-toolbar-actions');
+    const countSpan = within(toolbarActions).getByTestId('lib-toolbar-count');
+    const seg = within(toolbarActions).getByRole('tablist');
     expect(seg).toHaveAttribute('aria-label', 'view-toggle');
-    const buttons = within(actions).getAllByRole('button');
-    const labels = buttons.map((b) => (b.textContent || '').trim());
-    expect(labels).toEqual(['actions.batchSelect', 'actions.import']);
-    // 最后一个为导入（primary 样式）
-    expect(buttons[buttons.length - 1].className).toContain('bg-primary');
-    // seg 在批量操作按钮之前（DOM 顺序）
+    const batchBtn = within(toolbarActions)
+      .getByText('actions.batchSelect')
+      .closest('button')!;
     expect(
-      seg.compareDocumentPosition(buttons[0]) & Node.DOCUMENT_POSITION_FOLLOWING
+      countSpan.compareDocumentPosition(seg) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(
+      seg.compareDocumentPosition(batchBtn) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
   });
 

@@ -8,6 +8,7 @@ import {
   Plus,
   Settings,
   Folder,
+  FolderOpen,
   OctagonX,
   Pencil,
   CheckSquare,
@@ -40,36 +41,50 @@ interface ProjectStatsRowProps {
   t: (key: string, options?: Record<string, unknown>) => string;
 }
 
+const isMacOS = () =>
+  typeof navigator !== 'undefined' &&
+  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+
 function ProjectStatsRow({
-  projectId,
   enabledPlatforms,
   stats,
   t,
 }: ProjectStatsRowProps) {
-  const rows = enabledPlatforms.map((platform) => {
-    const entry = stats?.[platform.id];
-    return {
-      platform,
-      skills: entry?.skills ?? 0,
-      rules: entry?.rules ?? 0,
-      dirExists: entry?.dir_exists ?? false,
-    };
-  });
-  const hasContent = rows.some(
-    (r) => r.dirExists && (r.skills > 0 || r.rules > 0)
-  );
-  if (!hasContent) {
+  const rows = enabledPlatforms
+    .map((platform) => {
+      const entry = stats?.[platform.id];
+      return {
+        platform,
+        skills: entry?.skills ?? 0,
+        rules: entry?.rules ?? 0,
+        dirExists: entry?.dir_exists ?? false,
+      };
+    })
+    .filter((r) => r.dirExists && (r.skills > 0 || r.rules > 0));
+  if (rows.length === 0) {
     return (
-      <div className="mt-2 text-xs text-muted-foreground">
-        {t('noDistributionPlaceholder')}
+      <div
+        data-testid="project-stats-empty"
+        className="mt-2 text-xs text-muted-foreground"
+      >
+        {t('projects.statsEmpty')}
       </div>
     );
   }
   return (
-    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+    <div className="mt-2 flex flex-wrap gap-1.5">
       {rows.map((r) => (
-        <span key={r.platform.id} data-testid={`platform-stats-${projectId}-${r.platform.id}`}>
-          {t('projectPlatformStats', {
+        <span
+          key={r.platform.id}
+          data-testid={`project-stats-chip-${r.platform.id}`}
+          title={t('projectPlatformStatsFull', {
+            platform: r.platform.name,
+            skills: r.skills,
+            rules: r.rules,
+          })}
+          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-primary/40"
+        >
+          {t('projectPlatformStatsShort', {
             platform: r.platform.name,
             skills: r.skills,
             rules: r.rules,
@@ -329,8 +344,34 @@ export function ProjectDistribution() {
                           </button>
                         </div>
                       )}
-                      <div className="truncate text-xs text-muted-foreground">
-                        {sanitizePath(project.path)}
+                      <div className="flex items-center gap-1.5">
+                        <div className="truncate text-xs text-muted-foreground">
+                          {sanitizePath(project.path)}
+                        </div>
+                        <button
+                          aria-label={isMacOS() ? t('ws.revealMac') : t('ws.revealWin')}
+                          title={isMacOS() ? t('ws.revealMac') : t('ws.revealWin')}
+                          data-testid={`project-reveal-${project.id}`}
+                          onClick={() => {
+                            ipc
+                              .revealPath(project.path, false)
+                              .then((res) => {
+                                if (res.fallback) {
+                                  useAppStore
+                                    .getState()
+                                    .addToast(t('ws.revealFallback'), 'info');
+                                }
+                              })
+                              .catch(() =>
+                                useAppStore
+                                  .getState()
+                                  .addToast(t('ws.revealFailed'), 'error')
+                              );
+                          }}
+                          className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+                        >
+                          <FolderOpen className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                     <button

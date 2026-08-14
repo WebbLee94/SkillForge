@@ -24,6 +24,7 @@ import type {
   DistributionPlan,
   DistributionSelection,
   ManagedDistributionState,
+  RevealPathResult,
   FileTreeNode,
 } from '../types';
 
@@ -147,6 +148,9 @@ export const ipc = {
     invoke<void>('remove_tag', { targetType, targetId, tagId }),
 
   // System
+  // Reveal (29 号 2b): Rust 统一 tilde 展开 + 主目录推导 + 祖先回退
+  revealPath: (path: string, asSkillsDir: boolean) =>
+    invoke<RevealPathResult>('reveal_path', { path, asSkillsDir }),
   getAppConfig: () => invoke<AppConfig>('get_app_config'),
   getDashboardStats: () => invoke<DashboardStats>('get_dashboard_stats'),
   listPlatforms: () => invoke<Platform[]>('list_platforms'),

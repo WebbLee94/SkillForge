@@ -60,6 +60,20 @@ export function SceneEditorDrawer({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    // 双 rAF：先让首帧以 translate-x-full（右侧外）完成绘制，再切 translate-x-0 触发 200ms 滑入
+    let raf1 = 0;
+    let raf2 = 0;
+    raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setMounted(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, []);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -269,15 +283,26 @@ export function SceneEditorDrawer({
   };
 
   return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('drawer.title', { name: saved.scene.name })}
-      tabIndex={-1}
-      className="fixed inset-0 z-50 flex flex-col bg-background"
-      data-testid="scene-drawer"
-    >
+    <div className="fixed inset-0 z-50">
+      <div
+        data-testid="scene-drawer-overlay"
+        aria-hidden="true"
+        className="absolute inset-0 bg-black/40"
+        onClick={requestClose}
+      />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={t('drawer.title', { name: saved.scene.name })}
+        tabIndex={-1}
+        data-testid="scene-drawer"
+        data-state={mounted ? 'open' : 'closed'}
+        className={cn(
+          'fixed inset-y-0 right-0 flex w-[min(920px,96vw)] flex-col bg-background shadow-[-8px_0_24px_rgba(0,0,0,0.15)] transition-transform duration-200',
+          mounted ? 'translate-x-0' : 'translate-x-full'
+        )}
+      >
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Package className="h-5 w-5 text-primary" />
@@ -710,6 +735,7 @@ export function SceneEditorDrawer({
         </button>
       </div>
 
+      </div>
       {/* Unsaved-leave dialog */}
       {showUnsaved && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">

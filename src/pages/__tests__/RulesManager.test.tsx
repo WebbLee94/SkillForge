@@ -1123,33 +1123,54 @@ describe('RulesManager — 统一底部粘性批量栏', () => {
 });
 
 /* =================================================== */
-/*  Task 5：规则页头四动作 + Inspector 对齐（决策 7）     */
+/*  Task 11：规则页两行工具栏 + 产品差异锁定（29 号 5a/5b） */
 /* =================================================== */
-describe('RulesManager — 页头四动作/Inspector 对齐（决策 7）', () => {
+describe('RulesManager — 规则页两行工具栏/Inspector 对齐（决策 7）', () => {
   beforeEach(() => {
     resetStore();
     vi.clearAllMocks();
   });
 
-  it('规则页头保留四动作：视图切换 → 批量操作 → 导入(次) → 新建(primary)', async () => {
+  it('规则页两行：页头=新建(primary+Plus)→导入(primary+Download)→管理标签(outline)；工具栏=计数→view seg→批量', async () => {
     await seedInvoke({ list_rules: [aRule('r1', 'Rule A')], list_tags: [] });
     render(<RulesManager />);
     await waitFor(() => {
       expect(screen.getByText('Rule A')).toBeDefined();
     });
-    const actions = screen.getByTestId('lib-page-actions');
-    // 视图切换 seg 是 actions 内首个控件（tablist 语义，aria-label="view-toggle"）
-    const seg = within(actions).getByRole('tablist');
+    // 页头行：新建(primary+Plus) → 导入(primary+Download) → 管理标签(outline)
+    const pageActions = screen.getByTestId('lib-page-actions');
+    const pageButtons = within(pageActions).getAllByRole('button');
+    expect(pageButtons).toHaveLength(3);
+    // 新建规则 primary + Plus
+    expect(pageButtons[0].className).toContain('bg-primary');
+    expect(pageButtons[0].querySelector('svg.lucide-plus')).not.toBeNull();
+    expect(within(pageButtons[0]).getByText('createRule')).toBeDefined();
+    // 导入图标向下（Download 非 Upload，5b 无降级备选）
+    expect(pageButtons[1].className).toContain('bg-primary');
+    expect(pageButtons[1].querySelector('svg.lucide-download')).not.toBeNull();
+    expect(pageButtons[1].querySelector('svg.lucide-upload')).toBeNull();
+    expect(within(pageButtons[1]).getByText('importRules')).toBeDefined();
+    // 管理标签 outline
+    expect(pageButtons[2].className).toContain('border');
+    expect(within(pageButtons[2]).getByText('tag.manageTags')).toBeDefined();
+
+    // 工具栏行同技能页：计数 → view seg → 批量
+    const toolbarActions = screen.getByTestId('lib-toolbar-actions');
+    const countSpan = within(toolbarActions).getByTestId('lib-toolbar-count');
+    const seg = within(toolbarActions).getByRole('tablist');
     expect(seg).toHaveAttribute('aria-label', 'view-toggle');
-    const buttons = within(actions).getAllByRole('button');
-    const labels = buttons.map((b) => (b.textContent || '').trim());
-    // 不得收敛为技能页三按钮结构：批量 → 导入（outline）→ 新建（primary）
-    expect(labels).toEqual(['actions.batchSelect', 'importRules', 'createRule']);
-    expect(buttons[buttons.length - 1].className).toContain('bg-primary');
-    expect(buttons[buttons.length - 2].className).not.toContain('bg-primary');
+    const batchBtn = within(toolbarActions)
+      .getByText('actions.batchSelect')
+      .closest('button')!;
     expect(
-      seg.compareDocumentPosition(buttons[0]) & Node.DOCUMENT_POSITION_FOLLOWING
+      countSpan.compareDocumentPosition(seg) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
+    expect(
+      seg.compareDocumentPosition(batchBtn) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+
+    // 产品差异：规则页有「新建规则」主入口（对比断言由 T10/T11 各自锁定）
+    expect(screen.getAllByText('createRule').length).toBeGreaterThanOrEqual(1);
   });
 
   it('Inspector 操作区按分发→编辑→删除水平排列', async () => {

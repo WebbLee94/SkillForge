@@ -193,7 +193,10 @@ export function SceneEditor() {
   }, [newSceneName, newSceneDesc, createScene]);
 
   return (
-    <div className="flex h-full flex-col">
+    <div
+      className="flex h-full flex-col"
+      data-testid="scene-page-content"
+    >
       {/* 页面壳层标题（决策 3）：统一 page-toolbar / page-title */}
       <div className="page-toolbar flex items-start justify-between gap-3">
         <div className="min-w-0">

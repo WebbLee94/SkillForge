@@ -34,7 +34,7 @@ import {
   FileText,
   X,
   CheckSquare,
-  Upload,
+  Download,
   Tags,
   Maximize,
   Minimize,
@@ -544,7 +544,7 @@ export function RulesManager() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* 页头行（决策 7）：标题 + 副标题 + 右侧 视图切换 seg → 批量操作 → 导入(次) → 新建(primary) */}
+      {/* 页头行（决策 7 / 29 号 5a）：标题 + 副标题 + 右侧 新建(primary) → 导入(primary) → 管理标签(outline) */}
       <div className="shrink-0 border-b border-border">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
           <div className="min-w-0">
@@ -557,6 +557,63 @@ export function RulesManager() {
             className="flex shrink-0 items-center gap-3"
             data-testid="lib-page-actions"
           >
+            <button
+              className={cn(
+                'shrink-0 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5',
+                'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
+              )}
+              onClick={() => setShowCreateForm(true)}
+            >
+              <Plus className="h-4 w-4" />
+              {t('createRule')}
+            </button>
+            <button
+              className={cn(
+                'shrink-0 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5',
+                'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
+              )}
+              onClick={openImportDialog}
+            >
+              <Download className="h-4 w-4" />
+              {t('importRules')}
+            </button>
+            <button
+              className={cn(
+                'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5',
+                'text-xs font-medium text-foreground hover:bg-accent transition-colors'
+              )}
+              onClick={() => setShowTagManager(true)}
+            >
+              <Tags className="h-3.5 w-3.5" />
+              {tc('tag.manageTags')}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 工具栏（决策 7 / 29 号 5a）：左侧搜索 icon+input ~220px、placeholder 全角 …；右侧 计数 → 视图切换 seg → 批量 */}
+      <div className="shrink-0 border-b border-border">
+        <div className="flex items-center justify-between gap-3 px-4 py-2">
+          <div className="relative w-[220px] shrink-0">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className={SEARCH_INPUT_CLASSES}
+            />
+          </div>
+          <div
+            className="flex shrink-0 items-center gap-3"
+            data-testid="lib-toolbar-actions"
+          >
+            <span
+              data-testid="lib-toolbar-count"
+              className="text-xs text-muted-foreground"
+            >
+              {t('count', { count: rules.length })}
+            </span>
             <ResourceViewToggle
               view={view}
               onChange={setView}
@@ -578,60 +635,6 @@ export function RulesManager() {
                 ? tc('actions.exitSelect')
                 : tc('actions.batchSelect')}
             </button>
-            <button
-              className={cn(
-                'shrink-0 flex items-center gap-2 rounded-lg border border-border px-3 py-1.5',
-                'text-sm font-medium text-foreground hover:bg-accent transition-colors'
-              )}
-              onClick={openImportDialog}
-            >
-              <Upload className="h-4 w-4" />
-              {t('importRules')}
-            </button>
-            <button
-              className={cn(
-                'shrink-0 flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5',
-                'text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors'
-              )}
-              onClick={() => setShowCreateForm(true)}
-            >
-              <Plus className="h-4 w-4" />
-              {t('createRule')}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* 工具栏（决策 7）：左侧搜索 icon+input ~220px、placeholder 全角 …；右侧 管理标签 + 计数 */}
-      <div className="shrink-0 border-b border-border">
-        <div className="flex items-center justify-between gap-3 px-4 py-2">
-          <div className="relative w-[220px] shrink-0">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('searchPlaceholder')}
-              className={SEARCH_INPUT_CLASSES}
-            />
-          </div>
-          <div className="flex shrink-0 items-center gap-3">
-            <button
-              className={cn(
-                'shrink-0 flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5',
-                'text-xs font-medium text-foreground hover:bg-accent transition-colors'
-              )}
-              onClick={() => setShowTagManager(true)}
-            >
-              <Tags className="h-3.5 w-3.5" />
-              {tc('tag.manageTags')}
-            </button>
-            <span
-              data-testid="lib-toolbar-count"
-              className="text-xs text-muted-foreground"
-            >
-              {t('count', { count: rules.length })}
-            </span>
           </div>
         </div>
       </div>

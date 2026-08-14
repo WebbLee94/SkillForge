@@ -245,11 +245,17 @@ export function Settings() {
       </div>
 
       {/* Single column content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-3">
         {activeTab === 'general' && (
-          <div className="max-w-[600px] space-y-3">
+          <div
+            data-testid="general-content"
+            className="max-w-[1180px] space-y-3 pt-3"
+          >
             {/* Language */}
-            <div className="rounded-lg border border-border bg-card p-4">
+            <div
+              data-testid="general-card"
+              className="rounded-lg border border-border bg-card p-4"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-foreground">
@@ -275,7 +281,10 @@ export function Settings() {
             </div>
 
             {/* Dark mode */}
-            <div className="rounded-lg border border-border bg-card p-4">
+            <div
+              data-testid="general-card"
+              className="rounded-lg border border-border bg-card p-4"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-foreground">
@@ -284,62 +293,77 @@ export function Settings() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {t('settings:general.darkMode.desc')}
                   </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={isDark}
-                  onChange={(e) =>
-                    setTheme(e.target.checked ? 'dark' : 'light')
-                  }
-                  aria-label={t('settings:general.darkMode.title')}
-                  className="h-4 w-4"
-                />
-              </div>
-            </div>
-
-            {/* Auto check for updates */}
-            <div className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-foreground">
-                    {t('settings:general.autoCheckUpdates.title')}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t('settings:general.autoCheckUpdates.desc')}
-                  </p>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={autoCheckUpdates}
-                  onChange={(e) => handleAutoCheckChange(e.target.checked)}
-                  aria-label={t('settings:general.autoCheckUpdates.title')}
-                  className="h-4 w-4"
-                />
-              </div>
-            </div>
-
-            {/* Manual check for updates */}
-            <div className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-foreground">
-                    {t('settings:general.checkUpdates.title')}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t('settings:general.checkUpdates.desc')}
+                  <p
+                    data-testid="dark-mode-current"
+                    className="mt-0.5 text-xs text-muted-foreground"
+                  >
+                    {t('settings:general.darkMode.current', {
+                      mode: isDark
+                        ? t('settings:general.darkMode.modeDark')
+                        : t('settings:general.darkMode.modeLight'),
+                    })}
                   </p>
                 </div>
                 <button
-                  className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
-                  onClick={() => addToast(t('topbar.notImplemented'), 'info')}
+                  type="button"
+                  role="switch"
+                  aria-checked={isDark}
+                  aria-label={t('settings:general.darkMode.title')}
+                  onClick={() => setTheme(isDark ? 'light' : 'dark')}
+                  className={cn(
+                    'relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                    isDark ? 'bg-primary' : 'bg-muted'
+                  )}
                 >
-                  {t('settings:general.checkUpdates.button')}
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform',
+                      isDark ? 'translate-x-4' : 'translate-x-0.5'
+                    )}
+                  />
                 </button>
               </div>
             </div>
 
+            {/* Update */}
+            <div
+              data-testid="general-card"
+              className="rounded-lg border border-border bg-card p-4"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-foreground">
+                    {t('settings:general.update.title')}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {t('settings:general.update.desc')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
+                    onClick={() => addToast(t('topbar.notImplemented'), 'info')}
+                  >
+                    {t('settings:general.update.checkButton')}
+                  </button>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-checked={autoCheckUpdates}
+                    checked={autoCheckUpdates}
+                    onChange={(e) => handleAutoCheckChange(e.target.checked)}
+                    aria-label={t('settings:general.update.autoCheckLabel')}
+                    className="h-4 w-4"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Data directory + DB size */}
-            <div className="rounded-lg border border-border bg-card p-4">
+            <div
+              data-testid="general-card"
+              className="rounded-lg border border-border bg-card p-4"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-foreground">
@@ -372,56 +396,40 @@ export function Settings() {
               </div>
             </div>
 
-            {/* Version */}
-            <div className="rounded-lg border border-border bg-card p-4">
+            {/* Version & community */}
+            <div
+              data-testid="general-card"
+              className="rounded-lg border border-border bg-card p-4"
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-foreground">
-                    {t('settings:general.version.title')}
+                    {t('settings:general.community.title')}
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t('settings:general.version.desc')}
+                    {t('settings:general.community.desc', {
+                      version: APP_VERSION,
+                    })}
                   </p>
                 </div>
-                <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
-                  v{APP_VERSION}
-                </span>
-              </div>
-            </div>
-
-            {/* GitHub */}
-            <div className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-medium text-foreground">
-                    {t('settings:general.github.title')}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t('settings:general.github.desc')}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
+                    v{APP_VERSION}
+                  </span>
+                  <a
+                    href={GITHUB_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs text-primary hover:bg-accent transition-colors"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    {GITHUB_URL.replace('https://', '')}
+                  </a>
                 </div>
-                <a
-                  href={GITHUB_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs text-primary hover:bg-accent transition-colors"
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  {GITHUB_URL.replace('https://', '')}
-                </a>
               </div>
-            </div>
-
-            {/* Distribution method info */}
-            <div className="rounded-lg border border-border bg-card p-4">
-              <div>
-                <h3 className="text-sm font-medium text-foreground">
-                  {t('settings:general.distribution.title')}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t('settings:general.distribution.desc')}
-                </p>
-              </div>
+              <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
+                {t('settings:general.distribution.desc')}
+              </p>
             </div>
           </div>
         )}
@@ -429,7 +437,7 @@ export function Settings() {
         {activeTab === 'platforms' && (
           <div
             data-testid="platform-table-wrap"
-            className="max-w-[1180px] space-y-3"
+            className="max-w-[1180px] space-y-3 pt-3"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium text-foreground">

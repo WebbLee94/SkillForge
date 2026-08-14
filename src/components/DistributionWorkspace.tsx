@@ -42,6 +42,23 @@ const isMacOS = () =>
   typeof navigator !== 'undefined' &&
   /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
 
+/** 个别平台 global_skills_dir 本身即平台配置根目录（无父目录语义），揭示其自身而非父目录。
+ * 当前 10 个内置平台均为 `~/.xxx/skills` 子目录，集合为空；新增平台时按
+ * `skills_global == 平台配置根目录` 判定加入（29 号 §4.1 白名单，验收时逐平台人工复核）。
+ */
+const REVEAL_ROOT_SELF_PLATFORMS: ReadonlySet<string> = new Set([]);
+
+/** 是否应让 Rust 推导主目录（as_skills_dir）。项目目标恒 false；全局目标仅白名单平台为 false。
+ * `rootSelf` 可注入便于测试锁定白名单语义；生产默认使用 REVEAL_ROOT_SELF_PLATFORMS（当前为空）。 */
+export function resolveRevealAsSkillsDir(
+  platformId: string,
+  isProjectTarget: boolean,
+  rootSelf: ReadonlySet<string> = REVEAL_ROOT_SELF_PLATFORMS
+): boolean {
+  if (isProjectTarget) return false;
+  return !rootSelf.has(platformId);
+}
+
 export const DistributionWorkspace = memo(function DistributionWorkspace({
   scope = 'global',
   initialProjectId = null,
@@ -271,6 +288,9 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   const togglePlatform = useCallback(
     (id: string) => {
       setPlatformId(id);
+      setManagedOpen(false);
+      setRemoveSkills([]);
+      setRemoveRules([]);
       const state = useAppStore.getState();
       if (scope === 'global') state.setGlobalDistSelectedPlatform(id);
       else state.setProjectDistSelectedPlatform(id);
@@ -280,6 +300,9 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
   const toggleTarget = useCallback((value: string) => {
     setTarget(value);
+    setManagedOpen(false);
+    setRemoveSkills([]);
+    setRemoveRules([]);
     setPlan(null);
     setPlanStale(false);
     if (value.startsWith('project:')) {
@@ -596,13 +619,30 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   }, []);
 
   const revealDir = useCallback(async () => {
-    try {
-      const { openPath } = await import('@tauri-apps/plugin-opener');
-      await openPath(getTargetDir());
-    } catch {
-      // 打开目录失败时静默处理，避免打断用户操作
+    if (!selectedPlatform) return;
+    const target =
+      isProjectTarget && selectedProject ? selectedProject.path : getTargetDir();
+    if (!target) {
+      addToast(t('ws.revealFailed'), 'error');
+      return;
     }
-  }, [getTargetDir]);
+    try {
+      const res = await ipc.revealPath(
+        target,
+        resolveRevealAsSkillsDir(selectedPlatform.id, isProjectTarget)
+      );
+      if (res.fallback) addToast(t('ws.revealFallback'), 'info');
+    } catch {
+      addToast(t('ws.revealFailed'), 'error');
+    }
+  }, [
+    isProjectTarget,
+    selectedProject,
+    selectedPlatform,
+    getTargetDir,
+    addToast,
+    t,
+  ]);
 
   const openManaged = useCallback(async () => {
     if (!platformId) return;
@@ -652,6 +692,16 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     })),
     ...(managedPlatform?.local_rules ?? []).map((item) => ({
       kind: 'rule' as const,
+      ...item,
+    })),
+  ];
+  const keepEntries = [
+    ...unknownEntries.map((item) => ({
+      key: `unknown-${item.kind}-${item.path}`,
+      ...item,
+    })),
+    ...localEntries.map((item) => ({
+      key: `local-${item.kind}-${item.path}`,
       ...item,
     })),
   ];
@@ -886,8 +936,11 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               </button>
 
               {managedOpen && (
-                <div className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-                  <div className="flex items-center justify-between">
+                <div
+                  data-testid="ws-managed-panel"
+                  className="mt-3 rounded-lg border border-border bg-card pb-3"
+                >
+                  <div className="flex items-center justify-between px-3 pt-3">
                     <h4 className="text-sm font-semibold text-foreground">
                       {t('ws.managedPanelTitle')}
                     </h4>
@@ -899,103 +952,137 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                       <FolderOpen className="h-3.5 w-3.5" /> {revealLabel}
                     </button>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t('ws.managedHint')}
+                  <p
+                    aria-live="polite"
+                    data-testid="ws-managed-summary"
+                    className="px-3 pt-1.5 text-xs text-muted-foreground"
+                  >
+                    {t('ws.managed.pendingRemove', {
+                      count: removeSkills.length + removeRules.length,
+                    })}
                   </p>
 
-                  <div className="mt-2">
-                    <div className="text-xs font-semibold text-foreground">
-                      {t('ws.managedSkills')}
+                  <div className="mt-3 rounded-lg border border-border">
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      {t('ws.managed.sectionSkills', {
+                        count: managedSkills.length,
+                      })}
                     </div>
-                    {managedSkills.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t('ws.noManagedSkills')}
-                      </p>
-                    ) : (
-                      managedSkills.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 py-1"
-                        >
-                          <span className="flex-1 truncate text-sm">
+                    {managedSkills.map((item) => (
+                      <div
+                        key={item.id}
+                        data-testid={`ws-managed-skill-${item.id}`}
+                        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-t border-border px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-foreground">
                             {item.name}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`${t('ws.removeSkill')} ${item.name}`}
-                            onClick={() => toggleRemove('skill', item.id)}
-                            className="text-xs text-warning hover:underline"
-                          >
-                            {removeSkills.includes(item.id)
-                              ? t('ws.undoRemove')
-                              : t('ws.remove')}
-                          </button>
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {managedPlatform?.skills.find(
+                              (e) => e.id === item.id
+                            )?.path
+                              ? sanitizePath(
+                                  managedPlatform.skills.find(
+                                    (e) => e.id === item.id
+                                  )!.path
+                                )
+                              : t('ws.managed.unknownNote')}
+                          </div>
                         </div>
-                      ))
-                    )}
-                  </div>
-
-                  <div className="mt-2">
-                    <div className="text-xs font-semibold text-foreground">
-                      {t('ws.managedRules')}
-                    </div>
-                    {managedRules.length === 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {t('ws.noManagedRules')}
-                      </p>
-                    ) : (
-                      managedRules.map((item) => (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-2 py-1"
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                          {t('ws.managed.badgeManaged')}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`${t('ws.removeSkill')} ${item.name}`}
+                          onClick={() => toggleRemove('skill', item.id)}
+                          className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent"
                         >
-                          <span className="flex-1 truncate text-sm">
-                            {item.name}.{item.format}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label={`${t('ws.removeRule')} ${item.name}`}
-                            onClick={() => toggleRemove('rule', item.id)}
-                            className="text-xs text-warning hover:underline"
-                          >
-                            {removeRules.includes(item.id)
-                              ? t('ws.undoRemove')
-                              : t('ws.remove')}
-                          </button>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  {unknownEntries.length > 0 && (
-                    <div className="mt-2 rounded border border-border bg-muted/30 p-2">
-                      <div className="text-xs font-medium text-foreground">
-                        {t('ws.unknownContent')}
+                          {removeSkills.includes(item.id)
+                            ? t('ws.undoRemove')
+                            : t('ws.remove')}
+                        </button>
                       </div>
-                      {unknownEntries.map((item) => (
-                        <div
-                          key={`${item.kind}:${item.path}`}
-                          className="truncate text-xs text-muted-foreground"
-                        >
-                          {item.name}
-                        </div>
-                      ))}
+                    ))}
+                  </div>
+
+                  <div className="mt-3 rounded-lg border border-border">
+                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                      {t('ws.managed.sectionRules', {
+                        count: managedRules.length,
+                      })}
                     </div>
-                  )}
-                  {localEntries.length > 0 && (
-                    <div className="mt-2 rounded border border-border bg-muted/30 p-2">
-                      <div className="text-xs font-medium text-foreground">
+                    {managedRules.map((item) => (
+                      <div
+                        key={item.id}
+                        data-testid={`ws-managed-rule-${item.id}`}
+                        className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 border-t border-border px-3 py-2"
+                      >
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-semibold text-foreground">
+                            {item.name}.{item.format}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {managedPlatform?.rules.find(
+                              (e) => e.id === item.id
+                            )?.path
+                              ? sanitizePath(
+                                  managedPlatform.rules.find(
+                                    (e) => e.id === item.id
+                                  )!.path
+                                )
+                              : t('ws.managed.unknownNote')}
+                          </div>
+                        </div>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                          <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                          {t('ws.managed.badgeManaged')}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`${t('ws.removeRule')} ${item.name}`}
+                          onClick={() => toggleRemove('rule', item.id)}
+                          className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent"
+                        >
+                          {removeRules.includes(item.id)
+                            ? t('ws.undoRemove')
+                            : t('ws.remove')}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {keepEntries.length > 0 && (
+                    <div className="mt-3 rounded-lg border border-border">
+                      <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
                         {t('ws.localUnmanagedContent')}
                       </div>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="px-3 pb-1 text-xs text-muted-foreground">
                         {t('ws.localUnmanagedHint')}
                       </p>
-                      {localEntries.map((item) => (
+                      {keepEntries.map((item) => (
                         <div
-                          key={`${item.kind}:${item.path}`}
-                          className="truncate text-xs text-muted-foreground"
+                          key={item.key}
+                          data-testid={`ws-managed-local-${item.name}`}
+                          className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-border px-3 py-2"
                         >
-                          {item.name}
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-semibold text-foreground">
+                              {item.name}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {sanitizePath(item.path)}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                              {t('ws.managed.unknownNote')}
+                            </div>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                            <span className="h-1.5 w-1.5 rounded-full bg-muted" />
+                            {t('ws.managed.badgeKeep')}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1005,7 +1092,10 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
             </div>
           </div>
 
-          <div className="workspace-actions mt-5 flex items-center gap-2">
+          <div
+            data-testid="ws-step1-actions"
+            className="workspace-actions mt-5 flex flex-wrap items-center gap-2"
+          >
             <button
               type="button"
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -1013,13 +1103,6 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               disabled={!platformId}
             >
               {t('ws.nextToResources')}
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2.5 text-sm text-foreground hover:bg-accent"
-              onClick={back}
-            >
-              <ArrowLeft className="h-4 w-4" /> {t('ws.backStep')}
             </button>
           </div>
         </div>
@@ -1169,7 +1252,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
             {t('ws.sourceHint')}
           </div>
 
-          <div className="workspace-actions mt-5 flex items-center gap-2">
+          <div className="workspace-actions mt-5 flex flex-wrap items-center gap-2">
             <button
               type="button"
               className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
@@ -1236,6 +1319,31 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                     {targetDisplayPath || t('ws.pathUnavailable')}
                   </div>
                 </div>
+                <div className="mt-2 border-t border-border pt-2">
+                  <div className="text-xs text-muted-foreground">
+                    {t('ws.skillsPathLabel')}
+                  </div>
+                  <div
+                    data-testid="ws-step3-skills-path"
+                    className="truncate font-mono text-xs text-foreground"
+                  >
+                    {targetDisplayPath || t('ws.pathUnavailable')}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {t('ws.rulesPathLabel')}
+                  </div>
+                  <div
+                    data-testid="ws-step3-rules-path"
+                    className="truncate font-mono text-xs text-foreground"
+                  >
+                    {rulesTargetDisplayPath || t('ws.pathUnavailable')}
+                  </div>
+                  {rulesSingleFile && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t('ws.rulesSingleFileHint')}
+                    </p>
+                  )}
+                </div>
 
                 {planPlatform && (
                   <div className="mt-3 grid grid-cols-2 gap-4">
@@ -1278,7 +1386,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
             </div>
           )}
 
-          <div className="workspace-actions mt-5 flex items-center gap-2">
+          <div className="workspace-actions mt-5 flex flex-wrap items-center gap-2">
             <div role="status" aria-live="polite">
               <button
                 type="button"
@@ -1330,7 +1438,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               <p className="text-xs text-muted-foreground">
                 {t('ws.executingHint')}
               </p>
-              <div className="workspace-actions mt-4 flex items-center gap-2">
+              <div className="workspace-actions mt-4 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2.5 text-sm text-foreground hover:bg-accent"
