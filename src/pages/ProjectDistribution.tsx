@@ -65,14 +65,14 @@ function ProjectStatsRow({
     return (
       <div
         data-testid="project-stats-empty"
-        className="mt-2 text-xs text-muted-foreground"
+        className="mt-1 text-xs text-muted-foreground"
       >
         {t('projects.statsEmpty')}
       </div>
     );
   }
   return (
-    <div className="mt-2 flex flex-wrap gap-1.5">
+    <div className="mt-1 flex flex-wrap gap-1.5">
       {rows.map((r) => (
         <span
           key={r.platform.id}
@@ -209,7 +209,7 @@ export function ProjectDistribution() {
           <h1 className="page-title mb-1 text-foreground">
             {t('projectTitle')}
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             {t('projectSubtitle')}
           </p>
         </div>
@@ -269,7 +269,7 @@ export function ProjectDistribution() {
       ) : (
         <>
           {/* 搜索行：位于标题行下一行 */}
-          <div className="mb-3">
+          <div className="mb-3 mt-5">
             <div className="relative w-[220px]">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -344,7 +344,7 @@ export function ProjectDistribution() {
                           </button>
                         </div>
                       )}
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <div className="truncate text-xs text-muted-foreground">
                           {sanitizePath(project.path)}
                         </div>

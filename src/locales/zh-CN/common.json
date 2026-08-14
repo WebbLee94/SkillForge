@@ -196,7 +196,7 @@
     "quickEntry": {
       "title": "快捷入口",
       "skillRuleCount": "技能 {{skills}} · 规则 {{rules}}",
-      "chooseTarget": "选择为目标"
+      "chooseTarget": "选择为分发目标"
     }
   },
   "import": {

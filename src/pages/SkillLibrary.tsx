@@ -470,13 +470,13 @@ export function SkillLibrary() {
   };
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col overflow-y-auto">
       {/* 页头行（决策 7 布局部分推翻，保留视觉令牌）：标题 + 副标题 + 右侧 导入(primary) → 管理标签(outline) */}
-      <div className="shrink-0 border-b border-border">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
+      <div className="shrink-0">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="page-title">{t('title')}</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               {t('subtitle')}
             </p>
           </div>
@@ -509,8 +509,8 @@ export function SkillLibrary() {
       </div>
 
       {/* 工具栏（决策 7 布局部分推翻）：左侧搜索 icon+input ~220px、placeholder 全角 …；右侧 计数 → 视图切换 seg → 批量 */}
-      <div className="shrink-0 border-b border-border">
-        <div className="flex items-center justify-between gap-3 px-4 py-2">
+      <div className="shrink-0">
+        <div className="flex items-center justify-between gap-3 mb-2 mt-2">
           <div className="relative w-[220px] shrink-0">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -557,9 +557,8 @@ export function SkillLibrary() {
       </div>
 
       {/* 筛选行（决策 7）：标签 chips + 右侧 全部展开/收起 */}
-      <div className="shrink-0 border-b border-border">
-        <div
-          className="flex items-center gap-2 px-4 py-2"
+      <div className="shrink-0">
+        <div className="flex items-center gap-3 mb-2 mt-2"
           data-testid="lib-filters"
         >
           <div className="min-w-0 flex-1">
@@ -585,7 +584,7 @@ export function SkillLibrary() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-4 pb-16" data-testid="lib-content">
+        <div className="flex-1 overflow-y-auto mb-2 mt-2" data-testid="lib-content">
           {loading ? (
             <div
               className="grid gap-3"

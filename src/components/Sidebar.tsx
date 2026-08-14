@@ -119,7 +119,7 @@ export function Sidebar() {
       >
         <button
           className={cn(
-            'flex w-full items-center gap-3 px-4 py-2 text-sm transition-colors',
+            'flex w-full items-center gap-3 px-4 py-6 text-sm transition-colors',
             sidebarCollapsed ? 'justify-center px-0' : '',
             activeNav === 'settings'
               ? 'bg-primary/10 text-primary font-medium'

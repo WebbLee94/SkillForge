@@ -42,7 +42,7 @@ export function TooltipPortal({
     >
       <div
         data-tooltip-panel="true"
-        className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[280px] max-w-[320px] pointer-events-auto"
+        className="rounded-lg border border-border bg-popover p-3 shadow-lg text-left min-w-[350px] max-w-[400px] pointer-events-auto"
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
         onBlur={onBlur}

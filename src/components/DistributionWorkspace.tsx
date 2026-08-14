@@ -816,9 +816,8 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
             </div>
             {stepNo < 4 && (
               <span
-                data-testid="ws-step-connector"
-                aria-hidden="true"
-                className="h-px w-6 bg-border mx-1"
+                aria-hidden
+                  className="mt-3 flex-1 border-t border-border"
               />
             )}
           </Fragment>

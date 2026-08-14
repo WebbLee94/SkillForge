@@ -194,16 +194,19 @@ export function SceneEditor() {
 
   return (
     <div
-      className="flex h-full flex-col"
+      className="flex h-full flex-col overflow-y-auto"
       data-testid="scene-page-content"
     >
       {/* 页面壳层标题（决策 3）：统一 page-toolbar / page-title */}
       <div className="page-toolbar flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="page-title text-foreground">{tc('nav.scenes')}</h1>
+          <h1 className="page-title mb-1 text-foreground">{tc('nav.scenes')}</h1>
+          <p className="text-xs text-muted-foreground">
+            提供针对资源的可复用组合编排能力
+          </p>
         </div>
         <button
-          className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           onClick={() => setShowCreateScene(true)}
         >
           <Plus className="h-4 w-4" />
@@ -256,7 +259,7 @@ export function SceneEditor() {
                 : 'hidden w-[280px] shrink-0 flex-col border-r border-border md:flex'
             )}
           >
-            <div className="border-b border-border p-3">
+            <div className="border-b border-border mb-3 mt-5 px-2">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -267,7 +270,7 @@ export function SceneEditor() {
                   className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-3 mb-3 flex items-center justify-end gap-2">
                 <label className="text-xs text-muted-foreground">
                   {t('list.sortLabel')}
                 </label>
@@ -282,7 +285,7 @@ export function SceneEditor() {
               </div>
             </div>
             <div
-              className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2"
+              className="min-h-0 flex-1 space-y-1 overflow-y-auto mt-1 mb-1 px-2"
               data-testid="scene-list"
             >
               {sortedScenes.length === 0 && (
@@ -328,7 +331,7 @@ export function SceneEditor() {
 
           {/* Detail pane */}
           <div
-            className="min-w-0 flex-1 overflow-y-auto p-4"
+            className="min-w-0 flex-1 overflow-y-auto p-3"
             data-testid="scene-detail"
           >
             <button
@@ -441,7 +444,14 @@ export function SceneEditor() {
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                         {skill.skill_name || `${skill.skill_id}（已删除）`}
                       </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          'shrink-0 text-xs',
+                          skill.enabled
+                            ? 'text-success'
+                            : 'text-muted-foreground'
+                        )}
+                      >
                         {skill.enabled
                           ? t('detail.memberEnabled')
                           : t('detail.memberDisabled')}
@@ -475,7 +485,14 @@ export function SceneEditor() {
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
                         {rule.rule_name || `${rule.rule_id}（已删除）`}
                       </span>
-                      <span className="shrink-0 text-xs text-muted-foreground">
+                      <span
+                        className={cn(
+                          'shrink-0 text-xs',
+                          rule.enabled
+                            ? 'text-success'
+                            : 'text-muted-foreground'
+                        )}
+                      >
                         {rule.enabled
                           ? t('detail.memberEnabled')
                           : t('detail.memberDisabled')}

@@ -212,18 +212,22 @@ export function Settings() {
   ];
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b border-border py-1.5">
-        <h1 className="text-xl font-semibold text-foreground">
-          {t('settings:title')}
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t('settings:subtitle')}
-        </p>
+    <div data-testid="dashboard-page"
+      className="flex h-full flex-col overflow-y-auto"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="page-title text-foreground">
+            {t('settings:title')}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {t('settings:subtitle')}
+          </p>
+        </div>
       </div>
 
       {/* Top chips */}
-      <div className="shrink-0 border-b border-border py-2">
+      <div className="shrink-0 border-b border-border mt-3 py-1.5">
         <div role="tablist" className="flex items-center gap-2">
           {tabs.map((tab) => (
             <button
@@ -340,21 +344,15 @@ export function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
+                    v{APP_VERSION}
+                  </span>
                   <button
                     className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
                     onClick={() => addToast(t('topbar.notImplemented'), 'info')}
                   >
                     {t('settings:general.update.checkButton')}
                   </button>
-                  <input
-                    type="checkbox"
-                    role="switch"
-                    aria-checked={autoCheckUpdates}
-                    checked={autoCheckUpdates}
-                    onChange={(e) => handleAutoCheckChange(e.target.checked)}
-                    aria-label={t('settings:general.update.autoCheckLabel')}
-                    className="h-4 w-4"
-                  />
                 </div>
               </div>
             </div>
@@ -413,9 +411,6 @@ export function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
-                    v{APP_VERSION}
-                  </span>
                   <a
                     href={GITHUB_URL}
                     target="_blank"
@@ -427,9 +422,6 @@ export function Settings() {
                   </a>
                 </div>
               </div>
-              <p className="mt-2 border-t border-border pt-2 text-xs text-muted-foreground">
-                {t('settings:general.distribution.desc')}
-              </p>
             </div>
           </div>
         )}
@@ -493,7 +485,7 @@ export function Settings() {
                                 <IconComp className="h-5 w-5 text-muted-foreground" />
                                 <span
                                   className={cn(
-                                    'absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full border-2 border-background',
+                                    'absolute -right-0.5 -top-0.1 h-2 w-2 rounded-full border-2 border-background',
                                     platform.enabled ? 'bg-success' : 'bg-muted'
                                   )}
                                 />
@@ -513,7 +505,7 @@ export function Settings() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-5 py-2 text-center">
                             {(() => {
                               if (!caps)
                                 return (

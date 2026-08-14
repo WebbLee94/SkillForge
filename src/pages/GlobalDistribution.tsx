@@ -9,7 +9,7 @@ export function GlobalDistribution() {
       <h1 className="page-title mb-1 text-foreground">
         {t('globalTitle')}
       </h1>
-      <p className="text-sm text-muted-foreground mb-3">
+      <p className="text-xs text-muted-foreground mb-3">
         {t('globalSubtitle')}
       </p>
       <DistributionWorkspace scope="global" />

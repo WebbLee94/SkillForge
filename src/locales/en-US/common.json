@@ -196,7 +196,7 @@
     "quickEntry": {
       "title": "Quick Access",
       "skillRuleCount": "{{skills}} skills · {{rules}} rules",
-      "chooseTarget": "Choose as Target"
+      "chooseTarget": "Choose as Distribution Target"
     }
   },
   "import": {
