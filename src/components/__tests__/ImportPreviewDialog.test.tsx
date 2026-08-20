@@ -111,4 +111,33 @@ describe('ImportPreviewDialog', () => {
     render(<ImportPreviewDialog {...baseProps} open platforms={[]} totalNew={0} totalSkipped={0} />);
     expect(screen.queryByText('import.confirmImport')).toBeNull();
   });
+
+  it('shows source platform for each scan result — separate from watcher data', () => {
+    render(<ImportPreviewDialog {...baseProps} open />);
+    // Platform name is displayed as the scan source
+    expect(screen.getByText('Claude Code')).toBeDefined();
+    expect(screen.getByText('Cursor')).toBeDefined();
+    // No watcher event counts appear in the import dialog
+    expect(screen.queryByText(/文件变更|新增.*个|删除.*个|修改.*个/)).toBeNull();
+  });
+
+  it('separates Skills/Rules from skipped counts — does not add them together', () => {
+    render(<ImportPreviewDialog {...baseProps} open />);
+    // New skills and new rules are shown separately per platform
+    const skillsText = screen.getByText(/import\.newSkills/);
+    const rulesText = screen.getByText(/import\.newRules/);
+    expect(skillsText).toBeDefined();
+    expect(rulesText).toBeDefined();
+    // Skipped (existing) is shown as a separate category (may appear per-platform)
+    const existingEls = screen.getAllByText(/import\.existing/);
+    expect(existingEls.length).toBeGreaterThanOrEqual(1);
+    // The summary line separates new skills/rules from skipped
+    expect(screen.getByText('import.summary')).toBeDefined();
+  });
+
+  it('does not display scan time when data is unavailable — does not fake timestamps', () => {
+    render(<ImportPreviewDialog {...baseProps} open />);
+    // No timestamp or scan time should be displayed since the data doesn't provide one
+    expect(screen.queryByText(/扫描时间|scan.*time|2026|20\d{2}[/-]/)).toBeNull();
+  });
 });

@@ -67,7 +67,6 @@ export function ResourceCollection<T extends { id: string; tags?: Tag[] }>({
         collapsedAll ? new Set(groups.map((g) => groupKey(g.tag))) : new Set()
       );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsedAll, groups]);
 
   if (items.length === 0) return <>{emptyLabel ?? null}</>;

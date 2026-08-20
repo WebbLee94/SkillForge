@@ -1,3 +1,5 @@
+import { Bot } from 'lucide-react';
+
 interface IconProps {
   className?: string;
 }
@@ -318,6 +320,10 @@ function OpenClawIcon({ className }: IconProps) {
   );
 }
 
+function AgentIcon({ className }: IconProps) {
+  return <Bot className={className} />;
+}
+
 function DefaultPlatformIcon({ className }: IconProps) {
   return (
     <svg
@@ -358,6 +364,7 @@ const platformIconMap: Record<string, React.FC<IconProps>> = {
   codex: CodexIcon,
   hermes: HermesIcon,
   openclaw: OpenClawIcon,
+  agent: AgentIcon,
 };
 
 export function getPlatformIcon(platformId: string): React.FC<IconProps> {

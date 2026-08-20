@@ -221,6 +221,43 @@ describe('SceneEditor — master-detail read mode', () => {
     expect(invoke).toHaveBeenCalledWith('get_scene_detail', { id: 's-2' });
   });
 
+  it('clicking the same scene preserves existing detail and does not re-fetch', async () => {
+    const s1 = aScene('s-1', 'Scene One');
+    const det = aDetail(s1, [
+      {
+        skill_id: 'sk1',
+        skill_name: 'S1',
+        version: null,
+        enabled: true,
+        sort_order: 0,
+      },
+    ]);
+    await seedInvoke(baseRoutes([s1], det));
+    render(<SceneEditor />);
+
+    await waitFor(() => {
+      expect(useAppStore.getState().currentSceneDetail).toEqual(det);
+    });
+
+    // Reset mock call history so we can assert no new calls
+    const { invoke } = await import('@tauri-apps/api/core');
+    (invoke as any).mockClear();
+
+    // Click the same scene again
+    fireEvent.click(screen.getAllByTestId('scene-list-item')[0]);
+
+    // Detail must still be present (not cleared to null)
+    await waitFor(() => {
+      expect(useAppStore.getState().currentSceneDetail).toEqual(det);
+    });
+
+    // Must NOT have called get_scene_detail again
+    expect(invoke).not.toHaveBeenCalledWith(
+      'get_scene_detail',
+      expect.anything()
+    );
+  });
+
   it('detail shows invalid-reference warning when a member was deleted', async () => {
     const s1 = aScene('s-1', 'Broken');
     const det = aDetail(

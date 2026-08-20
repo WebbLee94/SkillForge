@@ -95,16 +95,21 @@
     "managedToggle": "View distributed content for this target",
     "managedToggleHide": "Collapse distributed content",
     "managedPanelTitle": "Managed content",
+    "managedDrawerClose": "Close managed content panel",
     "managedHint": "Filesystem browsing is handled by the system file manager; the panel shows only SkillForge-recognized items.",
     "managed": {
-      "pendingRemove": "{{count}} item(s) pending removal (double-confirm before execution). Removal only affects SkillForge-managed content.",
+      "pendingRemove": "{{count}} item(s) selected. Click \"Confirm remove\" to execute immediately. Only affects SkillForge-managed content.",
       "sectionSkills": "Skills ({{count}})",
       "sectionRules": "Rules ({{count}})",
       "badgeManaged": "Managed",
       "badgeKeep": "Keep",
       "unknownNote": "Unmanaged / user-owned content, kept read-only; cannot be deleted from this page",
       "confirmHint": "Removal only affects SkillForge-managed copies; library resources are kept and can be re-distributed",
-      "confirmRemove": "Confirm remove {{count}} item(s)"
+      "confirmRemove": "Confirm remove {{count}} item(s)",
+      "selectAllSkills": "Select all skills",
+      "selectAllRules": "Select all rules",
+      "clearAll": "Clear",
+      "managedContentHelp": "SkillForge-managed content is content whose ownership can be verified via: skill symlinks, Directory rule files, or SingleFile marker blocks."
     },
     "removeConfirm": {
       "title": "Confirm removing managed content",

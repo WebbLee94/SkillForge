@@ -215,14 +215,16 @@ export function Settings() {
     <div data-testid="dashboard-page"
       className="flex h-full flex-col overflow-y-auto"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="page-title text-foreground">
-            {t('settings:title')}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {t('settings:subtitle')}
-          </p>
+      <div className="border-b border-border pb-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="page-title text-foreground">
+              {t('settings:title')}
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              {t('settings:subtitle')}
+            </p>
+          </div>
         </div>
       </div>
 
@@ -355,6 +357,29 @@ export function Settings() {
                   </button>
                 </div>
               </div>
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">
+                  {t('settings:general.update.autoCheckLabel')}
+                </span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={autoCheckUpdates}
+                  aria-label={t('settings:general.update.autoCheckLabel')}
+                  onClick={() => handleAutoCheckChange(!autoCheckUpdates)}
+                  className={cn(
+                    'relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                    autoCheckUpdates ? 'bg-primary' : 'bg-muted'
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform',
+                      autoCheckUpdates ? 'translate-x-4' : 'translate-x-0.5'
+                    )}
+                  />
+                </button>
+              </div>
             </div>
 
             {/* Data directory + DB size */}
@@ -411,6 +436,9 @@ export function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
+                    v{APP_VERSION}
+                  </span>
                   <a
                     href={GITHUB_URL}
                     target="_blank"
@@ -422,6 +450,9 @@ export function Settings() {
                   </a>
                 </div>
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t('settings:general.distribution.desc')}
+              </p>
             </div>
           </div>
         )}

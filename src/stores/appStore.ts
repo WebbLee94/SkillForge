@@ -68,6 +68,8 @@ interface AppStore {
   selectedSkill: Skill | null;
   currentScene: Scene | null;
   currentSceneDetail: SceneDetail | null;
+  /** Tracks the most recently requested scene detail ID to discard stale responses. */
+  _lastFetchedSceneId: string | null;
   editingRule: Rule | null;
 
   // === UI State ===
@@ -278,6 +280,7 @@ export const useAppStore = create<AppStore>((set, get) => {
     selectedSkill: null,
     currentScene: null,
     currentSceneDetail: null,
+    _lastFetchedSceneId: null,
     editingRule: null,
 
     // === UI State ===
@@ -517,8 +520,14 @@ export const useAppStore = create<AppStore>((set, get) => {
         return false;
       }
     },
-    setCurrentScene: (scene) =>
-      set({ currentScene: scene, currentSceneDetail: null }),
+    setCurrentScene: (scene) => {
+      const current = get().currentScene;
+      if (scene && current?.id === scene.id) {
+        set({ currentScene: scene });
+      } else {
+        set({ currentScene: scene, currentSceneDetail: null });
+      }
+    },
     createScene: async (data) => {
       try {
         await ipc.createScene(data);
@@ -554,9 +563,15 @@ export const useAppStore = create<AppStore>((set, get) => {
       }
     },
     fetchSceneDetail: async (id) => {
+      set({ _lastFetchedSceneId: id });
       try {
         const detail = await ipc.getSceneDetail(id);
-        set({ currentSceneDetail: detail });
+        // Guard: only apply if this is still the latest requested scene —
+        // discard stale responses from a previous selection that resolved
+        // after a newer one was already requested.
+        if (get()._lastFetchedSceneId === id) {
+          set({ currentSceneDetail: detail });
+        }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         get().addToast(`获取场景详情失败: ${errMsg}`, 'error');

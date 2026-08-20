@@ -20,8 +20,8 @@ vi.mock('react-i18next', () => ({
         return `${options.count} 个修改`;
       }
       const map: Record<string, string> = {
-        'watcher.importHint': '前往概览查看并导入',
-        'watcher.goToDashboard': '前往概览',
+        'watcher.importHint': '文件变更通知，前往概览查看可导入的技能和规则',
+        'watcher.goToDashboard': '去概览查看可导入内容',
         'watcher.dismiss': '忽略',
       };
       return map[key] ?? key;
@@ -90,7 +90,7 @@ describe('WatcherNotification', () => {
       events: [makeEvent(5, 'NEW')],
     });
     render(<WatcherNotification />);
-    expect(screen.getByText('前往概览')).toBeDefined();
+    expect(screen.getByText('去概览查看可导入内容')).toBeDefined();
     expect(screen.getByText('忽略')).toBeDefined();
   });
 
@@ -101,7 +101,7 @@ describe('WatcherNotification', () => {
       events: [makeEvent(6, 'NEW')],
     });
     render(<WatcherNotification />);
-    fireEvent.click(screen.getByText('前往概览'));
+    fireEvent.click(screen.getByText('去概览查看可导入内容'));
     expect(setActiveNav).toHaveBeenCalledWith('dashboard');
   });
 
@@ -116,12 +116,35 @@ describe('WatcherNotification', () => {
     expect(container.innerHTML).toBe('');
   });
 
-  it('renders import hint text', () => {
+  it('renders import hint text that does not imply all events will be imported', () => {
     useWatcherStore.setState({
       events: [makeEvent(10, 'NEW')],
     });
     render(<WatcherNotification />);
-    expect(screen.getByText('前往概览查看并导入')).toBeDefined();
+    const hint = screen.getByText((c: string) =>
+      c.includes('文件变更通知') && c.includes('查看可导入')
+    );
+    expect(hint).toBeDefined();
+  });
+
+  it('shows activeCount, new, deleted, modified counts separately without implying import', () => {
+    useWatcherStore.setState({
+      events: [
+        makeEvent(20, 'NEW'),
+        makeEvent(21, 'DELETED'),
+        makeEvent(22, 'MODIFIED'),
+        makeEvent(23, 'NEW'),
+      ],
+    });
+    render(<WatcherNotification />);
+    expect(screen.getByText('检测到 4 个文件变更')).toBeDefined();
+    expect(screen.getByText((c: string) => c.includes('2 个新增'))).toBeDefined();
+    expect(screen.getByText((c: string) => c.includes('1 个删除'))).toBeDefined();
+    expect(screen.getByText((c: string) => c.includes('1 个修改'))).toBeDefined();
+    // Verify the hint does NOT say "全部导入" — watcher events are file changes, not imports
+    const hintEl = screen.getByText((c: string) => c.includes('文件变更通知'));
+    expect(hintEl).toBeDefined();
+    expect(hintEl.textContent).not.toContain('全部导入');
   });
 
   it('renders AlertTriangle icon', () => {

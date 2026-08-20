@@ -315,7 +315,7 @@ describe('SkillForge 33 号 A 批整改独立移除流程（Task 13 补强）', 
 
       // 二次确认 → 移除结果行出现 → gstack 行消失
       const dialogConfirm = await browser.$(
-        '//*[@role="dialog"]//button[contains(., "确认移除")]'
+        '[data-testid="confirm-dialog-confirm"]'
       );
       await dialogConfirm.waitForExist({ timeout: 5000 });
       await dialogConfirm.click();

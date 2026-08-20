@@ -81,6 +81,7 @@ export const ConfirmDialog = memo(function ConfirmDialog({
             {cancelLabel || t('actions.cancel')}
           </button>
           <button
+            data-testid="confirm-dialog-confirm"
             className={cn(
               'rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90',
               variant === 'danger' && 'bg-error',

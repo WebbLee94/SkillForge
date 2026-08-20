@@ -15,7 +15,7 @@ export function AppShell() {
         <main className="flex-1 overflow-hidden">
           <div
             data-testid="app-content"
-            className="h-full px-4 py-5 md:px-8"
+            className="h-full px-4 py-3 md:px-5"
           >
             <Outlet />
           </div>

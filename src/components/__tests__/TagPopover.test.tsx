@@ -124,4 +124,51 @@ describe('TagPopover', () => {
     expect(screen.getByText('3')).toBeDefined(); // Java count
     expect(screen.getByText('5')).toBeDefined(); // React count
   });
+
+  it('触发按钮具有 aria-haspopup 且打开时菜单通过 portal 渲染到 document.body (T6)', () => {
+    const { container } = render(<TagPopover {...baseProps} />);
+    const trigger = screen.getByTestId('tag-popover-trigger');
+
+    // closed state — aria-expanded="false"
+    expect(trigger).toHaveAttribute('aria-haspopup', 'listbox');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    // open
+    fireEvent.click(trigger);
+
+    // aria-expanded="true"
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).toHaveAttribute('aria-controls');
+
+    // listbox must be in document.body, NOT in the render container
+    const listboxId = trigger.getAttribute('aria-controls');
+    expect(listboxId).toBeTruthy();
+    const listbox = document.body.querySelector(`#${listboxId}`);
+    expect(listbox).not.toBeNull();
+    expect(container.contains(listbox)).toBe(false);
+  });
+
+  it('打开状态下按 Escape 关闭弹出，焦点回到触发按钮 (T6)', () => {
+    render(<TagPopover {...baseProps} />);
+    const trigger = screen.getByTestId('tag-popover-trigger');
+
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('菜单通过 fixed 定位渲染且坐标有值（T6 视口定位回归）', () => {
+    render(<TagPopover {...baseProps} />);
+    fireEvent.click(screen.getByTestId('tag-popover-trigger'));
+
+    const listbox = document.body.querySelector('[role="listbox"]') as HTMLElement;
+    expect(listbox).not.toBeNull();
+    expect(listbox.style.position).toBe('fixed');
+    expect(listbox.style.top).toBeTruthy();
+    expect(listbox.style.left).toBeTruthy();
+  });
 });

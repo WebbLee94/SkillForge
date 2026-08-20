@@ -720,7 +720,7 @@ describe('SkillForge 33 号 A 批整改关键路径（Task 13 补强）', () => 
       expect((await items.$$('div')).length).toBeGreaterThan(0);
       // 确认后弹窗关闭，移除结果行出现
       const dialogConfirm = await browser.$(
-        '//*[@role="dialog"]//button[contains(., "确认移除")]'
+        '[data-testid="confirm-dialog-confirm"]'
       );
       await dialogConfirm.waitForExist({ timeout: 5000 });
       await dialogConfirm.click();

@@ -96,15 +96,20 @@
     "managedToggleHide": "收起当前已分发内容",
     "managedPanelTitle": "受管内容",
     "managedHint": "文件系统视角由系统文件管理器承载；受管内容面板只展示 SkillForge 可识别的分发项。",
+    "managedDrawerClose": "关闭受管内容面板",
     "managed": {
-      "pendingRemove": "当前待移除 {{count}} 项（进入计划后二次确认才执行）。移除只作用于 SkillForge 受管内容。",
+      "pendingRemove": "当前已选择 {{count}} 项，点击“确认移除”后立即执行。仅作用于 SkillForge 受管内容。",
       "sectionSkills": "技能（{{count}}）",
       "sectionRules": "规则（{{count}}）",
       "badgeManaged": "受管",
       "badgeKeep": "保留",
       "unknownNote": "非受管 / 用户自有内容，只读保留，不可通过此页删除",
       "confirmHint": "移除只作用于 SkillForge 受管副本；资源库保留，可重新分发恢复",
-      "confirmRemove": "确认移除 {{count}} 项"
+      "confirmRemove": "确认移除 {{count}} 项",
+      "selectAllSkills": "全选技能",
+      "selectAllRules": "全选规则",
+      "clearAll": "清空",
+      "managedContentHelp": "SkillForge 受管内容指可通过以下方式验证归属的内容：技能 symlink、规则 Directory 文件、或 SingleFile 标记块。"
     },
     "removeConfirm": {
       "title": "确认移除受管内容",

@@ -132,6 +132,7 @@ function resetStore() {
     selectedSkill: null,
     currentScene: null,
     currentSceneDetail: null,
+    _lastFetchedSceneId: null,
     editingRule: null,
     activeNav: 'dashboard',
     sidebarCollapsed: false,
@@ -871,6 +872,100 @@ describe('appStore — Scenes', () => {
 
     expect(useAppStore.getState().toasts.some((t) => t.type === 'error')).toBe(
       true
+    );
+  });
+
+  it('setCurrentScene clears currentSceneDetail when selecting a different scene', () => {
+    const s1 = scene('s-1', 'Scene One');
+    const s2 = scene('s-2', 'Scene Two');
+    useAppStore.setState({
+      currentScene: s1,
+      currentSceneDetail: { scene: s1, skills: [], rules: [] },
+    });
+
+    useAppStore.getState().setCurrentScene(s2);
+
+    expect(useAppStore.getState().currentScene?.id).toBe('s-2');
+    expect(useAppStore.getState().currentSceneDetail).toBeNull();
+  });
+
+  it('setCurrentScene preserves currentSceneDetail when selecting the same scene', () => {
+    const s1 = scene('s-1', 'Scene One');
+    const detail = { scene: s1, skills: [], rules: [] };
+    useAppStore.setState({
+      currentScene: s1,
+      currentSceneDetail: detail,
+    });
+
+    useAppStore.getState().setCurrentScene(s1);
+
+    expect(useAppStore.getState().currentScene?.id).toBe('s-1');
+    expect(useAppStore.getState().currentSceneDetail).toEqual(detail);
+  });
+
+  it('setCurrentScene clears currentSceneDetail when scene is null', () => {
+    const s1 = scene('s-1', 'Scene One');
+    useAppStore.setState({
+      currentScene: s1,
+      currentSceneDetail: { scene: s1, skills: [], rules: [] },
+    });
+
+    useAppStore.getState().setCurrentScene(null);
+
+    expect(useAppStore.getState().currentScene).toBeNull();
+    expect(useAppStore.getState().currentSceneDetail).toBeNull();
+  });
+
+  it('fetchSceneDetail discards stale response when a newer request supersedes it', async () => {
+    const { invoke } = await import('@tauri-apps/api/core');
+
+    let resolveA!: (v: unknown) => void;
+    let resolveB!: (v: unknown) => void;
+
+    (invoke as any).mockImplementation((cmd: string, args: any) => {
+      if (cmd === 'get_scene_detail' && args?.id === 'scene-a') {
+        return new Promise((r) => {
+          resolveA = r;
+        });
+      }
+      if (cmd === 'get_scene_detail' && args?.id === 'scene-b') {
+        return new Promise((r) => {
+          resolveB = r;
+        });
+      }
+      return Promise.reject(new Error(`Unexpected invoke: ${cmd}`));
+    });
+
+    // Start viewing scene B with its detail loaded
+    const sceneB = scene('scene-b', 'Scene B');
+    useAppStore.setState({
+      currentScene: sceneB,
+      currentSceneDetail: { scene: sceneB, skills: [], rules: [] },
+    });
+
+    // Start fetching scene A (stale in-flight request)
+    const fetchAPromise =
+      useAppStore.getState().fetchSceneDetail('scene-a');
+
+    // Before A resolves, start fetching scene B (newer request supersedes A)
+    const fetchBPromise =
+      useAppStore.getState().fetchSceneDetail('scene-b');
+
+    // Resolve A's response — stale because B was requested after A
+    resolveA({ scene: scene('scene-a'), skills: [], rules: [] });
+    await fetchAPromise;
+
+    // currentSceneDetail must still be scene B's detail (stale A discarded)
+    expect(useAppStore.getState().currentSceneDetail?.scene.id).toBe(
+      'scene-b'
+    );
+
+    // Now resolve B — should update the detail
+    resolveB({ scene: scene('scene-b'), skills: [], rules: [] });
+    await fetchBPromise;
+
+    expect(useAppStore.getState().currentSceneDetail?.scene.id).toBe(
+      'scene-b'
     );
   });
 });

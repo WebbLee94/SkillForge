@@ -510,4 +510,65 @@ describe('Dashboard', () => {
     });
     expect(screen.queryByText('import.previewTitle')).toBeNull();
   });
+
+  it('watcher events and scanForImport results are separate data pipelines — not added together', async () => {
+    useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
+    await setupDefaultRoutes({
+      get_dashboard_stats: mkStats({ skill_count: 0 }),
+    });
+    render(<Dashboard />);
+
+    // WatcherNotification renders with its own event data from watcherStore
+    useWatcherStore.setState({
+      events: [
+        { id: 1, event_type: 'NEW', capability: 'skills', path: '/x/s1.md', platform: null, old_hash: null, new_hash: 'h1', handled: 0, created_at: '2026-08-20T10:00:00Z' },
+        { id: 2, event_type: 'MODIFIED', capability: 'skills', path: '/x/s2.md', platform: null, old_hash: null, new_hash: 'h2', handled: 0, created_at: '2026-08-20T10:00:00Z' },
+      ],
+    });
+
+    // Watcher shows file change counts (not import counts)
+    await waitFor(() => {
+      expect(screen.getByText('import.scanTitle')).toBeDefined();
+    });
+    // The watcher notification shows file change events (i18n mock returns keys as-is)
+    expect(screen.getByText('watcher.changesDetected')).toBeDefined();
+
+    // Scan for import — this is a separate IPC call, not derived from watcher events
+    fireEvent.click(screen.getByText('import.scanTitle'));
+    await waitFor(() => {
+      expect(screen.getByText('import.previewTitle')).toBeDefined();
+    });
+    // Scan results show per-platform source, Skills/Rules, and skipped — separate from watcher counts
+    expect(screen.getAllByText('Claude Code').length).toBeGreaterThanOrEqual(1);
+    // The scan result shows new skills count (1) and new rules count (1) — not watcher event counts
+    expect(screen.getByText(/import\.newSkills/)).toBeDefined();
+    expect(screen.getByText(/import\.newRules/)).toBeDefined();
+    // Skipped count is from scan result, not watcher
+    expect(screen.getByText(/import\.existing/)).toBeDefined();
+  });
+
+  it('notification click navigates to dashboard and scan button triggers import entry', async () => {
+    useAppStore.setState({ dashboardStats: mkStats({ skill_count: 0 }) });
+    await setupDefaultRoutes({
+      get_dashboard_stats: mkStats({ skill_count: 0 }),
+    });
+    render(<Dashboard />);
+
+    // Set watcher events to trigger notification
+    useWatcherStore.setState({
+      events: [{ id: 30, event_type: 'NEW', capability: 'skills', path: '/x/s1.md', platform: null, old_hash: null, new_hash: 'h30', handled: 0, created_at: '2026-08-20T10:00:00Z' }],
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('import.scanTitle')).toBeDefined();
+    });
+
+    // The scan button is still available and triggers import flow
+    fireEvent.click(screen.getByText('import.scanTitle'));
+    await waitFor(() => {
+      expect(screen.getByText('import.previewTitle')).toBeDefined();
+    });
+    // Import preview shows scan source platform
+    expect(screen.getAllByText('Claude Code').length).toBeGreaterThanOrEqual(1);
+  });
 });

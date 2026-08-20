@@ -139,8 +139,8 @@
     "newFiles": "+{{count}} 新增",
     "deletedFiles": "-{{count}} 已删除",
     "modifiedFiles": "~{{count}} 已修改",
-    "importHint": "前往概览使用「一键导入」将新增技能加入技能库",
-    "goToDashboard": "前往概览",
+    "importHint": "文件变更通知，前往概览查看可导入的技能和规则",
+    "goToDashboard": "去概览查看可导入内容",
     "dismiss": "忽略"
   },
   "platforms": {

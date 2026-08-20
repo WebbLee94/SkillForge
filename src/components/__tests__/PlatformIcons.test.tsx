@@ -80,4 +80,21 @@ describe('PlatformIcons', () => {
     const { container: c2 } = render(<CursorIcon className="c" />);
     expect(c1.innerHTML).not.toBe(c2.innerHTML);
   });
+
+  it('returns AgentIcon for agent platform id', () => {
+    const Icon = getPlatformIcon('agent');
+    expect(typeof Icon).toBe('function');
+    expect(Icon).not.toBe(DefaultPlatformIcon);
+  });
+
+  it('renders agent icon with className passed through', () => {
+    const Icon = getPlatformIcon('agent') as unknown as (
+      props: { className?: string }
+    ) => JSX.Element;
+    const { container } = render(<Icon className="h-5 w-5 text-blue-500" />);
+    const svg = container.querySelector('svg');
+    expect(svg).not.toBeNull();
+    expect(svg!.getAttribute('class')).toContain('h-5 w-5');
+    expect(svg!.getAttribute('class')).toContain('text-blue-500');
+  });
 });

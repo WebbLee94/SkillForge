@@ -118,6 +118,8 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     errors: string[];
   } | null>(null);
   const [managedOpen, setManagedOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLDivElement>(null);
   const [sceneSkillIds, setSceneSkillIds] = useState<Set<string> | null>(null);
   const [sceneRuleIds, setSceneRuleIds] = useState<Set<string> | null>(null);
   const [sceneSourceLoadFailed, setSceneSourceLoadFailed] = useState(false);
@@ -708,6 +710,30 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     setManagedOpen(true);
   }, [platformId, isProjectTarget, target, fetchManagedState]);
 
+  const closeManagedPanel = useCallback(() => {
+    setManagedOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (managedOpen && drawerRef.current) {
+      drawerRef.current.focus();
+    } else if (!managedOpen && triggerRef.current) {
+      triggerRef.current.focus();
+    }
+  }, [managedOpen]);
+
+  useEffect(() => {
+    if (!managedOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        closeManagedPanel();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [managedOpen, closeManagedPanel]);
+
   const managedPlatform = managedState?.platforms.find(
     (item) =>
       item.platform_id === platformId &&
@@ -721,6 +747,67 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   );
   const managedSkills = skills.filter((item) => managedSkillIds.has(item.id));
   const managedRules = rules.filter((item) => managedRuleIds.has(item.id));
+
+  // T3: 受管面板分区三态全选派生值
+  const allManagedSkillsChecked =
+    managedSkills.length > 0 &&
+    managedSkills.every((s) => pendingRemoveSkills.includes(s.id));
+  const managedSkillsPartiallyChecked =
+    managedSkills.some((s) => pendingRemoveSkills.includes(s.id)) &&
+    !allManagedSkillsChecked;
+  const allManagedRulesChecked =
+    managedRules.length > 0 &&
+    managedRules.every((r) => pendingRemoveRules.includes(r.id));
+  const managedRulesPartiallyChecked =
+    managedRules.some((r) => pendingRemoveRules.includes(r.id)) &&
+    !allManagedRulesChecked;
+
+  // T3: 受管面板分区全选/清空
+  const toggleManagedSelectAll = useCallback(
+    (kind: 'skill' | 'rule') => {
+      if (kind === 'skill') {
+        if (allManagedSkillsChecked) {
+          setPendingRemoveSkills((prev) =>
+            prev.filter((id) => !managedSkills.some((s) => s.id === id))
+          );
+        } else {
+          setPendingRemoveSkills((prev) => {
+            const newSet = new Set(prev);
+            for (const s of managedSkills) newSet.add(s.id);
+            return Array.from(newSet);
+          });
+        }
+      } else {
+        if (allManagedRulesChecked) {
+          setPendingRemoveRules((prev) =>
+            prev.filter((id) => !managedRules.some((r) => r.id === id))
+          );
+        } else {
+          setPendingRemoveRules((prev) => {
+            const newSet = new Set(prev);
+            for (const r of managedRules) newSet.add(r.id);
+            return Array.from(newSet);
+          });
+        }
+      }
+      setPendingRemoveResult(null);
+    },
+    [allManagedSkillsChecked, allManagedRulesChecked, managedSkills, managedRules]
+  );
+
+  const clearManagedSelection = useCallback((kind: 'skill' | 'rule') => {
+    if (kind === 'skill') {
+      setPendingRemoveSkills((prev) =>
+        prev.filter((id) => !managedSkills.some((s) => s.id === id))
+      );
+    } else {
+      setPendingRemoveRules((prev) =>
+        prev.filter((id) => !managedRules.some((r) => r.id === id))
+      );
+    }
+    setPendingRemoveResult(null);
+  }, [managedSkills, managedRules]);
+
   const unknownEntries = [
     ...(managedPlatform?.skills ?? [])
       .filter((item) => !skills.some((skill) => skill.id === item.id))
@@ -877,7 +964,8 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
             {stepNo < 4 && (
               <span
                 aria-hidden
-                  className="mt-3 flex-1 border-t border-border"
+                data-testid="ws-step-connector"
+                className="mt-3 flex-1 border-t border-border"
               />
             )}
           </Fragment>
@@ -983,13 +1071,12 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
             <div className="border-t border-border pt-3 sm:col-span-2">
               <button
+                ref={triggerRef}
                 type="button"
                 aria-expanded={managedOpen}
                 aria-controls="ws-managed-panel"
                 className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-accent"
-                onClick={
-                  managedOpen ? () => setManagedOpen(false) : openManaged
-                }
+                onClick={openManaged}
               >
                 <ShieldCheck className="h-4 w-4" />
                 <span
@@ -1006,39 +1093,114 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               </button>
 
               {managedOpen && (
-                <div
-                  id="ws-managed-panel"
-                  data-testid="ws-managed-panel"
-                  className="mt-3 rounded-lg border border-border bg-card pb-3"
-                >
-                  <div className="flex items-center justify-between px-3 pt-3">
-                    <h4 className="text-sm font-semibold text-foreground">
-                      {t('ws.managedPanelTitle')}
-                    </h4>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs text-foreground hover:bg-accent"
-                      onClick={revealDir}
-                    >
-                      <FolderOpen className="h-3.5 w-3.5" /> {revealLabel}
-                    </button>
-                  </div>
-                  <p
-                    aria-live="polite"
-                    data-testid="ws-managed-summary"
-                    className="px-3 pt-1.5 text-xs text-muted-foreground"
+                <>
+                  {/* Backdrop */}
+                  <div
+                    data-testid="ws-managed-backdrop"
+                    className="fixed inset-0 z-40 bg-black/50"
+                    onClick={closeManagedPanel}
+                  />
+                  {/* Drawer */}
+                  <aside
+                    id="ws-managed-panel"
+                    data-testid="ws-managed-drawer"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="ws-managed-panel-title"
+                    className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-border bg-card shadow-2xl"
+                    ref={drawerRef}
+                    tabIndex={-1}
                   >
+                    {/* Header */}
+                    <div className="border-b border-border px-4 py-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <h4
+                          id="ws-managed-panel-title"
+                          className="min-w-0 truncate text-sm font-semibold text-foreground"
+                        >
+                          {t('ws.managedPanelTitle')}
+                        </h4>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-border px-2.5 py-1 text-xs text-foreground hover:bg-accent"
+                            onClick={revealDir}
+                          >
+                            <FolderOpen className="h-3.5 w-3.5" /> {revealLabel}
+                          </button>
+                          <button
+                            type="button"
+                            aria-label={t('ws.managed.close')}
+                            onClick={closeManagedPanel}
+                            className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                      <p
+                        data-testid="ws-managed-content-help"
+                        className="mt-2 text-xs leading-relaxed text-muted-foreground"
+                      >
+                        ⓘ {t('ws.managed.managedContentHelp')}
+                      </p>
+                    </div>
+                    {/* Scrollable content */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                      <p
+                        aria-live="polite"
+                        data-testid="ws-managed-summary"
+                        className="mb-4 text-xs text-muted-foreground"
+                      >
                     {t('ws.managed.pendingRemove', {
                       count:
                         pendingRemoveSkills.length + pendingRemoveRules.length,
                     })}
                   </p>
 
-                  <div className="mt-3 rounded-lg border border-border">
-                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                      {t('ws.managed.sectionSkills', {
-                        count: managedSkills.length,
-                      })}
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    {/* Skills section */}
+                    <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-border">
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {t('ws.managed.sectionSkills', {
+                            count: managedSkills.length,
+                          })}
+                        </span>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="ws-managed-select-all-skills"
+                            aria-label={t('ws.managed.selectAllSkills')}
+                            aria-checked={
+                              managedSkillsPartiallyChecked
+                                ? 'mixed'
+                                : allManagedSkillsChecked
+                            }
+                            ref={(el) => {
+                              if (el)
+                                el.indeterminate = managedSkillsPartiallyChecked;
+                            }}
+                            checked={allManagedSkillsChecked}
+                            disabled={managedSkills.length === 0}
+                            onChange={() =>
+                              toggleManagedSelectAll('skill')
+                            }
+                            className="h-3.5 w-3.5"
+                          />
+                          {t('ws.managed.selectAllSkills')}
+                        </label>
+                        <button
+                          type="button"
+                          data-testid="ws-managed-clear-skills"
+                          disabled={managedSkills.length === 0}
+                          onClick={() => clearManagedSelection('skill')}
+                          className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        >
+                          {t('ws.managed.clearAll')}
+                        </button>
+                      </div>
                     </div>
                     {managedSkills.map((item) => (
                       <div
@@ -1079,11 +1241,48 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                     ))}
                   </div>
 
-                  <div className="mt-3 rounded-lg border border-border">
-                    <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
-                      {t('ws.managed.sectionRules', {
-                        count: managedRules.length,
-                      })}
+                  {/* Rules section */}
+                    <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-border">
+                      <div className="flex items-center justify-between px-3 py-2">
+                        <span className="text-xs font-semibold text-muted-foreground">
+                          {t('ws.managed.sectionRules', {
+                            count: managedRules.length,
+                          })}
+                        </span>
+                      <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            data-testid="ws-managed-select-all-rules"
+                            aria-label={t('ws.managed.selectAllRules')}
+                            aria-checked={
+                              managedRulesPartiallyChecked
+                                ? 'mixed'
+                                : allManagedRulesChecked
+                            }
+                            ref={(el) => {
+                              if (el)
+                                el.indeterminate = managedRulesPartiallyChecked;
+                            }}
+                            checked={allManagedRulesChecked}
+                            disabled={managedRules.length === 0}
+                            onChange={() =>
+                              toggleManagedSelectAll('rule')
+                            }
+                            className="h-3.5 w-3.5"
+                          />
+                          {t('ws.managed.selectAllRules')}
+                        </label>
+                        <button
+                          type="button"
+                          data-testid="ws-managed-clear-rules"
+                          disabled={managedRules.length === 0}
+                          onClick={() => clearManagedSelection('rule')}
+                          className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                        >
+                          {t('ws.managed.clearAll')}
+                        </button>
+                      </div>
                     </div>
                     {managedRules.map((item) => (
                       <div
@@ -1122,6 +1321,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                         />
                       </div>
                     ))}
+                  </div>
                   </div>
 
                   {keepEntries.length > 0 && (
@@ -1211,13 +1411,15 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                         </>
                       )}
                       {pendingRemoveResult.status === 'failed' &&
-                        t('ws.removeResult.failed')}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+t('ws.removeResult.failed')}
+                      </div>
+                    )}
+                  </div>
+                </aside>
+              </>
+            )}
           </div>
+        </div>
 
           <div
             data-testid="ws-step1-actions"

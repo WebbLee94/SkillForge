@@ -139,8 +139,8 @@
     "newFiles": "+{{count}} new",
     "deletedFiles": "-{{count}} deleted",
     "modifiedFiles": "~{{count}} modified",
-    "importHint": "Go to Overview to import new skills into the library",
-    "goToDashboard": "Go to Overview",
+    "importHint": "File changes detected. Go to Overview to review importable skills and rules.",
+    "goToDashboard": "Go to Overview to see importable content",
     "dismiss": "Dismiss"
   },
   "platforms": {
