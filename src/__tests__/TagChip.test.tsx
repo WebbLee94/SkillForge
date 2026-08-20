@@ -10,7 +10,39 @@ const mockTag: Tag = {
   tag_type: 'skill',
 };
 
+const mkTag = (id: number, name: string): Tag => ({
+  id,
+  name,
+  color: '#ff6600',
+  tag_type: 'skill',
+});
+
 describe('TagChip', () => {
+  it('onRemove 渲染语义化移除按钮（aria-label + title），wrapper 为非交互 span、无嵌套 button', () => {
+    const { container } = render(
+      <TagChip
+        tag={mkTag(1, 'Java')}
+        onClick={vi.fn()}
+        onRemove={() => {}}
+        removeLabel="移除标签 Java"
+      />
+    );
+    const removeBtn = container.querySelector(
+      'button[aria-label="移除标签 Java"]'
+    );
+    expect(removeBtn).not.toBeNull();
+    expect(removeBtn?.getAttribute('title')).toBe('移除标签 Java');
+    // wrapper 为非交互 span，移除按钮不在任何 button 内（无嵌套交互元素）
+    const wrapper = removeBtn?.parentElement;
+    expect(wrapper?.tagName).toBe('SPAN');
+    expect(wrapper?.closest('button')).toBeNull();
+    // 主 chip 按钮与移除按钮为兄弟，同属该 wrapper
+    const primaryBtn = wrapper?.querySelector('button:not([aria-label])');
+    expect(primaryBtn).not.toBeNull();
+    expect(primaryBtn?.parentElement).toBe(wrapper);
+    expect(removeBtn?.parentElement).toBe(wrapper);
+  });
+
   it('renders tag name and color indicator', () => {
     render(<TagChip tag={mockTag} />);
     expect(screen.getByText('Java')).toBeDefined();

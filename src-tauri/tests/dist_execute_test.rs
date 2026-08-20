@@ -8,8 +8,12 @@
 
 use skillforge_lib::db::migrations;
 use skillforge_lib::engine::dist_execute;
+use skillforge_lib::error::AppError;
 use skillforge_lib::plugins::platform::PlatformPlugin;
-use skillforge_lib::types::{DistributionIntent, DistributionIntentMode, DistributionRequest};
+use skillforge_lib::types::{
+    DistributionIntent, DistributionIntentMode, DistributionRequest, PlatformCapabilities,
+    PlatformInstance, PlatformPaths, Skill, SkillPlatformStatus, SyncResult,
+};
 
 mod support;
 
@@ -396,4 +400,166 @@ fn sync_scene_counts_skipped_for_rule_already_in_sync() {
     assert!(result.updated.is_empty());
     assert_eq!(result.skipped, 1);
     assert!(result.errors.is_empty());
+}
+
+// ── remove_distributed 执行契约（33 号 3.3 / DEC-1，A6）─────────────
+
+/// 确定性失败注入：委托 TestPlatformPlugin 全部方法，仅 remove 恒返 Err。
+struct FailingRemovePlugin {
+    inner: support::TestPlatformPlugin,
+}
+impl PlatformPlugin for FailingRemovePlugin {
+    fn platform_name(&self) -> &'static str {
+        self.inner.platform_name()
+    }
+    fn display_name(&self) -> &'static str {
+        self.inner.display_name()
+    }
+    fn detect(&self) -> Result<Vec<PlatformInstance>, AppError> {
+        self.inner.detect()
+    }
+    fn install(&self, skill: &Skill, instance: &PlatformInstance) -> Result<(), AppError> {
+        self.inner.install(skill, instance)
+    }
+    fn sync(&self, skill: &Skill, instance: &PlatformInstance) -> Result<SyncResult, AppError> {
+        self.inner.sync(skill, instance)
+    }
+    fn remove(&self, _skill_id: &str, _instance: &PlatformInstance) -> Result<(), AppError> {
+        Err(AppError::Io("注入的移除失败".to_string()))
+    }
+    fn status(
+        &self,
+        skill_id: &str,
+        instance: &PlatformInstance,
+    ) -> Result<SkillPlatformStatus, AppError> {
+        self.inner.status(skill_id, instance)
+    }
+    fn default_paths(&self) -> PlatformPaths {
+        self.inner.default_paths()
+    }
+    fn capabilities(&self) -> PlatformCapabilities {
+        self.inner.capabilities()
+    }
+}
+
+// 契约 6：部分失败收集 —— 平台 A 移除成功、平台 B 注入失败，单项失败不中止其他项
+#[test]
+fn remove_distributed_collects_partial_failures() {
+    let conn = init_db();
+    let good = support::TestPlatformPlugin::new("plat-a", "Platform A");
+    let bad_inner = support::TestPlatformPlugin::new("plat-b", "Platform B");
+    insert_skill(&conn, &good, "s-a");
+    insert_skill(&conn, &bad_inner, "s-b");
+    // 捕获路径句柄后再装箱（TestPlatformPlugin 非 Clone，装箱后无法再借用）
+    let good_skills_dir = good.skills_dir();
+    let bad_skills_dir = bad_inner.skills_dir();
+    std::fs::create_dir_all(&good_skills_dir).unwrap();
+    std::fs::create_dir_all(&bad_skills_dir).unwrap();
+    let src_a: String = conn
+        .query_row("SELECT local_path FROM skills WHERE id='s-a'", [], |r| r.get(0))
+        .unwrap();
+    let src_b: String = conn
+        .query_row("SELECT local_path FROM skills WHERE id='s-b'", [], |r| r.get(0))
+        .unwrap();
+    std::os::unix::fs::symlink(&src_a, good_skills_dir.join("s-a")).unwrap();
+    std::os::unix::fs::symlink(&src_b, bad_skills_dir.join("s-b")).unwrap();
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![
+        Box::new(good),
+        Box::new(FailingRemovePlugin { inner: bad_inner }),
+    ];
+
+    let result = dist_execute::execute_remove_distributed(
+        &conn,
+        &plugins,
+        &["plat-a".to_string(), "plat-b".to_string()],
+        "global",
+        None,
+        &["s-a".to_string(), "s-b".to_string()],
+        &[],
+    )
+    .expect("部分失败仍应返回 Ok(SyncResult)");
+    assert_eq!(result.removed, vec!["s-a".to_string()]);
+    assert_eq!(result.errors.len(), 1);
+    assert!(result.errors[0].contains("s-b"));
+    // 平台 A 的 symlink 已删除；平台 B 的 symlink 未被删除（失败项保留，供重试）
+    assert!(good_skills_dir.join("s-a").symlink_metadata().is_err());
+    assert!(bad_skills_dir.join("s-b").symlink_metadata().is_ok());
+}
+
+// ── 走查修复 F3：同平台规则部分失败时保留实际成功的移除 ─────────────
+
+/// 尝试让单个文件的 unlink 确定性失败（macOS: uchg 不可变标志；Windows: 只读属性）。
+/// 返回是否成功注入失败（Linux 无法对单个 unlink 注入失败，返回 false）。
+fn block_file_unlink(path: &std::path::Path) -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("chflags")
+            .arg("uchg")
+            .arg(path)
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+    #[cfg(target_os = "windows")]
+    {
+        let mut permissions = std::fs::metadata(path)
+            .expect("rule file metadata")
+            .permissions();
+        permissions.set_readonly(true);
+        std::fs::set_permissions(path, permissions).is_ok()
+    }
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        let _ = path;
+        false
+    }
+}
+
+// 走查 F3：规则 rule-a 实际移除后，rule-b 的 unlink 失败 → removed 仍须保留 rule:rule-a
+#[test]
+fn remove_distributed_preserves_successful_rule_removals_when_later_rule_fails() {
+    let conn = init_db();
+    let plugin = support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", false, "");
+    insert_rule(&conn, "rule-a", "content-a", "md");
+    insert_rule(&conn, "rule-b", "content-b", "md");
+    let rules_dir = plugin.rules_dir();
+    std::fs::create_dir_all(&rules_dir).unwrap();
+    std::fs::write(rules_dir.join("rule-a.md"), "content-a").unwrap();
+    let b_path = rules_dir.join("rule-b.md");
+    std::fs::write(&b_path, "content-b").unwrap();
+    // 后置规则（rule-b）的 unlink 被注入失败；前置规则（rule-a）在失败前已实际移除
+    let blocked = block_file_unlink(&b_path);
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
+
+    let result = dist_execute::execute_remove_distributed(
+        &conn,
+        &plugins,
+        &["test-plat".to_string()],
+        "global",
+        None,
+        &[],
+        &["rule-a".to_string(), "rule-b".to_string()],
+    )
+    .expect("部分失败仍应返回 Ok(SyncResult)");
+
+    if blocked {
+        // 实际成功的移除必须保留在 removed；失败项进入 errors，文件保留供重试
+        assert_eq!(result.removed, vec!["rule:rule-a".to_string()]);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].starts_with("test-plat:"));
+        assert!(!rules_dir.join("rule-a.md").exists());
+        assert!(b_path.exists());
+        // 清理不可变标志，保证 tempdir 可回收
+        let _ = std::process::Command::new("chflags")
+            .arg("nouchg")
+            .arg(&b_path)
+            .status();
+    } else {
+        // Linux 等无法注入单文件 unlink 失败的平台：退化为全成功路径
+        assert_eq!(
+            result.removed,
+            vec!["rule:rule-a".to_string(), "rule:rule-b".to_string()]
+        );
+        assert!(result.errors.is_empty());
+    }
 }

@@ -19,8 +19,8 @@ use crate::engine::rule_distribution;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
 use crate::types::{
-    DistributionIntentMode, DistributionPlan, DistributionRequest, PlatformInstance, RulesFormat,
-    SyncResult,
+    DistributionIntent, DistributionIntentMode, DistributionPlan, DistributionRequest,
+    PlatformInstance, RulesFormat, SyncResult,
 };
 
 /// Sync skills and rules to one or more platforms.
@@ -282,6 +282,146 @@ pub fn execute_distribution_request(
                     &mut result,
                 )?;
             }
+        }
+    }
+    Ok(result)
+}
+
+/// 33 号 3.3 / DEC-1：独立移除受管内容。
+/// 语义约束：仅允许 RemoveSelected；fail-closed（任一请求 id 不在重算移除列表 → 整体拒绝）；
+/// 所有权校验复用 validate_removal_targets；执行阶段部分失败收集到 result.errors。
+pub fn execute_remove_distributed(
+    conn: &rusqlite::Connection,
+    platform_plugins: &[Box<dyn PlatformPlugin>],
+    platform_ids: &[String],
+    scope: &str,
+    project_id: Option<&str>,
+    skill_ids: &[String],
+    rule_ids: &[String],
+) -> Result<SyncResult, AppError> {
+    if skill_ids.is_empty() && rule_ids.is_empty() {
+        return Err(AppError::DistributionInvalid(
+            "没有待移除的受管内容".to_string(),
+        ));
+    }
+    let request = DistributionRequest {
+        scene_id: None,
+        platform_ids: platform_ids.to_vec(),
+        scope: scope.to_string(),
+        project_id: project_id.map(str::to_string),
+        // 空维度用 Preserve：RemoveSelected(空) 与 Preserve 的计划完全一致，
+        // 但可避免 validate_removal_targets 在无规则平台对空 rules 报"不支持移除"。
+        skills: DistributionIntent {
+            mode: if skill_ids.is_empty() {
+                DistributionIntentMode::Preserve
+            } else {
+                DistributionIntentMode::RemoveSelected
+            },
+            ids: skill_ids.to_vec(),
+        },
+        rules: DistributionIntent {
+            mode: if rule_ids.is_empty() {
+                DistributionIntentMode::Preserve
+            } else {
+                DistributionIntentMode::RemoveSelected
+            },
+            ids: rule_ids.to_vec(),
+        },
+    };
+    request.validate()?;
+    let plan = build_distribution_plan_for_request(conn, platform_plugins, &request)?;
+
+    // fail-closed 预检（类型安全，走查 F1）：每个请求 skill id 只对 skills_to_remove、
+    // 每个请求 rule id 只对 rules_to_remove 校验；技能/规则各自命名空间，杜绝跨类型
+    // 同 ID 掩盖。覆盖按「至少一个目标平台」计：managed-state 选择是扁平 id 列表，
+    // 某项可能只在请求平台的一个子集上受管，严格「每平台都在」会误拒合法选择。
+    let skills_covered: std::collections::HashSet<&str> = plan
+        .platforms
+        .iter()
+        .flat_map(|platform| platform.skills_to_remove.iter().map(|id| id.as_str()))
+        .collect();
+    let rules_covered: std::collections::HashSet<&str> = plan
+        .platforms
+        .iter()
+        .flat_map(|platform| platform.rules_to_remove.iter().map(|id| id.as_str()))
+        .collect();
+    for id in skill_ids {
+        if !skills_covered.contains(id.as_str()) {
+            return Err(AppError::DistributionInvalid(format!(
+                "移除目标 '{}' 已变化或不再受管，请重新扫描",
+                id
+            )));
+        }
+    }
+    for id in rule_ids {
+        if !rules_covered.contains(id.as_str()) {
+            return Err(AppError::DistributionInvalid(format!(
+                "移除目标 '{}' 已变化或不再受管，请重新扫描",
+                id
+            )));
+        }
+    }
+
+    validate_existing_single_file_targets(conn, platform_plugins, &request, &plan)?;
+    validate_removal_targets(conn, platform_plugins, &request, &plan)?;
+
+    let project_path = project_id.and_then(|id| get_project_path(conn, id));
+    let mut result = SyncResult {
+        installed: vec![],
+        updated: vec![],
+        removed: vec![],
+        skipped: 0,
+        errors: vec![],
+    };
+    for platform in &plan.platforms {
+        let plugin = platform_plugins
+            .iter()
+            .find(|plugin| plugin.platform_name() == platform.platform_id)
+            .ok_or_else(|| {
+                AppError::Platform(format!("未找到平台插件: {}", platform.platform_id))
+            })?;
+        let instance = resolve_distribution_instance(
+            plugin.as_ref(),
+            request.scope.as_str(),
+            project_path.as_deref(),
+        );
+        for id in &platform.skills_to_remove {
+            match plugin.remove(id, &instance) {
+                Ok(_) => result.removed.push(id.clone()),
+                Err(e) => result
+                    .errors
+                    .push(format!("从 {} 移除技能 '{}' 失败: {}", platform.platform_id, id, e)),
+            }
+        }
+        let rules_format = if request.scope == "global" {
+            plugin.default_paths().global_rules_format.clone()
+        } else {
+            plugin.default_paths().project_rules_format.clone()
+        }
+        .unwrap_or(RulesFormat::Directory);
+        if !platform.rules_to_remove.is_empty() {
+            let mut per_platform = SyncResult {
+                installed: vec![],
+                updated: vec![],
+                removed: vec![],
+                skipped: 0,
+                errors: vec![],
+            };
+            if let Err(e) = rule_distribution::remove_selected_rules(
+                conn,
+                plugin.as_ref(),
+                &instance,
+                &platform.rules_to_remove,
+                &rules_format,
+                project_path.as_deref(),
+                &mut per_platform,
+            ) {
+                result
+                    .errors
+                    .push(format!("{}: {}", platform.platform_id, e));
+            }
+            // 走查 F3：无论整体是否失败，实际成功的规则移除必须保留在 removed 中
+            result.removed.extend(per_platform.removed);
         }
     }
     Ok(result)

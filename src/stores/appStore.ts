@@ -21,6 +21,7 @@ import type {
   ImportResult,
   DistributionPlan,
   DistributionSelection,
+  RemoveDistributionSelection,
   ManagedDistributionState,
   SceneCompositionDraft,
 } from '../types';
@@ -190,6 +191,9 @@ interface AppStore {
   executeDistribution: (
     selection: DistributionSelection,
     plan: DistributionPlan
+  ) => Promise<SyncResult | null>;
+  removeDistributed: (
+    selection: RemoveDistributionSelection
   ) => Promise<SyncResult | null>;
   syncScene: (
     skillIds: string[],
@@ -783,6 +787,17 @@ export const useAppStore = create<AppStore>((set, get) => {
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         get().addToast(`分发失败: ${errMsg}`, 'error');
+        return null;
+      }
+    },
+    removeDistributed: async (selection) => {
+      try {
+        const result = await ipc.removeDistributed(selection);
+        await get().fetchSyncStatus();
+        return result;
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        get().addToast(`移除失败: ${errMsg}`, 'error');
         return null;
       }
     },

@@ -209,6 +209,15 @@ export interface DistributionSelection {
   rules: DistributionIntent;
 }
 
+/** 33 号 3.3 / DEC-1：独立移除受管内容的请求（仅 RemoveSelected 语义）。 */
+export interface RemoveDistributionSelection {
+  platformIds: string[];
+  scope: 'global' | 'project';
+  projectId?: string;
+  skillIds: string[];
+  ruleIds: string[];
+}
+
 export interface ManagedDistributionState {
   platforms: ManagedPlatformState[];
 }

@@ -289,6 +289,23 @@ body {
   animation: slide-in-from-bottom 0.3s ease-out;
 }
 
+/* 全局图标操作规范（33 号 4.6）：默认隐藏、hover/focus 显示、触控保持可达 */
+.action-reveal {
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.action-reveal:focus-visible,
+.group:hover .action-reveal,
+.group:focus-within .action-reveal,
+.group:focus .action-reveal {
+  opacity: 1;
+}
+@media (hover: none) {
+  .action-reveal {
+    opacity: 1;
+  }
+}
+
 /* 动效降级：尊重系统减弱动态偏好 */
 @media (prefers-reduced-motion: reduce) {
   *,

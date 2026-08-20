@@ -38,7 +38,6 @@ import {
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { readDir } from '@tauri-apps/plugin-fs';
-import { revealItemInDir } from '@tauri-apps/plugin-opener';
 
 async function buildSkillImportItem(
   dirPath: string,
@@ -77,7 +76,7 @@ async function buildSkillImportItem(
 }
 
 export function SkillLibrary() {
-  const { t } = useTranslation('skills');
+  const { t } = useTranslation(['skills', 'distribution']);
   const { t: tc } = useTranslation('common');
   const skills = useAppStore((s) => s.skills);
   const tags = useAppStore((s) => s.tags);
@@ -98,6 +97,7 @@ export function SkillLibrary() {
   const updateSkill = useAppStore((s) => s.updateSkill);
   const assignTag = useAppStore((s) => s.assignTag);
   const removeTagAction = useAppStore((s) => s.removeTag);
+  const createTag = useAppStore((s) => s.createTag);
 
   const [localSearch, setLocalSearch] = useState('');
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<
@@ -113,7 +113,6 @@ export function SkillLibrary() {
   );
   const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
   const [showBatchTagDialog, setShowBatchTagDialog] = useState(false);
-  const [managedCopyPath, setManagedCopyPath] = useState<string | null>(null);
   const [batchRef, setBatchRef] = useState<{
     status: 'idle' | 'loading' | 'loaded' | 'error';
     referenced: number;
@@ -142,28 +141,6 @@ export function SkillLibrary() {
     setLoadFailed(false);
     fetchSkills().then((ok) => setLoadFailed(!ok));
   };
-
-  // Inspector 打开时按需解析受管副本路径（避免列表逐项 N+1 查询）
-  const selectedSkillId = selectedSkill?.id ?? null;
-  useEffect(() => {
-    if (!selectedSkillId) {
-      setManagedCopyPath(null);
-      return;
-    }
-    let cancelled = false;
-    setManagedCopyPath(null);
-    ipc
-      .getManagedCopyPath('skill', selectedSkillId)
-      .then((path) => {
-        if (!cancelled) setManagedCopyPath(path ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setManagedCopyPath(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedSkillId]);
 
   const handleSearch = useCallback(
     (value: string) => {
@@ -702,9 +679,11 @@ export function SkillLibrary() {
               contentPreview={selectedSkill.description || ''}
               tags={selectedSkill.tags || []}
               allTags={tags}
-              managedCopyPath={managedCopyPath}
               onSaveTags={(added, removed) =>
                 saveSkillTags(selectedSkill.id, added, removed)
+              }
+              onCreateTag={(name, color) =>
+                createTag({ name, color, tag_type: 'skill' })
               }
               onEdit={
                 selectedSkill.source_type === 'git' ||
@@ -743,7 +722,10 @@ export function SkillLibrary() {
                         </span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between gap-3 text-sm">
+                    <div
+                      data-testid="skill-local-path-row"
+                      className="group flex items-center justify-between gap-3 text-sm"
+                    >
                       <span className="shrink-0 text-muted-foreground">
                         {t('detail.localPath')}
                       </span>
@@ -753,11 +735,24 @@ export function SkillLibrary() {
                         </span>
                         {selectedSkill.local_path && (
                           <button
-                            className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                            onClick={() =>
-                              revealItemInDir(selectedSkill.local_path!)
-                            }
+                            aria-label={`${t('detail.localPath')} ${sanitizePath(selectedSkill.local_path)}`}
                             title={t('detail.openInFinder')}
+                            className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary transition-colors action-reveal"
+                            onClick={() => {
+                              ipc
+                                .revealPath(selectedSkill.local_path!, false)
+                                .then((res) => {
+                                  if (res.fallback)
+                                    useAppStore
+                                      .getState()
+                                      .addToast(t('ws.revealFallback'), 'info');
+                                })
+                                .catch(() =>
+                                  useAppStore
+                                    .getState()
+                                    .addToast(t('ws.revealFailed'), 'error')
+                                );
+                            }}
                           >
                             <FolderOpen className="h-3.5 w-3.5" />
                           </button>

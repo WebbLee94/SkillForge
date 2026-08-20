@@ -169,7 +169,7 @@ describe('ProjectDistribution', () => {
     expect(screen.getByTestId('go-distribute-p-1')).toBeDefined();
   });
 
-  it('项目名称铅笔仅在卡片 hover/focus-within 时呈现', async () => {
+  it('项目名称铅笔使用共享 .action-reveal 类（默认隐藏、CSS 负责 hover/focus 显示）', async () => {
     const proj = mkProj('p-1', 'My Project');
     await seedRoutes({
       list_projects: [proj],
@@ -182,11 +182,45 @@ describe('ProjectDistribution', () => {
 
     const card = screen.getByTestId('project-card-p-1');
     const rename = screen.getByTestId('project-rename-p-1');
-    expect(card.className).toContain('group');
-    expect(rename.className).toContain('opacity-0');
-    expect(rename.className).toContain('group-hover:opacity-100');
-    expect(rename.className).toContain('group-focus-within:opacity-100');
-    expect(rename.className).toContain('focus:opacity-100');
+    // 整卡不得为普通 group：避免全局 .group:hover .action-reveal 在任意卡片 hover 时跨区域揭示；
+    // 保留命名 group/card 语义（不匹配全局无命名 .group 选择器）。
+    const cardTokens = card.className.split(/\s+/);
+    expect(cardTokens).not.toContain('group');
+    expect(cardTokens).toContain('group/card');
+    expect(rename.className).toContain('action-reveal');
+    expect(rename.className).not.toContain('opacity-0');
+    expect(rename.className).not.toContain('group-hover/name');
+  });
+
+  it('作用域 hover 按钮使用共享 .action-reveal 类（整卡无命名 group，仅区域无命名 group）', async () => {
+    const proj = mkProj('p-1', 'My Project');
+    await seedRoutes({
+      list_projects: [proj],
+      list_platforms: [mkPlat('claude', 'Claude Code')],
+    });
+    render(<ProjectDistribution />);
+    await waitFor(() => expect(screen.getByTestId('project-card-p-1')).toBeDefined());
+    const card = screen.getByTestId('project-card-p-1');
+    const nameZone = card.querySelector('[data-testid="project-name-zone-p-1"]');
+    const pathZone = card.querySelector('[data-testid="project-path-zone-p-1"]');
+    // 整卡：仅命名 group/card，无普通 group（.group:hover .action-reveal 不跨区域揭示）
+    const cardTokens = card.className.split(/\s+/);
+    expect(cardTokens).not.toContain('group');
+    expect(cardTokens).toContain('group/card');
+    // 名称/路径区域：各自为无命名 group（独立触发 .group:hover .action-reveal）
+    const nameZoneTokens = nameZone?.className.split(/\s+/) ?? [];
+    const pathZoneTokens = pathZone?.className.split(/\s+/) ?? [];
+    expect(nameZoneTokens).toContain('group');
+    expect(nameZoneTokens).not.toContain('group/name');
+    expect(pathZoneTokens).toContain('group');
+    expect(pathZoneTokens).not.toContain('group/path');
+
+    const rename = screen.getByTestId('project-rename-p-1');
+    const reveal = screen.getByTestId('project-reveal-p-1');
+    expect(rename.className).toContain('action-reveal');
+    expect(reveal.className).toContain('action-reveal');
+    expect(rename.className).not.toContain('group-hover/name');
+    expect(reveal.className).not.toContain('group-hover/path');
   });
 
   it('项目路径行 hover 显示目录图标，点击调用 revealPath(project.path, false)', async () => {
@@ -200,11 +234,12 @@ describe('ProjectDistribution', () => {
       expect(screen.getByTestId('project-card-p-1')).toBeDefined()
     );
 
+    const card = screen.getByTestId('project-card-p-1');
+    const pathZone = card.querySelector('[data-testid="project-path-zone-p-1"]');
     const reveal = screen.getByTestId('project-reveal-p-1');
-    expect(reveal.className).toContain('opacity-0');
-    expect(reveal.className).toContain('group-hover:opacity-100');
-    expect(reveal.className).toContain('group-focus-within:opacity-100');
-    expect(reveal.className).toContain('focus:opacity-100');
+    expect(pathZone?.className).toContain('group');
+    expect(reveal.className).toContain('action-reveal');
+    expect(reveal.className).not.toContain('group-hover/path');
     fireEvent.click(reveal);
     const { invoke } = await import('@tauri-apps/api/core');
     expect(invoke).toHaveBeenCalledWith('reveal_path', {

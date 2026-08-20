@@ -27,6 +27,11 @@ describe('TagPopover', () => {
     expect(screen.getByTestId('tag-popover-trigger')).toBeDefined();
   });
 
+  it('ariaLabel 应用于触发按钮的可访问性名称（N4）', () => {
+    render(<TagPopover {...baseProps} ariaLabel="添加标签" />);
+    expect(screen.getByRole('button', { name: '添加标签' })).toBeDefined();
+  });
+
   it('点击触发器打开弹出层', () => {
     render(<TagPopover {...baseProps} />);
     fireEvent.click(screen.getByTestId('tag-popover-trigger'));
@@ -93,6 +98,14 @@ describe('TagPopover', () => {
     const searchInput = screen.getByPlaceholderText('搜索或输入标签名...');
     fireEvent.change(searchInput, { target: { value: 'NewTag' } });
     expect(screen.getByText(/创建/)).toBeDefined();
+  });
+
+  it('onCreate 缺失时不显示创建入口（守卫）', () => {
+    render(<TagPopover {...baseProps} onCreate={undefined} />);
+    fireEvent.click(screen.getByTestId('tag-popover-trigger'));
+    const searchInput = screen.getByPlaceholderText('搜索或输入标签名...');
+    fireEvent.change(searchInput, { target: { value: 'NewTag' } });
+    expect(screen.queryByText(/创建/)).toBeNull();
   });
 
   it('回车键触发创建', () => {

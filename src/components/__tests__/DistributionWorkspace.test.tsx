@@ -6,7 +6,11 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import { DistributionWorkspace, resolveRevealAsSkillsDir } from '../DistributionWorkspace';
+import {
+  DistributionWorkspace,
+  resolveRevealAsSkillsDir,
+  resolveStep1PathDisplay,
+} from '../DistributionWorkspace';
 import { useAppStore } from '../../stores/appStore';
 import { SELECT_CLASSES } from '../../lib/ui-tokens';
 import type { Platform, Project, Scene, Rule, Skill } from '../../types';
@@ -30,6 +34,62 @@ vi.mock('react-i18next', () => ({
       if (key === 'ws.managed.sectionRules') {
         return `规则（${params?.count ?? 0}）`;
       }
+      if (key === 'ws.managedToggle') {
+        return '查看此目标已分发内容';
+      }
+      if (key === 'ws.managedToggleHide') {
+        return '收起当前已分发内容';
+      }
+      if (key === 'ws.managed.confirmRemove') {
+        return `确认移除 ${params?.count ?? 0} 项`;
+      }
+      if (key === 'ws.removeConfirm.title') {
+        return '确认移除受管内容';
+      }
+      if (key === 'ws.removeConfirm.desc') {
+        return '仅移除 SkillForge 受管副本，资源库保留可重新分发恢复';
+      }
+      if (key === 'ws.removeConfirm.confirm') {
+        return '确认移除';
+      }
+      if (key === 'ws.removeConfirm.cancel') {
+        return '取消';
+      }
+      if (key === 'ws.removeResult.success') {
+        return `已移除 ${params?.count ?? 0} 项`;
+      }
+      if (key === 'ws.removeResult.failed') {
+        return '移除失败，可重试';
+      }
+      if (key === 'ws.removeResult.partial') {
+        return `部分失败：已移除 ${params?.removed ?? 0} 项，失败 ${params?.failed ?? 0} 项`;
+      }
+      if (key === 'ws.removeResult.targetChanged') {
+        return '移除目标已变化或不再受管，请重新扫描';
+      }
+      // T5（33 号 3.4 / A3）：全选/清空文案，供 aria-label 断言
+      if (key === 'ws.selectAllSkills') {
+        return '全选技能';
+      }
+      if (key === 'ws.selectAllRules') {
+        return '全选规则';
+      }
+      if (key === 'ws.clearAll') {
+        return '清空';
+      }
+      // T6（33 号 3.5 / P0-1）：Step3 计划标题已中文化，不再以原始 key 为期望
+      if (key === 'ws.planTitle') {
+        return '计划明细';
+      }
+      // T7（33 号 3.6 / A5 / P0-2）：结果指标中文化 + 返回工作区
+      // 注：ws.backToWorkspace 被 mock 为中文「返回工作区」，按钮断言必须用 mock 输出
+      //     `{ name: '返回工作区' }`（不可用原始 key `'ws.backToWorkspace'`）。
+      if (key === 'ws.resultInstalled') return '已安装';
+      if (key === 'ws.resultUpdated') return '已更新';
+      if (key === 'ws.resultRemoved') return '已移除';
+      if (key === 'ws.resultSkipped') return '已跳过';
+      if (key === 'ws.resultErrors') return '错误';
+      if (key === 'ws.backToWorkspace') return '返回工作区';
       return key;
     },
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
@@ -209,7 +269,9 @@ function baseRoutes() {
 }
 
 async function waitForPlanReady() {
-  await waitFor(() => expect(screen.getByText('ws.planTarget')).toBeDefined());
+  await waitFor(() =>
+    expect(screen.getByTestId('ws-step3-skills-path')).toBeDefined()
+  );
 }
 
 async function waitForStep2() {
@@ -408,7 +470,7 @@ describe('DistributionWorkspace', () => {
       expect(screen.getByTestId('ws-rules-path')).toBeDefined();
     });
 
-    it('项目目标下 Rules 路径按 project_rules_pattern 解析 {project}', async () => {
+    it('项目目标下 Rules 路径按 project_rules_pattern 解析为平台内相对路径', async () => {
       const proj = mkProj('p-1', 'My Project');
       const plat: Platform = {
         ...mkPlat('claude-code', 'Claude Code'),
@@ -432,8 +494,9 @@ describe('DistributionWorkspace', () => {
       fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
         target: { value: 'project:p-1' },
       });
+      // 33 号 A1：Step1 项目目标下剥离 {project}/ 前缀显示平台内相对路径
       expect(screen.getByTestId('ws-rules-path').textContent).toBe(
-        '/tmp/p-1/.cursor/rules'
+        '.cursor/rules'
       );
     });
 
@@ -476,10 +539,12 @@ describe('DistributionWorkspace', () => {
       });
       const projectPath = screen.getByTestId('ws-skills-path').textContent;
       expect(projectPath).not.toBe(globalPath);
-      expect(projectPath).toContain('/tmp/p-1');
+      // 33 号 A1：项目目标下显示平台内相对路径（不再含 /tmp/p-1 前缀）
+      expect(projectPath).toContain('.claude-code/skills');
+      expect(projectPath).not.toContain('/tmp/p-1');
     });
 
-    it('preserves the full backend project skills pattern for project targets', async () => {
+    it('preserves the backend project skills pattern "skills" segment for project targets', async () => {
       await setupInvoke({
         ...baseRoutes(),
         preview_distribution: mkPlan(),
@@ -490,12 +555,12 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByLabelText('ws.targetLabel')).toBeDefined()
       );
 
-      // Regression: {project} substitution must keep the full pattern incl. the "skills" segment
+      // Regression: {project} substitution must keep the "skills" segment in the Step1 relative display
       fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
         target: { value: 'project:p-1' },
       });
       expect(screen.getByTestId('ws-skills-path').textContent).toBe(
-        '/tmp/p-1/.claude-code/skills'
+        '.claude-code/skills'
       );
     });
 
@@ -517,8 +582,9 @@ describe('DistributionWorkspace', () => {
       expect(targetSelect.value).toBe('project:p-1');
       // 消费后清除，使后续直接进入工作区时默认回到全局目标
       expect(useAppStore.getState().projectDistSelectedProjectId).toBeNull();
+      // 33 号 A1：项目目标下 Step1 显示平台内相对路径
       expect(screen.getByTestId('ws-skills-path').textContent).toContain(
-        '/tmp/p-1'
+        '.claude-code/skills'
       );
     });
 
@@ -557,7 +623,7 @@ describe('DistributionWorkspace', () => {
       fireEvent.click(screen.getByText('React'));
       fireEvent.click(screen.getByText('ws.nextToPlan'));
       await waitForPlanReady();
-      expect(screen.getByText('ws.planTarget')).toBeDefined();
+      expect(screen.getByTestId('ws-step3-skills-path')).toBeDefined();
 
       fireEvent.click(screen.getByText('ws.backStep'));
       await waitFor(() =>
@@ -587,7 +653,7 @@ describe('DistributionWorkspace', () => {
       const lastSelection = previewCalls[previewCalls.length - 1][1];
       expect(lastSelection.scope).toBe('project');
       expect(lastSelection.projectId).toBe('p-1');
-      // Step3 双路径布局下同一路径出现于 planTarget 摘要与 skills-path 行，改用 getAllByText
+      // Step3 已移除通用「目标路径」摘要，路径仅出现于 skills-path / rules-path 行
       expect(
         screen.getAllByText('/tmp/p-1/.claude-code/skills').length
       ).toBeGreaterThan(0);
@@ -709,7 +775,9 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() =>
         expect(screen.getByText('ws.managedPanelTitle')).toBeDefined()
       );
@@ -717,6 +785,59 @@ describe('DistributionWorkspace', () => {
       expect(screen.getByText('技能（1）')).toBeDefined();
       expect(screen.getByText('规则（1）')).toBeDefined();
       expect(screen.getByText('user-skill')).toBeDefined();
+    });
+
+    it('折叠入口含 Chevron 方向 + aria-expanded/aria-controls + 200ms 旋转动画', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      const btn = screen.getByRole('button', { name: /查看|收起/ });
+      expect(btn.getAttribute('aria-expanded')).toBe('false');
+      expect(btn.getAttribute('aria-controls')).toBe('ws-managed-panel');
+      // 收起态：恒渲染 ChevronDown；ShieldCheck 保留；wrapper 有旋转过渡但未旋转
+      expect(btn.querySelector('svg.lucide-shield-check')).not.toBeNull();
+      const downClosed = btn.querySelector('svg.lucide-chevron-down');
+      expect(downClosed).not.toBeNull();
+      expect(downClosed?.parentElement?.className).toContain(
+        'transition-transform'
+      );
+      expect(downClosed?.parentElement?.className).toContain('duration-200');
+      expect(downClosed?.parentElement?.className).not.toContain('rotate-180');
+      fireEvent.click(btn);
+      await waitFor(() => {
+        const panel = screen.getByTestId('ws-managed-panel');
+        expect(panel.getAttribute('id')).toBe('ws-managed-panel');
+      });
+      const openBtn = screen.getByRole('button', { name: /查看|收起/ });
+      expect(openBtn.getAttribute('aria-expanded')).toBe('true');
+      // 展开态：仍渲染 ChevronDown，wrapper rotate-180（向下图标旋转 180° 指向上方）
+      const downOpen = openBtn.querySelector('svg.lucide-chevron-down');
+      expect(downOpen).not.toBeNull();
+      expect(downOpen?.parentElement?.className).toContain(
+        'transition-transform'
+      );
+      expect(downOpen?.parentElement?.className).toContain('duration-200');
+      expect(downOpen?.parentElement?.className).toContain('rotate-180');
     });
 
     it('全局目标点击「在访达中显示」→ invoke reveal_path(path, asSkillsDir=true)', async () => {
@@ -745,7 +866,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() =>
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
@@ -785,7 +908,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() =>
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
@@ -823,7 +948,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() =>
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
@@ -864,6 +991,98 @@ describe('DistributionWorkspace', () => {
       expect(resolveRevealAsSkillsDir('opencode-root-self', false, rootSelf)).toBe(false);
       expect(resolveRevealAsSkillsDir('opencode-root-self', true, rootSelf)).toBe(false); // 项目目标恒 false
       expect(resolveRevealAsSkillsDir('trae-cn', false, rootSelf)).toBe(true); // 非白名单不受注入影响
+    });
+  });
+
+  describe('Step1 2×2 布局与条件相对路径 (33 号 A1)', () => {
+    it('resolveStep1PathDisplay：{project}/ 前缀剥离为相对路径；绝对/相对 pattern 原样', () => {
+      expect(
+        resolveStep1PathDisplay(
+          '/tmp/p-1/.claude/skills',
+          true,
+          '{project}/.claude/skills'
+        )
+      ).toBe('.claude/skills');
+      expect(
+        resolveStep1PathDisplay('/tmp/p-1/CLAUDE.md', true, '{project}/CLAUDE.md')
+      ).toBe('CLAUDE.md');
+      expect(
+        resolveStep1PathDisplay('/home/.claude/skills', false, '/home/.claude/skills')
+      ).toBe('/home/.claude/skills');
+      expect(resolveStep1PathDisplay('/abs/path', true, '/abs/path')).toBe(
+        '/abs/path'
+      );
+      expect(
+        resolveStep1PathDisplay('/tmp/p-1/relative', true, 'relative/dir')
+      ).toBe('relative/dir');
+    });
+
+    it('Step1 四控件为 2×2 grid（grid-cols-1 sm:grid-cols-2）', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      const grid = screen.getByTestId('ws-step1-grid');
+      expect(grid.className).toContain('grid-cols-1');
+      expect(grid.className).toContain('sm:grid-cols-2');
+    });
+
+    it('项目目标 Step1 显示平台内相对路径；Step3 显示完整绝对路径', async () => {
+      const plat = mkPlat('claude-code', 'Claude Code');
+      plat.paths.project_skills_pattern = '{project}/.claude/skills';
+      plat.paths.project_rules_pattern = '{project}/CLAUDE.md';
+      seedStore({
+        projects: [mkProj('p-1', 'My Project')],
+        platforms: [plat],
+      });
+      await setupInvoke({
+        ...baseRoutes(),
+        list_platforms: [plat],
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
+        target: { value: 'project:p-1' },
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId('ws-skills-path').textContent).toContain(
+          '.claude/skills'
+        );
+        expect(screen.getByTestId('ws-rules-path').textContent).toContain(
+          'CLAUDE.md'
+        );
+      });
+      // 完整解析路径仍可在受管面板/路径派生中使用；Step 3 契约由 T6 已锁定 ws-step3-skills-path
+      expect(screen.getByTestId('ws-skills-path').textContent).not.toContain(
+        '/tmp/p-1/.claude/skills'
+      );
+    });
+
+    it('全局目标 Step1 显示完整路径', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      expect(screen.getByTestId('ws-skills-path').textContent).toContain(
+        '/home/.claude-code/skills'
+      );
+      expect(screen.getByTestId('ws-rules-path').textContent).toContain(
+        '/home/.claude-code/rules'
+      );
     });
   });
 
@@ -920,7 +1139,7 @@ describe('DistributionWorkspace', () => {
       fireEvent.click(screen.getByText('React'));
       fireEvent.click(screen.getByText('ws.nextToPlan'));
       await waitFor(() =>
-        expect(screen.getByText('ws.planTitle')).toBeDefined()
+        expect(screen.getByText('计划明细')).toBeDefined()
       );
       const previewCall = (invoke as any).mock.calls.find(
         (c: string[]) => c[0] === 'preview_distribution'
@@ -1221,6 +1440,98 @@ describe('DistributionWorkspace', () => {
       expect(screen.getByText('Style')).toBeDefined();
       expect(screen.getByText('Lint')).toBeDefined();
     });
+
+    it('Step2 技能区三态全选：全选 → 再点清空；部分选中 → indeterminate；无资源禁用', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+
+      const selectAll = screen.getByTestId('ws-select-all-skills');
+      expect(selectAll.getAttribute('aria-label')).toBe('全选技能');
+      expect(selectAll.getAttribute('aria-checked')).toBe('false');
+      fireEvent.click(selectAll);
+      await waitFor(() =>
+        expect(selectAll.getAttribute('aria-checked')).toBe('true')
+      );
+      // 池内全部选中
+      expect(
+        screen.getByTestId('ws-skills-list').querySelectorAll('input:checked')
+      ).toHaveLength(2);
+
+      // 取消一个 → indeterminate
+      fireEvent.click(
+        within(screen.getByTestId('ws-skills-list')).getAllByRole('checkbox')[1]
+      );
+      expect(selectAll.getAttribute('aria-checked')).toBe('mixed');
+
+      // 清空
+      fireEvent.click(screen.getByTestId('ws-clear-skills'));
+      expect(selectAll.getAttribute('aria-checked')).toBe('false');
+      expect(
+        screen.getByTestId('ws-skills-list').querySelectorAll('input:checked')
+      ).toHaveLength(0);
+    });
+
+    it('切换来源/目标时重置 Step2 选择', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      // 全选技能 → aria-checked=true
+      fireEvent.click(screen.getByTestId('ws-select-all-skills'));
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-select-all-skills').getAttribute('aria-checked')
+        ).toBe('true')
+      );
+      // 切到 scene 来源（baseRoutes 有 scene-1）→ T5 实现应重置选择 → aria-checked=false
+      fireEvent.change(screen.getByLabelText('ws.sourceLabel'), {
+        target: { value: 'scene:scene-1' },
+      });
+      expect(
+        screen.getByTestId('ws-select-all-skills').getAttribute('aria-checked')
+      ).toBe('false');
+    });
+
+    it('无资源时全选/清空禁用', async () => {
+      seedStore({ skills: [], rules: [] });
+      // 空 store 会触发 init 拉取 list_skills / list_rules → 两条路由返回空数组，池保持为空
+      await setupInvoke({
+        ...baseRoutes(),
+        list_skills: [],
+        list_rules: [],
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      expect(
+        (screen.getByTestId('ws-select-all-skills') as HTMLInputElement)
+          .disabled
+      ).toBe(true);
+      expect(
+        (screen.getByTestId('ws-clear-skills') as HTMLButtonElement).disabled
+      ).toBe(true);
+    });
   });
 
   describe('step 3 — plan', () => {
@@ -1248,6 +1559,45 @@ describe('DistributionWorkspace', () => {
       );
       await waitForPlanReady();
       expect(screen.getByText('React')).toBeDefined();
+    });
+
+    it('Step3 计划标题渲染「计划明细」', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      expect(screen.getByText('计划明细')).toBeDefined();
+      expect(screen.queryByText('ws.planTitle')).toBeNull();
+    });
+
+    it('Step3 无通用「目标路径」，仅 Skills/Rules 两行', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      expect(screen.queryByText('ws.planTarget')).toBeNull();
+      expect(screen.getByTestId('ws-step3-skills-path')).toBeDefined();
+      expect(screen.getByTestId('ws-step3-rules-path')).toBeDefined();
     });
 
     it('disables confirm and shows 目标已是最新状态 when plan has no changes', async () => {
@@ -1286,7 +1636,7 @@ describe('DistributionWorkspace', () => {
       expect(confirmBtn).toBeDisabled();
     });
 
-    it('labels removal count and requires double confirmation when removals present', async () => {
+    it('移除标记不再进入计划：勾选移除后 Step3 计划与确认按钮不含移除项（走面板独立流程）', async () => {
       const { invoke } = await import('@tauri-apps/api/core');
       await setupInvoke({
         ...baseRoutes(),
@@ -1304,67 +1654,47 @@ describe('DistributionWorkspace', () => {
             },
           ],
         },
-        preview_distribution: mkPlan({
-          platforms: [
-            {
-              platform_id: 'claude-code',
-              platform_name: 'Claude Code',
-              skills_to_add: [],
-              skills_to_update: [],
-              skills_to_remove: ['s1'],
-              rules_to_add: [],
-              rules_to_update: [],
-              rules_to_remove: [],
-            },
-          ],
-          has_removals: true,
-        }),
-        execute_distribution: mkResult({ removed: ['s1'] }),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
       });
       render(<DistributionWorkspace />);
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      // Enter managed panel and toggle a removal
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // Enter managed panel and check s1 for removal (checkbox selection)
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() => expect(screen.getByText('React')).toBeDefined());
       fireEvent.click(
-        screen.getByLabelText('ws.removeSkill', { exact: false })
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
 
+      // 进入 Step 2/3：计划不再携带移除（buildSelection 无 remove_selected）
       fireEvent.click(screen.getByText('ws.nextToResources'));
       await waitForStep2();
       fireEvent.click(screen.getByText('ws.nextToPlan'));
 
-      await waitForPlanReady();
-      const confirmLabel = screen.getByText(/ws.confirmDistributeRemove/);
-      expect(confirmLabel).toBeDefined();
-
-      // C17: remove-count is announced via a live region (role=status + aria-live)
-      const liveRegion = confirmLabel.closest(
-        '[role="status"], [aria-live="polite"]'
-      );
-      expect(liveRegion).toBeTruthy();
-      expect(liveRegion?.getAttribute('role')).toBe('status');
-      expect(liveRegion?.getAttribute('aria-live')).toBe('polite');
-
-      // Double confirmation dialog appears before executing
-      fireEvent.click(confirmLabel.closest('button')!);
-      await waitFor(() =>
-        expect(screen.getByText('ws.confirmRemoveTitle')).toBeDefined()
-      );
-      expect(invoke).not.toHaveBeenCalledWith(
-        'execute_distribution',
-        expect.anything()
-      );
-      fireEvent.click(screen.getByText('ws.confirmRemoveConfirm'));
       await waitFor(() =>
         expect(invoke).toHaveBeenCalledWith(
-          'execute_distribution',
+          'preview_distribution',
           expect.anything()
         )
       );
+      const previewCalls = (invoke as any).mock.calls.filter(
+        (c: string[]) => c[0] === 'preview_distribution'
+      );
+      const selection = previewCalls[previewCalls.length - 1][1];
+      expect(selection.skills.mode).not.toBe('remove_selected');
+      expect(selection.rules.mode).not.toBe('remove_selected');
+
+      await waitForPlanReady();
+      // Step3 确认按钮不再出现「确认分发并移除 N 项」
+      expect(screen.getByText('ws.confirmDistribute')).toBeDefined();
+      expect(screen.queryByText(/ws.confirmDistributeRemove/)).toBeNull();
+      // 移除确认弹窗不再由计划触发
+      expect(screen.queryByText('ws.confirmRemoveTitle')).toBeNull();
     });
 
     it('Step3 计划展开后渲染 Skills/Rules 双只读路径（Directory + {project} 替换）', async () => {
@@ -1439,7 +1769,7 @@ describe('DistributionWorkspace', () => {
   });
 
   describe('step 4 — execute and result', () => {
-    it('executes distribution and shows the five-category result grid', async () => {
+    it('executes distribution and shows the four-category result grid (无 removed 统计，DEC-1)', async () => {
       const { invoke } = await import('@tauri-apps/api/core');
       await setupInvoke({
         ...baseRoutes(),
@@ -1474,14 +1804,211 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.resultTitle')).toBeDefined()
       );
-      expect(screen.getByText('ws.resultInstalled')).toBeDefined();
-      expect(screen.getByText('ws.resultUpdated')).toBeDefined();
-      expect(screen.getByText('ws.resultRemoved')).toBeDefined();
-      expect(screen.getByText('ws.resultSkipped')).toBeDefined();
-      expect(screen.getByText('ws.resultErrors')).toBeDefined();
-      expect(screen.queryByText('ws.retryFailed')).toBeNull();
-      expect(screen.getByText('ws.distributeAgain')).toBeDefined();
-      expect(screen.getByText('ws.closeWorkspace')).toBeDefined();
+      // 四类指标（无 removed）；指标名中文化（P0-2）
+      expect(screen.getByText('已安装')).toBeDefined();
+      expect(screen.getByText('已更新')).toBeDefined();
+      expect(screen.getByText('已跳过')).toBeDefined();
+      expect(screen.getByText('错误')).toBeDefined();
+      expect(screen.queryByText('已移除')).toBeNull();
+      expect(screen.queryByTestId('ws-result-resultRemoved')).toBeNull();
+      expect(
+        screen.getByTestId('ws-result-resultInstalled').textContent
+      ).toBe('1');
+      // 按钮收敛：无错误 → 仅「返回工作区」
+      expect(
+        screen.getByRole('button', { name: '返回工作区' })
+      ).toBeDefined();
+      expect(
+        screen.queryByRole('button', { name: 'ws.retryFailed' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'ws.viewManagedState' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'ws.distributeAgain' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'ws.closeWorkspace' })
+      ).toBeNull();
+    });
+
+    it('Step4 无错误：仅「返回工作区」，无重试/查看受管/再次分发/关闭', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult({ errors: [] }),
+        get_sync_status: { platforms: [] },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      fireEvent.click(
+        screen.getByText('ws.confirmDistribute').closest('button')!
+      );
+      await waitFor(() =>
+        expect(screen.getByText('ws.resultTitle')).toBeDefined()
+      );
+      expect(
+        screen.getByRole('button', { name: '返回工作区' })
+      ).toBeDefined();
+      expect(
+        screen.queryByRole('button', { name: 'ws.retryFailed' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'ws.viewManagedState' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'ws.distributeAgain' })
+      ).toBeNull();
+      expect(
+        screen.queryByRole('button', { name: 'ws.closeWorkspace' })
+      ).toBeNull();
+    });
+
+    it('Step4 有错误：重试失败项主按钮 + 返回工作区次按钮', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult({ errors: ['boom'] }),
+        get_sync_status: { platforms: [] },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      fireEvent.click(
+        screen.getByText('ws.confirmDistribute').closest('button')!
+      );
+      await waitFor(() =>
+        expect(screen.getByText('ws.resultTitle')).toBeDefined()
+      );
+      expect(
+        screen.getByRole('button', { name: 'ws.retryFailed' })
+      ).toBeDefined();
+      expect(
+        screen.getByRole('button', { name: '返回工作区' })
+      ).toBeDefined();
+    });
+
+    it('Step4 返回工作区保留目标/平台/资源选择上下文', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+        get_sync_status: { platforms: [] },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      fireEvent.click(
+        screen.getByText('ws.confirmDistribute').closest('button')!
+      );
+      await waitFor(() =>
+        expect(screen.getByText('ws.resultTitle')).toBeDefined()
+      );
+
+      // 返回工作区 → step=1，且目标/平台选择保留
+      fireEvent.click(screen.getByRole('button', { name: '返回工作区' }));
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      const platformSelect = screen.getByLabelText(
+        'ws.platformLabel'
+      ) as HTMLSelectElement;
+      expect(platformSelect.value).toBe('claude-code');
+      const targetSelect = screen.getByLabelText(
+        'ws.targetLabel'
+      ) as HTMLSelectElement;
+      expect(targetSelect.value).toBe('global');
+      // 资源选择保留：回到 Step2 检查 React 仍勾选
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      const reactCheckbox = within(
+        screen.getByTestId('ws-skills-list')
+      )
+        .getByText('React')
+        .closest('label')!
+        .querySelector('input') as HTMLInputElement;
+      expect(reactCheckbox.checked).toBe(true);
+    });
+
+    it('普通分发结果页不含 removed 统计（DEC-1，由 T4 移入）', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult({
+          removed: ['s1'],
+          installed: ['s1'],
+          updated: [],
+          errors: [],
+        }),
+        get_sync_status: { platforms: [] },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      fireEvent.click(
+        screen.getByText('ws.confirmDistribute').closest('button')!
+      );
+      await waitFor(() =>
+        expect(screen.getByText('ws.resultTitle')).toBeDefined()
+      );
+      // removed 统计不渲染；结果指标渲染中文（P0-2）
+      expect(screen.queryByTestId('ws-result-resultRemoved')).toBeNull();
+      expect(
+        screen.getByTestId('ws-result-resultInstalled').textContent
+      ).toBe('1');
+      expect(screen.getByText('已安装')).toBeDefined();
+      expect(screen.queryByText('installed')).toBeNull(); // zh 值不再为英文小写
+    });
+
+    it('结果卡片区 aria-live="polite"', async () => {
+      await setupInvoke({
+        ...baseRoutes(),
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+        get_sync_status: { platforms: [] },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('ws.nextToResources'));
+      await waitForStep2();
+      fireEvent.click(screen.getByText('React'));
+      fireEvent.click(screen.getByText('ws.nextToPlan'));
+      await waitForPlanReady();
+      fireEvent.click(
+        screen.getByText('ws.confirmDistribute').closest('button')!
+      );
+      await waitFor(() =>
+        expect(screen.getByText('ws.resultTitle')).toBeDefined()
+      );
+      const card = screen.getByTestId('ws-result-card');
+      expect(card.getAttribute('aria-live')).toBe('polite');
     });
 
     it('shows the backend skipped count when SyncResult provides it', async () => {
@@ -1802,8 +2329,8 @@ describe('DistributionWorkspace', () => {
     });
   });
 
-  describe('mixed add/remove intent', () => {
-    it('blocks advancing when skill additions and managed skill removals are both selected, instead of silently discarding additions', async () => {
+  describe('移除改走面板独立流程：添加与面板移除标记并行不阻塞计划（33 号 A6）', () => {
+    it('面板勾选移除 + Step2 选择添加技能 → 计划正常生成且仅含添加（无 remove_selected）', async () => {
       const { invoke } = await import('@tauri-apps/api/core');
       await setupInvoke({
         ...baseRoutes(),
@@ -1829,35 +2356,43 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      // Mark managed skill s1 for removal
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // 面板勾选 s1 待移除（checkbox）
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() => expect(screen.getByText('React')).toBeDefined());
       fireEvent.click(
-        screen.getByLabelText('ws.removeSkill', { exact: false })
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
 
-      // Select s2 as an addition in step 2
+      // Step2 选择 s2 作为添加
       fireEvent.click(screen.getByText('ws.nextToResources'));
       await waitForStep2();
       fireEvent.click(screen.getByText('Vue'));
 
       fireEvent.click(screen.getByText('ws.nextToPlan'));
 
-      // Blocked: still on step 2, conflict toast shown, no preview submitted
-      expect(screen.getByLabelText('ws.sourceLabel')).toBeDefined();
-      expect(screen.queryByText('ws.planTitle')).toBeNull();
+      // 不再阻塞：进入 Step3、无 mixedAddRemoveBlocked toast、preview 已提交
+      await waitFor(() =>
+        expect(screen.getByText('计划明细')).toBeDefined()
+      );
       expect(
         useAppStore
           .getState()
           .toasts.some((t) => t.message.includes('ws.mixedAddRemoveBlocked'))
-      ).toBe(true);
+      ).toBe(false);
       const previewCalls = (invoke as any).mock.calls.filter(
         (c: string[]) => c[0] === 'preview_distribution'
       );
-      expect(previewCalls.length).toBe(0);
+      expect(previewCalls.length).toBeGreaterThan(0);
+      const selection = previewCalls[previewCalls.length - 1][1];
+      // 计划仅含添加：skills add_or_update=['s2']，不含移除标记
+      expect(selection.skills.mode).toBe('add_or_update');
+      expect(selection.skills.ids).toEqual(['s2']);
+      expect(selection.skills.mode).not.toBe('remove_selected');
     });
 
-    it('blocks advancing when rule additions and managed rule removals are both selected, instead of silently discarding additions', async () => {
+    it('面板勾选移除 + Step2 选择添加规则 → 计划正常生成且仅含添加（无 remove_selected）', async () => {
       const { invoke } = await import('@tauri-apps/api/core');
       await setupInvoke({
         ...baseRoutes(),
@@ -1883,30 +2418,40 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      // Mark managed rule r1 for removal
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // 面板勾选 r1 待移除（checkbox）
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() => expect(screen.getByText('Style.md')).toBeDefined());
-      fireEvent.click(screen.getByLabelText('ws.removeRule', { exact: false }));
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-rule-r1')).getByRole('checkbox')
+      );
 
-      // Select r2 as an addition in step 2
+      // Step2 选择 r2 作为添加
       fireEvent.click(screen.getByText('ws.nextToResources'));
       await waitForStep2();
       fireEvent.click(screen.getByText('Lint'));
 
       fireEvent.click(screen.getByText('ws.nextToPlan'));
 
-      // Blocked: still on step 2, conflict toast shown, no preview submitted
-      expect(screen.getByLabelText('ws.sourceLabel')).toBeDefined();
-      expect(screen.queryByText('ws.planTitle')).toBeNull();
+      // 不再阻塞：进入 Step3、无 mixedAddRemoveBlocked toast、preview 已提交
+      await waitFor(() =>
+        expect(screen.getByText('计划明细')).toBeDefined()
+      );
       expect(
         useAppStore
           .getState()
           .toasts.some((t) => t.message.includes('ws.mixedAddRemoveBlocked'))
-      ).toBe(true);
+      ).toBe(false);
       const previewCalls = (invoke as any).mock.calls.filter(
         (c: string[]) => c[0] === 'preview_distribution'
       );
-      expect(previewCalls.length).toBe(0);
+      expect(previewCalls.length).toBeGreaterThan(0);
+      const selection = previewCalls[previewCalls.length - 1][1];
+      // 计划仅含添加：rules add_or_update=['r2']，不含移除标记
+      expect(selection.rules.mode).toBe('add_or_update');
+      expect(selection.rules.ids).toEqual(['r2']);
+      expect(selection.rules.mode).not.toBe('remove_selected');
     });
   });
 
@@ -2104,7 +2649,7 @@ describe('DistributionWorkspace', () => {
 
       fireEvent.click(screen.getByText('ws.nextToPlan'));
       await waitFor(() =>
-        expect(screen.getByText('ws.planTitle')).toBeDefined()
+        expect(screen.getByText('计划明细')).toBeDefined()
       );
       const previewCalls = (invoke as any).mock.calls.filter(
         (c: string[]) => c[0] === 'preview_distribution'
@@ -2127,7 +2672,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await waitFor(() =>
         expect(
           useAppStore
@@ -2140,7 +2687,7 @@ describe('DistributionWorkspace', () => {
   });
 
   describe('managed panel (29 号 2c)', () => {
-    it('受管面板：aria-live 摘要 + 技能/规则分区 + 每行「受管」徽标与移除按钮', async () => {
+    it('受管面板：aria-live 摘要 + 技能/规则分区 + 每行「受管」徽标与移除 checkbox', async () => {
       await setupInvoke({
         ...baseRoutes(),
         get_managed_distribution_state: {
@@ -2169,7 +2716,9 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       // 面板打开依赖 get_managed_distribution_state 异步返回，先等摘要出现
       const summary = await screen.findByTestId('ws-managed-summary');
       expect(summary.getAttribute('aria-live')).toBe('polite');
@@ -2179,11 +2728,16 @@ describe('DistributionWorkspace', () => {
       expect(screen.getByText('规则（0）')).toBeDefined();
       expect(screen.getByText('ws.managed.badgeManaged')).toBeDefined();
 
-      // 点击「移除」→ 按钮切「取消移除」且摘要计数 +1
-      fireEvent.click(
-        within(screen.getByTestId('ws-managed-skill-s1')).getByText('ws.remove')
+      // 勾选 checkbox → 选中且摘要计数 +1
+      const skillRow = screen.getByTestId('ws-managed-skill-s1');
+      const checkbox = within(skillRow).getByRole('checkbox');
+      expect(checkbox.getAttribute('aria-label')).toContain('ws.removeSkill');
+      fireEvent.click(checkbox);
+      await waitFor(() =>
+        expect(
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+        ).toBeChecked()
       );
-      await waitFor(() => expect(screen.getByText('ws.undoRemove')).toBeDefined());
       expect(screen.getByTestId('ws-managed-summary').textContent).toContain(
         '当前待移除 1 项'
       );
@@ -2218,13 +2772,352 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
 
       const localRow = await screen.findByTestId('ws-managed-local-local-helper');
       expect(localRow).toBeDefined();
       expect(within(localRow).queryByRole('button')).toBeNull();
       expect(within(localRow).getByText('ws.managed.badgeKeep')).toBeDefined();
       expect(within(localRow).getByText('ws.managed.unknownNote')).toBeDefined();
+    });
+  });
+
+  describe('独立移除流程 (33 号 A6 / DEC-1)', () => {
+    it('受管面板勾选 → 「确认移除 N 项」→ 二次确认弹窗逐项明细 → remove_distributed invoke → 面板刷新', async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [{ id: 'r1', path: '/home/.claude-code/rules/Style.md' }],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+        remove_distributed: {
+          installed: [],
+          updated: [],
+          removed: ['s1', 'rule:r1'],
+          skipped: 0,
+          errors: [],
+        },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
+      await waitFor(() =>
+        expect(screen.getByTestId('ws-managed-skill-s1')).toBeDefined()
+      );
+
+      // 勾选两行（面板行变为 checkbox 选择）
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      );
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-rule-r1')).getByRole('checkbox')
+      );
+      // 确认按钮计数联动
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-managed-confirm-remove')
+        ).toHaveTextContent('确认移除 2 项')
+      );
+      fireEvent.click(screen.getByTestId('ws-managed-confirm-remove'));
+      // 二次确认弹窗：逐项明细 + 仅受管副本提示（mock 特例键按 mock 输出断言，勿用原始 key）
+      await waitFor(() =>
+        expect(screen.getByText('确认移除受管内容')).toBeDefined()
+      );
+      expect(
+        screen.getByText('仅移除 SkillForge 受管副本，资源库保留可重新分发恢复')
+      ).toBeDefined();
+      expect(screen.getByTestId('ws-remove-confirm-items')).toHaveTextContent(
+        'React'
+      );
+      expect(screen.getByTestId('ws-remove-confirm-items')).toHaveTextContent(
+        'Style'
+      );
+      // 确认执行 → remove_distributed invoke
+      fireEvent.click(screen.getByText('确认移除'));
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith('remove_distributed', {
+          platformIds: ['claude-code'],
+          scope: 'global',
+          skillIds: ['s1'],
+          ruleIds: ['r1'],
+        })
+      );
+      // 面板刷新（fetchManagedState 重新调用）→ 选择清空、结果明细展示
+      await waitFor(() =>
+        expect(invoke).toHaveBeenCalledWith(
+          'get_managed_distribution_state',
+          expect.anything()
+        )
+      );
+    });
+
+    it('移除失败（含 fail-closed）→ 保留选择 + 失败明细，可重试', async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      let removeReject = true;
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+        remove_distributed: () => {
+          if (removeReject) {
+            return Promise.reject(
+              new Error('移除目标已变化或不再受管，请重新扫描')
+            );
+          }
+          return Promise.resolve({
+            installed: [],
+            updated: [],
+            removed: ['s1'],
+            skipped: 0,
+            errors: [],
+          });
+        },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
+      await waitFor(() =>
+        expect(screen.getByTestId('ws-managed-skill-s1')).toBeDefined()
+      );
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-managed-confirm-remove')
+        ).toHaveTextContent('确认移除 1 项')
+      );
+      fireEvent.click(screen.getByTestId('ws-managed-confirm-remove'));
+      await waitFor(() =>
+        expect(screen.getByText('确认移除受管内容')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('确认移除'));
+
+      // store action toast 含后端 fail-closed 文案（appStore 实现：`移除失败: <errMsg>`）
+      await waitFor(() =>
+        expect(
+          useAppStore
+            .getState()
+            .toasts.some(
+              (t) =>
+                t.message.includes('移除失败') &&
+                t.message.includes('请重新扫描')
+            )
+        ).toBe(true)
+      );
+      // 面板结果行显示失败文案
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-managed-remove-result')
+        ).toHaveTextContent('移除失败，可重试')
+      );
+      // 选择保留（checkbox 仍选中），可重试
+      expect(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      ).toBeChecked();
+
+      removeReject = false;
+      fireEvent.click(screen.getByTestId('ws-managed-confirm-remove'));
+      await waitFor(() =>
+        expect(screen.getByText('确认移除受管内容')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('确认移除'));
+      const removeCalls = (invoke as any).mock.calls.filter(
+        (c: string[]) => c[0] === 'remove_distributed'
+      );
+      expect(removeCalls.length).toBe(2);
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-managed-remove-result')
+        ).toHaveTextContent('已移除 1 项')
+      );
+    });
+
+    it('部分失败：s1 成功清除、r1 失败保留可重试 + 错误明细 + 面板刷新', async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [{ id: 'r1', path: '/home/.claude-code/rules/Style.md' }],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+        get_sync_status: { platforms: [] },
+        remove_distributed: {
+          installed: [],
+          updated: [],
+          removed: ['s1'],
+          skipped: 0,
+          errors: ['移除 r1 失败：目标规则文件已被用户修改，无法确认所有权'],
+        },
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
+      await waitFor(() =>
+        expect(screen.getByTestId('ws-managed-skill-s1')).toBeDefined()
+      );
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      );
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-rule-r1')).getByRole('checkbox')
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-managed-confirm-remove')
+        ).toHaveTextContent('确认移除 2 项')
+      );
+      fireEvent.click(screen.getByTestId('ws-managed-confirm-remove'));
+      await waitFor(() =>
+        expect(screen.getByText('确认移除受管内容')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('确认移除'));
+
+      // 部分失败：partial 文案（removed=1 / failed=1）+ 错误明细逐条渲染
+      await waitFor(() =>
+        expect(
+          screen.getByTestId('ws-managed-remove-result')
+        ).toHaveTextContent('部分失败：已移除 1 项，失败 1 项')
+      );
+      expect(
+        screen.getByText('移除 r1 失败：目标规则文件已被用户修改，无法确认所有权')
+      ).toBeDefined();
+
+      // 成功项 s1 从选择中清除，失败项 r1 保留可重试（确认按钮计数回到 1 且可用）
+      expect(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      ).not.toBeChecked();
+      expect(
+        within(screen.getByTestId('ws-managed-rule-r1')).getByRole('checkbox')
+      ).toBeChecked();
+      expect(
+        screen.getByTestId('ws-managed-confirm-remove')
+      ).toHaveTextContent('确认移除 1 项');
+      expect(screen.getByTestId('ws-managed-confirm-remove')).not.toBeDisabled();
+
+      // 刷新行为：面板打开 1 次 + 移除后刷新 1 次
+      await waitFor(() => {
+        const refreshCalls = (invoke as any).mock.calls.filter(
+          (c: string[]) => c[0] === 'get_managed_distribution_state'
+        );
+        expect(refreshCalls.length).toBe(2);
+      });
+
+      // 重试仅携带 r1（s1 不再出现在 remove_distributed 参数中）
+      fireEvent.click(screen.getByTestId('ws-managed-confirm-remove'));
+      await waitFor(() =>
+        expect(screen.getByText('确认移除受管内容')).toBeDefined()
+      );
+      fireEvent.click(screen.getByText('确认移除'));
+      await waitFor(() => {
+        const removeCalls = (invoke as any).mock.calls.filter(
+          (c: string[]) => c[0] === 'remove_distributed'
+        );
+        expect(removeCalls.length).toBe(2);
+        expect(removeCalls[1][1]).toEqual({
+          platformIds: ['claude-code'],
+          scope: 'global',
+          skillIds: [],
+          ruleIds: ['r1'],
+        });
+      });
+    });
+
+    it('取消二次确认 → 保留面板选择（勾选不清空）', async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      await setupInvoke({
+        ...baseRoutes(),
+        get_managed_distribution_state: {
+          platforms: [
+            {
+              platform_id: 'claude-code',
+              platform_name: 'Claude Code',
+              scope: 'global',
+              project_path: null,
+              skills: [{ id: 's1', path: '/home/.claude-code/skills/React' }],
+              rules: [],
+              local_skills: [],
+              local_rules: [],
+            },
+          ],
+        },
+        preview_distribution: mkPlan(),
+        execute_distribution: mkResult(),
+      });
+      render(<DistributionWorkspace />);
+      await waitFor(() =>
+        expect(screen.getByText('ws.step1.title')).toBeDefined()
+      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
+      await waitFor(() =>
+        expect(screen.getByTestId('ws-managed-skill-s1')).toBeDefined()
+      );
+      fireEvent.click(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      );
+      fireEvent.click(screen.getByTestId('ws-managed-confirm-remove'));
+      await waitFor(() =>
+        expect(screen.getByText('确认移除受管内容')).toBeDefined()
+      );
+      // 取消 → 弹窗关闭、checkbox 仍选中、未调用 remove_distributed
+      fireEvent.click(screen.getByText('取消'));
+      await waitFor(() =>
+        expect(screen.queryByText('确认移除受管内容')).toBeNull()
+      );
+      expect(
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      ).toBeChecked();
+      const removeCalls = (invoke as any).mock.calls.filter(
+        (c: string[]) => c[0] === 'remove_distributed'
+      );
+      expect(removeCalls.length).toBe(0);
     });
   });
 
@@ -2274,13 +3167,19 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      // 打开受管面板并标记 s1 移除
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // 打开受管面板并勾选 s1 待移除
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await screen.findByTestId('ws-managed-skill-s1');
       fireEvent.click(
-        within(screen.getByTestId('ws-managed-skill-s1')).getByText('ws.remove')
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
-      await waitFor(() => expect(screen.getByText('ws.undoRemove')).toBeDefined());
+      await waitFor(() =>
+        expect(
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+        ).toBeChecked()
+      );
 
       // 切换平台 → 面板关闭
       fireEvent.change(screen.getByTestId('dist-platform'), {
@@ -2290,15 +3189,15 @@ describe('DistributionWorkspace', () => {
         expect(screen.queryByTestId('ws-managed-panel')).toBeNull()
       );
 
-      // 重新打开面板：移除标记已清空（计数 0、按钮回到「移除」）
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // 重新打开面板：移除标记已清空（计数 0、checkbox 未选中）
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       const summary = await screen.findByTestId('ws-managed-summary');
       expect(summary.textContent).toContain('当前待移除 0 项');
       expect(
-        within(screen.getByTestId('ws-managed-skill-s1')).queryByText(
-          'ws.undoRemove'
-        )
-      ).toBeNull();
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      ).not.toBeChecked();
     });
 
     it('切换目标后受管面板关闭且移除标记清空（重新打开需重新拉取）', async () => {
@@ -2338,13 +3237,19 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      // 打开受管面板并标记 s1 移除
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      // 打开受管面板并勾选 s1 待移除
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       await screen.findByTestId('ws-managed-skill-s1');
       fireEvent.click(
-        within(screen.getByTestId('ws-managed-skill-s1')).getByText('ws.remove')
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
-      await waitFor(() => expect(screen.getByText('ws.undoRemove')).toBeDefined());
+      await waitFor(() =>
+        expect(
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+        ).toBeChecked()
+      );
 
       // 切换目标：global → project:p-1 → 面板关闭
       fireEvent.change(screen.getByLabelText('ws.targetLabel'), {
@@ -2355,14 +3260,14 @@ describe('DistributionWorkspace', () => {
       );
 
       // 重新打开面板：移除标记已清空
-      fireEvent.click(screen.getByText('ws.managedToggle'));
+      fireEvent.click(
+        screen.getByRole('button', { name: /查看|收起/ })
+      );
       const summary = await screen.findByTestId('ws-managed-summary');
       expect(summary.textContent).toContain('当前待移除 0 项');
       expect(
-        within(screen.getByTestId('ws-managed-skill-s1')).queryByText(
-          'ws.undoRemove'
-        )
-      ).toBeNull();
+        within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+      ).not.toBeChecked();
     });
   });
 });

@@ -708,10 +708,15 @@ describe('RulesManager — Inspector 标签保存后刷新（H1）', () => {
     });
     fireEvent.click(screen.getByText('Rule A'));
     await waitFor(() => {
-      expect(screen.getByLabelText('urgent')).toBeDefined();
+      expect(
+        screen.getByRole('button', { name: 'inspector.addTag' })
+      ).toBeDefined();
     });
 
-    fireEvent.click(screen.getByLabelText('urgent'));
+    // 通过 TagPopover 勾选标签 → 脏状态出现（filter bar 也渲染同名 chip，取 popover 行）
+    fireEvent.click(screen.getByRole('button', { name: 'inspector.addTag' }));
+    const urgentRows = screen.getAllByText('urgent');
+    fireEvent.click(urgentRows[urgentRows.length - 1]);
     expect(screen.getByText('actions.save')).toBeDefined();
 
     fireEvent.click(screen.getByText('actions.save'));
@@ -933,12 +938,12 @@ describe('RulesManager — 资源 IPC 集成（受管副本 reveal / 批量删�
     vi.clearAllMocks();
   });
 
-  it('selecting a rule fetches managed copy path and reveals the reveal button when a copy exists', async () => {
+  it('Rule Inspector 本地路径行：受管副本存在 → 显示路径 + reveal 图标（ipc.revealPath）', async () => {
     const rules = [aRule('r1', 'Rule One')];
     await seedInvoke({
       list_rules: rules,
       list_tags: [],
-      get_managed_copy_path: '/platform/rules/rule-one',
+      get_managed_copy_path: '/u/.skillforge/rules/r1.md',
     });
 
     render(<RulesManager />);
@@ -948,16 +953,26 @@ describe('RulesManager — 资源 IPC 集成（受管副本 reveal / 批量删�
     fireEvent.click(screen.getByText('Rule One'));
 
     await waitFor(() => {
-      expect(screen.getByText('在文件夹中显示')).toBeDefined();
+      expect(screen.getByTestId('rule-local-path-row')).toBeDefined();
     });
-    const { invoke } = await import('@tauri-apps/api/core');
-    expect(invoke).toHaveBeenCalledWith('get_managed_copy_path', {
-      resourceType: 'rule',
-      resourceId: 'r1',
+    const row = screen.getByTestId('rule-local-path-row');
+    expect(row).toHaveTextContent('/u/.skillforge/rules/r1.md');
+    const revealBtn = within(row).getByRole('button');
+    // 33 号 P6：本地路径 reveal 按钮使用全局 .action-reveal 类，行容器为 group
+    expect(row.className).toContain('group');
+    expect(revealBtn.className).toContain('action-reveal');
+    fireEvent.click(revealBtn);
+
+    await waitFor(async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      expect(invoke).toHaveBeenCalledWith('reveal_path', {
+        path: '/u/.skillforge/rules/r1.md',
+        asSkillsDir: false,
+      });
     });
   });
 
-  it('does not reveal the reveal button when get_managed_copy_path resolves null', async () => {
+  it('Rule Inspector 本地路径行：受管副本为空 → 显示「尚未分发到本地目标」，无图标', async () => {
     const rules = [aRule('r1', 'Rule One')];
     await seedInvoke({
       list_rules: rules,
@@ -970,10 +985,13 @@ describe('RulesManager — 资源 IPC 集成（受管副本 reveal / 批量删�
       expect(screen.getByText('Rule One')).toBeDefined();
     });
     fireEvent.click(screen.getByText('Rule One'));
+
     await waitFor(() => {
-      expect(screen.getByText('detail.updatedAt')).toBeDefined();
+      expect(screen.getByTestId('rule-local-path-row')).toBeDefined();
     });
-    expect(screen.queryByText('在文件夹中显示')).toBeNull();
+    const row = screen.getByTestId('rule-local-path-row');
+    expect(row).toHaveTextContent('detail.notDistributed');
+    expect(within(row).queryByRole('button')).toBeNull();
   });
 
   it('batch delete confirmation displays summed real scene reference counts', async () => {

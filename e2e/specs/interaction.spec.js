@@ -635,3 +635,273 @@ describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
     expect(await updateCard.$('[role="switch"]').isExisting()).toBe(true);
   });
 });
+
+describe('SkillForge 33 号 A 批整改关键路径（Task 13 补强）', () => {
+  // 进入工作区 Step1（默认全局目标 + 首个启用平台），等待 grid 渲染。
+  // 先切到概览再回工作区，强制组件重新挂载回 Step1（避免上一用例停留在 Step3）。
+  async function openWorkspaceStep1() {
+    const overviewNav = await browser.$('//button[contains(., "概览")]');
+    await overviewNav.waitForExist({ timeout: 10000 });
+    await overviewNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '') === '/' || ((await browser.getUrl()) ?? '').endsWith('/'),
+      { timeout: 10000, timeoutMsg: 'URL 未回到概览' }
+    );
+    const wsNav = await browser.$('//button[contains(., "工作区")]');
+    await wsNav.waitForExist({ timeout: 10000 });
+    await wsNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/workspace'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /workspace' }
+    );
+    const grid = await browser.$('[data-testid="ws-step1-grid"]');
+    await grid.waitForExist({ timeout: 10000 });
+    return grid;
+  }
+
+  it('工作区 Step1 为 2×2 grid；Step3 无通用目标路径、有 planTitle', async () => {
+    const grid = await openWorkspaceStep1();
+    expect(await grid.getAttribute('class')).toContain('sm:grid-cols-2');
+    expect(await grid.getAttribute('class')).toContain('grid-cols-1');
+
+    // Step1 → Step2 → Step3
+    await (await browser.$('//button[contains(., "下一步")]')).click();
+    await (await browser.$('//button[contains(., "下一步")]')).click();
+    await browser.waitUntil(
+      async () =>
+        (await browser.$('[data-testid="ws-step3-skills-path"]').isExisting()) ===
+        true,
+      { timeout: 10000, timeoutMsg: 'Step3 Skills 路径未渲染' }
+    );
+    expect(
+      await browser.$('[data-testid="ws-step3-skills-path"]').isExisting()
+    ).toBe(true);
+    // 无通用目标路径（A4：仅 Skills/Rules 两条路径，无第三条通用路径）
+    expect(
+      await browser.$('[data-testid="ws-step3-general-path"]').isExisting()
+    ).toBe(false);
+    // planTitle 非原始 key（zh 环境显示「计划明细」）
+    const body = await browser.$('body').getText();
+    expect(body).not.toContain('ws.planTitle');
+    expect(body).toContain('计划明细');
+  });
+
+  it('受管面板折叠按钮 aria-expanded 联动 + 独立移除二次确认', async () => {
+    await openWorkspaceStep1();
+    // 折叠按钮定位：优先 [aria-controls="ws-managed-panel"]（T3 已保证该属性）
+    const toggle = await browser.$('[aria-controls="ws-managed-panel"]');
+    await toggle.waitForExist({ timeout: 10000 });
+    expect(await toggle.getAttribute('aria-expanded')).toBe('false');
+    await toggle.click();
+    await browser.waitUntil(
+      async () => (await toggle.getAttribute('aria-expanded')) === 'true',
+      { timeout: 10000, timeoutMsg: '点击后 aria-expanded 未变为 true' }
+    );
+
+    const confirm = await browser.$('[data-testid="ws-managed-confirm-remove"]');
+    await confirm.waitForExist({ timeout: 10000 });
+
+    // 存在受管项时：勾选 → 点击确认 → 弹窗出现 → 确认 → 面板刷新后该项消失
+    const managedCheckboxes = await browser.$$(
+      '[data-testid^="ws-managed-skill-"] input[type="checkbox"], [data-testid^="ws-managed-rule-"] input[type="checkbox"]'
+    );
+    if (managedCheckboxes.length > 0) {
+      await managedCheckboxes[0].click();
+      await browser.waitUntil(async () => (await confirm.isEnabled()) === true, {
+        timeout: 5000,
+        timeoutMsg: '勾选受管项后确认移除按钮未启用',
+      });
+      await confirm.click();
+      const items = await browser.$('[data-testid="ws-remove-confirm-items"]');
+      await items.waitForExist({
+        timeout: 10000,
+        timeoutMsg: '二次确认弹窗明细未出现',
+      });
+      expect((await items.$$('div')).length).toBeGreaterThan(0);
+      // 确认后弹窗关闭，移除结果行出现
+      const dialogConfirm = await browser.$(
+        '//*[@role="dialog"]//button[contains(., "确认移除")]'
+      );
+      await dialogConfirm.waitForExist({ timeout: 5000 });
+      await dialogConfirm.click();
+      await browser.$('[data-testid="ws-managed-remove-result"]').waitForExist({
+        timeout: 10000,
+        timeoutMsg: '移除结果行未出现',
+      });
+    } else {
+      // 无受管项（如默认全局目标仅含用户自有内容）：确认移除按钮应禁用
+      expect(await confirm.isEnabled()).toBe(false);
+    }
+  });
+
+  it('Step2 技能区三态全选', async () => {
+    await openWorkspaceStep1();
+    await (await browser.$('//button[contains(., "下一步")]')).click();
+
+    const selectAll = await browser.$('[data-testid="ws-select-all-skills"]');
+    await selectAll.waitForExist({ timeout: 10000 });
+    // 初始未全选
+    expect(await selectAll.getAttribute('aria-checked')).toBe('false');
+    // 点击 → 全选
+    await selectAll.click();
+    await browser.waitUntil(
+      async () => (await selectAll.getAttribute('aria-checked')) === 'true',
+      { timeout: 5000, timeoutMsg: '点击全选后 aria-checked 未变为 true' }
+    );
+    const poolChecks = await browser.$$(
+      '[data-testid="ws-skills-list"] input[type="checkbox"]'
+    );
+    if (poolChecks.length > 0) {
+      for (const c of poolChecks) expect(await c.isSelected()).toBe(true);
+    }
+    // 取消一项 → indeterminate
+    if (poolChecks.length > 1) {
+      await poolChecks[0].click();
+      await browser.waitUntil(
+        async () => (await selectAll.getAttribute('aria-checked')) === 'mixed',
+        { timeout: 5000, timeoutMsg: '部分选中后 aria-checked 未变为 mixed' }
+      );
+      // 清空 → false
+      await (await browser.$('[data-testid="ws-clear-skills"]')).click();
+      await browser.waitUntil(
+        async () => (await selectAll.getAttribute('aria-checked')) === 'false',
+        { timeout: 5000, timeoutMsg: '清空后 aria-checked 未恢复 false' }
+      );
+    }
+  });
+
+  it('Step4 无错误时仅「返回工作区」按钮', async () => {
+    // 前置：找到一个对默认平台会产生变更（skills_to_add）的技能，确保能真正进入 Step4。
+    // 默认全局目标首启用平台（claude-code）现仅含用户自有 .skills-manager 链接，
+    // gstack 在 DB 中但未分发 → 分发 gstack 是纯新增、无副作用、可逆。
+    const platforms = await browser.tauri.execute(({ core }) =>
+      core.invoke('list_platforms')
+    );
+    const enabled = platforms.filter((p) => p.enabled);
+    expect(enabled.length).toBeGreaterThan(0);
+    const defaultPlatformId = enabled[0].id;
+
+    const plan = await browser.tauri.execute(({ core }, arg) =>
+      core.invoke('preview_distribution', {
+        sceneId: null,
+        platformIds: [arg.platformId],
+        scope: 'global',
+        projectId: null,
+        skills: { mode: 'add_or_update', ids: ['gstack'] },
+        rules: { mode: 'add_or_update', ids: [] },
+      }),
+      { platformId: defaultPlatformId }
+    );
+    const target = (plan.platforms || []).find(
+      (p) => p.platform_id === defaultPlatformId
+    );
+    expect(
+      target && target.skills_to_add.includes('gstack')
+    ).toBe(true);
+
+    try {
+      await openWorkspaceStep1();
+      await (await browser.$('//button[contains(., "下一步")]')).click();
+      // 勾选 gstack
+      const gstackLabel = await browser.$(
+        '//*[@data-testid="ws-skills-list"]//label[contains(., "gstack")]'
+      );
+      await gstackLabel.waitForExist({ timeout: 10000 });
+      await (await gstackLabel.$('input[type="checkbox"]')).click();
+      await (await browser.$('//button[contains(., "下一步")]')).click();
+      // Step3：计划就绪后确认分发
+      const confirmBtn = await browser.$('//button[contains(., "确认分发")]');
+      await browser.waitUntil(async () => (await confirmBtn.isEnabled()) === true, {
+        timeout: 15000,
+        timeoutMsg: '确认分发按钮未在 15s 内启用',
+      });
+      await confirmBtn.click();
+      // Step4：结果卡 aria-live=polite
+      const resultCard = await browser.$('[data-testid="ws-result-card"]');
+      await resultCard.waitForExist({ timeout: 15000, timeoutMsg: '结果卡未出现' });
+      expect(await resultCard.getAttribute('aria-live')).toBe('polite');
+      // 有且仅有「返回工作区」；无「重试失败项」
+      const actionButtons = await resultCard.$$('button');
+      expect(actionButtons.length).toBe(1);
+      expect(await actionButtons[0].getText()).toContain('返回工作区');
+      // 无 ws-result-resultRemoved（DEC-1）
+      expect(
+        await browser.$('[data-testid="ws-result-resultRemoved"]').isExisting()
+      ).toBe(false);
+      // 结果指标中文化（A5/P0-2）
+      const cardText = await resultCard.getText();
+      expect(cardText).toContain('已安装');
+      expect(cardText).toContain('已更新');
+      expect(cardText).toContain('已跳过');
+      expect(cardText).toContain('错误');
+    } finally {
+      // 清理：移除刚分发的 gstack（可逆，恢复原状）；尽力而为，不掩盖用例失败
+      try {
+        await browser.tauri.execute(({ core }, arg) =>
+          core.invoke('remove_distributed', {
+            platformIds: [arg.platformId],
+            scope: 'global',
+            projectId: undefined,
+            skillIds: ['gstack'],
+            ruleIds: [],
+          }),
+          { platformId: defaultPlatformId }
+        );
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  it('Inspector 无底部 reveal 按钮；Rule 详情含本地路径行', async () => {
+    // 技能详情
+    const skillsNav = await browser.$('//button[contains(., "技能")]');
+    await skillsNav.waitForExist({ timeout: 10000 });
+    await skillsNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/skills'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /skills' }
+    );
+    const firstSkill = await browser.$('[data-testid="resource-item"]');
+    await firstSkill.waitForExist({ timeout: 10000 });
+    await firstSkill.click();
+    const inspectorRoot = await browser.$('[data-testid="inspector-root"]');
+    await inspectorRoot.waitForExist({ timeout: 10000 });
+    const skillPathRow = await browser.$('[data-testid="skill-local-path-row"]');
+    await skillPathRow.waitForExist({ timeout: 10000 });
+    // P3：底部操作区无 reveal 按钮（reveal 收敛为路径行内 action-reveal 图标）
+    const actionTexts = await browser.execute(() => {
+      const el = document.querySelector('[data-testid="inspector-actions"]');
+      if (!el) return [];
+      return Array.from(el.querySelectorAll('button')).map((b) =>
+        `${b.getAttribute('aria-label') || ''} ${b.textContent || ''} ${b.getAttribute('title') || ''}`
+      );
+    });
+    for (const t of actionTexts) {
+      expect(t).not.toMatch(/在访达中显示|Show in|在文件管理器中打开/i);
+    }
+
+    // 规则详情
+    const rulesNav = await browser.$('//button[contains(., "规则")]');
+    await rulesNav.waitForExist({ timeout: 10000 });
+    await rulesNav.click();
+    await browser.waitUntil(
+      async () => ((await browser.getUrl()) ?? '').includes('/rules'),
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /rules' }
+    );
+    const firstRule = await browser.$('[data-testid="resource-item"]');
+    await firstRule.waitForExist({ timeout: 10000 });
+    await firstRule.click();
+    const rulePathRow = await browser.$('[data-testid="rule-local-path-row"]');
+    await rulePathRow.waitForExist({ timeout: 10000 });
+    // 受管副本存在或显示「尚未分发到本地目标」
+    const rowText = await rulePathRow.getText();
+    expect(rowText).toContain('本地路径');
+    const revealInRow = await rulePathRow.$('button.action-reveal');
+    if (await revealInRow.isExisting()) {
+      expect(rowText.replace(/\s+/g, '')).toContain('本地路径');
+    } else {
+      expect(rowText).toContain('尚未分发到本地目标');
+    }
+  });
+});

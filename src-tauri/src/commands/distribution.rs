@@ -140,6 +140,33 @@ pub fn execute_distribution(
     engine::dist_engine::execute_distribution_request(&conn, &all_plugins, &selection, &plan)
 }
 
+/// 33 号 3.3 / DEC-1：独立移除受管内容（与 execute_distribution 语义互斥互补）。
+#[tauri::command(rename_all = "camelCase")]
+pub fn remove_distributed(
+    platform_ids: Vec<String>,
+    scope: String,
+    project_id: Option<String>,
+    skill_ids: Vec<String>,
+    rule_ids: Vec<String>,
+    state: tauri::State<'_, AppState>,
+) -> Result<SyncResult, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
+        crate::plugins::platform::create_all_platform_plugins_vec();
+    engine::dist_execute::execute_remove_distributed(
+        &conn,
+        &all_plugins,
+        &platform_ids,
+        &scope,
+        project_id.as_deref(),
+        &skill_ids,
+        &rule_ids,
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,6 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
+import { pushModalScope, popModalScope } from '../lib/modalScope';
 import { X } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -32,9 +33,11 @@ export const ConfirmDialog = memo(function ConfirmDialog({
 
   useEffect(() => {
     if (!open) return;
+    pushModalScope();
     previouslyFocused.current = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
     return () => {
+      popModalScope();
       previouslyFocused.current?.focus?.();
     };
   }, [open]);

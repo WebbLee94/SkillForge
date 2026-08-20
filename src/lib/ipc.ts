@@ -23,6 +23,7 @@ import type {
   ImportResult,
   DistributionPlan,
   DistributionSelection,
+  RemoveDistributionSelection,
   ManagedDistributionState,
   RevealPathResult,
   FileTreeNode,
@@ -191,6 +192,9 @@ export const ipc = {
     selection: DistributionSelection,
     plan: DistributionPlan
   ) => invoke<SyncResult>('execute_distribution', { selection, plan }),
+  // Remove (33 号 3.3 / DEC-1): 独立移除受管内容，语义与 execute_distribution 互斥互补
+  removeDistributed: (selection: RemoveDistributionSelection) =>
+    invoke<SyncResult>('remove_distributed', { ...selection }),
   getManagedDistributionState: (
     platformIds: string[],
     scope: string,

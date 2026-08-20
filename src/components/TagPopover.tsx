@@ -23,7 +23,8 @@ interface TagPopoverProps {
   allTags: Tag[];
   onAssign: (tagId: number) => void;
   onRemove: (tagId: number) => void;
-  onCreate: (name: string, color: string) => Promise<number | void>;
+  onCreate?: (name: string, color: string) => Promise<number | void>;
+  ariaLabel?: string;
 }
 
 export function TagPopover({
@@ -32,6 +33,7 @@ export function TagPopover({
   onAssign,
   onRemove,
   onCreate,
+  ariaLabel,
 }: TagPopoverProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -52,7 +54,7 @@ export function TagPopover({
   const exactMatch = allTags.some(
     (t) => t.name.toLowerCase() === search.toLowerCase()
   );
-  const canCreate = search.trim().length > 0 && !exactMatch;
+  const canCreate = !!onCreate && search.trim().length > 0 && !exactMatch;
 
   // Close on outside click
   useEffect(() => {
@@ -79,7 +81,7 @@ export function TagPopover({
 
   const handleCreate = async () => {
     if (!search.trim()) return;
-    const newTagId = await onCreate(search.trim(), newColor);
+    const newTagId = await onCreate?.(search.trim(), newColor);
     // Auto-assign the newly created tag
     if (typeof newTagId === 'number' && !assignedIds.has(newTagId)) {
       onAssign(newTagId);
@@ -103,6 +105,7 @@ export function TagPopover({
     <div className="relative" ref={popoverRef}>
       <button
         data-testid="tag-popover-trigger"
+        aria-label={ariaLabel}
         className={cn(
           'inline-flex items-center justify-center rounded-full p-0.5',
           'text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors'

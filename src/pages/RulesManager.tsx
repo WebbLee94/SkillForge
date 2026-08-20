@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import { cn } from '../lib/utils';
+import { cn, sanitizePath } from '../lib/utils';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
 import { RuleEditor } from '../components/RuleEditor';
 import { TagFilterBar } from '../components/TagFilterBar';
@@ -40,6 +40,7 @@ import {
   Minimize,
   AlertTriangle,
   ChevronsUpDown,
+  FolderOpen,
 } from 'lucide-react';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { readTextFile } from '@tauri-apps/plugin-fs';
@@ -53,7 +54,7 @@ const formatBadge: Record<string, { bg: string; text: string }> = {
 };
 
 export function RulesManager() {
-  const { t } = useTranslation('rules');
+  const { t } = useTranslation(['rules', 'distribution']);
   const { t: tc } = useTranslation('common');
   const rules = useAppStore((s) => s.rules);
   const tags = useAppStore((s) => s.tags);
@@ -73,6 +74,7 @@ export function RulesManager() {
   );
   const assignTag = useAppStore((s) => s.assignTag);
   const removeTagAction = useAppStore((s) => s.removeTag);
+  const createTag = useAppStore((s) => s.createTag);
   const addToast = useAppStore((s) => s.addToast);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -780,9 +782,11 @@ export function RulesManager() {
               contentPreview={editingRule.content}
               tags={editingRule.tags || []}
               allTags={tags}
-              managedCopyPath={managedCopyPath}
               onSaveTags={(added, removed) =>
                 saveRuleTags(editingRule.id, added, removed)
+              }
+              onCreateTag={(name, color) =>
+                createTag({ name, color, tag_type: 'rule' })
               }
               onEdit={() => setEditMode(true)}
               deleteLabel={tc('actions.delete')}
@@ -790,7 +794,49 @@ export function RulesManager() {
               onGoDistribute={() => goDistribute([editingRule.id])}
               goDistributeLabel={tc('batch.goDistribute')}
               onClose={() => setEditingRule(null)}
-            />
+            >
+              <div
+                data-testid="rule-local-path-row"
+                className="group flex items-center justify-between gap-3 text-sm"
+              >
+                <span className="shrink-0 text-muted-foreground">
+                  {t('detail.localPath')}
+                </span>
+                {managedCopyPath ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="max-w-[180px] truncate text-xs text-foreground">
+                      {sanitizePath(managedCopyPath)}
+                    </span>
+                    <button
+                      aria-label={`${t('detail.localPath')} ${sanitizePath(managedCopyPath)}`}
+                      title={t('detail.openInFinder')}
+                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary transition-colors action-reveal"
+                      onClick={() => {
+                        ipc
+                          .revealPath(managedCopyPath, false)
+                          .then((res) => {
+                            if (res.fallback)
+                              useAppStore
+                                .getState()
+                                .addToast(t('ws.revealFallback'), 'info');
+                          })
+                          .catch(() =>
+                            useAppStore
+                              .getState()
+                              .addToast(t('ws.revealFailed'), 'error')
+                          );
+                      }}
+                    >
+                      <FolderOpen className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {t('detail.notDistributed')}
+                  </span>
+                )}
+              </div>
+            </Inspector>
           )}
 
           {editingRule && editMode && (

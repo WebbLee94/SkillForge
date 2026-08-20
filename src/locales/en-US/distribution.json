@@ -75,7 +75,7 @@
     "step2.title": "Select Resources",
     "step2.desc": "All resources or a Scene",
     "step3.title": "Review Plan",
-    "step3.desc": "Add / Update / Remove",
+    "step3.desc": "Add / Update",
     "step4.title": "View Result",
     "step4.desc": "Execution and managed state",
     "emptyTitle": "No distribution targets available",
@@ -102,7 +102,21 @@
       "sectionRules": "Rules ({{count}})",
       "badgeManaged": "Managed",
       "badgeKeep": "Keep",
-      "unknownNote": "Unmanaged / user-owned content, kept read-only; cannot be deleted from this page"
+      "unknownNote": "Unmanaged / user-owned content, kept read-only; cannot be deleted from this page",
+      "confirmHint": "Removal only affects SkillForge-managed copies; library resources are kept and can be re-distributed",
+      "confirmRemove": "Confirm remove {{count}} item(s)"
+    },
+    "removeConfirm": {
+      "title": "Confirm removing managed content",
+      "desc": "The following items will be removed from the target platform. Only SkillForge-managed copies are removed; library resources are kept and can be re-distributed.",
+      "confirm": "Confirm remove",
+      "cancel": "Cancel"
+    },
+    "removeResult": {
+      "success": "Removed {{count}} item(s)",
+      "partial": "Partial failure: removed {{removed}}, failed {{failed}}",
+      "failed": "Removal failed, retry available",
+      "targetChanged": "Removal targets changed or are no longer managed; please rescan"
     },
     "revealMac": "Show in Finder",
     "revealWin": "Show in Folder",
@@ -131,8 +145,12 @@
     "invalidRefsCleanup": "Go clean up",
     "skillsLegend": "Skills ({{count}} selected)",
     "rulesLegend": "Rules ({{count}} selected)",
+    "selectAllSkills": "Select all skills",
+    "selectAllRules": "Select all rules",
+    "clearAll": "Clear",
     "presetToast": "Carried {{count}} resource(s) into the distribution workspace (direct selection, no writes yet)",
     "planGenerating": "Rescanning target filesystem…",
+    "planTitle": "Plan details",
     "planStale": "The target changed after preview; the old plan is discarded. Rescan and confirm the latest plan.",
     "rescan": "Rescan",
     "planNoChange": "Target is already up to date; no write command will be invoked.",
@@ -166,6 +184,7 @@
     "resultSkippedHint": "No change needed (files are already up-to-date, no write required)",
     "resultErrors": "errors",
     "retryFailed": "Retry failed items",
+    "backToWorkspace": "Back to workspace",
     "viewManagedState": "View managed state",
     "distributeAgain": "Distribute again",
     "closeWorkspace": "Close",

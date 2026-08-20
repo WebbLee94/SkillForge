@@ -20,6 +20,11 @@
     "global": "全局",
     "project": "项目"
   },
+  "detail": {
+    "localPath": "本地路径",
+    "openInFinder": "在文件管理器中打开",
+    "notDistributed": "尚未分发到本地目标"
+  },
   "create": {
     "title": "新建规则",
     "nameLabel": "规则名称",

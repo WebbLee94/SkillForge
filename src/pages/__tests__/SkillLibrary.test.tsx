@@ -495,11 +495,15 @@ describe('SkillLibrary — Inspector 标签保存后刷新（H1）', () => {
     });
     fireEvent.click(screen.getByText('React'));
     await waitFor(() => {
-      expect(screen.getByLabelText('urgent')).toBeDefined();
+      expect(
+        screen.getByRole('button', { name: 'inspector.addTag' })
+      ).toBeDefined();
     });
 
-    // 勾选标签 → 脏状态出现
-    fireEvent.click(screen.getByLabelText('urgent'));
+    // 通过 TagPopover 勾选标签 → 脏状态出现（filter bar 也渲染同名 chip，取 popover 行）
+    fireEvent.click(screen.getByRole('button', { name: 'inspector.addTag' }));
+    const urgentRows = screen.getAllByText('urgent');
+    fireEvent.click(urgentRows[urgentRows.length - 1]);
     expect(screen.getByText('actions.save')).toBeDefined();
 
     // 保存 → assign_tag → refetch 返回带标签的 skill → 脏状态清除
@@ -583,12 +587,11 @@ describe('SkillLibrary — 资源 IPC 集成（受管副本 reveal / 批量删�
     vi.clearAllMocks();
   });
 
-  it('selecting a skill fetches managed copy path and reveals the reveal button when a copy exists', async () => {
+  it('Skill 本地路径 reveal 走 invoke reveal_path，不再调用 plugin-opener', async () => {
     const skills: Skill[] = [mkSkill('s1', 'React')];
     await setupInvoke({
       list_skills: skills,
       list_tags: [],
-      get_managed_copy_path: '/platform/skills/react',
     });
 
     render(<SkillLibrary />);
@@ -598,21 +601,32 @@ describe('SkillLibrary — 资源 IPC 集成（受管副本 reveal / 批量删�
     fireEvent.click(screen.getByText('React'));
 
     await waitFor(() => {
-      expect(screen.getByText('在文件夹中显示')).toBeDefined();
+      expect(screen.getByTestId('skill-local-path-row')).toBeDefined();
     });
-    const { invoke } = await import('@tauri-apps/api/core');
-    expect(invoke).toHaveBeenCalledWith('get_managed_copy_path', {
-      resourceType: 'skill',
-      resourceId: 's1',
+    const row = screen.getByTestId('skill-local-path-row');
+    const revealBtn = within(row).getByRole('button');
+    // 33 号 P6：本地路径 reveal 按钮使用全局 .action-reveal 类，行容器为 group
+    expect(row.className).toContain('group');
+    expect(revealBtn.className).toContain('action-reveal');
+    fireEvent.click(revealBtn);
+
+    await waitFor(async () => {
+      const { invoke } = await import('@tauri-apps/api/core');
+      expect(invoke).toHaveBeenCalledWith('reveal_path', {
+        path: '/path/React',
+        asSkillsDir: false,
+      });
     });
+    const { revealItemInDir } = await import('@tauri-apps/plugin-opener');
+    expect(revealItemInDir).not.toHaveBeenCalled();
   });
 
-  it('does not reveal the reveal button when get_managed_copy_path resolves null', async () => {
+  it('Skill 本地路径 reveal 失败 → 显示错误 toast', async () => {
     const skills: Skill[] = [mkSkill('s1', 'React')];
     await setupInvoke({
       list_skills: skills,
       list_tags: [],
-      get_managed_copy_path: null,
+      reveal_path: new Error('cannot reveal'),
     });
 
     render(<SkillLibrary />);
@@ -620,10 +634,22 @@ describe('SkillLibrary — 资源 IPC 集成（受管副本 reveal / 批量删�
       expect(screen.getByText('React')).toBeDefined();
     });
     fireEvent.click(screen.getByText('React'));
+
     await waitFor(() => {
-      expect(screen.getByText('detail.source')).toBeDefined();
+      expect(screen.getByTestId('skill-local-path-row')).toBeDefined();
     });
-    expect(screen.queryByText('在文件夹中显示')).toBeNull();
+    const row = screen.getByTestId('skill-local-path-row');
+    const revealBtn = within(row).getByRole('button');
+    fireEvent.click(revealBtn);
+
+    await waitFor(() => {
+      const { toasts } = useAppStore.getState();
+      expect(
+        toasts.some(
+          (t) => t.message === 'ws.revealFailed' && t.type === 'error'
+        )
+      ).toBe(true);
+    });
   });
 
   it('batch delete confirmation displays summed real scene reference counts', async () => {

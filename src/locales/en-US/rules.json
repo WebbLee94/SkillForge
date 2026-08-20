@@ -20,6 +20,11 @@
     "global": "Global",
     "project": "Project"
   },
+  "detail": {
+    "localPath": "Local Path",
+    "openInFinder": "Open in File Manager",
+    "notDistributed": "Not distributed to a local target yet"
+  },
   "create": {
     "title": "New Rule",
     "nameLabel": "Rule Name",

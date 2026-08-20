@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
-import { X, Save, Undo2, Trash2, FolderOpen, Send } from 'lucide-react';
-import { revealItemInDir } from '@tauri-apps/plugin-opener';
+import { X, Save, Undo2, Trash2, Send } from 'lucide-react';
 import type { Tag } from '../types';
 import { computeTagChanges, formatFullTimestamp } from '../lib/resourceLibrary';
+import { hasOpenModal } from '../lib/modalScope';
 import { useDialogA11y } from '../hooks/useDialogA11y';
+import { TagChip } from './TagChip';
+import { TagPopover } from './TagPopover';
 
 interface InspectorProps {
   resourceType: 'skill' | 'rule';
@@ -21,11 +23,10 @@ interface InspectorProps {
   tags: Tag[];
   /** 当前模块全部标签（用于勾选编辑） */
   allTags: Tag[];
-  /** 受管副本路径；仅存在时显示平台原生 reveal（恰好一个标签），未分发不显示 */
-  managedCopyPath?: string | null;
-  revealLabel?: string;
   /** 标签编辑保存回调：added / removed 标签 id */
   onSaveTags: (added: number[], removed: number[]) => Promise<void>;
+  /** 标签创建回调（可选）：返回新标签 id，TagPopover 创建后自动加入 draft */
+  onCreateTag?: (name: string, color: string) => Promise<number | void>;
   onEdit?: () => void;
   onDelete: () => void;
   onGoDistribute?: () => void;
@@ -46,7 +47,7 @@ function sameIds(a: number[], b: number[]): boolean {
  * 资源详情面板（Inspector，Phase 6 §3.2/§3.5）：
  * - 名称、完整时间戳；来源仅技能（规则无来源）；
  * - 内容预览；标签编辑带脏状态（保存 / 撤销 / 离开确认）；
- * - 受管副本 reveal：仅已分发资源显示恰好一个平台原生标签。
+ * - 本地路径 / reveal 由父级以 children 形式渲染（33 号 4.2：不再内置底部全宽按钮）。
  * 父级渲染时应以资源 id 作为 key 以在切换资源时重置草稿。
  */
 export function Inspector({
@@ -58,9 +59,8 @@ export function Inspector({
   contentPreview,
   tags,
   allTags,
-  managedCopyPath,
-  revealLabel,
   onSaveTags,
+  onCreateTag,
   onEdit,
   onDelete,
   onGoDistribute,
@@ -75,6 +75,10 @@ export function Inspector({
   const [draftIds, setDraftIds] = useState<number[]>(savedIds);
   const [saving, setSaving] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
+  const draftTags = useMemo(
+    () => allTags.filter((tag) => draftIds.includes(tag.id)),
+    [allTags, draftIds]
+  );
 
   const dirty = !sameIds(draftIds, savedIds);
 
@@ -138,20 +142,37 @@ export function Inspector({
     }
   }, [dirty, savedIds, draftIds, onSaveTags, onClose]);
 
-  const showReveal = Boolean(managedCopyPath);
-  const revealText =
-    revealLabel ||
-    (/mac/i.test(navigator.platform || '') ||
-    /Mac/i.test(navigator.userAgent || '')
-      ? '在访达中显示'
-      : '在文件夹中显示');
-
   const leaveConfirmRef = useDialogA11y(leaveConfirm);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    rootRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (saving) return;
+      if (hasOpenModal()) return;
+      if (dirty) setLeaveConfirm(true);
+      else onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dirty, saving, onClose]);
 
   return (
     <>
-      <div className="flex h-full flex-col">
-        <div className="flex items-start justify-between gap-2 border-b border-border p-4">
+      <div
+        ref={rootRef}
+        data-testid="inspector-root"
+        tabIndex={-1}
+        className="flex h-full flex-col"
+      >
+        <div
+          data-testid="inspector-header"
+          className="flex items-start justify-between gap-2 border-b border-border p-4"
+        >
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-lg font-semibold text-foreground">
               {title}
@@ -200,55 +221,44 @@ export function Inspector({
             </p>
           </div>
 
-          {showReveal && managedCopyPath && (
-            <button
-              className={cn(
-                'mt-4 flex w-full items-center justify-center gap-2 rounded-lg border',
-                'border-border bg-card px-3 py-2 text-sm font-medium text-foreground',
-                'hover:bg-accent transition-colors'
-              )}
-              onClick={() => revealItemInDir(managedCopyPath)}
-            >
-              <FolderOpen className="h-4 w-4" />
-              {revealText}
-            </button>
-          )}
-
           <div className="mt-4">
             <h3 className="mb-2 text-xs font-semibold text-muted-foreground">
               {t('nav.tags')}
             </h3>
-            {allTags.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
+            {draftTags.length === 0 ? (
+              <p className="mb-2 text-xs text-muted-foreground">
                 {t('messages.noData')}
               </p>
             ) : (
-              <div className="space-y-1">
-                {allTags.map((tag) => {
-                  const checked = draftIds.includes(tag.id);
-                  return (
-                    <label
-                      key={tag.id}
-                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleDraft(tag.id)}
-                        className="h-4 w-4 rounded border-border"
-                      />
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={
-                          tag.color ? { backgroundColor: tag.color } : undefined
-                        }
-                      />
-                      <span className="text-foreground">{tag.name}</span>
-                    </label>
-                  );
-                })}
+              <div
+                className="flex flex-wrap gap-1.5"
+                data-testid="inspector-tag-chips"
+              >
+                {draftTags.map((tag) => (
+                  <TagChip
+                    key={tag.id}
+                    tag={tag}
+                    size="sm"
+                    removeLabel={t('inspector.removeTagLabel', {
+                      name: tag.name,
+                    })}
+                    onRemove={() => toggleDraft(tag.id)}
+                  />
+                ))}
               </div>
             )}
+            <TagPopover
+              tagType={resourceType}
+              targetId={''}
+              ariaLabel={t('inspector.addTag')}
+              assignedTags={draftTags}
+              allTags={allTags}
+              onAssign={(id) => {
+                if (!draftIds.includes(id)) setDraftIds((p) => [...p, id]);
+              }}
+              onRemove={(id) => toggleDraft(id)}
+              onCreate={onCreateTag}
+            />
           </div>
 
           {dirty && (

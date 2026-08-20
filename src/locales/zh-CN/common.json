@@ -125,7 +125,9 @@
     "unsavedTitle": "有未保存的修改",
     "unsavedMessage": "是否保存修改？",
     "discard": "放弃",
-    "stay": "取消离开"
+    "stay": "取消离开",
+    "addTag": "添加标签",
+    "removeTagLabel": "移除标签 {{name}}"
   },
   "fileTree": {
     "loading": "加载中...",

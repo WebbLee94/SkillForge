@@ -51,6 +51,7 @@ pub fn run() {
             commands::distribution::preview_distribution,
             commands::distribution::get_managed_distribution_state,
             commands::distribution::execute_distribution,
+            commands::distribution::remove_distributed,
             commands::projects::list_projects,
             commands::projects::add_project,
             commands::projects::remove_project,

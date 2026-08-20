@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Settings,
   OctagonX,
+  ChevronDown,
 } from 'lucide-react';
 import { ipc } from '../lib/ipc';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -19,6 +20,7 @@ import type {
   DistributionPlan,
   Platform,
   Project,
+  RemoveDistributionSelection,
   SyncResult,
 } from '../types';
 
@@ -59,6 +61,22 @@ export function resolveRevealAsSkillsDir(
   return !rootSelf.has(platformId);
 }
 
+/** 33 号 A1：Step1 项目目标下路径展示为平台内相对路径；{project}/ 前缀剥离。
+ * 绝对 / ~ / 相对 pattern 原样（无法进一步相对化）；目标不可用时原样返回（渲染层回退 pathUnavailable）。 */
+export function resolveStep1PathDisplay(
+  rawPath: string,
+  isProjectTarget: boolean,
+  pattern: string | null
+): string {
+  if (!isProjectTarget) return rawPath;
+  if (!rawPath) return rawPath;
+  if (pattern && pattern.startsWith('{project}/')) {
+    const rel = pattern.slice('{project}/'.length);
+    return rel || rawPath;
+  }
+  return pattern || rawPath;
+}
+
 export const DistributionWorkspace = memo(function DistributionWorkspace({
   scope = 'global',
   initialProjectId = null,
@@ -77,6 +95,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   const fetchRules = useAppStore((s) => s.fetchRules);
   const fetchScenes = useAppStore((s) => s.fetchScenes);
   const executeDistribution = useAppStore((s) => s.executeDistribution);
+  const removeDistributed = useAppStore((s) => s.removeDistributed);
   const fetchManagedState = useAppStore((s) => s.fetchManagedDistributionState);
   const managedState = useAppStore((s) => s.managedDistributionState);
   const addToast = useAppStore((s) => s.addToast);
@@ -91,8 +110,13 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   const [source, setSource] = useState('all');
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [selectedRules, setSelectedRules] = useState<string[]>([]);
-  const [removeSkills, setRemoveSkills] = useState<string[]>([]);
-  const [removeRules, setRemoveRules] = useState<string[]>([]);
+  const [pendingRemoveSkills, setPendingRemoveSkills] = useState<string[]>([]);
+  const [pendingRemoveRules, setPendingRemoveRules] = useState<string[]>([]);
+  const [pendingRemoveResult, setPendingRemoveResult] = useState<{
+    status: 'idle' | 'running' | 'success' | 'partial' | 'failed';
+    removed: string[];
+    errors: string[];
+  } | null>(null);
   const [managedOpen, setManagedOpen] = useState(false);
   const [sceneSkillIds, setSceneSkillIds] = useState<Set<string> | null>(null);
   const [sceneRuleIds, setSceneRuleIds] = useState<Set<string> | null>(null);
@@ -289,8 +313,9 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     (id: string) => {
       setPlatformId(id);
       setManagedOpen(false);
-      setRemoveSkills([]);
-      setRemoveRules([]);
+      setPendingRemoveSkills([]);
+      setPendingRemoveRules([]);
+      setPendingRemoveResult(null);
       const state = useAppStore.getState();
       if (scope === 'global') state.setGlobalDistSelectedPlatform(id);
       else state.setProjectDistSelectedPlatform(id);
@@ -301,8 +326,11 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   const toggleTarget = useCallback((value: string) => {
     setTarget(value);
     setManagedOpen(false);
-    setRemoveSkills([]);
-    setRemoveRules([]);
+    setPendingRemoveSkills([]);
+    setPendingRemoveRules([]);
+    setPendingRemoveResult(null);
+    setSelectedSkills([]);
+    setSelectedRules([]);
     setPlan(null);
     setPlanStale(false);
     if (value.startsWith('project:')) {
@@ -385,6 +413,19 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     return list;
   }, [rules, sceneRuleIds]);
 
+  // T5（33 号 3.4 / A3）：三态全选派生值——全选仅影响当前来源池
+  const allSkillsChecked =
+    poolSkills.length > 0 &&
+    poolSkills.every((s) => selectedSkills.includes(s.id));
+  const skillsPartiallyChecked =
+    poolSkills.some((s) => selectedSkills.includes(s.id)) &&
+    !allSkillsChecked;
+  const allRulesChecked =
+    poolRules.length > 0 &&
+    poolRules.every((r) => selectedRules.includes(r.id));
+  const rulesPartiallyChecked =
+    poolRules.some((r) => selectedRules.includes(r.id)) && !allRulesChecked;
+
   const toggleSelect = useCallback((kind: 'skill' | 'rule', id: string) => {
     if (kind === 'skill') {
       setSelectedSkills((prev) =>
@@ -399,19 +440,21 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     setPlanStale(false);
   }, []);
 
-  const toggleRemove = useCallback((kind: 'skill' | 'rule', id: string) => {
-    if (kind === 'skill') {
-      setRemoveSkills((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      );
-    } else {
-      setRemoveRules((prev) =>
-        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-      );
-    }
-    setPlan(null);
-    setPlanStale(false);
-  }, []);
+  const togglePendingRemove = useCallback(
+    (kind: 'skill' | 'rule', id: string) => {
+      if (kind === 'skill') {
+        setPendingRemoveSkills((prev) =>
+          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+      } else {
+        setPendingRemoveRules((prev) =>
+          prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
+      }
+      setPendingRemoveResult(null);
+    },
+    []
+  );
 
   const buildSelection = useCallback((): DistributionSelection => {
     const projectId = isProjectTarget ? target.slice(8) : undefined;
@@ -421,34 +464,15 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
       scope: isProjectTarget ? 'project' : 'global',
       ...(projectId ? { projectId } : {}),
       skills: {
-        mode:
-          removeSkills.length > 0
-            ? 'remove_selected'
-            : selectedSkills.length > 0
-              ? 'add_or_update'
-              : 'preserve',
-        ids: removeSkills.length > 0 ? removeSkills : selectedSkills,
+        mode: selectedSkills.length > 0 ? 'add_or_update' : 'preserve',
+        ids: selectedSkills,
       },
       rules: {
-        mode:
-          removeRules.length > 0
-            ? 'remove_selected'
-            : selectedRules.length > 0
-              ? 'add_or_update'
-              : 'preserve',
-        ids: removeRules.length > 0 ? removeRules : selectedRules,
+        mode: selectedRules.length > 0 ? 'add_or_update' : 'preserve',
+        ids: selectedRules,
       },
     };
-  }, [
-    isProjectTarget,
-    target,
-    source,
-    platformId,
-    removeSkills,
-    selectedSkills,
-    removeRules,
-    selectedRules,
-  ]);
+  }, [isProjectTarget, target, source, platformId, selectedSkills, selectedRules]);
 
   // Generate plan when entering step 3
   useEffect(() => {
@@ -491,16 +515,9 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   }, [isProjectTarget, selectedProject, getTargetDir, addToast, t]);
 
   const nextToPlan = useCallback(() => {
-    const hasConflict =
-      (selectedSkills.length > 0 && removeSkills.length > 0) ||
-      (selectedRules.length > 0 && removeRules.length > 0);
-    if (hasConflict) {
-      addToast(t('ws.mixedAddRemoveBlocked'), 'warning');
-      return;
-    }
     setStep(3);
     setPhase('planning');
-  }, [selectedSkills, removeSkills, selectedRules, removeRules, addToast, t]);
+  }, []);
 
   const back = useCallback(() => {
     if (step === 4 && phase === 'executing') {
@@ -556,29 +573,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
       return;
     }
     const selection = buildSelection();
-    if (plan.has_removals) {
-      setConfirmRemoveOpen(true);
-      return;
-    }
     void runExecute(selection, plan);
-  }, [
-    plan,
-    platformId,
-    backgroundRunning,
-    buildSelection,
-    runExecute,
-    addToast,
-    t,
-  ]);
-
-  const confirmWithRemovals = useCallback(() => {
-    setConfirmRemoveOpen(false);
-    if (!plan || !platformId) return;
-    if (backgroundRunning) {
-      addToast(t('ws.busyBackground'), 'warning');
-      return;
-    }
-    void runExecute(buildSelection(), plan);
   }, [
     plan,
     platformId,
@@ -606,17 +601,74 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     t,
   ]);
 
-  const resetAll = useCallback(() => {
+  // T7（33 号 3.6 / A5）：「返回工作区」统一回 Step 1，保留目标/平台/资源选择上下文。
+  // 只清理本次执行状态，不清空待移除标记/受管面板状态，也不触发 onDistributed。
+  const backToWorkspace = useCallback(() => {
     execToken.current += 1;
     setStep(1);
     setPhase('idle');
     setPlan(null);
     setPlanStale(false);
     setResult(null);
-    setRemoveSkills([]);
-    setRemoveRules([]);
-    setManagedOpen(false);
   }, []);
+
+  const runRemoveDistributed = useCallback(async () => {
+    setConfirmRemoveOpen(false);
+    if (!platformId || backgroundRunning) return;
+    const projectId = isProjectTarget ? target.slice(8) : undefined;
+    const selection: RemoveDistributionSelection = {
+      platformIds: [platformId],
+      scope: isProjectTarget ? 'project' : 'global',
+      ...(projectId ? { projectId } : {}),
+      skillIds: pendingRemoveSkills,
+      ruleIds: pendingRemoveRules,
+    };
+    setBackgroundRunning(true);
+    setPendingRemoveResult({ status: 'running', removed: [], errors: [] });
+    try {
+      const res = await removeDistributed(selection);
+      if (res) {
+        setPendingRemoveResult({
+          status: res.errors.length > 0 ? 'partial' : 'success',
+          removed: res.removed,
+          errors: res.errors,
+        });
+        // 部分失败：保留未成功项的选择（成功项从 pending 中剔除，规则 id 为 `rule:{id}` 形式）
+        const removedSkillIds = new Set(res.removed);
+        setPendingRemoveSkills((prev) =>
+          prev.filter((id) => !removedSkillIds.has(id))
+        );
+        setPendingRemoveRules((prev) =>
+          prev.filter((id) => !removedSkillIds.has(`rule:${id}`))
+        );
+      } else {
+        setPendingRemoveResult({ status: 'failed', removed: [], errors: [] });
+        // 失败：保留全部选择，可重试
+      }
+      // 状态失效：清空计划、刷新受管面板与同步状态（无论成败，目标文件系统可能已变化）
+      setPlan(null);
+      setPlanStale(false);
+      const ok = await fetchManagedState(
+        selection.platformIds,
+        selection.scope,
+        selection.projectId
+      );
+      if (!ok) addToast(t('previewFailed'), 'error');
+    } finally {
+      setBackgroundRunning(false);
+    }
+  }, [
+    platformId,
+    isProjectTarget,
+    target,
+    pendingRemoveSkills,
+    pendingRemoveRules,
+    backgroundRunning,
+    removeDistributed,
+    fetchManagedState,
+    addToast,
+    t,
+  ]);
 
   const revealDir = useCallback(async () => {
     if (!selectedPlatform) return;
@@ -707,9 +759,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   ];
 
   const planPlatform = plan?.platforms[0];
-  const removeTotal =
-    (planPlatform?.skills_to_remove.length ?? 0) +
-    (planPlatform?.rules_to_remove.length ?? 0);
+  const pendingTotal = pendingRemoveSkills.length + pendingRemoveRules.length;
   const hasChanges =
     plan != null &&
     (plan.has_removals ||
@@ -721,6 +771,16 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
   const revealLabel = isMacOS() ? t('ws.revealMac') : t('ws.revealWin');
   const targetDisplayPath = sanitizePath(getTargetDir());
   const rulesTargetDisplayPath = sanitizePath(getRulesTargetDir());
+  const skillsStep1Path = resolveStep1PathDisplay(
+    targetDisplayPath,
+    isProjectTarget,
+    selectedPlatform?.paths.project_skills_pattern ?? null
+  );
+  const rulesStep1Path = resolveStep1PathDisplay(
+    rulesTargetDisplayPath,
+    isProjectTarget,
+    selectedPlatform?.paths.project_rules_pattern ?? null
+  );
   const rulesSingleFile = useMemo(() => {
     if (!selectedPlatform) return false;
     const fmt = isProjectTarget
@@ -836,7 +896,10 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
           <h3 className="text-sm font-semibold text-foreground mb-3">
             1. {t('ws.step1.title')}
           </h3>
-          <div className="space-y-4">
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+            data-testid="ws-step1-grid"
+          >
             <div>
               <label
                 className="mb-1 block text-sm font-medium text-foreground"
@@ -890,45 +953,53 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               </select>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <div className="mb-1 text-sm font-medium text-foreground">
-                  {t('ws.skillsPathLabel')}
-                </div>
-                <div
-                  data-testid="ws-skills-path"
-                  className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground break-all"
-                >
-                  {targetDisplayPath || t('ws.pathUnavailable')}
-                </div>
+            <div>
+              <div className="mb-1 text-sm font-medium text-foreground">
+                {t('ws.skillsPathLabel')}
               </div>
-              <div>
-                <div className="mb-1 text-sm font-medium text-foreground">
-                  {t('ws.rulesPathLabel')}
-                </div>
-                <div
-                  data-testid="ws-rules-path"
-                  className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground break-all"
-                >
-                  {rulesTargetDisplayPath || t('ws.pathUnavailable')}
-                </div>
-                {rulesSingleFile && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {t('ws.rulesSingleFileHint')}
-                  </p>
-                )}
+              <div
+                data-testid="ws-skills-path"
+                className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground break-all"
+              >
+                {skillsStep1Path || t('ws.pathUnavailable')}
               </div>
             </div>
+            <div>
+              <div className="mb-1 text-sm font-medium text-foreground">
+                {t('ws.rulesPathLabel')}
+              </div>
+              <div
+                data-testid="ws-rules-path"
+                className="rounded-lg border border-border bg-muted/40 px-3 py-2 font-mono text-xs text-muted-foreground break-all"
+              >
+                {rulesStep1Path || t('ws.pathUnavailable')}
+              </div>
+              {rulesSingleFile && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t('ws.rulesSingleFileHint')}
+                </p>
+              )}
+            </div>
 
-            <div className="border-t border-border pt-3">
+            <div className="border-t border-border pt-3 sm:col-span-2">
               <button
                 type="button"
+                aria-expanded={managedOpen}
+                aria-controls="ws-managed-panel"
                 className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-accent"
                 onClick={
                   managedOpen ? () => setManagedOpen(false) : openManaged
                 }
               >
                 <ShieldCheck className="h-4 w-4" />
+                <span
+                  className={cn(
+                    'transition-transform duration-200',
+                    managedOpen && 'rotate-180'
+                  )}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </span>
                 {managedOpen
                   ? t('ws.managedToggleHide')
                   : t('ws.managedToggle')}
@@ -936,6 +1007,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
               {managedOpen && (
                 <div
+                  id="ws-managed-panel"
                   data-testid="ws-managed-panel"
                   className="mt-3 rounded-lg border border-border bg-card pb-3"
                 >
@@ -957,7 +1029,8 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                     className="px-3 pt-1.5 text-xs text-muted-foreground"
                   >
                     {t('ws.managed.pendingRemove', {
-                      count: removeSkills.length + removeRules.length,
+                      count:
+                        pendingRemoveSkills.length + pendingRemoveRules.length,
                     })}
                   </p>
 
@@ -993,16 +1066,15 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                           <span className="h-1.5 w-1.5 rounded-full bg-success" />
                           {t('ws.managed.badgeManaged')}
                         </span>
-                        <button
-                          type="button"
+                        <input
+                          type="checkbox"
                           aria-label={`${t('ws.removeSkill')} ${item.name}`}
-                          onClick={() => toggleRemove('skill', item.id)}
-                          className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent"
-                        >
-                          {removeSkills.includes(item.id)
-                            ? t('ws.undoRemove')
-                            : t('ws.remove')}
-                        </button>
+                          checked={pendingRemoveSkills.includes(item.id)}
+                          onChange={() =>
+                            togglePendingRemove('skill', item.id)
+                          }
+                          className="h-3.5 w-3.5"
+                        />
                       </div>
                     ))}
                   </div>
@@ -1039,16 +1111,15 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                           <span className="h-1.5 w-1.5 rounded-full bg-success" />
                           {t('ws.managed.badgeManaged')}
                         </span>
-                        <button
-                          type="button"
+                        <input
+                          type="checkbox"
                           aria-label={`${t('ws.removeRule')} ${item.name}`}
-                          onClick={() => toggleRemove('rule', item.id)}
-                          className="rounded-md border border-border px-2 py-1 text-xs text-foreground hover:bg-accent"
-                        >
-                          {removeRules.includes(item.id)
-                            ? t('ws.undoRemove')
-                            : t('ws.remove')}
-                        </button>
+                          checked={pendingRemoveRules.includes(item.id)}
+                          onChange={() =>
+                            togglePendingRemove('rule', item.id)
+                          }
+                          className="h-3.5 w-3.5"
+                        />
                       </div>
                     ))}
                   </div>
@@ -1084,6 +1155,63 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                           </span>
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  <div className="mt-3 flex items-center justify-between border-t border-border px-3 pt-2.5">
+                    <div className="text-xs text-muted-foreground">
+                      {t('ws.managed.confirmHint')}
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="ws-managed-confirm-remove"
+                      disabled={pendingTotal === 0 || backgroundRunning}
+                      onClick={() => setConfirmRemoveOpen(true)}
+                      className={cn(
+                        'rounded-lg px-4 py-2 text-sm font-medium',
+                        pendingTotal > 0 && !backgroundRunning
+                          ? 'bg-error text-white hover:opacity-90'
+                          : 'bg-muted text-muted-foreground cursor-not-allowed'
+                      )}
+                    >
+                      {t('ws.managed.confirmRemove', { count: pendingTotal })}
+                    </button>
+                  </div>
+
+                  {pendingRemoveResult && (
+                    <div
+                      aria-live="polite"
+                      data-testid="ws-managed-remove-result"
+                      className={cn(
+                        'mt-3 rounded-lg border px-3 py-2 text-sm',
+                        pendingRemoveResult.status === 'success' &&
+                          'border-success/40 bg-success/10 text-success',
+                        (pendingRemoveResult.status === 'partial' ||
+                          pendingRemoveResult.status === 'failed') &&
+                          'border-warning/40 bg-warning/10 text-warning'
+                      )}
+                    >
+                      {pendingRemoveResult.status === 'running' &&
+                        t('ws.executing')}
+                      {pendingRemoveResult.status === 'success' &&
+                        t('ws.removeResult.success', {
+                          count: pendingRemoveResult.removed.length,
+                        })}
+                      {pendingRemoveResult.status === 'partial' && (
+                        <>
+                          {t('ws.removeResult.partial', {
+                            removed: pendingRemoveResult.removed.length,
+                            failed: pendingRemoveResult.errors.length,
+                          })}
+                          <ul className="mt-1 space-y-0.5 text-xs">
+                            {pendingRemoveResult.errors.map((err, i) => (
+                              <li key={i}>{err}</li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                      {pendingRemoveResult.status === 'failed' &&
+                        t('ws.removeResult.failed')}
                     </div>
                   )}
                 </div>
@@ -1126,6 +1254,8 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               value={source}
               onChange={(e) => {
                 setSource(e.target.value);
+                setSelectedSkills([]);
+                setSelectedRules([]);
                 setPlan(null);
                 setPlanStale(false);
               }}
@@ -1184,9 +1314,42 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               <legend className="px-1 text-xs text-muted-foreground">
                 {t('ws.skillsLegend', { count: selectedSkills.length })}
               </legend>
+              <div className="mb-2 flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    data-testid="ws-select-all-skills"
+                    aria-label={t('ws.selectAllSkills')}
+                    aria-checked={
+                      skillsPartiallyChecked ? 'mixed' : allSkillsChecked
+                    }
+                    ref={(el) => {
+                      if (el) el.indeterminate = skillsPartiallyChecked;
+                    }}
+                    checked={allSkillsChecked}
+                    disabled={poolSkills.length === 0}
+                    onChange={(e) =>
+                      e.target.checked
+                        ? setSelectedSkills(poolSkills.map((s) => s.id))
+                        : setSelectedSkills([])
+                    }
+                    className="h-3.5 w-3.5"
+                  />
+                  {t('ws.selectAllSkills')}
+                </label>
+                <button
+                  type="button"
+                  data-testid="ws-clear-skills"
+                  disabled={poolSkills.length === 0}
+                  onClick={() => setSelectedSkills([])}
+                  className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  {t('ws.clearAll')}
+                </button>
+              </div>
               <div
                 data-testid="ws-skills-list"
-                className="max-h-[264px] space-y-1 overflow-y-auto pr-1"
+                className="max-h-[220px] space-y-1 overflow-y-auto pr-1"
               >
                 {poolSkills.map((skill) => {
                   const checked = selectedSkills.includes(skill.id);
@@ -1217,9 +1380,42 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               <legend className="px-1 text-xs text-muted-foreground">
                 {t('ws.rulesLegend', { count: selectedRules.length })}
               </legend>
+              <div className="mb-2 flex items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    data-testid="ws-select-all-rules"
+                    aria-label={t('ws.selectAllRules')}
+                    aria-checked={
+                      rulesPartiallyChecked ? 'mixed' : allRulesChecked
+                    }
+                    ref={(el) => {
+                      if (el) el.indeterminate = rulesPartiallyChecked;
+                    }}
+                    checked={allRulesChecked}
+                    disabled={poolRules.length === 0}
+                    onChange={(e) =>
+                      e.target.checked
+                        ? setSelectedRules(poolRules.map((r) => r.id))
+                        : setSelectedRules([])
+                    }
+                    className="h-3.5 w-3.5"
+                  />
+                  {t('ws.selectAllRules')}
+                </label>
+                <button
+                  type="button"
+                  data-testid="ws-clear-rules"
+                  disabled={poolRules.length === 0}
+                  onClick={() => setSelectedRules([])}
+                  className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                >
+                  {t('ws.clearAll')}
+                </button>
+              </div>
               <div
                 data-testid="ws-rules-list"
-                className="max-h-[264px] space-y-1 overflow-y-auto pr-1"
+                className="max-h-[220px] space-y-1 overflow-y-auto pr-1"
               >
                 {poolRules.map((rule) => {
                   const checked = selectedRules.includes(rule.id);
@@ -1313,36 +1509,28 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
               <div className="rounded-lg border border-border bg-muted/20 p-3">
                 <div className="text-xs text-muted-foreground">
-                  <div className="truncate">{t('ws.planTarget')}</div>
-                  <div className="truncate font-mono">
-                    {targetDisplayPath || t('ws.pathUnavailable')}
-                  </div>
+                  {t('ws.skillsPathLabel')}
                 </div>
-                <div className="mt-2 border-t border-border pt-2">
-                  <div className="text-xs text-muted-foreground">
-                    {t('ws.skillsPathLabel')}
-                  </div>
-                  <div
-                    data-testid="ws-step3-skills-path"
-                    className="truncate font-mono text-xs text-foreground"
-                  >
-                    {targetDisplayPath || t('ws.pathUnavailable')}
-                  </div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {t('ws.rulesPathLabel')}
-                  </div>
-                  <div
-                    data-testid="ws-step3-rules-path"
-                    className="truncate font-mono text-xs text-foreground"
-                  >
-                    {rulesTargetDisplayPath || t('ws.pathUnavailable')}
-                  </div>
-                  {rulesSingleFile && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t('ws.rulesSingleFileHint')}
-                    </p>
-                  )}
+                <div
+                  data-testid="ws-step3-skills-path"
+                  className="truncate font-mono text-xs text-foreground"
+                >
+                  {targetDisplayPath || t('ws.pathUnavailable')}
                 </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {t('ws.rulesPathLabel')}
+                </div>
+                <div
+                  data-testid="ws-step3-rules-path"
+                  className="truncate font-mono text-xs text-foreground"
+                >
+                  {rulesTargetDisplayPath || t('ws.pathUnavailable')}
+                </div>
+                {rulesSingleFile && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('ws.rulesSingleFileHint')}
+                  </p>
+                )}
 
                 {planPlatform && (
                   <div className="mt-3 grid grid-cols-2 gap-4">
@@ -1406,9 +1594,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                     : 'bg-muted text-muted-foreground cursor-not-allowed'
                 )}
               >
-                {removeTotal > 0
-                  ? t('ws.confirmDistributeRemove', { count: removeTotal })
-                  : t('ws.confirmDistribute')}
+                {t('ws.confirmDistribute')}
               </button>
             </div>
             <button
@@ -1454,13 +1640,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
               result={result}
               t={t}
               onRetry={retryFailed}
-              onViewManaged={() => {
-                setStep(1);
-                setPhase('idle');
-                setManagedOpen(true);
-              }}
-              onAgain={resetAll}
-              onClose={resetAll}
+              onBack={backToWorkspace}
             />
           )}
         </div>
@@ -1468,13 +1648,62 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
 
       <ConfirmDialog
         open={confirmRemoveOpen}
-        title={t('ws.confirmRemoveTitle', { count: removeTotal })}
-        message={t('ws.confirmRemoveDesc')}
+        title={t('ws.removeConfirm.title')}
+        message={t('ws.removeConfirm.desc')}
         variant="danger"
-        confirmLabel={t('ws.confirmRemoveConfirm')}
-        onConfirm={confirmWithRemovals}
+        confirmLabel={t('ws.removeConfirm.confirm')}
+        cancelLabel={t('ws.removeConfirm.cancel')}
+        onConfirm={runRemoveDistributed}
         onCancel={() => setConfirmRemoveOpen(false)}
-      />
+      >
+        <div
+          data-testid="ws-remove-confirm-items"
+          className="mb-4 max-h-[240px] space-y-1 overflow-y-auto rounded-lg border border-border bg-muted/30 p-3 text-sm"
+        >
+          {pendingRemoveSkills.length > 0 && (
+            <div className="text-xs font-semibold text-foreground">
+              {t('ws.planSkills')}
+            </div>
+          )}
+          {pendingRemoveSkills.map((id) => {
+            const skill = skills.find((s) => s.id === id);
+            const path = managedPlatform?.skills.find((e) => e.id === id)
+              ?.path;
+            return (
+              <div
+                key={`skill-${id}`}
+                className="flex items-center justify-between gap-2 py-0.5"
+              >
+                <span className="truncate">{skill?.name || id}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                  {path ? sanitizePath(path) : ''}
+                </span>
+              </div>
+            );
+          })}
+          {pendingRemoveRules.length > 0 && (
+            <div className="pt-1 text-xs font-semibold text-foreground">
+              {t('ws.planRules')}
+            </div>
+          )}
+          {pendingRemoveRules.map((id) => {
+            const rule = rules.find((r) => r.id === id);
+            const path = managedPlatform?.rules.find((e) => e.id === id)
+              ?.path;
+            return (
+              <div
+                key={`rule-${id}`}
+                className="flex items-center justify-between gap-2 py-0.5"
+              >
+                <span className="truncate">{rule?.name || id}</span>
+                <span className="truncate font-mono text-xs text-muted-foreground">
+                  {path ? sanitizePath(path) : ''}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </ConfirmDialog>
 
       <ConfirmDialog
         open={invalidSceneRefs !== null}
@@ -1556,21 +1785,16 @@ const ResultPanel = memo(function ResultPanel({
   result,
   t,
   onRetry,
-  onViewManaged,
-  onAgain,
-  onClose,
+  onBack,
 }: {
   result: SyncResult;
   t: (key: string, params?: Record<string, unknown>) => string;
   onRetry: () => void;
-  onViewManaged: () => void;
-  onAgain: () => void;
-  onClose: () => void;
+  onBack: () => void;
 }) {
   const rows = [
     { key: 'ws.resultInstalled', value: result.installed.length },
     { key: 'ws.resultUpdated', value: result.updated.length },
-    { key: 'ws.resultRemoved', value: result.removed.length },
     {
       key: 'ws.resultSkipped',
       value:
@@ -1586,7 +1810,7 @@ const ResultPanel = memo(function ResultPanel({
   ];
   const hasErrors = result.errors.length > 0;
   return (
-    <div className="space-y-3">
+    <div data-testid="ws-result-card" aria-live="polite" className="space-y-3">
       <h4 className="text-sm font-semibold text-foreground">
         {t('ws.resultTitle')}
       </h4>
@@ -1606,7 +1830,7 @@ const ResultPanel = memo(function ResultPanel({
         />
         {hasErrors ? t('ws.resultPartialFail') : t('ws.resultDone')}
       </div>
-      <div className="grid grid-cols-5 gap-2">
+      <div className="grid grid-cols-4 gap-2">
         {rows.map((row) => (
           <div
             key={row.key}
@@ -1643,23 +1867,9 @@ const ResultPanel = memo(function ResultPanel({
         <button
           type="button"
           className="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-accent"
-          onClick={onViewManaged}
+          onClick={onBack}
         >
-          {t('ws.viewManagedState')}
-        </button>
-        <button
-          type="button"
-          className="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-accent"
-          onClick={onAgain}
-        >
-          {t('ws.distributeAgain')}
-        </button>
-        <button
-          type="button"
-          className="rounded-lg border border-border px-4 py-2 text-sm text-foreground hover:bg-accent"
-          onClick={onClose}
-        >
-          {t('ws.closeWorkspace')}
+          {t('ws.backToWorkspace')}
         </button>
       </div>
     </div>

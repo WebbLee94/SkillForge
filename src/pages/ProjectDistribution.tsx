@@ -294,7 +294,7 @@ export function ProjectDistribution() {
                 <li
                   key={project.id}
                   data-testid={`project-card-${project.id}`}
-                  className="group rounded-lg border border-border bg-card p-3"
+                  className="group/card rounded-lg border border-border bg-card p-3"
                 >
                   <div className="flex items-center gap-3">
                     {batch.enabled && (
@@ -327,7 +327,10 @@ export function ProjectDistribution() {
                           className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
                         />
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div
+                          data-testid={`project-name-zone-${project.id}`}
+                          className="group flex items-center gap-2"
+                        >
                           <span className="truncate font-medium">
                             {project.name}
                           </span>
@@ -338,13 +341,16 @@ export function ProjectDistribution() {
                               setEditingId(project.id);
                               setEditNameValue(project.name);
                             }}
-                            className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+                            className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground action-reveal"
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </button>
                         </div>
                       )}
-                      <div className="flex items-center gap-2">
+                      <div
+                        data-testid={`project-path-zone-${project.id}`}
+                        className="group flex items-center gap-2"
+                      >
                         <div className="truncate text-xs text-muted-foreground">
                           {sanitizePath(project.path)}
                         </div>
@@ -368,7 +374,7 @@ export function ProjectDistribution() {
                                   .addToast(t('ws.revealFailed'), 'error')
                               );
                           }}
-                          className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100 focus:opacity-100"
+                          className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground action-reveal"
                         >
                           <FolderOpen className="h-3.5 w-3.5" />
                         </button>

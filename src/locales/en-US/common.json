@@ -125,7 +125,9 @@
     "unsavedTitle": "Unsaved changes",
     "unsavedMessage": "Save your changes?",
     "discard": "Discard",
-    "stay": "Stay"
+    "stay": "Stay",
+    "addTag": "Add tag",
+    "removeTagLabel": "Remove tag {{name}}"
   },
   "fileTree": {
     "loading": "Loading...",
