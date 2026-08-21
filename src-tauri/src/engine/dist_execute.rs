@@ -388,9 +388,10 @@ pub fn execute_remove_distributed(
         for id in &platform.skills_to_remove {
             match plugin.remove(id, &instance) {
                 Ok(_) => result.removed.push(id.clone()),
-                Err(e) => result
-                    .errors
-                    .push(format!("从 {} 移除技能 '{}' 失败: {}", platform.platform_id, id, e)),
+                Err(e) => result.errors.push(format!(
+                    "从 {} 移除技能 '{}' 失败: {}",
+                    platform.platform_id, id, e
+                )),
             }
         }
         let rules_format = if request.scope == "global" {

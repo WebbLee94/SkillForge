@@ -126,28 +126,24 @@ fn self_write_muted() -> bool {
     muted_at(now_ms(), mute_state().lock().unwrap().deadline_ms)
 }
 
+// ── Home expansion helper ──
+pub(crate) fn expand_home(path: &str) -> PathBuf {
+    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+    if let Some(rest) = path.strip_prefix("~/") {
+        home.join(rest)
+    } else {
+        PathBuf::from(path)
+    }
+}
+
 // ── Watch path collection ──
 pub fn collect_watch_paths(_conn: &rusqlite::Connection) -> Vec<PathBuf> {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
-    // Only watch platform global directories. Central repository (~/.skillforge/skills/)
-    // is managed by SkillForge itself and does not need external change monitoring.
     let mut paths = Vec::new();
-    let platforms = [
-        ".claude",
-        ".opencode",
-        ".cursor",
-        ".trae",
-        ".trae-cn",
-        ".codebuddy",
-        ".codebuddy-cn",
-        ".codex",
-        ".hermes",
-        ".openclaw",
-    ];
-    for p in &platforms {
-        paths.push(home.join(p).join("skills"));
-        paths.push(home.join(p).join("rules"));
-        paths.push(home.join(p).join("rules.md"));
+    for def in crate::plugins::platform::definitions::ALL_PLATFORMS {
+        paths.push(expand_home(def.skills_global));
+        if let Some(rules_global) = def.rules_global {
+            paths.push(expand_home(rules_global));
+        }
     }
     paths.sort();
     paths.dedup();
@@ -382,27 +378,15 @@ fn resolve_to_skill_root(path: &Path) -> Option<PathBuf> {
 }
 
 pub fn build_watch_paths(enabled_platform_ids: &[String]) -> Vec<PathBuf> {
-    let home = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
-    let all: &[(&str, &str)] = &[
-        ("claude-code", ".claude"),
-        ("opencode", ".opencode"),
-        ("cursor", ".cursor"),
-        ("trae", ".trae"),
-        ("trae-cn", ".trae-cn"),
-        ("codebuddy", ".codebuddy"),
-        ("codebuddy-cn", ".codebuddy-cn"),
-        ("codex", ".codex"),
-        ("hermes", ".hermes"),
-        ("openclaw", ".openclaw"),
-    ];
     let mut paths = Vec::new();
-    for (id, dir) in all {
-        if !enabled_platform_ids.iter().any(|e| e == id) {
+    for def in crate::plugins::platform::definitions::ALL_PLATFORMS {
+        if !enabled_platform_ids.iter().any(|e| e == def.id) {
             continue;
         }
-        paths.push(home.join(dir).join("skills"));
-        paths.push(home.join(dir).join("rules"));
-        paths.push(home.join(dir).join("rules.md"));
+        paths.push(expand_home(def.skills_global));
+        if let Some(rules_global) = def.rules_global {
+            paths.push(expand_home(rules_global));
+        }
     }
     paths.sort();
     paths.dedup();
@@ -475,34 +459,56 @@ mod tests {
     }
 
     #[test]
-    fn build_watch_paths_filters_by_enabled_platforms() {
-        let all_ids: Vec<String> = [
-            "claude-code",
-            "opencode",
-            "cursor",
-            "trae",
-            "trae-cn",
-            "codebuddy",
-            "codebuddy-cn",
-            "codex",
-            "hermes",
-            "openclaw",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+    fn watch_paths_parity_with_all_platforms() {
+        let all_ids: Vec<String> = crate::plugins::platform::definitions::ALL_PLATFORMS
+            .iter()
+            .map(|d| d.id.to_string())
+            .collect();
         let paths = build_watch_paths(&all_ids);
-        assert!(
-            paths.len() >= 30,
-            "expected >=30 paths, got {}",
-            paths.len()
-        );
+
         let home = dirs::home_dir().unwrap();
+        let mut expected = Vec::new();
+        for def in crate::plugins::platform::definitions::ALL_PLATFORMS {
+            expected.push(expand_home(def.skills_global));
+            if let Some(rules_global) = def.rules_global {
+                expected.push(expand_home(rules_global));
+            }
+        }
+        expected.sort();
+        expected.dedup();
+
+        assert_eq!(
+            paths, expected,
+            "build_watch_paths paths must match ALL_PLATFORMS-derived paths exactly"
+        );
+
+        // Verify specific corrected paths
+        assert!(paths.contains(&home.join(".config").join("opencode").join("skills")));
+        assert!(paths.contains(&home.join(".claude").join("CLAUDE.md")));
+        assert!(paths.contains(&home.join(".trae").join("user_rules")));
+        assert!(paths.contains(&home.join(".trae-cn").join("user_rules")));
+        assert!(paths.contains(&home.join(".hermes").join("AGENTS.md")));
+        // openclaw has no global rules — only skills path
+        assert!(paths.contains(&home.join(".openclaw").join("skills")));
+    }
+
+    #[test]
+    fn build_watch_paths_filters_by_enabled_platforms() {
+        let all_ids: Vec<String> = crate::plugins::platform::definitions::ALL_PLATFORMS
+            .iter()
+            .map(|d| d.id.to_string())
+            .collect();
+        let paths = build_watch_paths(&all_ids);
+        let home = dirs::home_dir().unwrap();
+
+        // claude-code should include its paths
         assert!(paths.contains(&home.join(".claude").join("skills")));
+        // Central repo must NOT be in watch paths
         assert!(!paths.contains(&home.join(".skillforge").join("skills")));
 
+        // Single platform: claude-code → skills dir + CLAUDE.md = 2 paths
         let few: Vec<String> = ["claude-code".to_string()].to_vec();
         let few_paths = build_watch_paths(&few);
-        assert_eq!(few_paths.len(), 3);
+        assert_eq!(few_paths.len(), 2);
     }
 }

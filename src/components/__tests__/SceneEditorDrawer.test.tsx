@@ -7,7 +7,7 @@ import {
   within,
   act,
 } from '@testing-library/react';
-import { SceneEditorDrawer } from '../SceneEditorDrawer';
+import { SceneEditorDrawer } from '../common/SceneEditorDrawer';
 import { BOUNDED_STEP } from '../../lib/useBoundedReveal';
 import type {
   Scene,

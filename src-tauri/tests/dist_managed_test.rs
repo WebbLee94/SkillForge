@@ -212,9 +212,10 @@ fn removeselected_rejects_non_skillforge_symlink_before_mutation() {
 #[test]
 fn remove_distributed_rejects_project_scope_without_project_id() {
     let conn = init_db();
-    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(
-        support::TestPlatformPlugin::new("test-plat", "Test Platform"),
-    )];
+    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(support::TestPlatformPlugin::new(
+        "test-plat",
+        "Test Platform",
+    ))];
     let err = skillforge_lib::engine::dist_execute::execute_remove_distributed(
         &conn,
         &plugins,
@@ -396,9 +397,11 @@ fn remove_distributed_does_not_let_skill_id_hide_missing_rule_id() {
     let rules_dir = plugin.rules_dir();
     std::fs::create_dir_all(&skills_dir).unwrap();
     let source = conn
-        .query_row("SELECT local_path FROM skills WHERE id = 'shared'", [], |r| {
-            r.get::<_, String>(0)
-        })
+        .query_row(
+            "SELECT local_path FROM skills WHERE id = 'shared'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
         .unwrap();
     std::os::unix::fs::symlink(&source, skills_dir.join("shared")).unwrap();
     let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];

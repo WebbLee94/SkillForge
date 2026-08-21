@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ConfirmDialog } from '../ConfirmDialog';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

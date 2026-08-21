@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useAppStore } from '../../stores/appStore';
-import { ToastProvider } from '../ToastProvider';
+import { ToastProvider } from '../../app/ToastProvider';
 
 describe('ToastProvider', () => {
   beforeEach(() => {

@@ -13,11 +13,11 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import {
   SceneEditorDrawer,
   type SceneDraft,
-} from '../components/SceneEditorDrawer';
+} from '../components/common/SceneEditorDrawer';
 import type { SceneDetail, Tag } from '../types';
 
 type ListState = 'loading' | 'ready' | 'error';

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { createRef } from 'react';
-import { TooltipPortal } from '../TooltipPortal';
+import { TooltipPortal } from '../common/TooltipPortal';
 
 describe('TooltipPortal', () => {
   it('returns null when open is false', () => {

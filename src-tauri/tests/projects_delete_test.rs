@@ -138,7 +138,11 @@ fn delete_projects_leaves_unrelated_projects_untouched() {
 
     let result = delete_projects_inner(&conn, vec!["proj-a".into()]).expect("batch must succeed");
     assert_eq!(result.deleted, vec!["proj-a"]);
-    assert_eq!(project_count(&conn, "proj-b"), 1, "unrelated project must survive");
+    assert_eq!(
+        project_count(&conn, "proj-b"),
+        1,
+        "unrelated project must survive"
+    );
 }
 
 // ── confirmed boundaries: no fs deletion, no resource deletion ──────
@@ -176,19 +180,25 @@ fn delete_projects_does_not_delete_skills_rules_or_scenes() {
     delete_projects_inner(&conn, vec!["proj-a".into()]).expect("batch must succeed");
 
     let skill_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM skills WHERE id = 'keep-skill'", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT COUNT(*) FROM skills WHERE id = 'keep-skill'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let rule_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM rules WHERE id = 'keep-rule'", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT COUNT(*) FROM rules WHERE id = 'keep-rule'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let scene_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM scenes WHERE id = 'keep-scene'", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT COUNT(*) FROM scenes WHERE id = 'keep-scene'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
 
     assert_eq!(skill_count, 1, "skill must survive project deletion");

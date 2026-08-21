@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { WelcomeGuideCard } from '../WelcomeGuideCard';
+import { WelcomeGuideCard } from '../common/WelcomeGuideCard';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

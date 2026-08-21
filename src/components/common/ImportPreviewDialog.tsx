@@ -1,9 +1,9 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { X, Download } from 'lucide-react';
-import { getPlatformIcon } from './icons/PlatformIcons';
-import type { PlatformScanResult } from '../types';
+import { getPlatformIcon } from '../icons/PlatformIcons';
+import type { PlatformScanResult } from '../../types';
 
 interface ImportPreviewDialogProps {
   open: boolean;

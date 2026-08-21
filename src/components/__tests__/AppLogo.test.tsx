@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { createRef } from 'react';
-import { AppLogo } from '../AppLogo';
+import { AppLogo } from '../common/AppLogo';
 
 describe('AppLogo', () => {
   it('renders SVG with default size 24', () => {

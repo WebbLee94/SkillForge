@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { FileTree } from '../FileTree';
+import { FileTree } from '../common/FileTree';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 

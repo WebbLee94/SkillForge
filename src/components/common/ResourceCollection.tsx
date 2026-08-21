@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { ChevronDown, ChevronRight, Check } from 'lucide-react';
-import type { Tag } from '../types';
-import { groupResourcesByTag } from '../lib/resourceLibrary';
-import { BOUNDED_STEP, useBoundedReveal } from '../lib/useBoundedReveal';
+import type { Tag } from '../../types';
+import { groupResourcesByTag } from '../../lib/resourceLibrary';
+import { BOUNDED_STEP, useBoundedReveal } from '../../lib/useBoundedReveal';
 
 const UNTAGGED_KEY = 'untagged';
 

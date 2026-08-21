@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Globe } from 'lucide-react';
-import { PlatformButton } from '../PlatformButton';
+import { PlatformButton } from '../common/PlatformButton';
 
 describe('PlatformButton', () => {
   const baseProps = {

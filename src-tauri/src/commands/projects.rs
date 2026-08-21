@@ -121,7 +121,10 @@ pub fn delete_projects_inner(
     ids: Vec<String>,
 ) -> Result<DeleteProjectsResult, AppError> {
     let mut seen = HashSet::new();
-    let ids: Vec<String> = ids.into_iter().filter(|id| seen.insert(id.clone())).collect();
+    let ids: Vec<String> = ids
+        .into_iter()
+        .filter(|id| seen.insert(id.clone()))
+        .collect();
 
     let tx = conn.unchecked_transaction()?;
 

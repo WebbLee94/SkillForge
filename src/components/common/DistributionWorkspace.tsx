@@ -1,8 +1,8 @@
 import { memo, Fragment, useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppStore } from '../stores/appStore';
-import { cn, sanitizePath } from '../lib/utils';
-import { SELECT_CLASSES } from '../lib/ui-tokens';
+import { useAppStore } from '../../stores/appStore';
+import { cn, sanitizePath } from '../../lib/utils';
+import { SELECT_CLASSES } from '../../lib/ui-tokens';
 import {
   ShieldCheck,
   AlertTriangle,
@@ -13,7 +13,7 @@ import {
   OctagonX,
   ChevronDown,
 } from 'lucide-react';
-import { ipc } from '../lib/ipc';
+import { ipc } from '../../lib/ipc';
 import { ConfirmDialog } from './ConfirmDialog';
 import type {
   DistributionSelection,
@@ -22,7 +22,7 @@ import type {
   Project,
   RemoveDistributionSelection,
   SyncResult,
-} from '../types';
+} from '../../types';
 
 interface DistributionWorkspaceProps {
   scope?: 'global' | 'project';

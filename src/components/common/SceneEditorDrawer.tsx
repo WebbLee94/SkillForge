@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import {
   ChevronDown,
   ChevronUp,
@@ -10,9 +10,9 @@ import {
   Search,
   X,
 } from 'lucide-react';
-import type { Rule, SceneDetail, Skill, Tag } from '../types';
+import type { Rule, SceneDetail, Skill, Tag } from '../../types';
 import { TagFilterBar } from './TagFilterBar';
-import { useBoundedReveal } from '../lib/useBoundedReveal';
+import { useBoundedReveal } from '../../lib/useBoundedReveal';
 
 export interface SceneDraft {
   name: string;

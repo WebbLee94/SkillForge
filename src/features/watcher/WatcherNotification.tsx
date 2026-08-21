@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWatcherStore } from '../stores/watcherStore';
-import { useAppStore } from '../stores/appStore';
+import { useWatcherStore } from '../../stores/watcherStore';
+import { useAppStore } from '../../stores/appStore';
 import { X, AlertTriangle } from 'lucide-react';
 
 const dismissedEventIds = new Set<number>();

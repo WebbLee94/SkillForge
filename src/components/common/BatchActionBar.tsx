@@ -1,4 +1,4 @@
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { Eraser, LogOut, Send, Tags, Trash2, X } from 'lucide-react';
 
 interface BatchActionBarProps {

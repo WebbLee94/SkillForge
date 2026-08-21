@@ -18,12 +18,17 @@ import settingsEn from '../locales/en-US/settings.json';
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
 function resolveInitLanguage(): string {
-  const stored = localStorage.getItem(LANG_STORAGE_KEY);
-  if (!stored || stored === 'system') {
+  try {
+    const stored = localStorage.getItem(LANG_STORAGE_KEY);
+    if (!stored || stored === 'system') {
+      const browserLang = navigator.language || 'zh-CN';
+      return browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
+    }
+    return stored;
+  } catch {
     const browserLang = navigator.language || 'zh-CN';
     return browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
   }
-  return stored;
 }
 
 i18n.use(initReactI18next).init({

@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
-import { pushModalScope, popModalScope } from '../lib/modalScope';
+import { cn } from '../../lib/utils';
+import { pushModalScope, popModalScope } from '../../lib/modalScope';
 import { X } from 'lucide-react';
 
 interface ConfirmDialogProps {

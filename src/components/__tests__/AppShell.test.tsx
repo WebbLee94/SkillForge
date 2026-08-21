@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { AppShell } from '../AppShell';
+import { AppShell } from '../../app/AppShell';
 import { useAppStore } from '../../stores/appStore';
 import { setTheme, THEME_STORAGE_KEY } from '../../hooks/useTheme';
 

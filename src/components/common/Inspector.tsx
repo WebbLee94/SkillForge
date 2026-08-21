@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { X, Save, Undo2, Trash2, Send } from 'lucide-react';
-import type { Tag } from '../types';
-import { computeTagChanges, formatFullTimestamp } from '../lib/resourceLibrary';
-import { hasOpenModal } from '../lib/modalScope';
-import { useDialogA11y } from '../hooks/useDialogA11y';
+import type { Tag } from '../../types';
+import { computeTagChanges, formatFullTimestamp } from '../../lib/resourceLibrary';
+import { hasOpenModal } from '../../lib/modalScope';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { TagChip } from './TagChip';
-import { TagPopover } from './TagPopover';
+import { TagPopover } from '../../components/TagPopover';
 
 interface InspectorProps {
   resourceType: 'skill' | 'rule';

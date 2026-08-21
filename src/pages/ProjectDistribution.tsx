@@ -15,10 +15,10 @@ import {
   Send,
   Search,
 } from 'lucide-react';
-import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ipc } from '../lib/ipc';
-import { AddProjectDialog } from '../components/AddProjectDialog';
-import { ProjectBatchBar } from '../components/ProjectBatchBar';
+import { AddProjectDialog } from '../components/common/AddProjectDialog';
+import { ProjectBatchBar } from '../components/common/ProjectBatchBar';
 import { useBatchMode } from '../hooks/useBatchMode';
 
 /**

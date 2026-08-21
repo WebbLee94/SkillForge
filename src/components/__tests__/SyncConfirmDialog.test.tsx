@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SyncConfirmDialog } from '../SyncConfirmDialog';
+import { SyncConfirmDialog } from '../../app/SyncConfirmDialog';
 import { useAppStore } from '../../stores/appStore';
 
 vi.mock('react-i18next', () => ({

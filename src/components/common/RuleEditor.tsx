@@ -1,6 +1,6 @@
 import { memo, useState, useEffect, useRef } from 'react';
-import { cn } from '../lib/utils';
-import { RulePreviewPanel } from './RulePreviewPanel';
+import { cn } from '../../lib/utils';
+import { RulePreviewPanel } from '../RulePreviewPanel';
 
 type ViewMode = 'edit' | 'preview' | 'split';
 

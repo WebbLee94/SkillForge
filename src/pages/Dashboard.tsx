@@ -10,9 +10,9 @@ import {
   Globe,
 } from 'lucide-react';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
-import { ImportPreviewDialog } from '../components/ImportPreviewDialog';
-import { WatcherNotification } from '../components/WatcherNotification';
-import { WelcomeGuideCard } from '../components/WelcomeGuideCard';
+import { ImportPreviewDialog } from '../components/common/ImportPreviewDialog';
+import { WatcherNotification } from '../features/watcher/WatcherNotification';
+import { WelcomeGuideCard } from '../components/common/WelcomeGuideCard';
 import { ipc } from '../lib/ipc';
 import type { PlatformScanResult, PlatformEntryCount } from '../types';
 

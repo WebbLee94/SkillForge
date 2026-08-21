@@ -20,11 +20,7 @@ fn init_db() -> rusqlite::Connection {
     conn
 }
 
-fn insert_skill(
-    conn: &rusqlite::Connection,
-    id: &str,
-    local_path: &std::path::Path,
-) {
+fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &std::path::Path) {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
         "INSERT INTO skills (id, name, description, source_type, installed_at, local_path)
@@ -80,8 +76,7 @@ fn skill_managed_copy_path_returns_none_when_managed_dir_is_missing() {
     // DB row points at a managed copy that does NOT exist on disk.
     insert_skill(&conn, "ghost-skill", &dir.path().join("ghost-skill"));
 
-    let path = skill_engine::managed_copy_path(&conn, "ghost-skill")
-        .expect("query should succeed");
+    let path = skill_engine::managed_copy_path(&conn, "ghost-skill").expect("query should succeed");
     assert!(
         path.is_none(),
         "filesystem-as-truth: a missing managed copy must yield None, not a fake path"
@@ -152,8 +147,8 @@ fn rule_scene_reference_count_counts_all_referencing_scenes() {
         .unwrap();
     }
 
-    let count = scene_engine::count_rule_scene_references(&conn, "my-rule")
-        .expect("query should succeed");
+    let count =
+        scene_engine::count_rule_scene_references(&conn, "my-rule").expect("query should succeed");
     assert_eq!(count, 2, "rule referenced by 2 scenes must report 2");
 }
 

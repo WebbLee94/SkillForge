@@ -48,7 +48,10 @@ export const config = {
     },
   ],
 
-  logLevel: 'info',
+  logLevel: 'error',
+  logLevels: {
+    'tauri-service:service': 'error',
+  },
   bail: 0,
   baseUrl: 'http://localhost:1420',
   waitforTimeout: 20000,

@@ -1,25 +1,25 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
-import type { SceneRule } from '../types';
+import { cn } from '../../lib/utils';
+import type { SceneSkill } from '../../types';
 import { GripVertical, X, ToggleLeft, ToggleRight } from 'lucide-react';
 
-interface SortableRuleListProps {
-  rules: SceneRule[];
-  onRemove: (ruleId: string) => void;
-  onToggle: (ruleId: string) => void;
+interface SortableSkillListProps {
+  skills: SceneSkill[];
+  onRemove: (skillId: string) => void;
+  onToggle: (skillId: string) => void;
   disabled?: boolean;
 }
 
-export const SortableRuleList = memo(function SortableRuleList({
-  rules,
+export const SortableSkillList = memo(function SortableSkillList({
+  skills,
   onRemove,
   onToggle,
   disabled = false,
-}: SortableRuleListProps) {
+}: SortableSkillListProps) {
   const { t } = useTranslation('scenes');
 
-  if (rules.length === 0) {
+  if (skills.length === 0) {
     return (
       <p className="py-4 text-center text-sm text-muted-foreground">
         {t('dragHint')}
@@ -29,12 +29,12 @@ export const SortableRuleList = memo(function SortableRuleList({
 
   return (
     <div className="space-y-1">
-      {rules.map((rule, index) => (
+      {skills.map((skill, index) => (
         <div
-          key={rule.rule_id}
+          key={skill.skill_id}
           className={cn(
             'flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors',
-            rule.enabled
+            skill.enabled
               ? 'border-border bg-card'
               : 'border-border bg-muted/30 opacity-60'
           )}
@@ -52,8 +52,13 @@ export const SortableRuleList = memo(function SortableRuleList({
             )}
           />
           <span className="flex-1 text-sm text-foreground truncate">
-            {rule.rule_name || rule.rule_id}
+            {skill.skill_name || skill.skill_id}
           </span>
+          {skill.version && (
+            <span className="text-xs text-muted-foreground">
+              v{skill.version}
+            </span>
+          )}
           <button
             className={cn(
               'shrink-0 transition-colors',
@@ -61,10 +66,10 @@ export const SortableRuleList = memo(function SortableRuleList({
                 ? 'cursor-not-allowed opacity-30'
                 : 'text-muted-foreground hover:text-primary'
             )}
-            onClick={() => !disabled && onToggle(rule.rule_id)}
-            title={rule.enabled ? t('disable', '禁用') : t('enable', '启用')}
+            onClick={() => !disabled && onToggle(skill.skill_id)}
+            title={skill.enabled ? t('disable', '禁用') : t('enable', '启用')}
           >
-            {rule.enabled ? (
+            {skill.enabled ? (
               <ToggleRight className="h-4 w-4 text-primary" />
             ) : (
               <ToggleLeft className="h-4 w-4" />
@@ -73,7 +78,7 @@ export const SortableRuleList = memo(function SortableRuleList({
           {!disabled && (
             <button
               className="shrink-0 text-muted-foreground hover:text-error transition-colors"
-              onClick={() => onRemove(rule.rule_id)}
+              onClick={() => onRemove(skill.skill_id)}
             >
               <X className="h-4 w-4" />
             </button>

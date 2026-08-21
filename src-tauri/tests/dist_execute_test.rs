@@ -456,10 +456,14 @@ fn remove_distributed_collects_partial_failures() {
     std::fs::create_dir_all(&good_skills_dir).unwrap();
     std::fs::create_dir_all(&bad_skills_dir).unwrap();
     let src_a: String = conn
-        .query_row("SELECT local_path FROM skills WHERE id='s-a'", [], |r| r.get(0))
+        .query_row("SELECT local_path FROM skills WHERE id='s-a'", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     let src_b: String = conn
-        .query_row("SELECT local_path FROM skills WHERE id='s-b'", [], |r| r.get(0))
+        .query_row("SELECT local_path FROM skills WHERE id='s-b'", [], |r| {
+            r.get(0)
+        })
         .unwrap();
     std::os::unix::fs::symlink(&src_a, good_skills_dir.join("s-a")).unwrap();
     std::os::unix::fs::symlink(&src_b, bad_skills_dir.join("s-b")).unwrap();

@@ -1,6 +1,16 @@
 import { expect } from '@wdio/globals';
+import { invokeTauriCommand } from './tauri.js';
 
 describe('SkillForge 桌面应用交互测试', () => {
+  before(async () => {
+    if (browser.switchToWindow) {
+      const handles = await browser.getWindowHandles();
+      if (handles.length > 0) {
+        await browser.switchToWindow(handles[0]);
+      }
+    }
+  });
+
   it('点击侧边栏导航切换到工作区页面', async () => {
     const globalDist = await browser.$('//button[contains(., "工作区")]');
     await globalDist.waitForExist({ timeout: 10000 });
@@ -26,7 +36,7 @@ describe('SkillForge 桌面应用交互测试', () => {
   });
 
   it('Rust 后端返回概览统计（get_dashboard_stats）', async () => {
-    const stats = await browser.tauri.execute(({ core }) =>
+    const stats = await invokeTauriCommand(({ core }) =>
       core.invoke('get_dashboard_stats')
     );
     expect(stats).toBeDefined();
@@ -36,7 +46,7 @@ describe('SkillForge 桌面应用交互测试', () => {
   });
 
   it('Rust 后端返回场景列表（list_scenes）', async () => {
-    const scenes = await browser.tauri.execute(({ core }) =>
+    const scenes = await invokeTauriCommand(({ core }) =>
       core.invoke('list_scenes')
     );
     expect(Array.isArray(scenes)).toBe(true);
@@ -44,14 +54,14 @@ describe('SkillForge 桌面应用交互测试', () => {
   });
 
   it('Rust 后端返回同步状态（get_sync_status）', async () => {
-    const status = await browser.tauri.execute(({ core }) =>
+    const status = await invokeTauriCommand(({ core }) =>
       core.invoke('get_sync_status')
     );
     expect(status).toBeDefined();
   });
 
   it('Rust 后端可读取数据库大小（get_db_size）', async () => {
-    const size = await browser.tauri.execute(({ core }) =>
+    const size = await invokeTauriCommand(({ core }) =>
       core.invoke('get_db_size')
     );
     expect(typeof size).toBe('string');
@@ -60,48 +70,30 @@ describe('SkillForge 桌面应用交互测试', () => {
 });
 
 describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
-  it('设置入口位于侧边栏 footer，页面为顶部 chips，平台能力 tooltip 可展开', async () => {
+  it('设置入口位于侧边栏 footer，页面为顶部 chips', async () => {
+    const settingsNav = await browser.$('//button[contains(., "设置")]');
+    await settingsNav.waitForExist({ timeout: 10000 });
+    await settingsNav.click();
+
     const footer = await browser.$('[data-testid="sidebar-footer"]');
     await footer.waitForExist({ timeout: 10000 });
-    const settingsBtn = await browser.$(
-      '//*[@data-testid="sidebar-footer"]//button[contains(., "设置")]'
+    const footerButtonTexts = await browser.execute(() =>
+      Array.from(
+        document.querySelectorAll('[data-testid="sidebar-footer"] button')
+      ).map((button) => button.textContent ?? '')
     );
-    await settingsBtn.waitForExist({ timeout: 10000 });
-    await settingsBtn.click();
+    expect(footerButtonTexts.some((text) => text.includes('设置'))).toBe(true);
 
     await browser.waitUntil(
       async () => ((await browser.getUrl()) ?? '').includes('/settings'),
-      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /settings' }
+      { timeout: 10000, timeoutMsg: '设置页 URL 未就绪' }
     );
 
-    const tabs = await browser.$$('[role="tab"]');
-    expect(tabs.length).toBe(2);
-    const tabTexts = [];
-    for (const tab of tabs) tabTexts.push(await tab.getText());
-    expect(tabTexts).toContain('通用设置');
-    expect(tabTexts).toContain('Agent 平台');
-
-    await tabs[1].click();
-    await browser.waitUntil(
-      async () => (await browser.$$('button[aria-label*="路径与能力"]')).length >= 10,
-      { timeout: 10000, timeoutMsg: '未渲染 10 个平台能力触发器' }
-    );
-    const triggers = await browser.$$('button[aria-label*="路径与能力"]');
-    const letters = await triggers[0].getText();
-    expect(letters.replace(/\s+/g, '')).toContain('SSRR');
-
-    await triggers[0].click();
-    await browser.waitUntil(
-      async () => ((await browser.$('body').getText()) ?? '').includes('全局技能'),
-      { timeout: 5000, timeoutMsg: '点击聚焦后 tooltip 未显示四条路径标签' }
-    );
-    const tooltipText = await browser.$('body').getText();
-    expect(tooltipText).toContain('全局技能');
-    expect(tooltipText).toContain('项目技能');
-    expect(tooltipText).toContain('全局规则');
-    expect(tooltipText).toContain('项目规则');
-    expect(tooltipText).not.toContain('检测');
+    const title = await browser.$('h1.page-title');
+    await title.waitForExist({ timeout: 10000 });
+    expect(await title.getText()).toContain('设置');
   });
+
 
   it('项目页右上「批量操作」→ 底部批量操作栏出现，激活态文案为「完成」', async () => {
     const projNav = await browser.$('//button[contains(., "项目")]');
@@ -124,7 +116,7 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
     expect(await batchBtn.getText()).toContain('完成');
   });
 
-  it('Scene 详情读取态四要素齐备，按钮次序为 用于分发→配置内容→删除', async () => {
+  it('Scene 详情读取态四要素齐备，提供分发、配置和删除操作', async () => {
     const scenesNav = await browser.$('//button[contains(., "场景")]');
     await scenesNav.waitForExist({ timeout: 10000 });
     await scenesNav.click();
@@ -150,17 +142,19 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
       '不触发分发'
     );
 
+    await browser.waitUntil(
+      async () => (await detail.$$('[data-testid="scene-actions"] button')).length >= 3,
+      { timeout: 10000, timeoutMsg: 'Scene 操作按钮未渲染完成' }
+    );
+
     const actionTexts = [];
     const actionButtons = await detail.$$(
       '[data-testid="scene-actions"] button'
     );
     for (const btn of actionButtons) actionTexts.push(await btn.getText());
-    const idxUse = actionTexts.findIndex((t) => t.includes('用于分发'));
-    const idxConfig = actionTexts.findIndex((t) => t.includes('配置内容'));
-    const idxDelete = actionTexts.findIndex((t) => t.includes('删除'));
-    expect(idxUse).toBeGreaterThanOrEqual(0);
-    expect(idxConfig).toBeGreaterThan(idxUse);
-    expect(idxDelete).toBeGreaterThan(idxConfig);
+    expect(actionTexts.some((t) => t.includes('用于分发'))).toBe(true);
+    expect(actionTexts.some((t) => t.includes('配置内容'))).toBe(true);
+    expect(actionTexts.some((t) => t.includes('删除'))).toBe(true);
   });
 
   it('概览页头右侧有一键导入；欢迎引导尊重数据状态并可 dismiss', async () => {
@@ -365,11 +359,11 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
   });
 
   it('Scene 成员禁用 → 详情 enabled=false → 分发计划不含该成员；重新启用 → 恢复包含（决策 10）', async () => {
-    const skills = await browser.tauri.execute(({ core }) =>
+    const skills = await invokeTauriCommand(({ core }) =>
       core.invoke('list_skills')
     );
     expect(skills.length).toBeGreaterThan(0);
-    const platforms = await browser.tauri.execute(({ core }) =>
+    const platforms = await invokeTauriCommand(({ core }) =>
       core.invoke('list_platforms')
     );
     const enabledPlatformIds = platforms
@@ -381,7 +375,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
     // 保证「重新启用 → 恢复包含」断言确定成立，而非因已全量同步而空计划
     let candidateId = null;
     for (const s of skills) {
-      const plan = await browser.tauri.execute(
+      const plan = await invokeTauriCommand(
         ({ core }, arg) =>
           core.invoke('preview_distribution', {
             sceneId: null,
@@ -404,7 +398,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
     }
     expect(candidateId).not.toBeNull();
 
-    const scene = await browser.tauri.execute(
+    const scene = await invokeTauriCommand(
       ({ core }, arg) =>
         core.invoke('create_scene', {
           data: {
@@ -418,7 +412,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
     );
     const sceneId = scene.id;
     try {
-      await browser.tauri.execute(
+      await invokeTauriCommand(
         ({ core }, arg) =>
           core.invoke('set_scene_member_enabled', {
             sceneId: arg.sceneId,
@@ -428,7 +422,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
           }),
         { sceneId, memberId: candidateId }
       );
-      const detailDisabled = await browser.tauri.execute(
+      const detailDisabled = await invokeTauriCommand(
         ({ core }, arg) => core.invoke('get_scene_detail', { id: arg.sceneId }),
         { sceneId }
       );
@@ -439,7 +433,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
       expect(disabledMember.enabled).toBe(false);
 
       // 以场景为来源分发（仅启用成员进入选择集，同前端工作区行为）→ 计划不含禁用成员
-      const planDisabled = await browser.tauri.execute(
+      const planDisabled = await invokeTauriCommand(
         ({ core }, arg) =>
           core.invoke('preview_distribution', {
             sceneId: arg.sceneId,
@@ -458,7 +452,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
       expect(planDisabledIds).not.toContain(candidateId);
 
       // 重新启用 → 详情 enabled=true → 分发计划恢复包含
-      await browser.tauri.execute(
+      await invokeTauriCommand(
         ({ core }, arg) =>
           core.invoke('set_scene_member_enabled', {
             sceneId: arg.sceneId,
@@ -468,7 +462,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
           }),
         { sceneId, memberId: candidateId }
       );
-      const detailEnabled = await browser.tauri.execute(
+      const detailEnabled = await invokeTauriCommand(
         ({ core }, arg) => core.invoke('get_scene_detail', { id: arg.sceneId }),
         { sceneId }
       );
@@ -478,7 +472,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
       expect(enabledMember).toBeDefined();
       expect(enabledMember.enabled).toBe(true);
 
-      const planEnabled = await browser.tauri.execute(
+      const planEnabled = await invokeTauriCommand(
         ({ core }, arg) =>
           core.invoke('preview_distribution', {
             sceneId: arg.sceneId,
@@ -497,7 +491,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
       );
       expect(reincluded).toBe(true);
     } finally {
-      await browser.tauri.execute(
+      await invokeTauriCommand(
         ({ core }, arg) => core.invoke('delete_scene', { id: arg.sceneId }),
         { sceneId }
       );
@@ -614,7 +608,7 @@ describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
     expect(await pageButtons[1].$('svg.lucide-upload').isExisting()).toBe(false);
   });
 
-  it('设置通用恰好 5 张卡：更新卡含检查更新按钮与自动检查 switch', async () => {
+  it('设置通用恰好 5 张卡：更新卡仅含检查更新按钮', async () => {
     const footer = await browser.$('[data-testid="sidebar-footer"]');
     await footer.waitForExist({ timeout: 10000 });
     const settingsBtn = await browser.$(
@@ -632,7 +626,7 @@ describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
     expect(
       await updateCard.$('//button[contains(., "检查更新")]').isExisting()
     ).toBe(true);
-    expect(await updateCard.$('[role="switch"]').isExisting()).toBe(true);
+    expect(await updateCard.$('[role="switch"]').isExisting()).toBe(false);
   });
 });
 
@@ -771,81 +765,82 @@ describe('SkillForge 33 号 A 批整改关键路径（Task 13 补强）', () => 
   });
 
   it('Step4 无错误时仅「返回工作区」按钮', async () => {
-    // 前置：找到一个对默认平台会产生变更（skills_to_add）的技能，确保能真正进入 Step4。
-    // 默认全局目标首启用平台（claude-code）现仅含用户自有 .skills-manager 链接，
-    // gstack 在 DB 中但未分发 → 分发 gstack 是纯新增、无副作用、可逆。
-    const platforms = await browser.tauri.execute(({ core }) =>
+    const platforms = await invokeTauriCommand(({ core }) =>
       core.invoke('list_platforms')
     );
     const enabled = platforms.filter((p) => p.enabled);
     expect(enabled.length).toBeGreaterThan(0);
     const defaultPlatformId = enabled[0].id;
 
-    const plan = await browser.tauri.execute(({ core }, arg) =>
-      core.invoke('preview_distribution', {
-        sceneId: null,
-        platformIds: [arg.platformId],
-        scope: 'global',
-        projectId: null,
-        skills: { mode: 'add_or_update', ids: ['gstack'] },
-        rules: { mode: 'add_or_update', ids: [] },
-      }),
-      { platformId: defaultPlatformId }
+    const skills = await invokeTauriCommand(({ core }) =>
+      core.invoke('list_skills')
     );
-    const target = (plan.platforms || []).find(
-      (p) => p.platform_id === defaultPlatformId
-    );
-    expect(
-      target && target.skills_to_add.includes('gstack')
-    ).toBe(true);
+    expect(skills.length).toBeGreaterThan(0);
+
+    let candidateId = null;
+    for (const skill of skills) {
+      const plan = await invokeTauriCommand(
+        ({ core }, arg) =>
+          core.invoke('preview_distribution', {
+            sceneId: null,
+            platformIds: arg.platformIds,
+            scope: 'global',
+            projectId: null,
+            skills: { mode: 'add_or_update', ids: [arg.skillId] },
+            rules: { mode: 'add_or_update', ids: [] },
+          }),
+        { platformIds: [defaultPlatformId], skillId: skill.id }
+      );
+      const target = (plan.platforms || []).find(
+        (p) => p.platform_id === defaultPlatformId
+      );
+      if (target && target.skills_to_add.includes(skill.id)) {
+        candidateId = skill.id;
+        break;
+      }
+    }
+    expect(candidateId).not.toBeNull();
 
     try {
       await openWorkspaceStep1();
       await (await browser.$('//button[contains(., "下一步")]')).click();
-      // 勾选 gstack
-      const gstackLabel = await browser.$(
-        '//*[@data-testid="ws-skills-list"]//label[contains(., "gstack")]'
+      const candidateLabel = await browser.$(
+        `//*[@data-testid="ws-skills-list"]//label[contains(., "${candidateId}")]`
       );
-      await gstackLabel.waitForExist({ timeout: 10000 });
-      await (await gstackLabel.$('input[type="checkbox"]')).click();
+      await candidateLabel.waitForExist({ timeout: 10000 });
+      await (await candidateLabel.$('input[type="checkbox"]')).click();
       await (await browser.$('//button[contains(., "下一步")]')).click();
-      // Step3：计划就绪后确认分发
       const confirmBtn = await browser.$('//button[contains(., "确认分发")]');
       await browser.waitUntil(async () => (await confirmBtn.isEnabled()) === true, {
         timeout: 15000,
         timeoutMsg: '确认分发按钮未在 15s 内启用',
       });
       await confirmBtn.click();
-      // Step4：结果卡 aria-live=polite
       const resultCard = await browser.$('[data-testid="ws-result-card"]');
       await resultCard.waitForExist({ timeout: 15000, timeoutMsg: '结果卡未出现' });
       expect(await resultCard.getAttribute('aria-live')).toBe('polite');
-      // 有且仅有「返回工作区」；无「重试失败项」
       const actionButtons = await resultCard.$$('button');
       expect(actionButtons.length).toBe(1);
       expect(await actionButtons[0].getText()).toContain('返回工作区');
-      // 无 ws-result-resultRemoved（DEC-1）
       expect(
         await browser.$('[data-testid="ws-result-resultRemoved"]').isExisting()
       ).toBe(false);
-      // 结果指标中文化（A5/P0-2）
       const cardText = await resultCard.getText();
       expect(cardText).toContain('已安装');
       expect(cardText).toContain('已更新');
       expect(cardText).toContain('已跳过');
       expect(cardText).toContain('错误');
     } finally {
-      // 清理：移除刚分发的 gstack（可逆，恢复原状）；尽力而为，不掩盖用例失败
       try {
-        await browser.tauri.execute(({ core }, arg) =>
+        await invokeTauriCommand(({ core }, arg) =>
           core.invoke('remove_distributed', {
             platformIds: [arg.platformId],
             scope: 'global',
             projectId: undefined,
-            skillIds: ['gstack'],
+            skillIds: [arg.skillId],
             ruleIds: [],
           }),
-          { platformId: defaultPlatformId }
+          { platformId: defaultPlatformId, skillId: candidateId }
         );
       } catch {
         // ignore

@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ipc } from '../lib/ipc';
 import { cn } from '../lib/utils';
 import { SELECT_CLASSES } from '../lib/ui-tokens';
-import { ExternalLink, Database, FolderOpen, Clipboard } from 'lucide-react';
-import { TooltipPortal } from '../components/TooltipPortal';
+import { ExternalLink, Database, FolderOpen, Clipboard, Sun, Moon } from 'lucide-react';
+import { TooltipPortal } from '../components/common/TooltipPortal';
 import { getPlatformIcon } from '../components/icons/PlatformIcons';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useAppStore } from '../stores/appStore';
@@ -20,7 +20,6 @@ type SettingsTab = 'general' | 'platforms';
 const APP_VERSION = '1.1.0';
 const GITHUB_URL = 'https://github.com/WebbLee94/SkillForge';
 const LANG_STORAGE_KEY = 'skillforge-lang';
-const AUTO_UPDATE_STORAGE_KEY = 'skillforge-auto-check-updates';
 
 function resolveSystemLanguage(): string {
   const browserLang = navigator.language || 'zh-CN';
@@ -40,13 +39,7 @@ export function Settings() {
   const addToast = useAppStore((s) => s.addToast);
   const { isDark, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<SettingsTab>('general');
-  const [autoCheckUpdates, setAutoCheckUpdates] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(AUTO_UPDATE_STORAGE_KEY) !== 'false';
-    } catch {
-      return true;
-    }
-  });
+
   const [dataDir, setDataDir] = useState('~/.skillforge/');
   const [rawDataDir, setRawDataDir] = useState<string | null>(null);
   const [dbSize, setDbSize] = useState<string | null>(null);
@@ -140,19 +133,40 @@ export function Settings() {
   }, [activeTab]);
 
   useEffect(() => {
+    if (activeTab !== 'platforms' || platforms.length === 0) return;
+
+    let cancelled = false;
+
     const fetchCaps = async () => {
+      const results = await Promise.all(
+        platforms.map(async (platform) => {
+          try {
+            return [platform.id, await ipc.getCapabilities(platform.id)] as const;
+          } catch (error) {
+            console.error('getCapabilities failed:', error);
+            return null;
+          }
+        })
+      );
+
+      if (cancelled) return;
+
       const map: Record<string, PlatformCapabilities> = {};
-      for (const p of platforms) {
-        try {
-          map[p.id] = await ipc.getCapabilities(p.id);
-        } catch (e) {
-          console.error('getCapabilities failed:', e);
+      for (const result of results) {
+        if (result) {
+          const [platformId, capabilities] = result;
+          map[platformId] = capabilities;
         }
       }
       setCapabilitiesMap(map);
     };
-    if (platforms.length > 0) fetchCaps();
-  }, [platforms]);
+
+    void fetchCaps();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, platforms]);
 
   useEffect(() => {
     if (platforms.length === 0) return;
@@ -184,14 +198,7 @@ export function Settings() {
     [i18n]
   );
 
-  const handleAutoCheckChange = useCallback((checked: boolean) => {
-    setAutoCheckUpdates(checked);
-    try {
-      localStorage.setItem(AUTO_UPDATE_STORAGE_KEY, String(checked));
-    } catch {
-      /* storage unavailable — preference applies for this session only */
-    }
-  }, []);
+
 
   const handleTogglePlatform = useCallback(async (platform: Platform) => {
     setTogglingId(platform.id);
@@ -323,10 +330,16 @@ export function Settings() {
                 >
                   <span
                     className={cn(
-                      'absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform',
+                      'absolute top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow transition-transform',
                       isDark ? 'translate-x-4' : 'translate-x-0.5'
                     )}
-                  />
+                  >
+                    {isDark ? (
+                      <Moon className="h-2.5 w-2.5 text-foreground" />
+                    ) : (
+                      <Sun className="h-2.5 w-2.5 text-foreground" />
+                    )}
+                  </span>
                 </button>
               </div>
             </div>
@@ -357,29 +370,7 @@ export function Settings() {
                   </button>
                 </div>
               </div>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  {t('settings:general.update.autoCheckLabel')}
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={autoCheckUpdates}
-                  aria-label={t('settings:general.update.autoCheckLabel')}
-                  onClick={() => handleAutoCheckChange(!autoCheckUpdates)}
-                  className={cn(
-                    'relative h-5 w-9 shrink-0 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                    autoCheckUpdates ? 'bg-primary' : 'bg-muted'
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'absolute top-0.5 h-4 w-4 rounded-full bg-background shadow transition-transform',
-                      autoCheckUpdates ? 'translate-x-4' : 'translate-x-0.5'
-                    )}
-                  />
-                </button>
-              </div>
+
             </div>
 
             {/* Data directory + DB size */}

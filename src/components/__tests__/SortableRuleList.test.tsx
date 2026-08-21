@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { SortableRuleList } from '../SortableRuleList';
+import { SortableRuleList } from '../common/SortableRuleList';
 import type { SceneRule } from '../../types';
 
 vi.mock('react-i18next', () => ({

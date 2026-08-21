@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ResourceViewToggle } from '../ResourceViewToggle';
+import { ResourceViewToggle } from '../common/ResourceViewToggle';
 
 describe('ResourceViewToggle', () => {
   it('renders a tablist with group and list tabs', () => {

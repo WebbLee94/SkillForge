@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { X } from 'lucide-react';
-import type { Tag } from '../types';
-import { useDialogA11y } from '../hooks/useDialogA11y';
+import type { Tag } from '../../types';
+import { useDialogA11y } from '../../hooks/useDialogA11y';
 
 interface BatchTagDialogProps {
   open: boolean;

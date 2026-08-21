@@ -68,7 +68,7 @@ vi.mock('../pages/Settings', () => ({
     React.createElement('div', { 'data-testid': 'page-settings' }, 'Settings'),
 }));
 
-vi.mock('../components/AppShell', async () => {
+  vi.mock('../app/AppShell', async () => {
   const { Outlet } = await import('react-router-dom');
   return {
     AppShell: () => React.createElement(Outlet),
@@ -78,7 +78,7 @@ vi.mock('../components/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) =>
     React.createElement(React.Fragment, null, children),
 }));
-vi.mock('../components/SyncConfirmDialog', () => ({
+  vi.mock('../app/SyncConfirmDialog', () => ({
   SyncConfirmDialog: () => null,
 }));
 

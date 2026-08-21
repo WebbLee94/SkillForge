@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { TagManagerDialog } from '../TagManagerDialog';
+import { TagManagerDialog } from '../common/TagManagerDialog';
 import { useAppStore } from '../../stores/appStore';
 
 vi.mock('@tauri-apps/api/core', () => ({

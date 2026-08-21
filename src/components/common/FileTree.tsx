@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Folder, File } from 'lucide-react';
-import { ipc } from '../lib/ipc';
-import type { FileTreeNode as FTNode } from '../types';
-import { cn } from '../lib/utils';
+import { ipc } from '../../lib/ipc';
+import type { FileTreeNode as FTNode } from '../../types';
+import { cn } from '../../lib/utils';
 
 interface FileTreeProps {
   rootPath: string;

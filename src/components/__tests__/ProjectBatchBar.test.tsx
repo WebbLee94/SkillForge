@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ProjectBatchBar } from '../ProjectBatchBar';
+import { ProjectBatchBar } from '../common/ProjectBatchBar';
 
 const baseLabels = {
   selectedLabel: '已选 2 项',

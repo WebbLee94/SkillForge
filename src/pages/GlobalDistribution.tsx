@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { DistributionWorkspace } from '../components/DistributionWorkspace';
+import { DistributionWorkspace } from '../components/common/DistributionWorkspace';
 
 export function GlobalDistribution() {
   const { t } = useTranslation('distribution');

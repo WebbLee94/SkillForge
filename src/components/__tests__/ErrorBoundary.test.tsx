@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ErrorBoundary } from '../ErrorBoundary';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 
 describe('ErrorBoundary', () => {
   it('renders children when no error occurs', () => {

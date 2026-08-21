@@ -10,7 +10,7 @@ import {
   FolderOpen,
   Settings,
 } from 'lucide-react';
-import { AppLogo } from './AppLogo';
+import { AppLogo } from '../components/common/AppLogo';
 import type { ReactNode } from 'react';
 
 interface NavItem {

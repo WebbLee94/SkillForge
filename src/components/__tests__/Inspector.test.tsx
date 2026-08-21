@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { useState } from 'react';
-import { Inspector } from '../Inspector';
-import { ConfirmDialog } from '../ConfirmDialog';
+import { Inspector } from '../common/Inspector';
+import { ConfirmDialog } from '../common/ConfirmDialog';
 import { pushModalScope, popModalScope } from '../../lib/modalScope';
 import type { Tag } from '../../types';
 

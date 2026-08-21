@@ -6,8 +6,8 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { useEffect } from 'react';
-import { AppShell } from './components/AppShell';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { AppShell } from './app/AppShell';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { Dashboard } from './pages/Dashboard';
 import { SkillLibrary } from './pages/SkillLibrary';
 import { RulesManager } from './pages/RulesManager';
@@ -17,7 +17,7 @@ import { ProjectDistribution } from './pages/ProjectDistribution';
 import { Settings } from './pages/Settings';
 import { useAppStore } from './stores/appStore';
 import { useWatcherStore } from './stores/watcherStore';
-import { SyncConfirmDialog } from './components/SyncConfirmDialog';
+import { SyncConfirmDialog } from './app/SyncConfirmDialog';
 
 const routeToNavMap: Record<string, string> = {
   '/': 'dashboard',

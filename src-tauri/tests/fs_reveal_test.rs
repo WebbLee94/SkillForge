@@ -8,11 +8,20 @@ use std::path::PathBuf;
 #[test]
 fn expand_tilde_expands_home_prefix() {
     let home = dirs::home_dir().expect("HOME 存在");
-    assert_eq!(expand_tilde("~/.trae-cn/skills"), home.join(".trae-cn/skills"));
-    assert_eq!(expand_tilde("~/nonexistent-sf-test"), home.join("nonexistent-sf-test"));
+    assert_eq!(
+        expand_tilde("~/.trae-cn/skills"),
+        home.join(".trae-cn/skills")
+    );
+    assert_eq!(
+        expand_tilde("~/nonexistent-sf-test"),
+        home.join("nonexistent-sf-test")
+    );
     assert_eq!(expand_tilde("~"), home);
     // 非 ~ 开头原样使用，不做其他归一化
-    assert_eq!(expand_tilde("/tmp/plain/path"), PathBuf::from("/tmp/plain/path"));
+    assert_eq!(
+        expand_tilde("/tmp/plain/path"),
+        PathBuf::from("/tmp/plain/path")
+    );
 }
 
 #[test]

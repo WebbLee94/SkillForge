@@ -22,9 +22,7 @@ const tMap: Record<string, string> = {
   'settings:general.darkMode.current': '当前：{{mode}}',
   'settings:general.darkMode.modeDark': '深色',
   'settings:general.darkMode.modeLight': '浅色',
-  'settings:general.update.desc': '每次启动时自动检查新版本',
   'settings:general.update.checkButton': '检查更新',
-  'settings:general.update.autoCheckLabel': '自动检查更新',
   'settings:platforms.countsFormat': '技能 {{skills}} · 规则 {{rules}}',
   'settings:platforms.capLabels.openTooltip': '查看 {{name}} 的路径与能力',
   'settings:platforms.capLabels.tooltipTitle': '{{name}} · 路径与能力',
@@ -135,7 +133,7 @@ describe('Settings', () => {
     setTheme('light');
   });
 
-  it('通用设置恰好 5 张卡：语言/深色模式/更新/数据目录/版本与社区；更新卡含按钮+switch；社区卡含版本/GitHub/分发说明', async () => {
+  it('通用设置恰好 5 张卡：语言/深色模式/更新/数据目录/版本与社区；更新卡仅保留检查更新按钮；社区卡含版本/GitHub/分发说明', async () => {
     await seedRoutes({
       get_app_config: {
         data_dir: '/u/test/.skillforge',
@@ -152,17 +150,11 @@ describe('Settings', () => {
     expect(screen.getByText('settings:general.update.title')).toBeDefined();
     expect(screen.getByText('settings:general.dataDir.title')).toBeDefined();
     expect(screen.getByText('settings:general.community.title')).toBeDefined();
-    // 旧卡不残留
-    expect(screen.queryByText('settings:general.autoCheckUpdates.title')).toBeNull();
-    expect(screen.queryByText('settings:general.checkUpdates.title')).toBeNull();
-    expect(screen.queryByText('settings:general.version.title')).toBeNull();
-    expect(screen.queryByText('settings:general.github.title')).toBeNull();
-    // 更新卡：检查更新按钮（toast 占位）+ 自动检查 switch（role=switch）
     const updateCard = cards[2];
     expect(
       within(updateCard).getByRole('button', { name: '检查更新' })
     ).toBeDefined();
-    expect(within(updateCard).getByRole('switch')).toBeDefined();
+    expect(within(updateCard).queryByRole('switch')).toBeNull();
     // 版本与社区卡：版本徽标 + GitHub 链接 + 分发方式说明
     const communityCard = cards[4];
     expect(within(communityCard).getByText('v1.1.0')).toBeDefined();
@@ -335,7 +327,7 @@ describe('Settings', () => {
     await waitFor(() => expect(screen.getByText('3.1 MB')).toBeDefined());
   });
 
-  it('renders dark mode and the consolidated update card (switch + check button)', async () => {
+  it('renders dark mode and the update card check button only', async () => {
     await seedRoutes({
       get_app_config: {
         data_dir: '/d/.skillforge',
@@ -352,14 +344,11 @@ describe('Settings', () => {
       screen.getByRole('switch', { name: /深色模式|dark mode/i })
     ).toBeDefined();
     expect(
-      screen.getByRole('switch', {
-        name: /自动检查更新|check for updates automatically/i,
-      })
-    ).toBeDefined();
-    expect(screen.getByText('每次启动时自动检查新版本')).toBeDefined();
-    expect(
       screen.getByRole('button', { name: /检查更新|check for updates/i })
     ).toBeDefined();
+    expect(
+      screen.queryByRole('switch', { name: /自动检查更新|auto check updates/i })
+    ).toBeNull();
   });
 
   it('toggles dark mode from the settings switch', async () => {

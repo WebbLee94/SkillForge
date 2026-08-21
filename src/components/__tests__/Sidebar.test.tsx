@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { Sidebar } from '../Sidebar';
+import { Sidebar } from '../../app/Sidebar';
 import { useAppStore } from '../../stores/appStore';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
