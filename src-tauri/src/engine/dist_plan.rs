@@ -194,21 +194,6 @@ pub fn resolve_scene_rules(
     }
 }
 
-// Public wrappers for preview_sync command
-pub fn resolve_scene_skills_for_preview(
-    conn: &rusqlite::Connection,
-    scene_id: &str,
-) -> Result<Vec<String>, crate::error::AppError> {
-    resolve_scene_skills(conn, scene_id)
-}
-
-pub fn resolve_scene_rules_for_preview(
-    conn: &rusqlite::Connection,
-    scene_id: &str,
-) -> Result<Vec<String>, crate::error::AppError> {
-    resolve_scene_rules(conn, scene_id)
-}
-
 pub(crate) fn get_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppError> {
     conn.query_row(
         "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata

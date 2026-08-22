@@ -5,6 +5,19 @@ use crate::types::{
 };
 use crate::AppState;
 
+/// 命令层保留的编排之一：锁定全局数据库连接（错误映射与原先完全一致）。
+fn lock_db(state: &AppState) -> Result<std::sync::MutexGuard<'_, rusqlite::Connection>, AppError> {
+    state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))
+}
+
+/// 命令层保留的编排之二：组装全部内置平台插件，注入分发用例。
+fn all_platform_plugins() -> Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> {
+    crate::plugins::platform::create_all_platform_plugins_vec()
+}
+
 #[tauri::command]
 pub fn sync_scene(
     skill_ids: Vec<String>,
@@ -15,13 +28,8 @@ pub fn sync_scene(
     project_id: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncResult, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
-        crate::plugins::platform::create_all_platform_plugins_vec();
+    let conn = lock_db(&state)?;
+    let all_plugins = all_platform_plugins();
 
     engine::dist_engine::sync_scene(
         &conn,
@@ -37,10 +45,7 @@ pub fn sync_scene(
 
 #[tauri::command]
 pub fn get_sync_status(state: tauri::State<'_, AppState>) -> Result<SyncStatusDTO, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = lock_db(&state)?;
     engine::dist_engine::get_sync_status(&conn)
 }
 
@@ -54,14 +59,8 @@ pub fn preview_sync(
     project_id: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<DistributionPlan, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
-        crate::plugins::platform::create_all_platform_plugins_vec();
-
+    let conn = lock_db(&state)?;
+    let all_plugins = all_platform_plugins();
     engine::dist_engine::build_distribution_plan(
         &conn,
         &all_plugins,
@@ -84,12 +83,8 @@ pub fn preview_distribution(
     rules: crate::types::DistributionIntent,
     state: tauri::State<'_, AppState>,
 ) -> Result<DistributionPlan, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
-        crate::plugins::platform::create_all_platform_plugins_vec();
+    let conn = lock_db(&state)?;
+    let all_plugins = all_platform_plugins();
     let request = DistributionRequest {
         scene_id,
         platform_ids,
@@ -109,12 +104,8 @@ pub fn get_managed_distribution_state(
     project_id: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<ManagedDistributionState, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
-        crate::plugins::platform::create_all_platform_plugins_vec();
+    let conn = lock_db(&state)?;
+    let all_plugins = all_platform_plugins();
     engine::dist_engine::get_managed_distribution_state(
         &conn,
         &all_plugins,
@@ -131,12 +122,8 @@ pub fn execute_distribution(
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncResult, AppError> {
     selection.validate()?;
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
-        crate::plugins::platform::create_all_platform_plugins_vec();
+    let conn = lock_db(&state)?;
+    let all_plugins = all_platform_plugins();
     engine::dist_engine::execute_distribution_request(&conn, &all_plugins, &selection, &plan)
 }
 
@@ -150,12 +137,8 @@ pub fn remove_distributed(
     rule_ids: Vec<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<SyncResult, AppError> {
-    let conn = state
-        .db
-        .lock()
-        .map_err(|e| AppError::Database(e.to_string()))?;
-    let all_plugins: Vec<Box<dyn crate::plugins::platform::PlatformPlugin>> =
-        crate::plugins::platform::create_all_platform_plugins_vec();
+    let conn = lock_db(&state)?;
+    let all_plugins = all_platform_plugins();
     engine::dist_execute::execute_remove_distributed(
         &conn,
         &all_plugins,

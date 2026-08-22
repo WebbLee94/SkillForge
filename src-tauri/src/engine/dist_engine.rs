@@ -16,8 +16,7 @@ pub use crate::engine::dist_execute::{execute_distribution_request, sync_scene};
 pub use crate::engine::dist_managed::{get_managed_distribution_state, get_sync_status};
 pub use crate::engine::dist_plan::{
     build_distribution_plan, build_distribution_plan_for_request, calculate_distribution_plan,
-    read_current_skills_on_disk, resolve_scene_rules, resolve_scene_rules_for_preview,
-    resolve_scene_skills, resolve_scene_skills_for_preview,
+    resolve_scene_skills,
 };
 
 // pub(crate) helpers re-exported for `commands::system`.
