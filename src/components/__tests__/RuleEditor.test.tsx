@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { RuleEditor } from '../common/RuleEditor';
+import { RuleEditor } from '../../domains/rules/RuleEditor';
 
 describe('RuleEditor', () => {
   const baseContent = '# Test Rule\n\nsome content here\n\nthird line';

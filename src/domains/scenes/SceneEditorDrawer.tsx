@@ -11,7 +11,7 @@ import {
   X,
 } from 'lucide-react';
 import type { Rule, SceneDetail, Skill, Tag } from '../../types';
-import { TagFilterBar } from './TagFilterBar';
+import { TagFilterBar } from '../../components/ui/tags/TagFilterBar';
 import { useBoundedReveal } from '../../lib/useBoundedReveal';
 
 export interface SceneDraft {

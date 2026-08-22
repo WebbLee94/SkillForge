@@ -4,21 +4,21 @@ import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { cn, sanitizePath } from '../lib/utils';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
-import { TagFilterBar } from '../components/common/TagFilterBar';
-import { TagManagerDialog } from '../components/common/TagManagerDialog';
+import { TagFilterBar } from '../components/ui/tags/TagFilterBar';
+import { TagManagerDialog } from '../domains/tags/TagManagerDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import {
   ResourceViewToggle,
   type ResourceView,
-} from '../components/common/ResourceViewToggle';
-import { ResourceCollection } from '../components/common/ResourceCollection';
-import { BatchActionBar } from '../components/common/BatchActionBar';
-import { BatchTagDialog } from '../components/common/BatchTagDialog';
-import { Inspector } from '../components/common/Inspector';
+} from '../components/ui/ResourceViewToggle';
+import { ResourceCollection } from '../domains/resources/ResourceCollection';
+import { BatchActionBar } from '../domains/resources/BatchActionBar';
+import { BatchTagDialog } from '../domains/tags/BatchTagDialog';
+import { Inspector } from '../domains/inspector/Inspector';
 import {
   ResourceImportDialog,
   type ImportItem,
-} from '../components/common/ResourceImportDialog';
+} from '../domains/resources/ResourceImportDialog';
 import { useBatchMode } from '../hooks/useBatchMode';
 import {
   formatRelativeTime,

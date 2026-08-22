@@ -3,21 +3,20 @@ import { useTranslation } from 'react-i18next';
 import { cn, formatDate } from '../lib/utils';
 import {
   Film,
-  List,
   Package,
   FileText,
   Plus,
-  Search,
-  Trash2,
   X,
 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import {
-  SceneEditorDrawer,
-  type SceneDraft,
-} from '../components/common/SceneEditorDrawer';
+import { SceneEditorDrawer } from '../domains/scenes/SceneEditorDrawer';
+import type { SceneDraft } from '../domains/scenes/SceneEditorDrawer';
+import { SceneListSidebar } from '../domains/scenes/SceneListSidebar';
+import { SceneInvalidRefsDialog } from '../domains/scenes/SceneInvalidRefsDialog';
+import { SceneDetailHeader } from '../domains/scenes/SceneDetailHeader';
+import { SceneDetailActions } from '../domains/scenes/SceneDetailActions';
 import type { SceneDetail, Tag } from '../types';
 
 type ListState = 'loading' | 'ready' | 'error';
@@ -132,6 +131,19 @@ export function SceneEditor() {
   const invalidRules = useMemo(
     () => (currentSceneDetail?.rules ?? []).filter((r) => !r.rule_name),
     [currentSceneDetail]
+  );
+  const invalidRefItems = useMemo(
+    () => [
+      ...invalidSkills.map((s) => ({
+        key: `sk-${s.skill_id}`,
+        label: t('detail.invalidSkill', { id: s.skill_id }),
+      })),
+      ...invalidRules.map((r) => ({
+        key: `rl-${r.rule_id}`,
+        label: t('detail.invalidRule', { id: r.rule_id }),
+      })),
+    ],
+    [invalidSkills, invalidRules, t]
   );
   const hasInvalidRefs = invalidSkills.length > 0 || invalidRules.length > 0;
 
@@ -250,123 +262,40 @@ export function SceneEditor() {
 
       {listState === 'ready' && scenes.length > 0 && (
         <div className="flex min-h-0 flex-1">
-          {/* Master list — fixed 280px on wide, Drawer on narrow */}
-          <div
-            className={cn(
-              'bg-background',
-              listOpen
-                ? 'fixed inset-y-0 left-0 z-40 flex w-[280px] flex-col border-r border-border'
-                : 'hidden w-[280px] shrink-0 flex-col border-r border-border md:flex'
-            )}
-          >
-            <div className="border-b border-border mb-3 mt-5 px-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={listSearch}
-                  onChange={(e) => setListSearch(e.target.value)}
-                  placeholder={t('list.searchPlaceholder')}
-                  className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <div className="mt-3 mb-3 flex items-center justify-end gap-2">
-                <label className="text-xs text-muted-foreground">
-                  {t('list.sortLabel')}
-                </label>
-                <select
-                  value={listSort}
-                  onChange={(e) => setListSort(e.target.value as ListSort)}
-                  className="rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="recent">{t('list.sortRecent')}</option>
-                  <option value="name">{t('list.sortName')}</option>
-                </select>
-              </div>
-            </div>
-            <div
-              className="min-h-0 flex-1 space-y-1 overflow-y-auto mt-1 mb-1 px-2"
-              data-testid="scene-list"
-            >
-              {sortedScenes.length === 0 && (
-                <p className="py-4 text-center text-xs text-muted-foreground">
-                  {tc('messages.noData')}
-                </p>
-              )}
-              {sortedScenes.map((scene) => (
-                <button
-                  key={scene.id}
-                  data-testid="scene-list-item"
-                  onClick={() => {
-                    setCurrentScene(scene);
-                    setListOpen(false);
-                  }}
-                  className={cn(
-                    'w-full rounded-lg border px-3 py-2 text-left transition-colors',
-                    currentScene?.id === scene.id
-                      ? 'border-primary bg-accent/40'
-                      : 'border-border bg-card hover:bg-accent/40'
-                  )}
-                >
-                  <span
-                    className="block truncate text-sm font-medium text-foreground"
-                    title={scene.name}
-                  >
-                    {scene.name}
-                  </span>
-                  <span className="line-clamp-2 block text-xs text-muted-foreground">
-                    {scene.description}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-          {listOpen && (
-            <div
-              data-testid="list-backdrop"
-              className="fixed inset-0 z-30 bg-black/50 md:hidden"
-              onClick={() => setListOpen(false)}
-            />
-          )}
+          <SceneListSidebar
+            scenes={sortedScenes}
+            currentSceneId={currentScene?.id ?? null}
+            listOpen={listOpen}
+            listSearch={listSearch}
+            listSort={listSort}
+            searchPlaceholder={t('list.searchPlaceholder')}
+            sortLabel={t('list.sortLabel')}
+            sortRecentLabel={t('list.sortRecent')}
+            sortNameLabel={t('list.sortName')}
+            drawerOpenLabel={t('list.drawerOpen')}
+            noDataLabel={tc('messages.noData')}
+            onSearchChange={setListSearch}
+            onSortChange={(value) => setListSort(value)}
+            onSelectScene={setCurrentScene}
+            onOpenList={() => setListOpen(true)}
+            onCloseList={() => setListOpen(false)}
+          />
 
-          {/* Detail pane */}
           <div
             className="min-w-0 flex-1 overflow-y-auto p-3"
             data-testid="scene-detail"
           >
-            <button
-              data-testid="list-toggle"
-              className="mb-3 flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground hover:bg-accent/40 md:hidden"
-              onClick={() => setListOpen(true)}
-            >
-              <List className="h-4 w-4" />
-              {t('list.drawerOpen')}
-            </button>
-
             {!currentSceneDetail ? (
               <p className="text-sm text-muted-foreground">{t('loading')}</p>
             ) : (
               <>
-                <h2 className="text-lg font-semibold text-foreground">
-                  {currentSceneDetail.scene.name}
-                </h2>
-                <p
-                  className="mt-1 text-sm text-muted-foreground"
-                  data-testid="scene-updated-at"
-                >
-                  {currentSceneDetail.scene.description
-                    ? `${currentSceneDetail.scene.description} · `
-                    : ''}
-                  {t('detail.updatedAt', {
+                <SceneDetailHeader
+                  sceneDetail={currentSceneDetail}
+                  updatedAtLabel={t('detail.updatedAt', {
                     time: formatDate(currentSceneDetail.scene.updated_at),
                   })}
-                </p>
-                <p
-                  className="text-xs text-muted-foreground"
-                  data-testid="scene-read-only"
-                >
-                  {t('detail.readOnly')}
-                </p>
+                  readOnlyLabel={t('detail.readOnly')}
+                />
 
                 {hasInvalidRefs && (
                   <div
@@ -378,46 +307,21 @@ export function SceneEditor() {
                       {t('detail.invalidRefsTitle')}
                     </p>
                     <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs text-muted-foreground">
-                      {invalidSkills.map((s) => (
-                        <li key={`sk-${s.skill_id}`}>
-                          {t('detail.invalidSkill', { id: s.skill_id })}
-                        </li>
-                      ))}
-                      {invalidRules.map((r) => (
-                        <li key={`rl-${r.rule_id}`}>
-                          {t('detail.invalidRule', { id: r.rule_id })}
-                        </li>
+                      {invalidRefItems.map((item) => (
+                        <li key={item.key}>{item.label}</li>
                       ))}
                     </ul>
                   </div>
                 )}
 
-                <div
-                  className="mt-4 flex flex-row flex-wrap items-center gap-2"
-                  data-testid="scene-actions"
-                >
-                  <button
-                    className="flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                    onClick={handleUseForDistribution}
-                  >
-                    <Film className="h-4 w-4" />
-                    {t('detail.useForDistribution')}
-                  </button>
-                  <button
-                    className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-sm text-foreground transition-colors hover:bg-accent/40"
-                    onClick={() => setDrawerOpen(true)}
-                  >
-                    <Package className="h-4 w-4" />
-                    {t('detail.configure')}
-                  </button>
-                  <button
-                    className="flex items-center gap-1 rounded-lg border border-error/30 px-2 py-1.5 text-sm text-error transition-colors hover:bg-error/10"
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    {t('detail.delete')}
-                  </button>
-                </div>
+                <SceneDetailActions
+                  useForDistributionLabel={t('detail.useForDistribution')}
+                  configureLabel={t('detail.configure')}
+                  deleteLabel={t('detail.delete')}
+                  onUseForDistribution={handleUseForDistribution}
+                  onConfigure={() => setDrawerOpen(true)}
+                  onDelete={() => setShowDeleteConfirm(true)}
+                />
 
                 <h3 className="mb-2 mt-6 flex items-center gap-2 text-sm font-semibold text-foreground">
                   <Package className="h-4 w-4 text-primary" />
@@ -527,69 +431,25 @@ export function SceneEditor() {
       )}
 
       {/* Invalid-reference gate dialog */}
-      {showInvalidRefDialog && currentSceneDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div
-            ref={invalidRefDialogRef}
-            role="dialog"
-            aria-modal="true"
-            tabIndex={-1}
-            className="w-[420px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">
-                {t('detail.invalidRefsTitle')}
-              </h2>
-              <button
-                onClick={() => setShowInvalidRefDialog(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t('detail.invalidRefsHint')}
-            </p>
-            <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-muted-foreground">
-              {invalidSkills.map((s) => (
-                <li key={`sk-${s.skill_id}`}>
-                  {t('detail.invalidSkill', { id: s.skill_id })}
-                </li>
-              ))}
-              {invalidRules.map((r) => (
-                <li key={`rl-${r.rule_id}`}>
-                  {t('detail.invalidRule', { id: r.rule_id })}
-                </li>
-              ))}
-            </ul>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-                onClick={() => {
-                  setShowInvalidRefDialog(false);
-                  setDrawerOpen(true);
-                }}
-              >
-                {t('detail.invalidRefsCleanup')}
-              </button>
-              <button
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                onClick={() => {
-                  carryToDistribution(currentSceneDetail);
-                  setShowInvalidRefDialog(false);
-                }}
-              >
-                {t('detail.invalidRefsUseValid')}
-              </button>
-              <button
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-                onClick={() => setShowInvalidRefDialog(false)}
-              >
-                {tc('actions.cancel')}
-              </button>
-            </div>
-          </div>
-        </div>
+      {currentSceneDetail && (
+        <SceneInvalidRefsDialog
+          open={showInvalidRefDialog}
+          title={t('detail.invalidRefsTitle')}
+          hint={t('detail.invalidRefsHint')}
+          cleanupLabel={t('detail.invalidRefsCleanup')}
+          useValidLabel={t('detail.invalidRefsUseValid')}
+          cancelLabel={tc('actions.cancel')}
+          invalidRefs={invalidRefItems}
+          onClose={() => setShowInvalidRefDialog(false)}
+          onCleanup={() => {
+            setShowInvalidRefDialog(false);
+            setDrawerOpen(true);
+          }}
+          onUseValid={() => {
+            carryToDistribution(currentSceneDetail);
+            setShowInvalidRefDialog(false);
+          }}
+        />
       )}
 
       {/* Delete confirmation */}
