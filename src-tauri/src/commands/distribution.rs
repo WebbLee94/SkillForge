@@ -213,4 +213,117 @@ mod tests {
         assert_eq!(selection.skills.ids, vec!["skill-1"]);
         assert!(!plan.has_removals);
     }
+
+    #[test]
+    fn distribution_request_maps_project_id_and_intent_modes() {
+        let request: DistributionRequest = serde_json::from_str(
+            r#"{
+                "sceneId": null,
+                "platformIds": ["claude-code", "codex"],
+                "scope": "project",
+                "projectId": "proj-42",
+                "skills": {"mode": "remove_selected", "ids": ["skill-1"]},
+                "rules": {"mode": "add_or_update", "ids": []}
+            }"#,
+        )
+        .expect("camelCase payload should map project_id and intents");
+
+        assert_eq!(request.project_id.as_deref(), Some("proj-42"));
+        assert_eq!(request.platform_ids.len(), 2);
+        assert!(matches!(
+            request.skills.mode,
+            crate::types::DistributionIntentMode::RemoveSelected
+        ));
+        assert!(matches!(
+            request.rules.mode,
+            crate::types::DistributionIntentMode::AddOrUpdate
+        ));
+
+        // Round-trip 锁定：intent mode 字符串保持 snake_case。
+        let value = serde_json::to_value(&request).unwrap();
+        assert_eq!(value["skills"]["mode"], "remove_selected");
+        assert_eq!(value["rules"]["mode"], "add_or_update");
+    }
+
+    #[test]
+    fn ipc_payload_shapes_lock_snake_case_keys() {
+        // 契约锁定：这三个载荷未启用 camelCase 重命名，前端按 snake_case 字段读取。
+        let plan = DistributionPlan {
+            platforms: vec![crate::types::PlatformDistributionPlan {
+                platform_id: "claude-code".to_string(),
+                platform_name: "Claude Code".to_string(),
+                skills_to_add: vec!["skill-1".to_string()],
+                skills_to_update: vec![],
+                skills_to_remove: vec!["skill-2".to_string()],
+                rules_to_add: vec!["rule-1".to_string()],
+                rules_to_update: vec![],
+                rules_to_remove: vec![],
+            }],
+            has_removals: true,
+        };
+        let plan_json = serde_json::to_value(&plan).unwrap();
+        for key in [
+            "platforms",
+            "has_removals",
+            "skills_to_add",
+            "skills_to_update",
+            "skills_to_remove",
+            "rules_to_add",
+            "rules_to_update",
+            "rules_to_remove",
+        ] {
+            assert!(
+                plan_json["platforms"][0].get(key).is_some()
+                    || plan_json.get(key).is_some(),
+                "DistributionPlan 缺少字段 {key}"
+            );
+        }
+
+        let sync = SyncResult {
+            installed: vec!["skill-1".to_string()],
+            updated: vec![],
+            removed: vec!["rule-1".to_string()],
+            skipped: 2,
+            errors: vec![],
+        };
+        let sync_json = serde_json::to_value(&sync).unwrap();
+        for key in ["installed", "updated", "removed", "skipped", "errors"] {
+            assert!(sync_json.get(key).is_some(), "SyncResult 缺少字段 {key}");
+        }
+
+        let managed = ManagedDistributionState {
+            platforms: vec![crate::types::ManagedPlatformState {
+                platform_id: "codex".to_string(),
+                platform_name: "Codex".to_string(),
+                scope: "global".to_string(),
+                project_path: None,
+                skills: vec![crate::types::ManagedDistributionEntry {
+                    id: "skill-1".to_string(),
+                    path: "/tmp/skill-1".to_string(),
+                }],
+                rules: vec![],
+                local_skills: vec![crate::types::LocalDistributionEntry {
+                    name: "user-dir".to_string(),
+                    path: "/tmp/user-dir".to_string(),
+                }],
+                local_rules: vec![],
+            }],
+        };
+        let managed_json = serde_json::to_value(&managed).unwrap();
+        for key in [
+            "platform_id",
+            "platform_name",
+            "scope",
+            "project_path",
+            "skills",
+            "rules",
+            "local_skills",
+            "local_rules",
+        ] {
+            assert!(
+                managed_json["platforms"][0].get(key).is_some(),
+                "ManagedPlatformState 缺少字段 {key}"
+            );
+        }
+    }
 }

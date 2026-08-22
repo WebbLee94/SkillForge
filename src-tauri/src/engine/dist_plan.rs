@@ -4,20 +4,22 @@
 //! Owns:
 //! - `build_distribution_plan` / `build_distribution_plan_for_request`
 //!   (preview + `DistributionPlan` calculation)
-//! - `calculate_distribution_plan` / `calculate_intent_diff` (pure diff)
 //! - `read_current_skills_on_disk` (filesystem-as-truth reader)
 //! - scene resolution helpers (`resolve_scene_skills` / `resolve_scene_rules`)
 //! - shared read-only helpers reused by `dist_execute` / `dist_managed`
 //!   (`get_skill`, `get_project_path`, instance resolution)
 //!
+//! 纯 diff 计算与请求校验已迁移至 `domain::distribution::{plan, validation}`，
+//! preview 只读编排已迁移至 `application::distribution::preview`；
+//! 此处保留同名入口作为兼容 facade，并继续持有被
+//! `dist_execute` / `dist_managed` 共用的只读 helper。
+//!
 //! Plan generation is strictly read-only: it must never create directories.
 
-use crate::engine::rule_distribution;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
 use crate::types::{
-    DistributionIntent, DistributionIntentMode, DistributionPlan, DistributionRequest,
-    PlatformDistributionPlan, PlatformInstance, Skill,
+    DistributionPlan, DistributionRequest, PlatformDistributionPlan, PlatformInstance, Skill,
 };
 use rusqlite::params;
 
@@ -50,48 +52,13 @@ pub fn calculate_distribution_plan(
     current_rules: &[String],
     request: &DistributionRequest,
 ) -> Result<PlatformDistributionPlan, AppError> {
-    request.validate()?;
-
-    let (skills_to_add, skills_to_remove) = calculate_intent_diff(&request.skills, current_skills);
-    let (rules_to_add, rules_to_remove) = calculate_intent_diff(&request.rules, current_rules);
-
-    Ok(PlatformDistributionPlan {
-        platform_id: platform_id.to_string(),
-        platform_name: platform_name.to_string(),
-        skills_to_add,
-        skills_to_update: vec![],
-        skills_to_remove,
-        rules_to_add,
-        rules_to_update: vec![],
-        rules_to_remove,
-    })
-}
-
-fn calculate_intent_diff(
-    intent: &DistributionIntent,
-    current: &[String],
-) -> (Vec<String>, Vec<String>) {
-    match intent.mode {
-        DistributionIntentMode::Preserve => (vec![], vec![]),
-        DistributionIntentMode::AddOrUpdate => (
-            intent
-                .ids
-                .iter()
-                .filter(|id| !current.contains(id))
-                .cloned()
-                .collect(),
-            vec![],
-        ),
-        DistributionIntentMode::RemoveSelected => (
-            vec![],
-            intent
-                .ids
-                .iter()
-                .filter(|id| current.contains(id))
-                .cloned()
-                .collect(),
-        ),
-    }
+    crate::domain::distribution::plan::calculate_distribution_plan(
+        platform_id,
+        platform_name,
+        current_skills,
+        current_rules,
+        request,
+    )
 }
 
 // ── Public plan API ─────────────────────────────────────────────────
@@ -114,15 +81,16 @@ pub fn build_distribution_plan(
     scope: &str,
     project_id: Option<&str>,
 ) -> Result<DistributionPlan, AppError> {
-    let request = DistributionRequest {
-        scene_id: _scene_id.map(str::to_string),
-        platform_ids: platform_ids.to_vec(),
-        scope: scope.to_string(),
-        project_id: project_id.map(str::to_string),
-        skills: legacy_distribution_intent(skill_ids),
-        rules: legacy_distribution_intent(rule_ids),
-    };
-    build_distribution_plan_for_request(conn, platform_plugins, &request)
+    crate::application::distribution::preview::build_distribution_plan(
+        conn,
+        platform_plugins,
+        skill_ids,
+        rule_ids,
+        _scene_id,
+        platform_ids,
+        scope,
+        project_id,
+    )
 }
 
 pub fn build_distribution_plan_for_request(
@@ -130,105 +98,11 @@ pub fn build_distribution_plan_for_request(
     platform_plugins: &[Box<dyn PlatformPlugin>],
     request: &DistributionRequest,
 ) -> Result<DistributionPlan, AppError> {
-    request.validate()?;
-
-    // Resolve project path if project-scoped
-    let project_path: Option<String> = if request.scope == "project" {
-        Some(
-            request
-                .project_id
-                .as_deref()
-                .and_then(|pid| get_project_path(conn, pid))
-                .ok_or_else(|| {
-                    AppError::ProjectNotFound("项目范围计划需要提供项目ID".to_string())
-                })?,
-        )
-    } else {
-        None
-    };
-    let mut plan_platforms = Vec::new();
-    for platform_id in &request.platform_ids {
-        let plugin = platform_plugins
-            .iter()
-            .find(|p| p.platform_name() == *platform_id)
-            .ok_or_else(|| AppError::Platform(format!("未找到平台插件: {}", platform_id)))?;
-        let instances = match plugin.detect() {
-            Ok(instances) => instances,
-            Err(e) => {
-                return Err(AppError::Platform(format!(
-                    "检测平台 '{}' 失败: {}",
-                    platform_id, e
-                )));
-            }
-        };
-        // Find matching instance for the requested scope
-        let instance = if request.scope == "global" {
-            instances
-                .into_iter()
-                .find(|i| i.scope == "global")
-                .unwrap_or_else(|| PlatformInstance {
-                    platform_id: platform_id.to_string(),
-                    platform_name: platform_id.to_string(),
-                    path: crate::plugins::platform::expand_home(
-                        &plugin.default_paths().global_skills_dir,
-                    )
-                    .to_string_lossy()
-                    .to_string(),
-                    scope: "global".to_string(),
-                })
-        } else {
-            let base_path = project_path
-                .as_ref()
-                .map(|p| {
-                    let pattern = plugin.default_paths().project_skills_pattern.clone();
-                    pattern.replace("{project}", p)
-                })
-                .unwrap_or_default();
-            PlatformInstance {
-                platform_id: platform_id.to_string(),
-                platform_name: platform_id.to_string(),
-                path: base_path,
-                scope: "project".to_string(),
-            }
-        };
-        // Read current state from disk (read-only — NO directory creation)
-        let current_skills = read_current_skills_on_disk(&instance);
-        let mut platform_request = request.clone();
-        platform_request.platform_ids = vec![platform_id.to_string()];
-        // Compute rule diff (if platform supports rules)
-        let current_rules = rule_distribution::read_current_rules_on_disk(
-            &**plugin,
-            &instance,
-            project_path.as_deref(),
-        )?;
-        let mut platform_plan = calculate_distribution_plan(
-            platform_id,
-            plugin.display_name(),
-            &current_skills,
-            &current_rules,
-            &platform_request,
-        )?;
-        let rules_supported = if instance.scope == "global" {
-            plugin.default_paths().global_rules_dir.is_some()
-        } else {
-            plugin.default_paths().project_rules_pattern.is_some()
-        };
-        if !rules_supported {
-            platform_plan.rules_to_add.clear();
-            platform_plan.rules_to_update.clear();
-            platform_plan.rules_to_remove.clear();
-        }
-        let platform_name = plugin.display_name().to_string();
-        platform_plan.platform_name = platform_name;
-        plan_platforms.push(platform_plan);
-    }
-    let overall_has_removals = plan_platforms
-        .iter()
-        .any(|p| !p.skills_to_remove.is_empty() || !p.rules_to_remove.is_empty());
-    Ok(DistributionPlan {
-        platforms: plan_platforms,
-        has_removals: overall_has_removals,
-    })
+    crate::application::distribution::preview::build_distribution_plan_for_request(
+        conn,
+        platform_plugins,
+        request,
+    )
 }
 
 // ── Shared read-only helpers (also used by dist_execute / dist_managed) ──
@@ -269,20 +143,6 @@ pub(crate) fn resolve_global_distribution_instance(
             .to_string_lossy()
             .to_string(),
         scope: "global".to_string(),
-    }
-}
-
-fn legacy_distribution_intent(ids: &[String]) -> DistributionIntent {
-    if ids.is_empty() {
-        DistributionIntent {
-            mode: DistributionIntentMode::Preserve,
-            ids: vec![],
-        }
-    } else {
-        DistributionIntent {
-            mode: DistributionIntentMode::AddOrUpdate,
-            ids: ids.to_vec(),
-        }
     }
 }
 
@@ -379,4 +239,254 @@ pub(crate) fn get_project_path(conn: &rusqlite::Connection, project_id: &str) ->
         |row| row.get(0),
     )
     .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::db::schema;
+    use crate::plugins::platform::PlatformPlugin;
+    use crate::types::{DistributionIntent, DistributionIntentMode, PlatformCapabilities, PlatformPaths, SyncResult};
+
+    fn setup_db() -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        schema::create_tables(&conn).unwrap();
+        conn
+    }
+
+    fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &str) {
+        conn.execute(
+            "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata)
+             VALUES (?1, ?1, NULL, 'local', NULL, '1.0.0', ?2, ?3, NULL)",
+            params![id, chrono::Utc::now().to_rfc3339(), local_path],
+        )
+        .unwrap();
+    }
+
+    fn insert_project(conn: &rusqlite::Connection, id: &str, path: &str) {
+        let now = chrono::Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO projects (id, name, path, description, created_at, updated_at) VALUES (?1, ?1, ?2, NULL, ?3, ?3)",
+            params![id, path, now],
+        )
+        .unwrap();
+    }
+
+    fn preview_plugin(project_skills_pattern: &str) -> Box<dyn PlatformPlugin> {
+        struct P {
+            pattern: String,
+        }
+        impl PlatformPlugin for P {
+            fn platform_name(&self) -> &'static str {
+                "test"
+            }
+            fn display_name(&self) -> &'static str {
+                "Test"
+            }
+            fn detect(&self) -> Result<Vec<PlatformInstance>, AppError> {
+                Ok(vec![])
+            }
+            fn install(&self, _: &Skill, _: &PlatformInstance) -> Result<(), AppError> {
+                Ok(())
+            }
+            fn sync(&self, _: &Skill, _: &PlatformInstance) -> Result<SyncResult, AppError> {
+                Ok(SyncResult {
+                    installed: vec![],
+                    updated: vec![],
+                    removed: vec![],
+                    skipped: 0,
+                    errors: vec![],
+                })
+            }
+            fn remove(&self, _: &str, _: &PlatformInstance) -> Result<(), AppError> {
+                Ok(())
+            }
+            fn status(&self, _: &str, _: &PlatformInstance) -> Result<crate::types::SkillPlatformStatus, AppError> {
+                Ok(crate::types::SkillPlatformStatus {
+                    installed: false,
+                    path: None,
+                    version: None,
+                    checksum: None,
+                })
+            }
+            fn default_paths(&self) -> PlatformPaths {
+                PlatformPaths {
+                    global_skills_dir: String::new(),
+                    project_skills_pattern: self.pattern.clone(),
+                    global_rules_dir: None,
+                    project_rules_pattern: None,
+                    global_rules_format: None,
+                    project_rules_format: None,
+                }
+            }
+            fn capabilities(&self) -> PlatformCapabilities {
+                PlatformCapabilities {
+                    skills_global: true,
+                    skills_project: true,
+                    rules_global: false,
+                    rules_project: false,
+                    rules_format_global: None,
+                    rules_format_project: None,
+                    limitation_notes: vec![],
+                }
+            }
+        }
+        Box::new(P {
+            pattern: project_skills_pattern.to_string(),
+        })
+    }
+
+    #[test]
+    fn preview_rejects_scope_and_project_id_mismatch() {
+        let conn = setup_db();
+        let plugins: Vec<Box<dyn PlatformPlugin>> =
+            vec![preview_plugin("{project}/skills")];
+
+        let mut request = DistributionRequest {
+            scene_id: None,
+            platform_ids: vec!["test".to_string()],
+            scope: "project".to_string(),
+            project_id: None,
+            skills: DistributionIntent {
+                mode: DistributionIntentMode::AddOrUpdate,
+                ids: vec!["skill-1".to_string()],
+            },
+            rules: DistributionIntent {
+                mode: DistributionIntentMode::Preserve,
+                ids: vec![],
+            },
+        };
+        let err = build_distribution_plan_for_request(&conn, &plugins, &request).unwrap_err();
+        assert!(err.to_string().contains("project 范围必须提供 project_id"), "got: {err}");
+
+        request.scope = "global".to_string();
+        request.project_id = Some("p1".to_string());
+        let err = build_distribution_plan_for_request(&conn, &plugins, &request).unwrap_err();
+        assert!(err.to_string().contains("global 范围不能携带 project_id"), "got: {err}");
+    }
+
+    #[test]
+    fn preview_project_scope_requires_resolvable_project_path() {
+        let conn = setup_db();
+        let plugins: Vec<Box<dyn PlatformPlugin>> =
+            vec![preview_plugin("{project}/skills")];
+        let request = DistributionRequest {
+            scene_id: None,
+            platform_ids: vec!["test".to_string()],
+            scope: "project".to_string(),
+            project_id: Some("ghost-project".to_string()),
+            skills: DistributionIntent {
+                mode: DistributionIntentMode::AddOrUpdate,
+                ids: vec!["skill-1".to_string()],
+            },
+            rules: DistributionIntent {
+                mode: DistributionIntentMode::Preserve,
+                ids: vec![],
+            },
+        };
+
+        let err = build_distribution_plan_for_request(&conn, &plugins, &request).unwrap_err();
+        match err {
+            AppError::ProjectNotFound(msg) => assert!(msg.contains("项目ID"), "got: {msg}"),
+            other => panic!("expected ProjectNotFound, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn preview_is_read_only_and_resolves_project_scoped_path() {
+        let conn = setup_db();
+        let base = tempfile::tempdir().unwrap();
+        let project_root = base.path().join("myproj");
+        let project_path = project_root.to_string_lossy().to_string();
+        insert_project(&conn, "p1", &project_path);
+        insert_skill(&conn, "skill-1", "/tmp/sources/skill-1");
+        let plugins: Vec<Box<dyn PlatformPlugin>> =
+            vec![preview_plugin("{project}/skills")];
+        let request = DistributionRequest {
+            scene_id: None,
+            platform_ids: vec!["test".to_string()],
+            scope: "project".to_string(),
+            project_id: Some("p1".to_string()),
+            skills: DistributionIntent {
+                mode: DistributionIntentMode::AddOrUpdate,
+                ids: vec!["skill-1".to_string()],
+            },
+            rules: DistributionIntent {
+                mode: DistributionIntentMode::Preserve,
+                ids: vec![],
+            },
+        };
+
+        let plan = build_distribution_plan_for_request(&conn, &plugins, &request).unwrap();
+
+        assert_eq!(plan.platforms.len(), 1);
+        assert_eq!(plan.platforms[0].platform_id, "test");
+        assert_eq!(plan.platforms[0].skills_to_add, vec!["skill-1".to_string()]);
+        assert!(plan.platforms[0].skills_to_remove.is_empty());
+        assert!(!plan.has_removals);
+        assert!(
+            !project_root.join("skills").exists(),
+            "preview must not create target directories"
+        );
+    }
+
+    #[test]
+    fn calculate_distribution_plan_locks_intent_diff_semantics() {
+        let make_request = |mode, skill_ids: &[&str]| DistributionRequest {
+            scene_id: None,
+            platform_ids: vec!["test".to_string()],
+            scope: "global".to_string(),
+            project_id: None,
+            skills: DistributionIntent {
+                mode,
+                ids: skill_ids.iter().map(|id| id.to_string()).collect(),
+            },
+            rules: DistributionIntent {
+                mode: DistributionIntentMode::Preserve,
+                ids: vec![],
+            },
+        };
+        let current = vec!["b".to_string()];
+
+        let err = calculate_distribution_plan(
+            "test",
+            "Test",
+            &current,
+            &[],
+            &make_request(DistributionIntentMode::Preserve, &["a"]),
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("preserve 时不能携带 IDs"),
+            "Preserve + 非空 IDs 必须被拒绝: {err}"
+        );
+
+        let preserve = calculate_distribution_plan(
+            "test", "Test", &current, &[], &make_request(DistributionIntentMode::Preserve, &[]),
+        )
+        .unwrap();
+        assert!(preserve.skills_to_add.is_empty() && preserve.skills_to_remove.is_empty());
+
+        let add_or_update = calculate_distribution_plan(
+            "test",
+            "Test",
+            &current,
+            &[],
+            &make_request(DistributionIntentMode::AddOrUpdate, &["a", "b"]),
+        )
+        .unwrap();
+        assert_eq!(add_or_update.skills_to_add, vec!["a".to_string()]);
+        assert!(add_or_update.skills_to_remove.is_empty());
+
+        let remove_selected = calculate_distribution_plan(
+            "test",
+            "Test",
+            &current,
+            &[],
+            &make_request(DistributionIntentMode::RemoveSelected, &["a", "b", "ghost"]),
+        )
+        .unwrap();
+        assert!(remove_selected.skills_to_add.is_empty());
+        assert_eq!(remove_selected.skills_to_remove, vec!["b".to_string()]);
+    }
 }

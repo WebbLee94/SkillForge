@@ -458,7 +458,7 @@ pub(crate) struct ManagedRuleBlock {
 }
 
 fn rule_block_content_matches(block: &ManagedRuleBlock, rule_content: &str) -> bool {
-    block.content == rule_content || block.content.strip_suffix('\n') == Some(rule_content)
+    crate::domain::distribution::policy::managed_block_content_matches(&block.content, rule_content)
 }
 
 fn render_managed_rule_block(rule_id: &str, content: &str) -> String {
@@ -1221,6 +1221,21 @@ mod tests {
         }];
         let err = validate_single_file_rule_blocks(&conn, &blocks).unwrap_err();
         assert!(err.to_string().contains("没有对应的"), "got: {err}");
+    }
+
+    #[test]
+    fn test_validate_single_file_rule_blocks_rejects_modified_block_content() {
+        let conn = setup_db();
+        insert_rule(&conn, "rule-1", "Rule 1", "# Rule 1\n", "md");
+        let blocks = vec![ManagedRuleBlock {
+            id: "rule-1".to_string(),
+            content: "# Rule 1 edited by user\n".to_string(),
+            raw: String::new(),
+            start: 0,
+            end: 0,
+        }];
+        let err = validate_single_file_rule_blocks(&conn, &blocks).unwrap_err();
+        assert!(err.to_string().contains("标记块内容不匹配"), "got: {err}");
     }
 
     #[test]

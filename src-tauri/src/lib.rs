@@ -1,9 +1,13 @@
+pub mod adapters;
+pub mod application;
 pub mod commands;
 pub mod db;
+pub mod domain;
 pub mod engine;
 pub mod error;
 pub mod fs_reveal;
 pub mod plugins;
+pub mod ports;
 pub mod types;
 
 use std::sync::{Arc, Mutex};

@@ -355,124 +355,20 @@ pub struct FileTreeNode {
     pub children: Vec<FileTreeNode>,
 }
 
-// ── Distribution Plan (read-only) ───────────────────────────────────
-
-/// Per-platform distribution plan — the diff between current state and desired state.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct PlatformDistributionPlan {
-    pub platform_id: String,
-    pub platform_name: String,
-    pub skills_to_add: Vec<String>,
-    pub skills_to_update: Vec<String>,
-    pub skills_to_remove: Vec<String>,
-    pub rules_to_add: Vec<String>,
-    pub rules_to_update: Vec<String>,
-    pub rules_to_remove: Vec<String>,
-}
-
-/// Top-level read-only distribution plan covering multiple platforms.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct DistributionPlan {
-    pub platforms: Vec<PlatformDistributionPlan>,
-    /// True if any platform has any removals (skills or rules)
-    pub has_removals: bool,
-}
-
-/// Current filesystem entries that SkillForge can prove it owns.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ManagedDistributionState {
-    pub platforms: Vec<ManagedPlatformState>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ManagedPlatformState {
-    pub platform_id: String,
-    pub platform_name: String,
-    pub scope: String,
-    pub project_path: Option<String>,
-    pub skills: Vec<ManagedDistributionEntry>,
-    pub rules: Vec<ManagedDistributionEntry>,
-    pub local_skills: Vec<LocalDistributionEntry>,
-    pub local_rules: Vec<LocalDistributionEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct ManagedDistributionEntry {
-    pub id: String,
-    pub path: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct LocalDistributionEntry {
-    pub name: String,
-    pub path: String,
-}
+// ── Distribution（领域模型已迁移至 domain/distribution，此处保留类型路径兼容）──
+//
+// 分发域的不可变模型已原样迁移到 `crate::domain::distribution::model`，
+// 校验实现迁移到 `validation`；通过 re-export 保持 `crate::types::*`
+// 的既有引用路径与 IPC 载荷形状完全不变。
+pub use crate::domain::distribution::model::{
+    DistributionIntent, DistributionIntentMode, DistributionPlan, DistributionRequest,
+    LocalDistributionEntry, ManagedDistributionEntry, ManagedDistributionState,
+    ManagedPlatformState, PlatformDistributionPlan,
+};
 
 /// reveal_path 命令返回：实际揭示的路径 + 是否发生了祖先回退。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RevealPathResult {
     pub revealed_path: String,
     pub fallback: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum DistributionIntentMode {
-    Preserve,
-    AddOrUpdate,
-    RemoveSelected,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DistributionIntent {
-    pub mode: DistributionIntentMode,
-    #[serde(default)]
-    pub ids: Vec<String>,
-}
-
-impl DistributionIntent {
-    pub fn validate(&self, capability: &str) -> Result<(), crate::error::AppError> {
-        if matches!(self.mode, DistributionIntentMode::Preserve) && !self.ids.is_empty() {
-            return Err(crate::error::AppError::DistributionInvalid(format!(
-                "{} 使用 preserve 时不能携带 IDs",
-                capability
-            )));
-        }
-        Ok(())
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub struct DistributionRequest {
-    pub scene_id: Option<String>,
-    pub platform_ids: Vec<String>,
-    pub scope: String,
-    pub project_id: Option<String>,
-    pub skills: DistributionIntent,
-    pub rules: DistributionIntent,
-}
-
-impl DistributionRequest {
-    pub fn validate(&self) -> Result<(), crate::error::AppError> {
-        match self.scope.as_str() {
-            "global" if self.project_id.is_some() => {
-                Err(crate::error::AppError::DistributionInvalid(
-                    "global 范围不能携带 project_id".to_string(),
-                ))
-            }
-            "project" if self.project_id.is_none() => {
-                Err(crate::error::AppError::DistributionInvalid(
-                    "project 范围必须提供 project_id".to_string(),
-                ))
-            }
-            "global" | "project" => {
-                self.skills.validate("skills")?;
-                self.rules.validate("rules")
-            }
-            _ => Err(crate::error::AppError::DistributionInvalid(
-                "scope 必须是 global 或 project".to_string(),
-            )),
-        }
-    }
 }
