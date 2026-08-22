@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ResourceCollection } from '../common/ResourceCollection';
+import { ResourceCollection } from '../../domains/resources/ResourceCollection';
 import { BOUNDED_STEP } from '../../lib/useBoundedReveal';
 import type { Tag, Skill } from '../../types';
 

@@ -6,7 +6,7 @@ import type { Platform } from '../../types';
 
 /* Hoisted mocks */
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
-vi.mock('../../components/DistributionWorkspace', () => ({
+vi.mock('../../domains/distribution/DistributionWorkspace', () => ({
   DistributionWorkspace: ({ scope }: { scope?: string }) => (
     <div data-testid="distribution-workspace" data-scope={scope || 'global'}>
       workspace

@@ -10,7 +10,7 @@ import {
   DistributionWorkspace,
   resolveRevealAsSkillsDir,
   resolveStep1PathDisplay,
-} from '../common/DistributionWorkspace';
+} from '../../domains/distribution/DistributionWorkspace';
 import { useAppStore } from '../../stores/appStore';
 import { SELECT_CLASSES } from '../../lib/ui-tokens';
 import type { Platform, Project, Scene, Rule, Skill } from '../../types';

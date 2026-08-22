@@ -1,24 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import { sanitizePath } from '../lib/utils';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
-import type { Platform, PlatformEntryCount } from '../types';
-import {
-  Plus,
-  Settings,
-  Folder,
-  FolderOpen,
-  OctagonX,
-  Pencil,
-  CheckSquare,
-  Send,
-  Search,
-} from 'lucide-react';
+import type { PlatformEntryCount } from '../types';
+import { Search } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ipc } from '../lib/ipc';
-import { AddProjectDialog } from '../components/common/AddProjectDialog';
-import { ProjectBatchBar } from '../components/common/ProjectBatchBar';
+import { AddProjectDialog } from '../domains/projects/AddProjectDialog';
+import { ProjectDistributionItem } from '../domains/projects/ProjectDistributionItem';
+import { ProjectBatchBar } from '../domains/distribution/ProjectBatchBar';
+import { ProjectDistributionToolbar } from '../domains/projects/ProjectDistributionToolbar';
+import {
+  ProjectDistributionEmptyProjectsState,
+  ProjectDistributionNoPlatformsState,
+} from '../domains/projects/ProjectDistributionEmptyStates';
 import { useBatchMode } from '../hooks/useBatchMode';
 
 /**
@@ -33,67 +28,6 @@ import { useBatchMode } from '../hooks/useBatchMode';
  * 仓库内页面组件普遍超过 250 纯行（替换前的本文件为 449 行），拆分单调用方的
  * 行组件只会引入无意义的间接层。
  */
-
-interface ProjectStatsRowProps {
-  projectId: string;
-  enabledPlatforms: Platform[];
-  stats: Record<string, PlatformEntryCount> | undefined;
-  t: (key: string, options?: Record<string, unknown>) => string;
-}
-
-const isMacOS = () =>
-  typeof navigator !== 'undefined' &&
-  /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
-
-function ProjectStatsRow({
-  enabledPlatforms,
-  stats,
-  t,
-}: ProjectStatsRowProps) {
-  const rows = enabledPlatforms
-    .map((platform) => {
-      const entry = stats?.[platform.id];
-      return {
-        platform,
-        skills: entry?.skills ?? 0,
-        rules: entry?.rules ?? 0,
-        dirExists: entry?.dir_exists ?? false,
-      };
-    })
-    .filter((r) => r.dirExists && (r.skills > 0 || r.rules > 0));
-  if (rows.length === 0) {
-    return (
-      <div
-        data-testid="project-stats-empty"
-        className="mt-1 text-xs text-muted-foreground"
-      >
-        {t('projects.statsEmpty')}
-      </div>
-    );
-  }
-  return (
-    <div className="mt-1 flex flex-wrap gap-1.5">
-      {rows.map((r) => (
-        <span
-          key={r.platform.id}
-          data-testid={`project-stats-chip-${r.platform.id}`}
-          title={t('projectPlatformStatsFull', {
-            platform: r.platform.name,
-            skills: r.skills,
-            rules: r.rules,
-          })}
-          className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-xs text-muted-foreground hover:border-primary/40"
-        >
-          {t('projectPlatformStatsShort', {
-            platform: r.platform.name,
-            skills: r.skills,
-            rules: r.rules,
-          })}
-        </span>
-      ))}
-    </div>
-  );
-}
 
 export function ProjectDistribution() {
   const { t } = useTranslation(['distribution', 'common']);
@@ -204,68 +138,27 @@ export function ProjectDistribution() {
 
   return (
     <div className="flex h-full flex-col overflow-y-auto">
-      <div className="page-toolbar flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="page-title mb-1 text-foreground">
-            {t('projectTitle')}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {t('projectSubtitle')}
-          </p>
-        </div>
-        <div
-          data-testid="project-page-actions"
-          className="flex shrink-0 items-center gap-2"
-        >
-          <button
-            aria-label="batchMode"
-            onClick={batch.toggle}
-            className={`inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors ${
-              batch.enabled ? 'bg-primary/10 border-primary/30' : ''
-            }`}
-          >
-            <CheckSquare className="h-4 w-4" />
-            {batch.enabled
-              ? t('common:actions.exitSelect')
-              : t('common:actions.batchSelect')}
-          </button>
-          <button
-            onClick={() => setShowAddDialog(true)}
-            className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" /> {t('addProject')}
-          </button>
-        </div>
-      </div>
+      <ProjectDistributionToolbar
+        title={t('projectTitle')}
+        subtitle={t('projectSubtitle')}
+        batchEnabled={batch.enabled}
+        batchSelectLabel={t('common:actions.batchSelect')}
+        exitSelectLabel={t('common:actions.exitSelect')}
+        addProjectLabel={t('addProject')}
+        onToggleBatch={batch.toggle}
+        onAddProject={() => setShowAddDialog(true)}
+      />
 
       {projects.length === 0 &&
       platforms.filter((p) => p.enabled).length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Folder className="h-10 w-10 mb-4 text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            {t('noProjects')}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6 max-w-md">
-            {t('noProjectsHint')}
-          </p>
-        </div>
+        <ProjectDistributionEmptyProjectsState title={t('noProjects')} hint={t('noProjectsHint')} />
       ) : platforms.filter((p) => p.enabled).length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <OctagonX className="h-10 w-10 mb-4 text-muted-foreground" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            {t('noEnabledPlatforms') || '暂无启用的 Agent 平台'}
-          </h2>
-          <p className="text-sm text-muted-foreground mb-6 max-w-md">
-            {t('noEnabledPlatformsHint') ||
-              '请先在设置中开启至少一个 Agent 平台'}
-          </p>
-          <button
-            onClick={() => useAppStore.getState().setActiveNav('settings')}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Settings className="h-4 w-4" /> {t('goToSettings') || '前往设置'}
-          </button>
-        </div>
+        <ProjectDistributionNoPlatformsState
+          title={t('noEnabledPlatforms') || '暂无启用的 Agent 平台'}
+          hint={t('noEnabledPlatformsHint') || '请先在设置中开启至少一个 Agent 平台'}
+          actionLabel={t('goToSettings') || '前往设置'}
+          onGoToSettings={() => useAppStore.getState().setActiveNav('settings')}
+        />
       ) : (
         <>
           {/* 搜索行：位于标题行下一行 */}
@@ -291,111 +184,31 @@ export function ProjectDistribution() {
           ) : (
             <ul className="space-y-2">
               {filteredProjects.map((project) => (
-                <li
+                <ProjectDistributionItem
                   key={project.id}
-                  data-testid={`project-card-${project.id}`}
-                  className="group/card rounded-lg border border-border bg-card p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    {batch.enabled && (
-                      <input
-                        type="checkbox"
-                        data-testid={`batch-check-${project.id}`}
-                        aria-label={`select ${project.name}`}
-                        checked={batch.isSelected(project.id)}
-                        onChange={() => batch.toggleSelect(project.id)}
-                        className="h-4 w-4 shrink-0"
-                      />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      {editingId === project.id ? (
-                        <input
-                          type="text"
-                          data-testid="rename-input"
-                          value={editNameValue}
-                          onChange={(e) => setEditNameValue(e.target.value)}
-                          onBlur={() => commitRename(project.id, editNameValue)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              void commitRename(project.id, editNameValue);
-                            }
-                            if (e.key === 'Escape') {
-                              setEditingId(null);
-                            }
-                          }}
-                          autoFocus
-                          className="w-full rounded border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      ) : (
-                        <div
-                          data-testid={`project-name-zone-${project.id}`}
-                          className="group flex items-center gap-2"
-                        >
-                          <span className="truncate font-medium">
-                            {project.name}
-                          </span>
-                          <button
-                            aria-label="renameProject"
-                            data-testid={`project-rename-${project.id}`}
-                            onClick={() => {
-                              setEditingId(project.id);
-                              setEditNameValue(project.name);
-                            }}
-                            className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground action-reveal"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      )}
-                      <div
-                        data-testid={`project-path-zone-${project.id}`}
-                        className="group flex items-center gap-2"
-                      >
-                        <div className="truncate text-xs text-muted-foreground">
-                          {sanitizePath(project.path)}
-                        </div>
-                        <button
-                          aria-label={isMacOS() ? t('ws.revealMac') : t('ws.revealWin')}
-                          title={isMacOS() ? t('ws.revealMac') : t('ws.revealWin')}
-                          data-testid={`project-reveal-${project.id}`}
-                          onClick={() => {
-                            ipc
-                              .revealPath(project.path, false)
-                              .then((res) => {
-                                if (res.fallback) {
-                                  useAppStore
-                                    .getState()
-                                    .addToast(t('ws.revealFallback'), 'info');
-                                }
-                              })
-                              .catch(() =>
-                                useAppStore
-                                  .getState()
-                                  .addToast(t('ws.revealFailed'), 'error')
-                              );
-                          }}
-                          className="shrink-0 rounded-md border border-border p-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground action-reveal"
-                        >
-                          <FolderOpen className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <button
-                      data-testid={`go-distribute-${project.id}`}
-                      onClick={() => goDistribute(project.id)}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
-                    >
-                      <Send className="h-3.5 w-3.5" />
-                      {t('goDistributeInWorkspace')}
-                    </button>
-                  </div>
-                  <ProjectStatsRow
-                    projectId={project.id}
-                    enabledPlatforms={enabledPlatforms}
-                    stats={platformStats[project.id]}
-                    t={t}
-                  />
-                </li>
+                  project={project}
+                  enabledPlatforms={enabledPlatforms}
+                  stats={platformStats[project.id]}
+                  batchEnabled={batch.enabled}
+                  isSelected={batch.isSelected(project.id)}
+                  editing={editingId === project.id}
+                  editNameValue={editNameValue}
+                  onSelectToggle={() => batch.toggleSelect(project.id)}
+                  onEditStart={() => {
+                    setEditingId(project.id);
+                    setEditNameValue(project.name);
+                  }}
+                  onEditNameChange={setEditNameValue}
+                  onEditCommit={() => void commitRename(project.id, editNameValue)}
+                  onEditCancel={() => setEditingId(null)}
+                  onGoDistribute={() => goDistribute(project.id)}
+                  onRevealFallback={() =>
+                    useAppStore.getState().addToast(t('ws.revealFallback'), 'info')
+                  }
+                  onRevealFailed={() =>
+                    useAppStore.getState().addToast(t('ws.revealFailed'), 'error')
+                  }
+                />
               ))}
             </ul>
           )}

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { BatchTagDialog } from '../common/BatchTagDialog';
+import { BatchTagDialog } from '../../domains/tags/BatchTagDialog';
 import type { Tag } from '../../types';
 
 vi.mock('react-i18next', () => ({

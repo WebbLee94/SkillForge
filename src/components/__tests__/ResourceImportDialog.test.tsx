@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ResourceImportDialog, type ImportItem } from '../common/ResourceImportDialog';
+import { ResourceImportDialog, type ImportItem } from '../../domains/resources/ResourceImportDialog';
 import { BOUNDED_STEP } from '../../lib/useBoundedReveal';
 
 vi.mock('react-i18next', () => ({
