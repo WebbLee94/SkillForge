@@ -1,6 +1,9 @@
-import { memo, useState, useEffect, useRef } from 'react';
+import { Suspense, lazy, memo, useState, useEffect, useRef } from 'react';
 import { cn } from '../../lib/utils';
-import { RulePreviewPanel } from '../../domains/rules/RulePreviewPanel';
+
+const RulePreviewPanel = lazy(
+  () => import('../../components/RulePreviewPanel.lazy')
+);
 
 type ViewMode = 'edit' | 'preview' | 'split';
 
@@ -107,7 +110,9 @@ export const RuleEditor = memo(function RuleEditor({
               <span className="text-xs text-muted-foreground">Preview</span>
             </div>
             <div className="flex-1 overflow-y-auto bg-background">
-              <RulePreviewPanel content={previewContent} format={format} />
+              <Suspense fallback={null}>
+                <RulePreviewPanel content={previewContent} format={format} />
+              </Suspense>
             </div>
           </div>
         )}

@@ -5,19 +5,37 @@ import {
   Navigate,
   useNavigate,
 } from 'react-router-dom';
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
+import type { ComponentType } from 'react';
 import { AppShell } from './app/AppShell';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import { Dashboard } from './domains/dashboard/Dashboard';
-import { SkillLibrary } from './pages/SkillLibrary';
-import { RulesManager } from './pages/RulesManager';
-import { SceneEditor } from './domains/scenes/SceneEditor';
-import { GlobalDistribution } from './domains/distribution/GlobalDistribution';
-import { ProjectDistribution } from './domains/distribution/ProjectDistribution';
-import { Settings } from './domains/settings/Settings';
 import { useAppStore } from './stores/appStore';
 import { useWatcherStore } from './stores/watcherStore';
 import { SyncConfirmDialog } from './app/SyncConfirmDialog';
+
+function lazyNamed<T extends Record<string, ComponentType<Record<string, never>>>>(
+  loader: () => Promise<T>,
+  exportName: keyof T
+) {
+  return lazy(async () => {
+    const module = await loader();
+    return { default: module[exportName] };
+  });
+}
+
+const Dashboard = lazyNamed(() => import('./domains/dashboard/Dashboard'), 'Dashboard');
+const SkillLibrary = lazyNamed(() => import('./pages/SkillLibrary'), 'SkillLibrary');
+const RulesManager = lazyNamed(() => import('./pages/RulesManager'), 'RulesManager');
+const SceneEditor = lazyNamed(() => import('./domains/scenes/SceneEditor'), 'SceneEditor');
+const GlobalDistribution = lazyNamed(
+  () => import('./domains/distribution/GlobalDistribution'),
+  'GlobalDistribution'
+);
+const ProjectDistribution = lazyNamed(
+  () => import('./domains/distribution/ProjectDistribution'),
+  'ProjectDistribution'
+);
+const Settings = lazyNamed(() => import('./domains/settings/Settings'), 'Settings');
 
 const routeToNavMap: Record<string, string> = {
   '/': 'dashboard',
@@ -99,13 +117,13 @@ function App() {
         <NavSync />
         <Routes>
           <Route element={<AppShell />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/skills" element={<SkillLibrary />} />
-            <Route path="/rules" element={<RulesManager />} />
-            <Route path="/scenes" element={<SceneEditor />} />
-            <Route path="/workspace" element={<GlobalDistribution />} />
-            <Route path="/projects" element={<ProjectDistribution />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/" element={<Suspense fallback={null}><Dashboard /></Suspense>} />
+            <Route path="/skills" element={<Suspense fallback={null}><SkillLibrary /></Suspense>} />
+            <Route path="/rules" element={<Suspense fallback={null}><RulesManager /></Suspense>} />
+            <Route path="/scenes" element={<Suspense fallback={null}><SceneEditor /></Suspense>} />
+            <Route path="/workspace" element={<Suspense fallback={null}><GlobalDistribution /></Suspense>} />
+            <Route path="/projects" element={<Suspense fallback={null}><ProjectDistribution /></Suspense>} />
+            <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

@@ -1,9 +1,15 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import {
+  Suspense,
+  lazy,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { cn, sanitizePath } from '../lib/utils';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
-import { RuleEditor } from '../domains/rules/RuleEditor';
 import { TagFilterBar } from '../components/ui/tags/TagFilterBar';
 import { TagManagerDialog } from '../domains/tags/TagManagerDialog';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -14,11 +20,7 @@ import {
 import { ResourceCollection } from '../domains/resources/ResourceCollection';
 import { BatchActionBar } from '../domains/resources/BatchActionBar';
 import { BatchTagDialog } from '../domains/tags/BatchTagDialog';
-import { Inspector } from '../domains/inspector/Inspector';
-import {
-  ResourceImportDialog,
-  type ImportItem,
-} from '../domains/resources/ResourceImportDialog';
+import type { ImportItem } from '../domains/resources/ResourceImportDialog';
 import { useBatchMode } from '../hooks/useBatchMode';
 import { useDialogA11y } from '../hooks/useDialogA11y';
 import {
@@ -42,10 +44,15 @@ import {
   ChevronsUpDown,
   FolderOpen,
 } from 'lucide-react';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
 import { readTextFile } from '@tauri-apps/plugin-fs';
 import { ipc } from '../lib/ipc';
 import type { CreateRuleDTO, UpdateRuleDTO } from '../types';
+
+const RuleEditor = lazy(() => import('../domains/rules/RuleEditor.lazy'));
+const Inspector = lazy(() => import('../domains/inspector/Inspector.lazy'));
+const ResourceImportDialog = lazy(
+  () => import('../domains/resources/ResourceImportDialog.lazy')
+);
 
 const formatBadge: Record<string, { bg: string; text: string }> = {
   mdc: { bg: 'bg-primary/10', text: 'text-primary' },
@@ -349,6 +356,7 @@ export function RulesManager() {
   // === 导入预览（规则文件 .md/.mdc） ===
   const pickRuleFiles = useCallback(async () => {
     try {
+      const { open: openDialog } = await import('@tauri-apps/plugin-dialog');
       const selected = await openDialog({
         multiple: true,
         filters: [{ name: t('ruleFileFilter'), extensions: ['mdc', 'md'] }],
@@ -774,69 +782,71 @@ export function RulesManager() {
           )}
         >
           {editingRule && !editMode && (
-            <Inspector
-              key={editingRule.id}
-              resourceType="rule"
-              title={editingRule.name}
-              updatedAt={editingRule.updated_at}
-              contentPreview={editingRule.content}
-              tags={editingRule.tags || []}
-              allTags={tags}
-              onSaveTags={(added, removed) =>
-                saveRuleTags(editingRule.id, added, removed)
-              }
-              onCreateTag={(name, color) =>
-                createTag({ name, color, tag_type: 'rule' })
-              }
-              onEdit={() => setEditMode(true)}
-              deleteLabel={tc('actions.delete')}
-              onDelete={() => setConfirmDeleteRuleId(editingRule.id)}
-              onGoDistribute={() => goDistribute([editingRule.id])}
-              goDistributeLabel={tc('batch.goDistribute')}
-              onClose={() => setEditingRule(null)}
-            >
-              <div
-                data-testid="rule-local-path-row"
-                className="group flex items-center justify-between gap-3 text-sm"
+            <Suspense fallback={null}>
+              <Inspector
+                key={editingRule.id}
+                resourceType="rule"
+                title={editingRule.name}
+                updatedAt={editingRule.updated_at}
+                contentPreview={editingRule.content}
+                tags={editingRule.tags || []}
+                allTags={tags}
+                onSaveTags={(added, removed) =>
+                  saveRuleTags(editingRule.id, added, removed)
+                }
+                onCreateTag={(name, color) =>
+                  createTag({ name, color, tag_type: 'rule' })
+                }
+                onEdit={() => setEditMode(true)}
+                deleteLabel={tc('actions.delete')}
+                onDelete={() => setConfirmDeleteRuleId(editingRule.id)}
+                onGoDistribute={() => goDistribute([editingRule.id])}
+                goDistributeLabel={tc('batch.goDistribute')}
+                onClose={() => setEditingRule(null)}
               >
-                <span className="shrink-0 text-muted-foreground">
-                  {t('detail.localPath')}
-                </span>
-                {managedCopyPath ? (
-                  <div className="flex items-center gap-1.5">
-                    <span className="max-w-[180px] truncate text-xs text-foreground">
-                      {sanitizePath(managedCopyPath)}
-                    </span>
-                    <button
-                      aria-label={`${t('detail.localPath')} ${sanitizePath(managedCopyPath)}`}
-                      title={t('detail.openInFinder')}
-                      className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary transition-colors action-reveal"
-                      onClick={() => {
-                        ipc
-                          .revealPath(managedCopyPath, false)
-                          .then((res) => {
-                            if (res.fallback)
+                <div
+                  data-testid="rule-local-path-row"
+                  className="group flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="shrink-0 text-muted-foreground">
+                    {t('detail.localPath')}
+                  </span>
+                  {managedCopyPath ? (
+                    <div className="flex items-center gap-1.5">
+                      <span className="max-w-[180px] truncate text-xs text-foreground">
+                        {sanitizePath(managedCopyPath)}
+                      </span>
+                      <button
+                        aria-label={`${t('detail.localPath')} ${sanitizePath(managedCopyPath)}`}
+                        title={t('detail.openInFinder')}
+                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-primary transition-colors action-reveal"
+                        onClick={() => {
+                          ipc
+                            .revealPath(managedCopyPath, false)
+                            .then((res) => {
+                              if (res.fallback)
+                                useAppStore
+                                  .getState()
+                                  .addToast(t('ws.revealFallback'), 'info');
+                            })
+                            .catch(() =>
                               useAppStore
                                 .getState()
-                                .addToast(t('ws.revealFallback'), 'info');
-                          })
-                          .catch(() =>
-                            useAppStore
-                              .getState()
-                              .addToast(t('ws.revealFailed'), 'error')
-                          );
-                      }}
-                    >
-                      <FolderOpen className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ) : (
-                  <span className="text-xs text-muted-foreground">
-                    {t('detail.notDistributed')}
-                  </span>
-                )}
-              </div>
-            </Inspector>
+                                .addToast(t('ws.revealFailed'), 'error')
+                            );
+                        }}
+                      >
+                        <FolderOpen className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      {t('detail.notDistributed')}
+                    </span>
+                  )}
+                </div>
+              </Inspector>
+            </Suspense>
           )}
 
           {editingRule && editMode && (
@@ -888,14 +898,16 @@ export function RulesManager() {
                 </div>
               </div>
               <div className="flex-1 overflow-hidden p-4">
-                <RuleEditor
-                  content={editContent}
-                  onChange={setEditContent}
-                  format={
-                    (editingRule.format || 'mdc') as 'mdc' | 'md' | 'yaml'
-                  }
-                  defaultViewMode="preview"
-                />
+                <Suspense fallback={null}>
+                  <RuleEditor
+                    content={editContent}
+                    onChange={setEditContent}
+                    format={
+                      (editingRule.format || 'mdc') as 'mdc' | 'md' | 'yaml'
+                    }
+                    defaultViewMode="preview"
+                  />
+                </Suspense>
               </div>
 
               {showHistory && (
@@ -995,12 +1007,14 @@ export function RulesManager() {
                   {t('content')}
                 </label>
                 <div className="h-[300px]">
-                  <RuleEditor
-                    content={newContent}
-                    onChange={setNewContent}
-                    format={newFormat}
-                    defaultViewMode="edit"
-                  />
+                  <Suspense fallback={null}>
+                    <RuleEditor
+                      content={newContent}
+                      onChange={setNewContent}
+                      format={newFormat}
+                      defaultViewMode="edit"
+                    />
+                  </Suspense>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
@@ -1023,24 +1037,28 @@ export function RulesManager() {
       )}
 
       {/* 导入预览对话框（§3.8） */}
-      <ResourceImportDialog
-        open={showImportDialog}
-        title={t('importPreview')}
-        items={importItems}
-        importing={importing}
-        itemKindLabel={tc('import.files')}
-        appendLabel={tc('import.append')}
-        confirmLabel={tc('actions.confirmImport')}
-        cancelLabel={tc('actions.cancel')}
-        onAppend={pickRuleFiles}
-        onRemoveItem={removeImportItem}
-        onRetryItem={retryImportItem}
-        onConfirm={executeImport}
-        onCancel={() => {
-          setShowImportDialog(false);
-          setImportItems([]);
-        }}
-      />
+      {showImportDialog && (
+        <Suspense fallback={null}>
+          <ResourceImportDialog
+            open={showImportDialog}
+            title={t('importPreview')}
+            items={importItems}
+            importing={importing}
+            itemKindLabel={tc('import.files')}
+            appendLabel={tc('import.append')}
+            confirmLabel={tc('actions.confirmImport')}
+            cancelLabel={tc('actions.cancel')}
+            onAppend={pickRuleFiles}
+            onRemoveItem={removeImportItem}
+            onRetryItem={retryImportItem}
+            onConfirm={executeImport}
+            onCancel={() => {
+              setShowImportDialog(false);
+              setImportItems([]);
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 批量管理所选标签 */}
       <BatchTagDialog

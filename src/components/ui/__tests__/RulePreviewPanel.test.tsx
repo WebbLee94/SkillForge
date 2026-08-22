@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { RulePreviewPanel } from '../../RulePreviewPanel';
 
 describe('RulePreviewPanel', () => {
@@ -15,14 +15,18 @@ describe('RulePreviewPanel', () => {
 
   it('renders markdown content when format is md', () => {
     render(<RulePreviewPanel content="# Hello\nThis is **bold** text." format="md" />);
-    expect(screen.getByText('Hello', { exact: false })).toBeDefined();
-    expect(screen.getByText('bold')).toBeDefined();
+    return waitFor(() => {
+      expect(screen.getByText('Hello', { exact: false })).toBeDefined();
+      expect(screen.getByText('bold')).toBeDefined();
+    });
   });
 
   it('renders markdown content when format is mdc', () => {
     render(<RulePreviewPanel content="## Section\nSome content" format="mdc" />);
-    expect(screen.getByText('Section', { exact: false })).toBeDefined();
-    expect(screen.getByText('Some content', { exact: false })).toBeDefined();
+    return waitFor(() => {
+      expect(screen.getByText('Section', { exact: false })).toBeDefined();
+      expect(screen.getByText('Some content', { exact: false })).toBeDefined();
+    });
   });
 
   it('renders YAML key-value pairs when format is not md/mdc', () => {
@@ -74,9 +78,11 @@ describe('RulePreviewPanel', () => {
   it('renders GFM markdown (tables, links)', () => {
     const mdContent = '| A | B |\n|---|---|\n| 1 | 2 |\n\n[link](https://example.com)';
     render(<RulePreviewPanel content={mdContent} format="md" />);
-    expect(screen.getByText('A', { exact: false })).toBeDefined();
-    expect(screen.getByText('B', { exact: false })).toBeDefined();
-    expect(screen.getByText('link')).toBeDefined();
+    return waitFor(() => {
+      expect(screen.getByText('A', { exact: false })).toBeDefined();
+      expect(screen.getByText('B', { exact: false })).toBeDefined();
+      expect(screen.getByText('link')).toBeDefined();
+    });
   });
 
   it('handles format with no key-value matches', () => {

@@ -1,6 +1,8 @@
-import { memo, useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Suspense, lazy, memo, useMemo } from 'react';
+
+const RuleMarkdownRenderer = lazy(
+  () => import('./RuleMarkdownRenderer.lazy')
+);
 
 interface RulePreviewPanelProps {
   content: string;
@@ -56,7 +58,9 @@ export const RulePreviewPanel = memo(function RulePreviewPanel({
   if (isMarkdown) {
     return (
       <div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto p-4">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        <Suspense fallback={null}>
+          <RuleMarkdownRenderer content={content} />
+        </Suspense>
       </div>
     );
   }

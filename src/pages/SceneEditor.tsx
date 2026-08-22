@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn, formatDate } from '../lib/utils';
 import {
@@ -11,13 +11,18 @@ import {
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
-import { SceneEditorDrawer } from '../domains/scenes/SceneEditorDrawer';
 import type { SceneDraft } from '../domains/scenes/SceneEditorDrawer';
 import { SceneListSidebar } from '../domains/scenes/SceneListSidebar';
-import { SceneInvalidRefsDialog } from '../domains/scenes/SceneInvalidRefsDialog';
 import { SceneDetailHeader } from '../domains/scenes/SceneDetailHeader';
 import { SceneDetailActions } from '../domains/scenes/SceneDetailActions';
 import type { SceneDetail, Tag } from '../types';
+
+const SceneEditorDrawer = lazy(
+  () => import('../domains/scenes/SceneEditorDrawer.lazy')
+);
+const SceneInvalidRefsDialog = lazy(
+  () => import('../domains/scenes/SceneInvalidRefsDialog.lazy')
+);
 
 type ListState = 'loading' | 'ready' | 'error';
 type ListSort = 'recent' | 'name';
@@ -419,37 +424,41 @@ export function SceneEditor() {
 
       {/* Configuration drawer */}
       {drawerOpen && currentSceneDetail && (
-        <SceneEditorDrawer
-          key={currentSceneDetail.scene.id}
-          saved={currentSceneDetail}
-          skills={skills}
-          rules={rules}
-          tags={tags}
-          onSave={handleDrawerSave}
-          onClose={() => setDrawerOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <SceneEditorDrawer
+            key={currentSceneDetail.scene.id}
+            saved={currentSceneDetail}
+            skills={skills}
+            rules={rules}
+            tags={tags}
+            onSave={handleDrawerSave}
+            onClose={() => setDrawerOpen(false)}
+          />
+        </Suspense>
       )}
 
       {/* Invalid-reference gate dialog */}
       {currentSceneDetail && (
-        <SceneInvalidRefsDialog
-          open={showInvalidRefDialog}
-          title={t('detail.invalidRefsTitle')}
-          hint={t('detail.invalidRefsHint')}
-          cleanupLabel={t('detail.invalidRefsCleanup')}
-          useValidLabel={t('detail.invalidRefsUseValid')}
-          cancelLabel={tc('actions.cancel')}
-          invalidRefs={invalidRefItems}
-          onClose={() => setShowInvalidRefDialog(false)}
-          onCleanup={() => {
-            setShowInvalidRefDialog(false);
-            setDrawerOpen(true);
-          }}
-          onUseValid={() => {
-            carryToDistribution(currentSceneDetail);
-            setShowInvalidRefDialog(false);
-          }}
-        />
+        <Suspense fallback={null}>
+          <SceneInvalidRefsDialog
+            open={showInvalidRefDialog}
+            title={t('detail.invalidRefsTitle')}
+            hint={t('detail.invalidRefsHint')}
+            cleanupLabel={t('detail.invalidRefsCleanup')}
+            useValidLabel={t('detail.invalidRefsUseValid')}
+            cancelLabel={tc('actions.cancel')}
+            invalidRefs={invalidRefItems}
+            onClose={() => setShowInvalidRefDialog(false)}
+            onCleanup={() => {
+              setShowInvalidRefDialog(false);
+              setDrawerOpen(true);
+            }}
+            onUseValid={() => {
+              carryToDistribution(currentSceneDetail);
+              setShowInvalidRefDialog(false);
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Delete confirmation */}

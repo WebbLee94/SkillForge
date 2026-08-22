@@ -1,5 +1,9 @@
+import { Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DistributionWorkspace } from '../domains/distribution/DistributionWorkspace';
+
+const DistributionWorkspace = lazy(
+  () => import('../domains/distribution/DistributionWorkspace.lazy')
+);
 
 export function GlobalDistribution() {
   const { t } = useTranslation('distribution');
@@ -12,7 +16,9 @@ export function GlobalDistribution() {
       <p className="text-xs text-muted-foreground mb-3">
         {t('globalSubtitle')}
       </p>
-      <DistributionWorkspace scope="global" />
+      <Suspense fallback={null}>
+        <DistributionWorkspace scope="global" />
+      </Suspense>
     </div>
   );
 }

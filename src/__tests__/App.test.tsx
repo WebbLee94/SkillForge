@@ -10,6 +10,16 @@ const watcherMocks = vi.hoisted(() => ({
   fetchEvents: vi.fn().mockResolvedValue(undefined),
 }));
 
+const routeLoadCounts = vi.hoisted(() => ({
+  dashboard: 0,
+  skills: 0,
+  rules: 0,
+  scenes: 0,
+  globalDistribution: 0,
+  projectDistribution: 0,
+  settings: 0,
+}));
+
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -27,60 +37,93 @@ vi.mock('../stores/watcherStore', () => ({
   },
 }));
 
-vi.mock('../pages/Dashboard', () => ({
-  Dashboard: () =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'page-dashboard' },
-      'Dashboard'
-    ),
-}));
-vi.mock('../pages/SkillLibrary', () => ({
-  SkillLibrary: () =>
-    React.createElement('div', { 'data-testid': 'page-skills' }, 'Skills'),
-}));
-vi.mock('../pages/RulesManager', () => ({
-  RulesManager: () =>
-    React.createElement('div', { 'data-testid': 'page-rules' }, 'Rules'),
-}));
-vi.mock('../pages/SceneEditor', () => ({
-  SceneEditor: () =>
-    React.createElement('div', { 'data-testid': 'page-scenes' }, 'Scenes'),
-}));
-vi.mock('../pages/GlobalDistribution', () => ({
-  GlobalDistribution: () =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'page-global-distribution' },
-      'Global'
-    ),
-}));
-vi.mock('../pages/ProjectDistribution', () => ({
-  ProjectDistribution: () =>
-    React.createElement(
-      'div',
-      { 'data-testid': 'page-project-distribution' },
-      'Project'
-    ),
-}));
-vi.mock('../pages/Settings', () => ({
-  Settings: () =>
-    React.createElement('div', { 'data-testid': 'page-settings' }, 'Settings'),
+vi.mock('../domains/dashboard/Dashboard', () => {
+  routeLoadCounts.dashboard += 1;
+  return {
+    Dashboard: () =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'page-dashboard' },
+        'Dashboard'
+      ),
+  };
+});
+vi.mock('../pages/SkillLibrary', () => {
+  routeLoadCounts.skills += 1;
+  return {
+    SkillLibrary: () =>
+      React.createElement('div', { 'data-testid': 'page-skills' }, 'Skills'),
+  };
+});
+vi.mock('../pages/RulesManager', () => {
+  routeLoadCounts.rules += 1;
+  return {
+    RulesManager: () =>
+      React.createElement('div', { 'data-testid': 'page-rules' }, 'Rules'),
+  };
+});
+vi.mock('../domains/scenes/SceneEditor', () => {
+  routeLoadCounts.scenes += 1;
+  return {
+    SceneEditor: () =>
+      React.createElement('div', { 'data-testid': 'page-scenes' }, 'Scenes'),
+  };
+});
+vi.mock('../domains/distribution/GlobalDistribution', () => {
+  routeLoadCounts.globalDistribution += 1;
+  return {
+    GlobalDistribution: () =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'page-global-distribution' },
+        'Global'
+      ),
+  };
+});
+vi.mock('../domains/distribution/ProjectDistribution', () => {
+  routeLoadCounts.projectDistribution += 1;
+  return {
+    ProjectDistribution: () =>
+      React.createElement(
+        'div',
+        { 'data-testid': 'page-project-distribution' },
+        'Project'
+      ),
+  };
+});
+vi.mock('../domains/settings/Settings', () => {
+  routeLoadCounts.settings += 1;
+  return {
+    Settings: () =>
+      React.createElement('div', { 'data-testid': 'page-settings' }, 'Settings'),
+  };
+});
+
+vi.mock('../app/SyncConfirmDialog', () => ({
+  SyncConfirmDialog: () => null,
 }));
 
-  vi.mock('../app/AppShell', async () => {
+vi.mock('../app/AppShell', async () => {
   const { Outlet } = await import('react-router-dom');
   return {
     AppShell: () => React.createElement(Outlet),
   };
 });
-vi.mock('../components/ErrorBoundary', () => ({
+
+vi.mock('../components/common/ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: React.ReactNode }) =>
     React.createElement(React.Fragment, null, children),
 }));
-  vi.mock('../app/SyncConfirmDialog', () => ({
-  SyncConfirmDialog: () => null,
-}));
+
+function resetRouteLoadCounts() {
+  routeLoadCounts.dashboard = 0;
+  routeLoadCounts.skills = 0;
+  routeLoadCounts.rules = 0;
+  routeLoadCounts.scenes = 0;
+  routeLoadCounts.globalDistribution = 0;
+  routeLoadCounts.projectDistribution = 0;
+  routeLoadCounts.settings = 0;
+}
 
 /* ===== Store reset ===== */
 function resetStores() {
@@ -118,8 +161,38 @@ describe('App routing', () => {
   beforeEach(() => {
     resetStores();
     vi.clearAllMocks();
+    resetRouteLoadCounts();
     watcherMocks.listenToWatcher.mockResolvedValue(vi.fn());
     window.history.replaceState({}, '', '/');
+  });
+
+  it('lazy-loads only the initial dashboard route module on first paint', async () => {
+    vi.resetModules();
+    resetRouteLoadCounts();
+
+    const { default: FreshApp } = await import('../App');
+
+    expect(routeLoadCounts.dashboard).toBe(0);
+    expect(routeLoadCounts.skills).toBe(0);
+    expect(routeLoadCounts.rules).toBe(0);
+    expect(routeLoadCounts.scenes).toBe(0);
+    expect(routeLoadCounts.globalDistribution).toBe(0);
+    expect(routeLoadCounts.projectDistribution).toBe(0);
+    expect(routeLoadCounts.settings).toBe(0);
+
+    render(<FreshApp />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('page-dashboard')).toBeDefined();
+    });
+
+    expect(routeLoadCounts.dashboard).toBe(1);
+    expect(routeLoadCounts.skills).toBe(0);
+    expect(routeLoadCounts.rules).toBe(0);
+    expect(routeLoadCounts.scenes).toBe(0);
+    expect(routeLoadCounts.globalDistribution).toBe(0);
+    expect(routeLoadCounts.projectDistribution).toBe(0);
+    expect(routeLoadCounts.settings).toBe(0);
   });
 
   it('renders Dashboard at /', async () => {

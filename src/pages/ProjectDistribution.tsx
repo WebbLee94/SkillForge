@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { Suspense, lazy, useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
@@ -6,9 +6,15 @@ import type { PlatformEntryCount } from '../types';
 import { Search } from 'lucide-react';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import { ipc } from '../lib/ipc';
-import { AddProjectDialog } from '../domains/projects/AddProjectDialog';
-import { ProjectDistributionItem } from '../domains/projects/ProjectDistributionItem';
-import { ProjectBatchBar } from '../domains/distribution/ProjectBatchBar';
+const AddProjectDialog = lazy(
+  () => import('../domains/projects/AddProjectDialog.lazy')
+);
+const ProjectDistributionItem = lazy(
+  () => import('../domains/projects/ProjectDistributionItem.lazy')
+);
+const ProjectBatchBar = lazy(
+  () => import('../domains/distribution/ProjectBatchBar.lazy')
+);
 import { ProjectDistributionToolbar } from '../domains/projects/ProjectDistributionToolbar';
 import {
   ProjectDistributionEmptyProjectsState,
@@ -184,58 +190,66 @@ export function ProjectDistribution() {
           ) : (
             <ul className="space-y-2">
               {filteredProjects.map((project) => (
-                <ProjectDistributionItem
-                  key={project.id}
-                  project={project}
-                  enabledPlatforms={enabledPlatforms}
-                  stats={platformStats[project.id]}
-                  batchEnabled={batch.enabled}
-                  isSelected={batch.isSelected(project.id)}
-                  editing={editingId === project.id}
-                  editNameValue={editNameValue}
-                  onSelectToggle={() => batch.toggleSelect(project.id)}
-                  onEditStart={() => {
-                    setEditingId(project.id);
-                    setEditNameValue(project.name);
-                  }}
-                  onEditNameChange={setEditNameValue}
-                  onEditCommit={() => void commitRename(project.id, editNameValue)}
-                  onEditCancel={() => setEditingId(null)}
-                  onGoDistribute={() => goDistribute(project.id)}
-                  onRevealFallback={() =>
-                    useAppStore.getState().addToast(t('ws.revealFallback'), 'info')
-                  }
-                  onRevealFailed={() =>
-                    useAppStore.getState().addToast(t('ws.revealFailed'), 'error')
-                  }
-                />
-              ))}
+                  <Suspense fallback={null}>
+                    <ProjectDistributionItem
+                      key={project.id}
+                      project={project}
+                      enabledPlatforms={enabledPlatforms}
+                      stats={platformStats[project.id]}
+                      batchEnabled={batch.enabled}
+                      isSelected={batch.isSelected(project.id)}
+                      editing={editingId === project.id}
+                      editNameValue={editNameValue}
+                      onSelectToggle={() => batch.toggleSelect(project.id)}
+                      onEditStart={() => {
+                        setEditingId(project.id);
+                        setEditNameValue(project.name);
+                      }}
+                      onEditNameChange={setEditNameValue}
+                      onEditCommit={() => void commitRename(project.id, editNameValue)}
+                      onEditCancel={() => setEditingId(null)}
+                      onGoDistribute={() => goDistribute(project.id)}
+                      onRevealFallback={() =>
+                        useAppStore.getState().addToast(t('ws.revealFallback'), 'info')
+                      }
+                      onRevealFailed={() =>
+                        useAppStore.getState().addToast(t('ws.revealFailed'), 'error')
+                      }
+                    />
+                  </Suspense>
+                ))}
             </ul>
           )}
 
-          <ProjectBatchBar
-            enabled={batch.enabled}
-            selectedCount={batch.selectedCount}
-            selectedLabel={t('common:messages.selectedCount', {
-              count: batch.selectedCount,
-            })}
-            guideLabel={t('common:batch.guide')}
-            deleteLabel={t('common:batch.delete')}
-            clearLabel={t('common:actions.cancelSelect')}
-            exitLabel={t('common:batch.exit')}
-            onDelete={() => setShowBatchDeleteConfirm(true)}
-            onClear={batch.clear}
-            onExit={batch.exit}
-          />
+          <Suspense fallback={null}>
+            <ProjectBatchBar
+              enabled={batch.enabled}
+              selectedCount={batch.selectedCount}
+              selectedLabel={t('common:messages.selectedCount', {
+                count: batch.selectedCount,
+              })}
+              guideLabel={t('common:batch.guide')}
+              deleteLabel={t('common:batch.delete')}
+              clearLabel={t('common:actions.cancelSelect')}
+              exitLabel={t('common:batch.exit')}
+              onDelete={() => setShowBatchDeleteConfirm(true)}
+              onClear={batch.clear}
+              onExit={batch.exit}
+            />
+          </Suspense>
 
-          <AddProjectDialog
-            open={showAddDialog}
-            onClose={() => setShowAddDialog(false)}
-            onConfirm={async ({ name, path }) => {
-              await addProject(name, path);
-              setShowAddDialog(false);
-            }}
-          />
+          {showAddDialog && (
+            <Suspense fallback={null}>
+              <AddProjectDialog
+                open={showAddDialog}
+                onClose={() => setShowAddDialog(false)}
+                onConfirm={async ({ name, path }: { name: string; path: string }) => {
+                  await addProject(name, path);
+                  setShowAddDialog(false);
+                }}
+              />
+            </Suspense>
+          )}
         </>
       )}
 

@@ -388,8 +388,7 @@ describe('SceneEditor — configuration drawer', () => {
       expect(screen.getByText('detail.configure')).toBeDefined()
     );
     fireEvent.click(screen.getByText('detail.configure'));
-
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     expect(within(dialog).getByText('drawer.availableSkills')).toBeDefined();
     expect(within(dialog).getByText('sceneSkills')).toBeDefined();
     expect(within(dialog).getByText('S1')).toBeDefined();
@@ -421,7 +420,7 @@ describe('SceneEditor — configuration drawer', () => {
       expect(screen.getByText('detail.configure')).toBeDefined()
     );
     fireEvent.click(screen.getByText('detail.configure'));
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
 
     // Rename the scene, add a skill from the pool, then save
     fireEvent.change(within(dialog).getByDisplayValue('Scene One'), {
@@ -452,7 +451,7 @@ describe('SceneEditor — configuration drawer', () => {
       expect(screen.getByText('detail.configure')).toBeDefined()
     );
     fireEvent.click(screen.getByText('detail.configure'));
-    expect(screen.getByRole('dialog')).toBeDefined();
+    await screen.findByRole('dialog');
 
     fireEvent.keyDown(window, { key: 'Escape' });
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());

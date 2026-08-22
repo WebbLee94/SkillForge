@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import {
@@ -8,7 +8,7 @@ import {
   Plus,
   Globe,
 } from 'lucide-react';
-import { ImportPreviewDialog } from '../domains/resources/ImportPreviewDialog';
+const ImportPreviewDialog = lazy(() => import('../domains/resources/ImportPreviewDialog.lazy'));
 import { DashboardQuickEntry } from '../domains/dashboard/DashboardQuickEntry';
 import { DashboardStatsGrid } from '../domains/dashboard/DashboardStatsGrid';
 import { WatcherNotification } from '../domains/dashboard/WatcherNotification';
@@ -207,15 +207,17 @@ export function Dashboard() {
         </div>
       </div>
 
-      <ImportPreviewDialog
-        open={showImportPreview}
-        platforms={importResult}
-        totalNew={totalNew}
-        totalSkipped={totalSkipped}
-        importing={importing}
-        onClose={() => setShowImportPreview(false)}
-        onConfirm={handleConfirmImport}
-      />
+      <Suspense fallback={null}>
+        <ImportPreviewDialog
+          open={showImportPreview}
+          platforms={importResult}
+          totalNew={totalNew}
+          totalSkipped={totalSkipped}
+          importing={importing}
+          onClose={() => setShowImportPreview(false)}
+          onConfirm={handleConfirmImport}
+        />
+      </Suspense>
     </div>
   );
 }

@@ -643,14 +643,15 @@ describe('Settings', () => {
     expect(trigger.textContent).toBe('SSRR');
 
     fireEvent.focus(trigger);
-    expect(screen.getByText('settings:platforms.capLabels.skillsGlobal')).toBeDefined();
-    expect(screen.getByText('settings:platforms.capLabels.skillsProject')).toBeDefined();
-    expect(screen.getByText('settings:platforms.capLabels.rulesGlobal')).toBeDefined();
-    expect(screen.getByText('settings:platforms.capLabels.rulesProject')).toBeDefined();
-    expect(screen.getByText('/home/.claude/skills')).toBeDefined();
-    expect(screen.getByText('/home/.claude/rules')).toBeDefined();
+    const tooltip = await screen.findByTestId('platform-path-tooltip');
+    expect(within(tooltip).getByText('settings:platforms.capLabels.skillsGlobal')).toBeDefined();
+    expect(within(tooltip).getByText('settings:platforms.capLabels.skillsProject')).toBeDefined();
+    expect(within(tooltip).getByText('settings:platforms.capLabels.rulesGlobal')).toBeDefined();
+    expect(within(tooltip).getByText('settings:platforms.capLabels.rulesProject')).toBeDefined();
+    expect(within(tooltip).getByText('/home/.claude/skills')).toBeDefined();
+    expect(within(tooltip).getByText('/home/.claude/rules')).toBeDefined();
     expect(
-      screen.getByText('settings:platforms.capLabels.notSupported')
+      within(tooltip).getByText('settings:platforms.capLabels.notSupported')
     ).toBeDefined();
     expect(screen.queryByText(/检测/i)).toBeNull();
 
@@ -658,9 +659,9 @@ describe('Settings', () => {
     expect(screen.queryByText('settings:platforms.capLabels.skillsGlobal')).toBeNull();
 
     fireEvent.focus(trigger);
-    expect(screen.getByText('settings:platforms.capLabels.skillsGlobal')).toBeDefined();
+    expect(await screen.findByTestId('platform-path-tooltip')).toBeDefined();
     fireEvent.keyDown(trigger, { key: 'Escape' });
-    expect(screen.queryByText('settings:platforms.capLabels.skillsGlobal')).toBeNull();
+    expect(screen.queryByTestId('platform-path-tooltip')).toBeNull();
   });
 
   it('点击能力徽标后 tooltip pin 住，再次点击解除，Esc 也解除', async () => {
@@ -714,18 +715,12 @@ describe('Settings', () => {
 
     const trigger = screen.getByRole('button', { name: /路径与能力/ });
     fireEvent.click(trigger);
-    expect(
-      screen.getByText('settings:platforms.capLabels.skillsGlobal')
-    ).toBeDefined();
+    expect(await screen.findByTestId('platform-path-tooltip')).toBeDefined();
     fireEvent.click(trigger);
-    expect(
-      screen.queryByText('settings:platforms.capLabels.skillsGlobal')
-    ).toBeNull();
+    expect(screen.queryByTestId('platform-path-tooltip')).toBeNull();
     fireEvent.click(trigger);
     fireEvent.keyDown(trigger, { key: 'Escape' });
-    expect(
-      screen.queryByText('settings:platforms.capLabels.skillsGlobal')
-    ).toBeNull();
+    expect(screen.queryByTestId('platform-path-tooltip')).toBeNull();
   });
 
   it('打开 B 平台 tooltip 时 A 平台 pin 自动解除', async () => {

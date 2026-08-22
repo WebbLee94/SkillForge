@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { Suspense, useEffect, useMemo, useState, useCallback, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { cn, sanitizePath } from '../lib/utils';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
 import { TagFilterBar } from '../components/ui/tags/TagFilterBar';
-import { TagManagerDialog } from '../domains/tags/TagManagerDialog';
+const TagManagerDialog = lazy(() => import('../domains/tags/TagManagerDialog.lazy'));
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import {
   ResourceViewToggle,
@@ -13,7 +13,7 @@ import {
 } from '../components/ui/ResourceViewToggle';
 import { ResourceCollection } from '../domains/resources/ResourceCollection';
 import { BatchActionBar } from '../domains/resources/BatchActionBar';
-import { BatchTagDialog } from '../domains/tags/BatchTagDialog';
+const BatchTagDialog = lazy(() => import('../domains/tags/BatchTagDialog.lazy'));
 import { Inspector } from '../domains/inspector/Inspector';
 import {
   ResourceImportDialog,
@@ -36,7 +36,6 @@ import {
   AlertTriangle,
   ChevronsUpDown,
 } from 'lucide-react';
-import { open } from '@tauri-apps/plugin-dialog';
 import { readDir } from '@tauri-apps/plugin-fs';
 
 async function buildSkillImportItem(
@@ -277,6 +276,7 @@ export function SkillLibrary() {
   // === 导入预览（技能目录） ===
   const pickSkillDirs = useCallback(async () => {
     try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
       const selected = await open({ directory: true, multiple: true });
       if (!selected) return;
       const paths = Array.isArray(selected) ? selected : [selected];
@@ -768,35 +768,43 @@ export function SkillLibrary() {
       </div>
 
       {/* 导入预览对话框（§3.8） */}
-      <ResourceImportDialog
-        open={showImportDialog}
-        title={t('install.title')}
-        items={importItems}
-        importing={importing}
-        itemKindLabel={tc('import.dirs')}
-        appendLabel={tc('import.append')}
-        confirmLabel={tc('actions.confirmImport')}
-        cancelLabel={tc('actions.cancel')}
-        onAppend={pickSkillDirs}
-        onRemoveItem={removeImportItem}
-        onRetryItem={retryImportItem}
-        onConfirm={executeImport}
-        onCancel={() => {
-          setShowImportDialog(false);
-          setImportItems([]);
-        }}
-      />
+      <Suspense fallback={null}>
+        <ResourceImportDialog
+          open={showImportDialog}
+          title={t('install.title')}
+          items={importItems}
+          importing={importing}
+          itemKindLabel={tc('import.dirs')}
+          appendLabel={tc('import.append')}
+          confirmLabel={tc('actions.confirmImport')}
+          cancelLabel={tc('actions.cancel')}
+          onAppend={pickSkillDirs}
+          onRemoveItem={removeImportItem}
+          onRetryItem={retryImportItem}
+          onConfirm={executeImport}
+          onCancel={() => {
+            setShowImportDialog(false);
+            setImportItems([]);
+          }}
+        />
 
-      {/* 批量管理所选标签 */}
-      <BatchTagDialog
-        open={showBatchTagDialog}
-        allTags={tags}
-        initialTagIds={batchTagIntersection}
-        title={tc('batch.manageTags')}
-        applyLabel={tc('actions.confirm')}
-        onApply={applyBatchTags}
-        onClose={() => setShowBatchTagDialog(false)}
-      />
+        {/* 批量管理所选标签 */}
+        <BatchTagDialog
+          open={showBatchTagDialog}
+          allTags={tags}
+          initialTagIds={batchTagIntersection}
+          title={tc('batch.manageTags')}
+          applyLabel={tc('actions.confirm')}
+          onApply={applyBatchTags}
+          onClose={() => setShowBatchTagDialog(false)}
+        />
+
+        <TagManagerDialog
+          tagType="skill"
+          isOpen={showTagManager}
+          onClose={() => setShowTagManager(false)}
+        />
+      </Suspense>
 
       {/* 确认对话框 */}
       <ConfirmDialog
@@ -838,11 +846,6 @@ export function SkillLibrary() {
         onCancel={() => setConfirmUninstallId(null)}
       />
 
-      <TagManagerDialog
-        tagType="skill"
-        isOpen={showTagManager}
-        onClose={() => setShowTagManager(false)}
-      />
     </div>
   );
 }
