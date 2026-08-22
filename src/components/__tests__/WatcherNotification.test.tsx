@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useAppStore } from '../../stores/appStore';
 import { useWatcherStore } from '../../stores/watcherStore';
-import { WatcherNotification } from '../../features/watcher/WatcherNotification';
+import { WatcherNotification } from '../../domains/dashboard/WatcherNotification';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

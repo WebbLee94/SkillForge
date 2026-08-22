@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TagFilterBar } from '../common/TagFilterBar';
+import { TagFilterBar } from '../../components/ui/tags/TagFilterBar';
 import type { Tag } from '../../types';
 
 const sampleTags: Tag[] = [

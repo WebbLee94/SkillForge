@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 import { TagChip } from './TagChip';
 import { ChevronDown, ChevronUp } from 'lucide-react';
-import type { Tag } from '../../types';
+import type { Tag } from '../../../types';
 
 const COLLAPSE_THRESHOLD = 4;
 

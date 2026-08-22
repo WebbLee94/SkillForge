@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { TagChip } from '../components/common/TagChip';
+import { TagChip } from '../components/ui/tags/TagChip';
 import type { Tag } from '../types';
 
 const mockTag: Tag = {

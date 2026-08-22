@@ -1,7 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import { cn } from '../lib/utils';
 import {
   Package,
   Film,
@@ -9,10 +8,11 @@ import {
   Plus,
   Globe,
 } from 'lucide-react';
-import { getPlatformIcon } from '../components/icons/PlatformIcons';
-import { ImportPreviewDialog } from '../components/common/ImportPreviewDialog';
-import { WatcherNotification } from '../features/watcher/WatcherNotification';
-import { WelcomeGuideCard } from '../components/common/WelcomeGuideCard';
+import { ImportPreviewDialog } from '../domains/resources/ImportPreviewDialog';
+import { DashboardQuickEntry } from '../domains/dashboard/DashboardQuickEntry';
+import { DashboardStatsGrid } from '../domains/dashboard/DashboardStatsGrid';
+import { WatcherNotification } from '../domains/dashboard/WatcherNotification';
+import { WelcomeGuideCard } from '../domains/dashboard/WelcomeGuideCard';
 import { ipc } from '../lib/ipc';
 import type { PlatformScanResult, PlatformEntryCount } from '../types';
 
@@ -176,40 +176,7 @@ export function Dashboard() {
       <WatcherNotification />
 
       {/* Stat Cards */}
-      <div
-        data-testid="dashboard-stats-grid"
-        className="mb-3 grid grid-cols-1 md:grid-cols-2 md:min-[1180px]:grid-cols-4 gap-3"
-      >
-        {statCards.map((card) => (
-          <button
-            key={card.navKey}
-            className={cn(
-              'flex h-auto items-center gap-4 rounded-lg border border-border bg-card p-4',
-              'hover:shadow-md transition-shadow text-left'
-            )}
-            onClick={() => setActiveNav(card.navKey)}
-          >
-            <div
-              className={cn(
-                'flex h-10 w-10 items-center justify-center rounded-lg',
-                card.bgColor,
-                card.color
-              )}
-            >
-              {card.icon}
-            </div>
-            <div>
-              <div className="text-sm text-muted-foreground">{card.label}</div>
-              <div className="text-2xl font-bold text-foreground">
-                {card.value}
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {card.subtitle}
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
+      <DashboardStatsGrid cards={statCards} onNavigate={setActiveNav} />
 
       {/* Welcome guide card — first launch; contains the 3-step stepper */}
       {showGuideCard && (
@@ -228,52 +195,15 @@ export function Dashboard() {
             </h2>
             <Globe className="h-4 w-4 text-primary" />
           </div>
-          {enabledPlatforms.length > 0 ? (
-            <div className="divide-y divide-border rounded-lg border border-border">
-              {enabledPlatforms.map((p) => {
-                const cnt = liveCounts[p.id];
-                const skills = cnt?.skills ?? 0;
-                const rules = cnt?.rules ?? 0;
-                const Icon = getPlatformIcon(p.id);
-                return (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 px-4 py-2.5"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Icon className="h-5 w-5 shrink-0" />
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground truncate">
-                          {p.name}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {t('dashboard.quickEntry.skillRuleCount', {
-                            skills,
-                            rules,
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-accent/50 transition-colors shrink-0"
-                      onClick={() => {
-                        useAppStore
-                          .getState()
-                          .setGlobalDistSelectedPlatform(p.id);
-                        setActiveNav('globalDistribution');
-                      }}
-                    >
-                      {t('dashboard.quickEntry.chooseTarget')}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {t('messages.noData')}
-            </p>
-          )}
+          <DashboardQuickEntry
+            platforms={enabledPlatforms}
+            liveCounts={liveCounts}
+            t={t}
+            onChooseTarget={(platformId) => {
+              useAppStore.getState().setGlobalDistSelectedPlatform(platformId);
+              setActiveNav('globalDistribution');
+            }}
+          />
         </div>
       </div>
 

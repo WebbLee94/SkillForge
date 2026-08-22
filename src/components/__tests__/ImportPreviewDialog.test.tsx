@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { ImportPreviewDialog } from '../common/ImportPreviewDialog';
+import { ImportPreviewDialog } from '../../domains/resources/ImportPreviewDialog';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

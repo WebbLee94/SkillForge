@@ -1,6 +1,6 @@
 import { memo } from 'react';
-import { cn } from '../../lib/utils';
-import type { Tag } from '../../types';
+import { cn } from '../../../lib/utils';
+import type { Tag } from '../../../types';
 
 interface TagChipProps {
   tag: Tag;
