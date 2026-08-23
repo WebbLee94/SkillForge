@@ -33,6 +33,16 @@ SkillForge 是一款专为 AI Agent 用户打造的技能管理工具，旨在�
 | 🧠 **平台能力感知** | 自动检测平台分发能力，不支持时显示警告 |
 | 🌐 **多平台支持** | Claude Code / OpenCode / Cursor / Trae / CodeBuddy / Codex / Hermes / OpenClaw 等 10 个平台 |
 
+## 🧱 v1.1.0 公开基线说明
+
+> **v1.1.0 是 SkillForge 的首个公开基线版本。** 当前公开能力范围为：技能库（Skills）、规则（Rules）、场景编排（Scenes）、项目分发（Projects）、平台管理（Platforms）与全局/项目分发（Distribution）。数据库以当前 schema 作为公开 v1 基线（schema version 1），不再携带历史升级链。MCP 管理、Hook、LLM 集成、技能市场、多用户协作等能力不在 v1.1.0 范围内。
+
+> ⚠️ **旧开发数据库不保证兼容**：如遇数据异常，可删除本地数据库后重启，应用将按公开基线从零重建：
+>
+> ```bash
+> rm -f ~/.skillforge/skillforge.db ~/.skillforge/skillforge.db-wal ~/.skillforge/skillforge.db-shm
+> ```
+
 ## 📸 界面预览
 
 ![SkillForge 看板](public/images/dashboard.png)

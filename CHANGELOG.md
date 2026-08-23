@@ -2,9 +2,22 @@
 
 ## v1.1.0 (2026-08-03)
 
+### 🔒 首个公开基线声明
+
+**v1.1.0 是 SkillForge 的首个公开基线版本**。当前公开能力范围为 Skills（技能库）/ Rules（规则）/ Scenes（场景编排）/ Projects（项目分发）/ Platforms（平台管理）/ Distribution（全局与项目分发）六大模块。
+
+- **数据库基线重置**：数据库迁移重置为 schema version 1——全新启动直接创建当前完整 schema 并标记版本 1，运行时不再保留 v2–v6 历史升级链；未来 schema 变更自该公开基线起演进
+- **旧开发数据库不保证兼容**：在旧开发版本上产生的本地数据库不再被升级修复。如遇异常请删除后重启应用，从零重建公开 v1 基线：
+
+  ```bash
+  rm -f ~/.skillforge/skillforge.db ~/.skillforge/skillforge.db-wal ~/.skillforge/skillforge.db-shm
+  ```
+
+- **范围外能力**：MCP 管理（已归档）、Hook、LLM 集成、技能市场、多用户协作等均不在 v1.1.0 公开范围内
+
 ### 🆕 新增
 
-- **双向同步（感知型同步）**：文件监控引擎实时感知所有已启用 Agent 平台的外部技能/规则变更
+- **外部变更感知（文件监控）**：文件监控引擎实时感知所有已启用 Agent 平台的外部技能/规则变更
 - **自写回声抑制**：dist_engine 写操作自动静音 watcher，避免假阳性事件
 - **三态同步状态**：看板支持已同步🟢 / 已缺失🔴 / 有更新🟡 三种状态
 - **变更通知栏**：检测到外部变更时自动弹出通知，支持一键导入/忽略
@@ -60,9 +73,9 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 
 ### 📊 测试口径（统一为当前实测）
 
-- 前端 Vitest：37 文件 / 530 用例
-- Rust 后端：155 用例（`cargo test` 实测）
-- 桌面 E2E：3 spec / 16 用例
+- 前端 Vitest：60 文件 / 859 用例
+- Rust 后端：305 用例（182 单元 + 123 集成，`cargo test` 实测）
+- 桌面 E2E：4 spec（smoke / interaction / distribution-workflow / stats-grid-responsive）
 
 ## v1.0.1 (2026-06-10)
 

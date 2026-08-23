@@ -207,7 +207,7 @@ mod tests {
         ] {
             assert!(
                 !tables.contains(&table.to_string()),
-                "表 {table} 不应存在于 v6 schema"
+                "表 {table} 不应存在于 v1 基线 schema"
             );
         }
 
@@ -219,7 +219,7 @@ mod tests {
             .collect();
         assert!(
             !columns.contains(&"scene_id".to_string()),
-            "projects.scene_id 不应存在于 v6 schema"
+            "projects.scene_id 不应存在于 v1 基线 schema"
         );
 
         // Verify built-in platforms
