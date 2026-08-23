@@ -7,9 +7,14 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   build-macos:
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,12 +39,14 @@ jobs:
         with:
           tagName: ${{ inputs.version }}
           releaseName: SkillForge ${{ inputs.version }}
-          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/main/CHANGELOG.md) for details."
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/master/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
 
   build-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -64,12 +71,14 @@ jobs:
         with:
           tagName: ${{ inputs.version }}
           releaseName: SkillForge ${{ inputs.version }}
-          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/main/CHANGELOG.md) for details."
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/master/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
 
   build-linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -98,6 +107,6 @@ jobs:
         with:
           tagName: ${{ inputs.version }}
           releaseName: SkillForge ${{ inputs.version }}
-          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/main/CHANGELOG.md) for details."
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/master/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
