@@ -6,10 +6,11 @@
 //! 与平台编排留在本层。任何不确定都整体拒绝（fail-closed）。
 
 use crate::domain::distribution::policy::{classify_skill_symlink, SkillLinkOwnership};
-use crate::engine::dist_plan::{get_project_path, get_skill, resolve_distribution_instance};
+use crate::engine::dist_plan::resolve_distribution_instance;
 use crate::engine::rule_distribution;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
+use crate::ports::distribution::DistributionRepository;
 use crate::types::{DistributionPlan, DistributionRequest, RulesFormat};
 
 /// 校验每个 RemoveSelected 目标在变更发生前仍归 SkillForge 所有。
@@ -17,6 +18,7 @@ use crate::types::{DistributionPlan, DistributionRequest, RulesFormat};
 /// 托管块时，返回 `DistributionInvalid`（与迁移前文案逐字一致）。
 pub(crate) fn validate_removal_targets(
     conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     request: &DistributionRequest,
     plan: &DistributionPlan,
@@ -24,7 +26,7 @@ pub(crate) fn validate_removal_targets(
     let project_path = request
         .project_id
         .as_deref()
-        .and_then(|id| get_project_path(conn, id));
+        .and_then(|id| repo.get_project_path(id));
     for platform in &plan.platforms {
         let plugin = platform_plugins
             .iter()
@@ -44,7 +46,7 @@ pub(crate) fn validate_removal_targets(
             for id in &platform.skills_to_remove {
                 // 语义锁定：目标缺失（且非悬空链接）→ 跳过；存在但读不出
                 // 符号链接 → 拒绝；链接目标 ≠ DB local_path → 拒绝。
-                let skill = get_skill(conn, id)?;
+                let skill = repo.get_skill(id)?;
                 let target = std::path::Path::new(&instance.path).join(id);
                 let target_present = target.exists() || target.symlink_metadata().is_ok();
                 let ownership = classify_skill_symlink(
@@ -290,6 +292,16 @@ mod tests {
         }
     }
 
+    fn validate(
+        conn: &rusqlite::Connection,
+        plugins: &[Box<dyn PlatformPlugin>],
+        request: &DistributionRequest,
+        plan: &DistributionPlan,
+    ) -> Result<(), AppError> {
+        let repo = crate::adapters::db::SqliteDistributionRepository::new(conn);
+        super::validate_removal_targets(conn, &repo, plugins, request, plan)
+    }
+
     /// fail-closed 锁定：符号链接指向非 SkillForge 来源时必须整体拒绝，
     /// 错误文案与迁移前逐字一致。
     #[test]
@@ -307,7 +319,7 @@ mod tests {
         symlink(&src_elsewhere, &skills_dir.join("skill-a"));
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![skills_plugin(&skills_dir)];
-        let error = validate_removal_targets(
+        let error = validate(
             &conn,
             &plugins,
             &removal_request(&["skill-a"], &[]),
@@ -338,7 +350,7 @@ mod tests {
         std::fs::create_dir_all(&target).unwrap(); // 普通目录，非符号链接
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![skills_plugin(&skills_dir)];
-        let error = validate_removal_targets(
+        let error = validate(
             &conn,
             &plugins,
             &removal_request(&["skill-a"], &[]),
@@ -373,7 +385,7 @@ mod tests {
         symlink(&src_owned, &skills_dir.join("skill-live"));
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![skills_plugin(&skills_dir)];
-        validate_removal_targets(
+        validate(
             &conn,
             &plugins,
             &removal_request(&["skill-gone", "skill-live"], &[]),
@@ -398,7 +410,7 @@ mod tests {
         .unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![single_file_plugin(&rules_file)];
-        let error = validate_removal_targets(
+        let error = validate(
             &conn,
             &plugins,
             &removal_request(&[], &["rule-1"]),
@@ -430,7 +442,7 @@ mod tests {
         insert_rule(&conn, "rule-1", "# Rule 1\n正文");
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![single_file_plugin(&rules_file)];
-        validate_removal_targets(
+        validate(
             &conn,
             &plugins,
             &removal_request(&[], &["rule-1"]),

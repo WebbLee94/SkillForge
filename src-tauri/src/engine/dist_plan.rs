@@ -81,8 +81,11 @@ pub fn build_distribution_plan(
     scope: &str,
     project_id: Option<&str>,
 ) -> Result<DistributionPlan, AppError> {
+    let repo = crate::adapters::db::SqliteDistributionRepository::new(conn);
+    let fs = crate::adapters::filesystem::EngineDistributionFileSystem;
     crate::application::distribution::preview::build_distribution_plan(
-        conn,
+        &repo,
+        &fs,
         platform_plugins,
         skill_ids,
         rule_ids,
@@ -98,8 +101,11 @@ pub fn build_distribution_plan_for_request(
     platform_plugins: &[Box<dyn PlatformPlugin>],
     request: &DistributionRequest,
 ) -> Result<DistributionPlan, AppError> {
+    let repo = crate::adapters::db::SqliteDistributionRepository::new(conn);
+    let fs = crate::adapters::filesystem::EngineDistributionFileSystem;
     crate::application::distribution::preview::build_distribution_plan_for_request(
-        conn,
+        &repo,
+        &fs,
         platform_plugins,
         request,
     )

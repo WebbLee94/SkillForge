@@ -8,12 +8,12 @@
 //!
 //! `engine/dist_managed.rs` 保留为兼容 facade，路由到本模块。
 
-use crate::engine::dist_plan::{
-    get_project_path, get_skill, read_current_skills_on_disk, resolve_distribution_instance,
-};
+use crate::engine::dist_plan::resolve_distribution_instance;
 use crate::engine::rule_distribution;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
+use crate::ports::distribution::DistributionRepository;
+use crate::ports::filesystem::DistributionFileSystem;
 use crate::types::{
     LocalDistributionEntry, ManagedDistributionEntry, ManagedDistributionState,
     ManagedPlatformState, PlatformInstance, PlatformSyncStatus, RulesFormat, SyncStatusDTO,
@@ -29,6 +29,8 @@ use crate::types::{
 /// - 本地条目排除所有受管路径。
 pub fn get_managed_distribution_state(
     conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     platform_ids: &[String],
     scope: &str,
@@ -49,7 +51,7 @@ pub fn get_managed_distribution_state(
         },
     };
     validation_request.validate()?;
-    let project_path = project_id.and_then(|id| get_project_path(conn, id));
+    let project_path = project_id.and_then(|id| repo.get_project_path(id));
     if scope == "project" && project_path.is_none() {
         return Err(AppError::ProjectNotFound(
             "项目范围查询需要提供项目ID".to_string(),
@@ -63,7 +65,7 @@ pub fn get_managed_distribution_state(
             .ok_or_else(|| AppError::Platform(format!("未找到平台插件: {}", platform_id)))?;
         let instance =
             resolve_distribution_instance(plugin.as_ref(), scope, project_path.as_deref());
-        let skills = read_managed_skills(&instance, conn)?;
+        let skills = read_managed_skills(&instance, repo, fs)?;
         let rules = rule_distribution::read_managed_rules(
             conn,
             plugin.as_ref(),
@@ -91,11 +93,12 @@ pub fn get_managed_distribution_state(
 /// 在 DB 中记录的 `local_path` 时视为受管（所有权判定）。
 fn read_managed_skills(
     instance: &PlatformInstance,
-    conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
 ) -> Result<Vec<ManagedDistributionEntry>, AppError> {
     let mut entries = Vec::new();
-    for id in read_current_skills_on_disk(instance) {
-        let skill = match get_skill(conn, &id) {
+    for id in fs.read_current_skills_on_disk(instance) {
+        let skill = match repo.get_skill(&id) {
             Ok(skill) => skill,
             Err(_) => continue,
         };
@@ -286,6 +289,19 @@ mod tests {
         conn
     }
 
+    /// 组装真实直通适配器（与 engine facade 的组装方式一致）。
+    fn real_ports<'a>(
+        conn: &'a rusqlite::Connection,
+    ) -> (
+        crate::adapters::db::SqliteDistributionRepository<'a>,
+        crate::adapters::filesystem::EngineDistributionFileSystem,
+    ) {
+        (
+            crate::adapters::db::SqliteDistributionRepository::new(conn),
+            crate::adapters::filesystem::EngineDistributionFileSystem,
+        )
+    }
+
     fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &std::path::Path) {
         conn.execute(
             "INSERT INTO skills (id, name, description, source_type, installed_at, local_path)
@@ -425,9 +441,17 @@ mod tests {
         std::fs::create_dir(skills_dir.join("plain-dir")).unwrap();
 
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![global_plugin(&skills_dir, None)];
-        let state =
-            get_managed_distribution_state(&conn, &plugins, &["test".to_string()], "global", None)
-                .unwrap();
+        let (repo, fs) = real_ports(&conn);
+        let state = get_managed_distribution_state(
+            &conn,
+            &repo,
+            &fs,
+            &plugins,
+            &["test".to_string()],
+            "global",
+            None,
+        )
+        .unwrap();
 
         assert_eq!(state.platforms.len(), 1);
         let platform = &state.platforms[0];
@@ -467,9 +491,17 @@ mod tests {
 
         let plugins: Vec<Box<dyn PlatformPlugin>> =
             vec![global_plugin(&skills_dir, Some(&rules_dir))];
-        let state =
-            get_managed_distribution_state(&conn, &plugins, &["test".to_string()], "global", None)
-                .unwrap();
+        let (repo, fs) = real_ports(&conn);
+        let state = get_managed_distribution_state(
+            &conn,
+            &repo,
+            &fs,
+            &plugins,
+            &["test".to_string()],
+            "global",
+            None,
+        )
+        .unwrap();
         let platform = &state.platforms[0];
 
         // 受管判定不受影响
@@ -506,15 +538,61 @@ mod tests {
     fn project_scope_without_project_id_is_rejected() {
         let conn = setup_db();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
-        let error =
-            get_managed_distribution_state(&conn, &plugins, &["test".to_string()], "project", None)
-                .unwrap_err();
+        let (repo, fs) = real_ports(&conn);
+        let error = get_managed_distribution_state(
+            &conn,
+            &repo,
+            &fs,
+            &plugins,
+            &["test".to_string()],
+            "project",
+            None,
+        )
+        .unwrap_err();
         match error {
             AppError::DistributionInvalid(message) => {
                 assert!(message.contains("project 范围必须提供"));
             }
             other => panic!("期望 DistributionInvalid，实际: {:?}", other),
         }
+    }
+
+    /// 解耦证明：受管技能分类链路经 ports trait 对象由 fake 驱动——
+    /// fake 磁盘现状含 skill-a，但 fake 仓储无此技能 → get_skill 未命中
+    /// 不得进入受管列表；全程不建表、不触真实目录（conn 仅服务尚未接线的
+    /// 规则读取边界）。
+    #[test]
+    fn managed_state_runs_through_fake_ports_without_db_or_disk() {
+        use crate::application::distribution::test_fakes::{
+            FakeDistributionFileSystem, FakeDistributionRepository,
+        };
+
+        let repo = FakeDistributionRepository::default();
+        let fs = FakeDistributionFileSystem::default().with_skills_at("mem://skills", &["skill-a"]);
+
+        let plugins: Vec<Box<dyn PlatformPlugin>> =
+            vec![global_plugin(std::path::Path::new("mem://skills"), None)];
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        let state = get_managed_distribution_state(
+            &conn,
+            &repo,
+            &fs,
+            &plugins,
+            &["test".to_string()],
+            "global",
+            None,
+        )
+        .unwrap();
+
+        assert!(
+            !std::path::Path::new("mem://skills").exists(),
+            "全程未触达真实磁盘"
+        );
+        let platform = &state.platforms[0];
+        assert!(platform.skills.is_empty(), "仓储未命中的条目不得判为受管");
+        assert!(platform.rules.is_empty());
+        assert!(platform.local_skills.is_empty());
+        assert!(platform.local_rules.is_empty());
     }
 
     /// 同步状态行为保持不变：10 个内置平台全部列出。

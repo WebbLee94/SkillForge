@@ -6,18 +6,22 @@
 //! - [`execute_remove_distributed`] — 独立移除受管内容（33 号 3.3 / DEC-1）
 //! - [`validate_existing_single_file_targets`] — SingleFile 目标执行前校验
 //!
-//! 移除目标所有权校验仍复用 engine 层的 `validate_removal_targets`；DB / filesystem /
-//! platform plugin 依赖的 ports/adapters 收拢由后续阶段完成，此处保持窄迁移。
-//! 原 `engine/dist_execute` 保留为兼容 facade，入口点与调用方完全不变。
+//! 技能 / 项目路径 / 磁盘现状读取已改走 ports trait 对象
+//! （[`DistributionRepository`] / [`DistributionFileSystem`]），由兼容层
+//! （engine facade）组装具体适配器注入；规则同步写路径与插件 install/sync/remove
+//! 调用仍留在 engine 层。原 `engine/dist_execute` 保留为兼容 facade，
+//! 入口点与调用方完全不变。
 
+use super::preview::build_distribution_plan_for_request;
 use crate::application::distribution::remove::validate_removal_targets;
 use crate::engine::dist_plan::{
-    build_distribution_plan_for_request, get_project_path, get_skill, read_current_skills_on_disk,
     resolve_distribution_instance, resolve_global_distribution_instance,
 };
 use crate::engine::rule_distribution;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
+use crate::ports::distribution::DistributionRepository;
+use crate::ports::filesystem::DistributionFileSystem;
 use crate::types::{
     DistributionIntent, DistributionIntentMode, DistributionPlan, DistributionRequest,
     PlatformInstance, RulesFormat, SyncResult,
@@ -35,6 +39,8 @@ use crate::types::{
 #[allow(clippy::too_many_arguments)]
 pub fn sync_scene(
     conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     skill_ids: &[String],
     rule_ids: &[String],
@@ -69,7 +75,7 @@ pub fn sync_scene(
     let project_path: Option<String> = if scope == "project" {
         Some(
             project_id
-                .and_then(|pid| get_project_path(conn, pid))
+                .and_then(|pid| repo.get_project_path(pid))
                 .ok_or_else(|| {
                     AppError::ProjectNotFound("项目范围同步需要提供项目ID".to_string())
                 })?,
@@ -123,7 +129,7 @@ pub fn sync_scene(
             })?;
         }
         // Compute diff: what's currently on disk vs what should be
-        let current_skill_ids = read_current_skills_on_disk(&instance);
+        let current_skill_ids = fs.read_current_skills_on_disk(&instance);
         // Skills to install (in scene but not in current distribution)
         let to_install: Vec<&String> = skill_ids
             .iter()
@@ -134,7 +140,7 @@ pub fn sync_scene(
         let to_remove: Vec<&String> = Vec::new();
         // Execute installs
         for skill_id in &to_install {
-            match get_skill(conn, skill_id) {
+            match repo.get_skill(skill_id) {
                 Ok(skill) => match plugin.install(&skill, &instance) {
                     Ok(_) => {
                         result.installed.push(skill_id.to_string());
@@ -197,24 +203,26 @@ pub fn sync_scene(
 
 pub fn execute_distribution_request(
     conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     request: &DistributionRequest,
     submitted_plan: &DistributionPlan,
 ) -> Result<SyncResult, AppError> {
     request.validate()?;
-    let recomputed_plan = build_distribution_plan_for_request(conn, platform_plugins, request)?;
+    let recomputed_plan = build_distribution_plan_for_request(repo, fs, platform_plugins, request)?;
     if submitted_plan != &recomputed_plan {
         return Err(AppError::DistributionInvalid(
             "分发计划已过期或与当前状态不匹配，请重新预览".to_string(),
         ));
     }
-    validate_existing_single_file_targets(conn, platform_plugins, request, &recomputed_plan)?;
-    validate_removal_targets(conn, platform_plugins, request, &recomputed_plan)?;
+    validate_existing_single_file_targets(conn, repo, platform_plugins, request, &recomputed_plan)?;
+    validate_removal_targets(conn, repo, platform_plugins, request, &recomputed_plan)?;
 
     let project_path = request
         .project_id
         .as_deref()
-        .and_then(|id| get_project_path(conn, id));
+        .and_then(|id| repo.get_project_path(id));
     let mut result = SyncResult {
         installed: vec![],
         updated: vec![],
@@ -236,7 +244,7 @@ pub fn execute_distribution_request(
         );
         if matches!(request.skills.mode, DistributionIntentMode::AddOrUpdate) {
             for id in &request.skills.ids {
-                let skill = get_skill(conn, id)?;
+                let skill = repo.get_skill(id)?;
                 let sync_result = plugin.sync(&skill, &instance)?;
                 if sync_result.installed.is_empty() && sync_result.updated.is_empty() {
                     result.skipped += 1;
@@ -290,8 +298,11 @@ pub fn execute_distribution_request(
 /// 33 号 3.3 / DEC-1：独立移除受管内容。
 /// 语义约束：仅允许 RemoveSelected；fail-closed（任一请求 id 不在重算移除列表 → 整体拒绝）；
 /// 所有权校验复用 validate_removal_targets；执行阶段部分失败收集到 result.errors。
+#[allow(clippy::too_many_arguments)]
 pub fn execute_remove_distributed(
     conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     platform_ids: &[String],
     scope: &str,
@@ -329,7 +340,7 @@ pub fn execute_remove_distributed(
         },
     };
     request.validate()?;
-    let plan = build_distribution_plan_for_request(conn, platform_plugins, &request)?;
+    let plan = build_distribution_plan_for_request(repo, fs, platform_plugins, &request)?;
 
     // fail-closed 预检（类型安全，走查 F1）：每个请求 skill id 只对 skills_to_remove、
     // 每个请求 rule id 只对 rules_to_remove 校验；技能/规则各自命名空间，杜绝跨类型
@@ -362,10 +373,10 @@ pub fn execute_remove_distributed(
         }
     }
 
-    validate_existing_single_file_targets(conn, platform_plugins, &request, &plan)?;
-    validate_removal_targets(conn, platform_plugins, &request, &plan)?;
+    validate_existing_single_file_targets(conn, repo, platform_plugins, &request, &plan)?;
+    validate_removal_targets(conn, repo, platform_plugins, &request, &plan)?;
 
-    let project_path = project_id.and_then(|id| get_project_path(conn, id));
+    let project_path = project_id.and_then(|id| repo.get_project_path(id));
     let mut result = SyncResult {
         installed: vec![],
         updated: vec![],
@@ -430,6 +441,7 @@ pub fn execute_remove_distributed(
 
 fn validate_existing_single_file_targets(
     conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     request: &DistributionRequest,
     plan: &DistributionPlan,
@@ -437,7 +449,7 @@ fn validate_existing_single_file_targets(
     let project_path = request
         .project_id
         .as_deref()
-        .and_then(|id| get_project_path(conn, id));
+        .and_then(|id| repo.get_project_path(id));
     for platform in &plan.platforms {
         let plugin = platform_plugins
             .iter()
@@ -497,6 +509,19 @@ mod tests {
         conn
     }
 
+    /// 组装真实直通适配器（与 engine facade 的组装方式一致）。
+    fn real_ports<'a>(
+        conn: &'a rusqlite::Connection,
+    ) -> (
+        crate::adapters::db::SqliteDistributionRepository<'a>,
+        crate::adapters::filesystem::EngineDistributionFileSystem,
+    ) {
+        (
+            crate::adapters::db::SqliteDistributionRepository::new(conn),
+            crate::adapters::filesystem::EngineDistributionFileSystem,
+        )
+    }
+
     #[test]
     fn test_sync_to_missing_directory() {
         // Test that syncing to a non-existent directory auto-creates it
@@ -524,7 +549,21 @@ mod tests {
         // (no skills to install, nothing to fail on)
         // With no platforms explicitly specified, it auto-resolves to 10 enabled platforms
         // but since plugins list is empty, each platform will fail with "platform not found"
-        let result = sync_scene(&conn, &plugins, &[], &[], None, None, "global", None);
+        let result = {
+            let (repo, fs) = real_ports(&conn);
+            sync_scene(
+                &conn,
+                &repo,
+                &fs,
+                &plugins,
+                &[],
+                &[],
+                None,
+                None,
+                "global",
+                None,
+            )
+        };
         assert!(result.is_err());
     }
 
@@ -540,7 +579,21 @@ mod tests {
         .unwrap();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
         // Sync with project scope but no project_id should fail
-        let result = sync_scene(&conn, &plugins, &[], &[], None, None, "project", None);
+        let result = {
+            let (repo, fs) = real_ports(&conn);
+            sync_scene(
+                &conn,
+                &repo,
+                &fs,
+                &plugins,
+                &[],
+                &[],
+                None,
+                None,
+                "project",
+                None,
+            )
+        };
         assert!(result.is_err());
         match result.unwrap_err() {
             AppError::ProjectNotFound(msg) => assert!(msg.contains("项目ID")),
@@ -678,7 +731,9 @@ mod tests {
         assert!(!submitted.has_removals);
         submitted.has_removals = true;
 
-        let err = execute_distribution_request(&conn, &plugins, &request, &submitted).unwrap_err();
+        let (repo, fs) = real_ports(&conn);
+        let err = execute_distribution_request(&conn, &repo, &fs, &plugins, &request, &submitted)
+            .unwrap_err();
         assert!(err.to_string().contains("分发计划已过期"), "got: {err}");
     }
 
@@ -704,7 +759,10 @@ mod tests {
             &conn, &plugins, &request,
         )
         .unwrap();
-        let result = execute_distribution_request(&conn, &plugins, &request, &submitted).unwrap();
+        let (repo, fs) = real_ports(&conn);
+        let result =
+            execute_distribution_request(&conn, &repo, &fs, &plugins, &request, &submitted)
+                .unwrap();
 
         assert_eq!(result.skipped, 1);
         assert!(result.installed.is_empty());
@@ -719,8 +777,11 @@ mod tests {
         let base = tempfile::tempdir().unwrap();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![TestPlugin::plugin(base.path())];
 
+        let (repo, fs) = real_ports(&conn);
         let err = execute_remove_distributed(
             &conn,
+            &repo,
+            &fs,
             &plugins,
             &["test".to_string()],
             "global",
@@ -741,8 +802,11 @@ mod tests {
         let base = tempfile::tempdir().unwrap();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![TestPlugin::plugin(base.path())];
 
+        let (repo, fs) = real_ports(&conn);
         let err = execute_remove_distributed(
             &conn,
+            &repo,
+            &fs,
             &plugins,
             &["test".to_string()],
             "project",
@@ -764,8 +828,11 @@ mod tests {
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![TestPlugin::plugin(base.path())];
         insert_skill(&conn, "ghost-skill", "/tmp/sources/ghost-skill");
 
+        let (repo, fs) = real_ports(&conn);
         let err = execute_remove_distributed(
             &conn,
+            &repo,
+            &fs,
             &plugins,
             &["test".to_string()],
             "global",
@@ -797,8 +864,11 @@ mod tests {
         insert_skill(&conn, "skill-1", &source_path);
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![TestPlugin::plugin(&skills_dir)];
 
+        let (repo, fs) = real_ports(&conn);
         let result = execute_remove_distributed(
             &conn,
+            &repo,
+            &fs,
             &plugins,
             &["test".to_string()],
             "global",
@@ -966,9 +1036,19 @@ mod tests {
             &rules_dir,
             true,
         ))];
-        let submitted = build_distribution_plan_for_request(&conn, &plugins_hit, &request).unwrap();
-        let result =
-            execute_distribution_request(&conn, &plugins_hit, &request, &submitted).unwrap();
+        let (repo_hit, fs_hit) = real_ports(&conn);
+        let submitted =
+            build_distribution_plan_for_request(&repo_hit, &fs_hit, &plugins_hit, &request)
+                .unwrap();
+        let result = execute_distribution_request(
+            &conn,
+            &repo_hit,
+            &fs_hit,
+            &plugins_hit,
+            &request,
+            &submitted,
+        )
+        .unwrap();
 
         assert!(result.installed.contains(&"skill-1".to_string()));
         assert_eq!(result.skipped, 0);
@@ -989,10 +1069,19 @@ mod tests {
             &rules_dir,
             false,
         ))];
+        let (repo_noop, fs_noop) = real_ports(&conn);
         let submitted2 =
-            build_distribution_plan_for_request(&conn, &plugins_noop, &request).unwrap();
-        let result2 =
-            execute_distribution_request(&conn, &plugins_noop, &request, &submitted2).unwrap();
+            build_distribution_plan_for_request(&repo_noop, &fs_noop, &plugins_noop, &request)
+                .unwrap();
+        let result2 = execute_distribution_request(
+            &conn,
+            &repo_noop,
+            &fs_noop,
+            &plugins_noop,
+            &request,
+            &submitted2,
+        )
+        .unwrap();
 
         // 既有语义：skipped 同时覆盖技能（execute 循环判定）与规则
         // （rule_distribution 内部对已同步文件计数）→ 1 技能 + 1 规则 = 2。

@@ -15,10 +15,10 @@
 //! missing target directories are simply treated as empty current state.
 
 use crate::domain::distribution::plan::{calculate_distribution_plan, plan_has_removals};
-use crate::engine::dist_plan::{get_project_path, read_current_skills_on_disk};
-use crate::engine::rule_distribution;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
+use crate::ports::distribution::DistributionRepository;
+use crate::ports::filesystem::DistributionFileSystem;
 use crate::types::{
     DistributionIntent, DistributionIntentMode, DistributionPlan, DistributionRequest,
     PlatformInstance,
@@ -33,7 +33,8 @@ use crate::types::{
 /// - Returns classified add/update/remove per platform
 #[allow(clippy::too_many_arguments)]
 pub fn build_distribution_plan(
-    conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     skill_ids: &[String],
     rule_ids: &[String],
@@ -50,11 +51,12 @@ pub fn build_distribution_plan(
         skills: legacy_distribution_intent(skill_ids),
         rules: legacy_distribution_intent(rule_ids),
     };
-    build_distribution_plan_for_request(conn, platform_plugins, &request)
+    build_distribution_plan_for_request(repo, fs, platform_plugins, &request)
 }
 
 pub fn build_distribution_plan_for_request(
-    conn: &rusqlite::Connection,
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
     platform_plugins: &[Box<dyn PlatformPlugin>],
     request: &DistributionRequest,
 ) -> Result<DistributionPlan, AppError> {
@@ -66,7 +68,7 @@ pub fn build_distribution_plan_for_request(
             request
                 .project_id
                 .as_deref()
-                .and_then(|pid| get_project_path(conn, pid))
+                .and_then(|pid| repo.get_project_path(pid))
                 .ok_or_else(|| {
                     AppError::ProjectNotFound("项目范围计划需要提供项目ID".to_string())
                 })?,
@@ -120,15 +122,12 @@ pub fn build_distribution_plan_for_request(
             }
         };
         // Read current state from disk (read-only — NO directory creation)
-        let current_skills = read_current_skills_on_disk(&instance);
+        let current_skills = fs.read_current_skills_on_disk(&instance);
         let mut platform_request = request.clone();
         platform_request.platform_ids = vec![platform_id.to_string()];
         // Compute rule diff (if platform supports rules)
-        let current_rules = rule_distribution::read_current_rules_on_disk(
-            &**plugin,
-            &instance,
-            project_path.as_deref(),
-        )?;
+        let current_rules =
+            fs.read_current_rules_on_disk(&**plugin, &instance, project_path.as_deref())?;
         let mut platform_plan = calculate_distribution_plan(
             platform_id,
             plugin.display_name(),
@@ -362,10 +361,12 @@ mod tests {
         plugins: &[Box<dyn PlatformPlugin>],
         req: &DistributionRequest,
     ) -> DistributionPlan {
+        let repo = crate::adapters::db::SqliteDistributionRepository::new(conn);
+        let fs = crate::adapters::filesystem::EngineDistributionFileSystem;
         let via_facade =
             crate::engine::dist_plan::build_distribution_plan_for_request(conn, plugins, req)
                 .expect("facade preview should succeed");
-        let via_application = super::build_distribution_plan_for_request(conn, plugins, req)
+        let via_application = super::build_distribution_plan_for_request(&repo, &fs, plugins, req)
             .expect("application preview should succeed");
         assert_eq!(via_facade, via_application, "新旧入口输出必须一致");
         via_application
@@ -376,11 +377,13 @@ mod tests {
         plugins: &[Box<dyn PlatformPlugin>],
         req: &DistributionRequest,
     ) -> String {
+        let repo = crate::adapters::db::SqliteDistributionRepository::new(conn);
+        let fs = crate::adapters::filesystem::EngineDistributionFileSystem;
         let facade_err =
             crate::engine::dist_plan::build_distribution_plan_for_request(conn, plugins, req)
                 .expect_err("facade preview should fail")
                 .to_string();
-        let app_err = super::build_distribution_plan_for_request(conn, plugins, req)
+        let app_err = super::build_distribution_plan_for_request(&repo, &fs, plugins, req)
             .expect_err("application preview should fail")
             .to_string();
         assert_eq!(facade_err, app_err, "新旧入口错误必须一致");
@@ -595,18 +598,23 @@ mod tests {
         )
         .expect("legacy entry should succeed");
 
-        let modern = super::build_distribution_plan_for_request(
-            &conn,
-            &plugins,
-            &request(
-                "global",
-                None,
-                intent(DistributionIntentMode::AddOrUpdate, &["a", "b"]),
-                // 空 ids 的旧语义 = Preserve
-                intent(DistributionIntentMode::Preserve, &[]),
-            ),
-        )
-        .expect("modern entry should succeed");
+        let modern = {
+            let repo = crate::adapters::db::SqliteDistributionRepository::new(&conn);
+            let fs = crate::adapters::filesystem::EngineDistributionFileSystem;
+            super::build_distribution_plan_for_request(
+                &repo,
+                &fs,
+                &plugins,
+                &request(
+                    "global",
+                    None,
+                    intent(DistributionIntentMode::AddOrUpdate, &["a", "b"]),
+                    // 空 ids 的旧语义 = Preserve
+                    intent(DistributionIntentMode::Preserve, &[]),
+                ),
+            )
+            .expect("modern entry should succeed")
+        };
 
         assert_eq!(
             legacy, modern,
@@ -645,6 +653,78 @@ mod tests {
             "rules_to_remove",
         ] {
             assert!(p0.get(key).is_some(), "缺少字段 {key}，IPC 形状发生变化");
+        }
+    }
+
+    // ── Fake ports 解耦证明 ─────────────────────────────────────────
+
+    /// 解耦证明：preview 用例经 ports trait 对象在 project 范围下完整跑通
+    /// 「项目路径解析 → 磁盘技能现状 → 磁盘规则现状 → diff」全链路，
+    /// 全程无 DB 连接、无真实目录。
+    #[test]
+    fn preview_runs_through_fake_ports_without_db_or_disk() {
+        use crate::application::distribution::test_fakes::{
+            FakeDistributionFileSystem, FakeDistributionRepository,
+        };
+
+        let mut repo = FakeDistributionRepository::default();
+        repo.insert_project_path("p1", "/mem/project");
+        let fs = FakeDistributionFileSystem::default()
+            .with_skills_at("/mem/project/.sf/skills", &["x"])
+            .with_rules_at("/mem/project/.sf/rules", &["r1"]);
+
+        let plugins = vec![project_plugin(
+            "{project}/.sf/skills",
+            Some("{project}/.sf/rules"),
+        )];
+        let req = request(
+            "project",
+            Some("p1"),
+            intent(DistributionIntentMode::AddOrUpdate, &["x", "y"]),
+            intent(DistributionIntentMode::AddOrUpdate, &["r1", "r2"]),
+        );
+
+        let plan = build_distribution_plan_for_request(&repo, &fs, &plugins, &req)
+            .expect("fake ports 驱动的 preview 应成功");
+
+        assert!(
+            !std::path::Path::new("/mem/project").exists(),
+            "全程未触达真实磁盘"
+        );
+        let p = &plan.platforms[0];
+        assert_eq!(p.platform_id, "test");
+        assert_eq!(p.skills_to_add, vec!["y"], "磁盘现状 x 来自 fake");
+        assert!(p.skills_to_remove.is_empty());
+        assert_eq!(p.rules_to_add, vec!["r2"], "规则现状 r1 来自 fake");
+        assert!(p.rules_to_remove.is_empty());
+        assert!(!plan.has_removals);
+    }
+
+    /// fail-closed 经由端口生效：fake 仓储无法解析项目路径时，
+    /// preview 拒绝且错误文案与真实实现一致。
+    #[test]
+    fn preview_with_fakes_missing_project_path_fails_closed() {
+        use crate::application::distribution::test_fakes::{
+            FakeDistributionFileSystem, FakeDistributionRepository,
+        };
+
+        let repo = FakeDistributionRepository::default();
+        let fs = FakeDistributionFileSystem::default();
+        let plugins = vec![project_plugin(".sf/skills", Some(".sf/rules"))];
+        let req = request(
+            "project",
+            Some("ghost"),
+            intent(DistributionIntentMode::Preserve, &[]),
+            intent(DistributionIntentMode::Preserve, &[]),
+        );
+
+        let err = build_distribution_plan_for_request(&repo, &fs, &plugins, &req)
+            .expect_err("未解析的项目路径必须拒绝");
+        match err {
+            AppError::ProjectNotFound(msg) => {
+                assert_eq!(msg, "项目范围计划需要提供项目ID");
+            }
+            other => panic!("期望 ProjectNotFound，实际: {:?}", other),
         }
     }
 }

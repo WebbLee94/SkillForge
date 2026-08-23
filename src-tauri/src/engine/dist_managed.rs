@@ -13,10 +13,33 @@
 //!
 //! 待新路径在测试中稳定后，按重构计划退役本模块。
 
+pub use crate::application::distribution::managed::get_sync_status;
 pub(crate) use crate::application::distribution::managed::{count_fs_files, count_fs_subdirs};
-pub use crate::application::distribution::managed::{
-    get_managed_distribution_state, get_sync_status,
-};
+
+use crate::error::AppError;
+use crate::plugins::platform::PlatformPlugin;
+use crate::types::ManagedDistributionState;
+
+/// 组装直通适配器后转发到 application 层（公共入口签名与迁移前完全一致）。
+pub fn get_managed_distribution_state(
+    conn: &rusqlite::Connection,
+    platform_plugins: &[Box<dyn PlatformPlugin>],
+    platform_ids: &[String],
+    scope: &str,
+    project_id: Option<&str>,
+) -> Result<ManagedDistributionState, AppError> {
+    let repo = crate::adapters::db::SqliteDistributionRepository::new(conn);
+    let fs = crate::adapters::filesystem::EngineDistributionFileSystem;
+    crate::application::distribution::managed::get_managed_distribution_state(
+        conn,
+        &repo,
+        &fs,
+        platform_plugins,
+        platform_ids,
+        scope,
+        project_id,
+    )
+}
 
 #[cfg(test)]
 mod tests {
