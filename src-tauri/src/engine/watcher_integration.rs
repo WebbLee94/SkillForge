@@ -50,59 +50,6 @@ pub fn resolve_path_to_capability(path: &Path) -> Option<(String, String)> {
     None
 }
 
-/// Persist a filesystem event into watcher_events and update skills.sync_status
-pub fn handle_fs_event(
-    conn: &rusqlite::Connection,
-    event_path: &str,
-    event_kind: &str,
-) -> Result<(), AppError> {
-    let (platform, capability) = match resolve_path_to_capability(Path::new(event_path)) {
-        Some(p) => p,
-        None => return Ok(()),
-    };
-
-    let platform_opt: Option<&str> = if platform.is_empty() {
-        None
-    } else {
-        Some(&platform)
-    };
-
-    match event_kind {
-        "NEW" => {
-            conn.execute(
-                "INSERT INTO watcher_events (event_type, capability, path, platform)
-                 VALUES ('NEW', ?1, ?2, ?3)",
-                params![capability, event_path, platform_opt],
-            )?;
-        }
-        "DELETED" => {
-            conn.execute(
-                "INSERT INTO watcher_events (event_type, capability, path, platform)
-                 VALUES ('DELETED', ?1, ?2, ?3)",
-                params![capability, event_path, platform_opt],
-            )?;
-            conn.execute(
-                "UPDATE skills SET sync_status = 'missing' WHERE local_path = ?1",
-                params![event_path],
-            )?;
-        }
-        "MODIFIED" => {
-            conn.execute(
-                "INSERT INTO watcher_events (event_type, capability, path, platform)
-                 VALUES ('MODIFIED', ?1, ?2, ?3)",
-                params![capability, event_path, platform_opt],
-            )?;
-            conn.execute(
-                "UPDATE skills SET sync_status = 'modified' WHERE local_path = ?1",
-                params![event_path],
-            )?;
-        }
-        _ => {}
-    }
-
-    Ok(())
-}
-
 pub fn get_unhandled_events(conn: &rusqlite::Connection) -> Result<Vec<WatcherEvent>, AppError> {
     let mut stmt = conn.prepare(
         "SELECT id, event_type, capability, path, platform, old_hash, new_hash, handled, created_at

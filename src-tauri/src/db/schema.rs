@@ -124,6 +124,8 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
     )?;
 
     // ── watcher_events ──────────────────────────────────────────────
+    // 注：v1 基线保留此表，但当前无运行时写入方 —— 文件事件走 fs_watcher 内存 PENDING_EVENTS 链路，
+    // 原 DB 写入路径 handle_fs_event 已于 2026-08-23 作为死代码移除。
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS watcher_events (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
