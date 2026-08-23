@@ -4,12 +4,15 @@
 //! 委托到 `engine/dist_plan.rs` 的既有查询，行为保持不变。
 
 use crate::error::AppError;
-use crate::types::Skill;
+use crate::types::{Rule, Skill};
 
-/// 分发用例所需的仓储读取能力（技能 / 项目路径）。
+/// 分发用例所需的仓储读取能力（技能 / 规则 / 项目路径）。
 pub trait DistributionRepository {
     /// 按 ID 读取技能；不存在时返回 [`AppError::SkillNotFound`]。
     fn get_skill(&self, skill_id: &str) -> Result<Skill, AppError>;
+
+    /// 按 ID 读取规则；不存在时返回与既有 rule 查询一致的错误。
+    fn get_rule(&self, rule_id: &str) -> Result<Rule, AppError>;
 
     /// 按 ID 解析项目路径；项目不存在时返回 `None`。
     fn get_project_path(&self, project_id: &str) -> Option<String>;

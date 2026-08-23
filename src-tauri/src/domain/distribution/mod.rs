@@ -13,7 +13,10 @@ pub use model::{
     LocalDistributionEntry, ManagedDistributionEntry, ManagedDistributionState,
     ManagedPlatformState, PlatformDistributionPlan,
 };
-pub use plan::{calculate_distribution_plan, calculate_intent_diff};
+pub use plan::{
+    calculate_distribution_plan, calculate_distribution_plan_with_content, calculate_intent_diff,
+    classify_intent_diff, ContentDigestPair, IntentDiff,
+};
 pub use policy::{
     classify_skill_symlink, ensure_remove_targets_covered, managed_block_content_matches,
     SkillLinkOwnership,

@@ -3,9 +3,12 @@ import { expect } from '@wdio/globals';
 /**
  * 概览统计卡响应式 — 运行态级联回归（P1，Task 6 复查）
  *
- * 根因：Tailwind v4 将 arbitrary 变体 min-[1180px]:grid-cols-4 排在标准 md 变体
- * 之前输出（等特异性，同层级），≥1180px 视口下两条 media 同时命中，后声明的
- * md:grid-cols-2 覆盖了 min-[1180px]:grid-cols-4 → 运行态计算为 2 列。
+ * 根因：Tailwind v4 曾将 arbitrary 断点（min-[1180px] 修饰的 grid-cols-4）
+ * 规则排在标准 md 变体之前输出（等特异性，同层级），≥1180px 视口下两条
+ * media 同时命中，后声明的 md:grid-cols-2 覆盖了前者 → 运行态计算为 2 列。
+ *
+ * 注意：本文件注释刻意避免书写完整的裸变体候选类名——Tailwind v4 自动
+ * 内容扫描会把注释里的裸候选生成为无组件引用的死 CSS 规则（CL-030）。
  *
  * 本 spec 验证的是【编译后/运行态】的 gridTemplateColumns 计算结果，
  * 而非 JSX 类名存在性（后者由 Dashboard.test.tsx 的类契约测试覆盖）。

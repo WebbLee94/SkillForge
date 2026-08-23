@@ -14,7 +14,10 @@
 //! Read-only guarantee: this flow must never create directories or files —
 //! missing target directories are simply treated as empty current state.
 
-use crate::domain::distribution::plan::{calculate_distribution_plan, plan_has_removals};
+use crate::domain::distribution::plan::{
+    calculate_distribution_plan_with_content, plan_has_removals, ContentDigestPair,
+};
+use crate::engine::content_hash;
 use crate::error::AppError;
 use crate::plugins::platform::PlatformPlugin;
 use crate::ports::distribution::DistributionRepository;
@@ -128,12 +131,25 @@ pub fn build_distribution_plan_for_request(
         // Compute rule diff (if platform supports rules)
         let current_rules =
             fs.read_current_rules_on_disk(&**plugin, &instance, project_path.as_deref())?;
-        let mut platform_plan = calculate_distribution_plan(
+        let skill_digests =
+            collect_skill_digests(repo, fs, &request.skills, &current_skills, &instance);
+        let rule_digests = collect_rule_digests(
+            repo,
+            fs,
+            &request.rules,
+            &current_rules,
+            &**plugin,
+            &instance,
+            project_path.as_deref(),
+        )?;
+        let mut platform_plan = calculate_distribution_plan_with_content(
             platform_id,
             plugin.display_name(),
             &current_skills,
             &current_rules,
             &platform_request,
+            &skill_digests,
+            &rule_digests,
         )?;
         let rules_supported = if instance.scope == "global" {
             plugin.default_paths().global_rules_dir.is_some()

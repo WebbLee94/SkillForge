@@ -499,6 +499,23 @@ pub(crate) fn count_managed_rule_blocks(content: &str) -> Result<i64, AppError> 
     parse_managed_rule_blocks(content).map(|blocks| blocks.len() as i64)
 }
 
+/// Extract the managed block inner content of `rule_id` from a
+/// SingleFile-mode file; `Ok(None)` when the file or the block is absent.
+pub(crate) fn read_managed_rule_block_content(
+    file_path: &std::path::Path,
+    rule_id: &str,
+) -> Result<Option<String>, AppError> {
+    if !file_path.exists() {
+        return Ok(None);
+    }
+    let content = std::fs::read_to_string(file_path)?;
+    let blocks = parse_managed_rule_blocks(&content)?;
+    Ok(blocks
+        .iter()
+        .find(|block| block.id == rule_id)
+        .map(|block| block.content.clone()))
+}
+
 /// Parse all well-formed SKILLFORGE managed blocks from a SingleFile-mode file.
 /// Rejects files with stray/mismatched markers.
 pub(crate) fn parse_managed_rule_blocks(content: &str) -> Result<Vec<ManagedRuleBlock>, AppError> {

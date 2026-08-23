@@ -209,3 +209,164 @@ fn test_set_scene_member_enabled_invalid_member_type() {
         other => panic!("expected Validation error, got: {:?}", other),
     }
 }
+
+// ── CL-032 事务性场景保存回归测试 ──────────────────────────────────
+
+fn count_rows(conn: &rusqlite::Connection, sql: &str) -> i64 {
+    conn.query_row(sql, [], |row| row.get::<_, i64>(0)).unwrap()
+}
+
+#[test]
+fn test_create_scene_rolls_back_on_missing_skill() {
+    let conn = init_db();
+
+    // 插入一个有效技能，第二个技能不存在 → 循环中途失败
+    conn.execute(
+        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        rusqlite::params!["valid-skill", "Valid Skill"],
+    )
+    .unwrap();
+
+    let dto = CreateSceneDTO {
+        name: "Rollback Skill".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: Some(vec!["valid-skill".to_string(), "missing-skill".to_string()]),
+        rule_ids: None,
+    };
+
+    let result = scene_engine::create_scene(&conn, &dto);
+    match result {
+        Err(AppError::SkillNotFound(id)) => assert_eq!(id, "missing-skill"),
+        other => panic!("expected SkillNotFound, got: {:?}", other),
+    }
+
+    // 整体回滚：场景行与成员关联均不得残留
+    assert_eq!(
+        count_rows(
+            &conn,
+            "SELECT COUNT(*) FROM scenes WHERE id = 'rollback-skill'"
+        ),
+        0,
+        "失败后不应残留半初始化的场景行"
+    );
+    assert_eq!(
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"),
+        0,
+        "失败后不应残留已插入的技能关联"
+    );
+}
+
+#[test]
+fn test_create_scene_rolls_back_on_missing_rule() {
+    let conn = init_db();
+
+    // 技能阶段全部成功，规则阶段中途失败 → 前面所有写入必须整体回滚
+    conn.execute(
+        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        rusqlite::params!["valid-skill", "Valid Skill"],
+    )
+    .unwrap();
+
+    let dto = CreateSceneDTO {
+        name: "Rollback Rule".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: Some(vec!["valid-skill".to_string()]),
+        rule_ids: Some(vec!["missing-rule".to_string()]),
+    };
+
+    let result = scene_engine::create_scene(&conn, &dto);
+    match result {
+        Err(AppError::RuleNotFound(id)) => assert_eq!(id, "missing-rule"),
+        other => panic!("expected RuleNotFound, got: {:?}", other),
+    }
+
+    assert_eq!(
+        count_rows(
+            &conn,
+            "SELECT COUNT(*) FROM scenes WHERE id = 'rollback-rule'"
+        ),
+        0,
+        "失败后不应残留场景行"
+    );
+    assert_eq!(
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"),
+        0,
+        "技能关联应随事务一起回滚"
+    );
+    assert_eq!(
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_rules"),
+        0,
+        "失败后不应残留规则关联"
+    );
+
+    // 回滚不污染后续写入：同名场景仍可成功创建
+    let retry = CreateSceneDTO {
+        name: "Rollback Rule".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: Some(vec!["valid-skill".to_string()]),
+        rule_ids: None,
+    };
+    let scene = scene_engine::create_scene(&conn, &retry).expect("回滚后同名创建应不受污染");
+    assert_eq!(scene.id, "rollback-rule");
+}
+
+#[test]
+fn test_delete_scene_rolls_back_on_midway_failure() {
+    let conn = init_db();
+
+    conn.execute(
+        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        rusqlite::params!["s1", "Skill One"],
+    )
+    .unwrap();
+    conn.execute(
+        "INSERT INTO rules (id, name, description, format, content, updated_at) VALUES (?1, ?2, ?3, 'directory', ?4, datetime('now'))",
+        rusqlite::params!["r1", "Rule One", "A test", "rule content"],
+    )
+    .unwrap();
+    // 场景须含规则成员：空表的 DELETE 不触发 BEFORE DELETE 触发器
+    let dto = CreateSceneDTO {
+        name: "Doomed Delete".to_string(),
+        description: None,
+        icon: None,
+        skill_ids: Some(vec!["s1".to_string()]),
+        rule_ids: Some(vec!["r1".to_string()]),
+    };
+    let scene = scene_engine::create_scene(&conn, &dto).unwrap();
+
+    // 用触发器注入故障：DELETE scene_rules 时中止（模拟删除序列第 2 步失败）
+    conn.execute(
+        "CREATE TRIGGER fail_rule_delete BEFORE DELETE ON scene_rules
+         BEGIN SELECT RAISE(ABORT, 'simulated midway failure'); END;",
+        [],
+    )
+    .unwrap();
+
+    let result = scene_engine::delete_scene(&conn, &scene.id);
+    assert!(result.is_err(), "触发器中止应使 delete_scene 失败");
+
+    // 整体回滚：场景行与第一步已执行的 scene_skills 删除都必须还原
+    assert_eq!(
+        count_rows(
+            &conn,
+            &format!("SELECT COUNT(*) FROM scenes WHERE id = '{}'", scene.id)
+        ),
+        1,
+        "失败后场景行必须仍然存在"
+    );
+    assert_eq!(
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"),
+        1,
+        "失败后技能关联必须被还原（第 1 步删除随事务回滚）"
+    );
+
+    // 清除故障后可正常删除，库状态未损坏
+    conn.execute("DROP TRIGGER fail_rule_delete", []).unwrap();
+    scene_engine::delete_scene(&conn, &scene.id).expect("清除触发器后删除应成功");
+    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scenes"), 0);
+    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"), 0);
+    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scene_rules"), 0);
+}

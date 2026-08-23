@@ -1,9 +1,9 @@
 //! [`DistributionRepository`] 的 SQLite 直通实现，委托到 `engine/dist_plan` 既有查询。
 
-use crate::engine::dist_plan;
+use crate::engine::{dist_plan, rule_engine};
 use crate::error::AppError;
 use crate::ports::distribution::DistributionRepository;
-use crate::types::Skill;
+use crate::types::{Rule, Skill};
 
 /// 借用现有连接的 SQLite 仓储适配器（行为与原 engine 查询完全一致）。
 pub struct SqliteDistributionRepository<'a> {
@@ -19,6 +19,10 @@ impl<'a> SqliteDistributionRepository<'a> {
 impl DistributionRepository for SqliteDistributionRepository<'_> {
     fn get_skill(&self, skill_id: &str) -> Result<Skill, AppError> {
         dist_plan::get_skill(self.conn, skill_id)
+    }
+
+    fn get_rule(&self, rule_id: &str) -> Result<Rule, AppError> {
+        rule_engine::get_rule(self.conn, rule_id)
     }
 
     fn get_project_path(&self, project_id: &str) -> Option<String> {

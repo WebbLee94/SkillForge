@@ -75,6 +75,25 @@ pub fn hash_file(path: &Path) -> Result<String, AppError> {
     Ok(hex::encode(hasher.finalize()))
 }
 
+/// SHA-256 hex of the UTF-8 bytes of `text`.
+pub fn hash_text(text: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(text.as_bytes());
+    hex::encode(hasher.finalize())
+}
+
+/// 规则内容比较的规范化：容忍恰好一个尾部换行
+/// （与 SingleFile 托管块渲染器写入的 `{content}\n` 及
+/// [`crate::domain::distribution::policy::managed_block_content_matches`]
+/// 的匹配语义保持一致）。
+pub fn canonical_rule_text(text: &str) -> &str {
+    text.strip_suffix('\n').unwrap_or(text)
+}
+
+pub fn rule_content_digest(content: &str) -> String {
+    hash_text(canonical_rule_text(content))
+}
+
 fn hash_entries(entries: &[ContentEntry]) -> String {
     let mut hasher = Sha256::new();
     for entry in entries {

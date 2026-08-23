@@ -7,11 +7,15 @@ use crate::types::{
 use rusqlite::params;
 
 /// Create a new scene with associated skills and rules.
+///
+/// 完整保存以事务方式原子提交：任一子步骤失败（技能/规则不存在、约束冲突等）
+/// 整体回滚，不残留半初始化的场景行或成员关联。
 pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Result<Scene, AppError> {
     let id = slugify(&data.name);
+    let tx = conn.unchecked_transaction()?;
 
     // Check for duplicate
-    let exists: bool = conn
+    let exists: bool = tx
         .query_row(
             "SELECT COUNT(*) FROM scenes WHERE id = ?1",
             params![id],
@@ -25,7 +29,7 @@ pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Resul
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    conn.execute(
+    tx.execute(
         "INSERT INTO scenes (id, name, description, icon, is_template, is_system, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, 0, 0, ?5, ?6)",
         params![id, data.name, data.description, data.icon, now, now],
@@ -35,7 +39,7 @@ pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Resul
     if let Some(ref skill_ids) = data.skill_ids {
         for (idx, skill_id) in skill_ids.iter().enumerate() {
             // Verify skill exists
-            let skill_exists: bool = conn
+            let skill_exists: bool = tx
                 .query_row(
                     "SELECT COUNT(*) FROM skills WHERE id = ?1",
                     params![skill_id],
@@ -47,7 +51,7 @@ pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Resul
                 return Err(AppError::SkillNotFound(skill_id.clone()));
             }
 
-            conn.execute(
+            tx.execute(
                 "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
                 params![id, skill_id, idx as i32],
             )?;
@@ -57,7 +61,7 @@ pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Resul
     // Add rules to scene
     if let Some(ref rule_ids) = data.rule_ids {
         for (idx, rule_id) in rule_ids.iter().enumerate() {
-            let rule_exists: bool = conn
+            let rule_exists: bool = tx
                 .query_row(
                     "SELECT COUNT(*) FROM rules WHERE id = ?1",
                     params![rule_id],
@@ -69,12 +73,14 @@ pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Resul
                 return Err(AppError::RuleNotFound(rule_id.clone()));
             }
 
-            conn.execute(
+            tx.execute(
                 "INSERT INTO scene_rules (scene_id, rule_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
                 params![id, rule_id, idx as i32],
             )?;
         }
     }
+
+    tx.commit()?;
 
     query_scene_by_id(conn, &id)
 }
@@ -113,6 +119,9 @@ pub fn update_scene(
 
 /// Delete a scene. Blocks if the scene is in use by projects or global distribution.
 /// Returns SceneInUse error with project count and names.
+///
+/// 三表删除（scene_skills / scene_rules / scenes）以事务方式原子提交：
+/// 任一步骤失败整体回滚，避免留下无主关联或半删除状态。
 pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppError> {
     let scene = query_scene_by_id(conn, id)?;
 
@@ -123,10 +132,14 @@ pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppErro
 
     // 全局分发不再绑定 scene（v6：app_config / projects.scene_id 已移除）
 
+    let tx = conn.unchecked_transaction()?;
+
     // Delete associations (cascading should handle this, but be explicit)
-    conn.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
+    tx.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
+    tx.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
+    tx.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
+
+    tx.commit()?;
 
     Ok(())
 }

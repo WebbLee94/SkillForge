@@ -1,20 +1,4 @@
-use crate::error::AppError;
-use rusqlite::params;
 use std::path::Path;
-
-/// Watcher event as persisted to DB
-#[derive(Debug, Clone, serde::Serialize)]
-pub struct WatcherEvent {
-    pub id: i64,
-    pub event_type: String,
-    pub capability: String,
-    pub path: String,
-    pub platform: Option<String>,
-    pub old_hash: Option<String>,
-    pub new_hash: Option<String>,
-    pub handled: i32,
-    pub created_at: String,
-}
 
 /// Resolve a filesystem path to (platform_key, capability_type)
 /// Uses ALL_PLATFORMS as the single source of truth for platform paths.
@@ -48,41 +32,6 @@ pub fn resolve_path_to_capability(path: &Path) -> Option<(String, String)> {
     }
 
     None
-}
-
-pub fn get_unhandled_events(conn: &rusqlite::Connection) -> Result<Vec<WatcherEvent>, AppError> {
-    let mut stmt = conn.prepare(
-        "SELECT id, event_type, capability, path, platform, old_hash, new_hash, handled, created_at
-         FROM watcher_events WHERE handled = 0 ORDER BY created_at DESC LIMIT 50",
-    )?;
-    let events = stmt
-        .query_map([], |row| {
-            Ok(WatcherEvent {
-                id: row.get(0)?,
-                event_type: row.get(1)?,
-                capability: row.get(2)?,
-                path: row.get(3)?,
-                platform: row.get(4)?,
-                old_hash: row.get(5)?,
-                new_hash: row.get(6)?,
-                handled: row.get(7)?,
-                created_at: row.get(8)?,
-            })
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(events)
-}
-
-pub fn mark_event_handled(
-    conn: &rusqlite::Connection,
-    event_id: i64,
-    action: i32,
-) -> Result<(), AppError> {
-    conn.execute(
-        "UPDATE watcher_events SET handled = ?1 WHERE id = ?2",
-        params![action, event_id],
-    )?;
-    Ok(())
 }
 
 #[cfg(test)]
