@@ -110,8 +110,8 @@ mod tests {
     use super::*;
     use crate::db::schema;
     use crate::types::{
-        DistributionIntent, DistributionIntentMode, PlatformCapabilities, PlatformInstance,
-        PlatformPaths, PlatformDistributionPlan, SyncResult,
+        DistributionIntent, DistributionIntentMode, PlatformCapabilities, PlatformDistributionPlan,
+        PlatformInstance, PlatformPaths, SyncResult,
     };
     use rusqlite::params;
 

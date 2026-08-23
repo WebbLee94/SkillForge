@@ -573,7 +573,11 @@ mod tests {
             Ok(vec![])
         }
 
-        fn install(&self, _skill: &crate::types::Skill, _instance: &PlatformInstance) -> Result<(), AppError> {
+        fn install(
+            &self,
+            _skill: &crate::types::Skill,
+            _instance: &PlatformInstance,
+        ) -> Result<(), AppError> {
             Ok(())
         }
 
@@ -667,9 +671,10 @@ mod tests {
             rules: preserve_rules(),
         };
 
-        let mut submitted =
-            crate::engine::dist_plan::build_distribution_plan_for_request(&conn, &plugins, &request)
-                .unwrap();
+        let mut submitted = crate::engine::dist_plan::build_distribution_plan_for_request(
+            &conn, &plugins, &request,
+        )
+        .unwrap();
         assert!(!submitted.has_removals);
         submitted.has_removals = true;
 
@@ -695,9 +700,10 @@ mod tests {
             rules: preserve_rules(),
         };
 
-        let submitted =
-            crate::engine::dist_plan::build_distribution_plan_for_request(&conn, &plugins, &request)
-                .unwrap();
+        let submitted = crate::engine::dist_plan::build_distribution_plan_for_request(
+            &conn, &plugins, &request,
+        )
+        .unwrap();
         let result = execute_distribution_request(&conn, &plugins, &request, &submitted).unwrap();
 
         assert_eq!(result.skipped, 1);
@@ -713,9 +719,20 @@ mod tests {
         let base = tempfile::tempdir().unwrap();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![TestPlugin::plugin(base.path())];
 
-        let err = execute_remove_distributed(&conn, &plugins, &["test".to_string()], "global", None, &[], &[])
-            .unwrap_err();
-        assert!(err.to_string().contains("没有待移除的受管内容"), "got: {err}");
+        let err = execute_remove_distributed(
+            &conn,
+            &plugins,
+            &["test".to_string()],
+            "global",
+            None,
+            &[],
+            &[],
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("没有待移除的受管内容"),
+            "got: {err}"
+        );
     }
 
     #[test]
@@ -851,7 +868,11 @@ mod tests {
             Ok(self.detect_instances.clone())
         }
 
-        fn install(&self, _skill: &crate::types::Skill, _i: &PlatformInstance) -> Result<(), AppError> {
+        fn install(
+            &self,
+            _skill: &crate::types::Skill,
+            _i: &PlatformInstance,
+        ) -> Result<(), AppError> {
             Ok(())
         }
 
@@ -940,10 +961,12 @@ mod tests {
 
         // 第一轮：插件上报 installed → 计入 installed、不计 skipped；
         // 规则走真实 Directory 写盘路径 → 计入 "rule:<id>"。
-        let plugins_hit: Vec<Box<dyn PlatformPlugin>> =
-            vec![Box::new(ExecTestPlugin::global(&skills_dir, &rules_dir, true))];
-        let submitted =
-            build_distribution_plan_for_request(&conn, &plugins_hit, &request).unwrap();
+        let plugins_hit: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(ExecTestPlugin::global(
+            &skills_dir,
+            &rules_dir,
+            true,
+        ))];
+        let submitted = build_distribution_plan_for_request(&conn, &plugins_hit, &request).unwrap();
         let result =
             execute_distribution_request(&conn, &plugins_hit, &request, &submitted).unwrap();
 
@@ -961,8 +984,11 @@ mod tests {
         // 第二轮（对照）：插件上报无变化 → 必须计入 skipped（skip accounting）。
         // 注意：第一轮已把 rule-1.md 写入磁盘，需按当前磁盘状态重算计划再提交，
         // 否则会触发"计划已过期"校验而非进入执行阶段。
-        let plugins_noop: Vec<Box<dyn PlatformPlugin>> =
-            vec![Box::new(ExecTestPlugin::global(&skills_dir, &rules_dir, false))];
+        let plugins_noop: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(ExecTestPlugin::global(
+            &skills_dir,
+            &rules_dir,
+            false,
+        ))];
         let submitted2 =
             build_distribution_plan_for_request(&conn, &plugins_noop, &request).unwrap();
         let result2 =
@@ -970,7 +996,10 @@ mod tests {
 
         // 既有语义：skipped 同时覆盖技能（execute 循环判定）与规则
         // （rule_distribution 内部对已同步文件计数）→ 1 技能 + 1 规则 = 2。
-        assert_eq!(result2.skipped, 2, "unchanged skill and unchanged rule must both count as skipped");
+        assert_eq!(
+            result2.skipped, 2,
+            "unchanged skill and unchanged rule must both count as skipped"
+        );
         assert!(!result2.installed.contains(&"skill-1".to_string()));
     }
 }

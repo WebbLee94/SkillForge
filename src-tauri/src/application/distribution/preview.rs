@@ -200,7 +200,11 @@ mod tests {
             Ok(self.instances.clone())
         }
 
-        fn install(&self, _skill: &crate::types::Skill, _instance: &PlatformInstance) -> Result<(), AppError> {
+        fn install(
+            &self,
+            _skill: &crate::types::Skill,
+            _instance: &PlatformInstance,
+        ) -> Result<(), AppError> {
             Ok(())
         }
 
@@ -274,7 +278,10 @@ mod tests {
     }
 
     /// Project-scope plugin resolving `{project}` patterns under a project base.
-    fn project_plugin(skills_pattern: &str, rules_pattern: Option<&str>) -> Box<dyn PlatformPlugin> {
+    fn project_plugin(
+        skills_pattern: &str,
+        rules_pattern: Option<&str>,
+    ) -> Box<dyn PlatformPlugin> {
         Box::new(PreviewTestPlugin {
             paths: PlatformPaths {
                 global_skills_dir: String::new(),
@@ -358,9 +365,8 @@ mod tests {
         let via_facade =
             crate::engine::dist_plan::build_distribution_plan_for_request(conn, plugins, req)
                 .expect("facade preview should succeed");
-        let via_application =
-            super::build_distribution_plan_for_request(conn, plugins, req)
-                .expect("application preview should succeed");
+        let via_application = super::build_distribution_plan_for_request(conn, plugins, req)
+            .expect("application preview should succeed");
         assert_eq!(via_facade, via_application, "新旧入口输出必须一致");
         via_application
     }
@@ -370,11 +376,10 @@ mod tests {
         plugins: &[Box<dyn PlatformPlugin>],
         req: &DistributionRequest,
     ) -> String {
-        let facade_err = crate::engine::dist_plan::build_distribution_plan_for_request(
-            conn, plugins, req,
-        )
-        .expect_err("facade preview should fail")
-        .to_string();
+        let facade_err =
+            crate::engine::dist_plan::build_distribution_plan_for_request(conn, plugins, req)
+                .expect_err("facade preview should fail")
+                .to_string();
         let app_err = super::build_distribution_plan_for_request(conn, plugins, req)
             .expect_err("application preview should fail")
             .to_string();
@@ -502,7 +507,10 @@ mod tests {
         let conn = setup_db();
         insert_project(&conn, "p1", "My Project", &project_root);
 
-        let plugins = vec![project_plugin("{project}/.sf/skills", Some("{project}/.sf/rules"))];
+        let plugins = vec![project_plugin(
+            "{project}/.sf/skills",
+            Some("{project}/.sf/rules"),
+        )];
         let req = request(
             "project",
             Some("p1"),

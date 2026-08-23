@@ -104,7 +104,10 @@ mod tests {
     #[test]
     fn unknown_scope_is_rejected() {
         let err = request("workspace", None).validate().unwrap_err();
-        assert_eq!(err.to_string(), "分发请求无效: scope 必须是 global 或 project");
+        assert_eq!(
+            err.to_string(),
+            "分发请求无效: scope 必须是 global 或 project"
+        );
     }
 
     #[test]
@@ -143,4 +146,3 @@ mod tests {
         assert!(validate_scope_project_pair("other", None).is_err());
     }
 }
-

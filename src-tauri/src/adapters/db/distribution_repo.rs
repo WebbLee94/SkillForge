@@ -73,10 +73,7 @@ mod tests {
         .unwrap();
 
         let repo = SqliteDistributionRepository::new(&conn);
-        assert_eq!(
-            repo.get_project_path("p1").as_deref(),
-            Some("/tmp/proj")
-        );
+        assert_eq!(repo.get_project_path("p1").as_deref(), Some("/tmp/proj"));
         assert_eq!(repo.get_project_path("missing"), None);
     }
 }

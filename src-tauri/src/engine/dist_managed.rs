@@ -13,10 +13,10 @@
 //!
 //! 待新路径在测试中稳定后，按重构计划退役本模块。
 
+pub(crate) use crate::application::distribution::managed::{count_fs_files, count_fs_subdirs};
 pub use crate::application::distribution::managed::{
     get_managed_distribution_state, get_sync_status,
 };
-pub(crate) use crate::application::distribution::managed::{count_fs_files, count_fs_subdirs};
 
 #[cfg(test)]
 mod tests {

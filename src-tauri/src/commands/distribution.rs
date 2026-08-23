@@ -256,8 +256,7 @@ mod tests {
             "rules_to_remove",
         ] {
             assert!(
-                plan_json["platforms"][0].get(key).is_some()
-                    || plan_json.get(key).is_some(),
+                plan_json["platforms"][0].get(key).is_some() || plan_json.get(key).is_some(),
                 "DistributionPlan 缺少字段 {key}"
             );
         }

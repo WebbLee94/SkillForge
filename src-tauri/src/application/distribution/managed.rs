@@ -424,16 +424,10 @@ mod tests {
         symlink(&src_elsewhere, &skills_dir.join("foreign-skill"));
         std::fs::create_dir(skills_dir.join("plain-dir")).unwrap();
 
-        let plugins: Vec<Box<dyn PlatformPlugin>> =
-            vec![global_plugin(&skills_dir, None)];
-        let state = get_managed_distribution_state(
-            &conn,
-            &plugins,
-            &["test".to_string()],
-            "global",
-            None,
-        )
-        .unwrap();
+        let plugins: Vec<Box<dyn PlatformPlugin>> = vec![global_plugin(&skills_dir, None)];
+        let state =
+            get_managed_distribution_state(&conn, &plugins, &["test".to_string()], "global", None)
+                .unwrap();
 
         assert_eq!(state.platforms.len(), 1);
         let platform = &state.platforms[0];
@@ -473,35 +467,35 @@ mod tests {
 
         let plugins: Vec<Box<dyn PlatformPlugin>> =
             vec![global_plugin(&skills_dir, Some(&rules_dir))];
-        let state = get_managed_distribution_state(
-            &conn,
-            &plugins,
-            &["test".to_string()],
-            "global",
-            None,
-        )
-        .unwrap();
+        let state =
+            get_managed_distribution_state(&conn, &plugins, &["test".to_string()], "global", None)
+                .unwrap();
         let platform = &state.platforms[0];
 
         // 受管判定不受影响
-        let managed_skill_ids: Vec<&str> =
-            platform.skills.iter().map(|e| e.id.as_str()).collect();
+        let managed_skill_ids: Vec<&str> = platform.skills.iter().map(|e| e.id.as_str()).collect();
         assert_eq!(managed_skill_ids, vec!["skill-a"]);
         let managed_rule_ids: Vec<&str> = platform.rules.iter().map(|e| e.id.as_str()).collect();
         assert_eq!(managed_rule_ids, vec!["rule-1"]);
 
         // 本地技能：排除受管 skill-a 与普通文件；包含非受管目录/链接并按名称排序
-        let local_names: Vec<&str> =
-            platform.local_skills.iter().map(|e| e.name.as_str()).collect();
+        let local_names: Vec<&str> = platform
+            .local_skills
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect();
         assert_eq!(local_names, vec!["a-user-dir", "b-user-dir", "user-link"]);
         assert!(platform
             .local_skills
             .iter()
-            .all(|e| e.path != skills_dir.join("skill-a").to_string_lossy().to_string()));
+            .all(|e| e.path != skills_dir.join("skill-a").to_string_lossy().as_ref()));
 
         // 本地规则：排除受管 rule-1.md，仅剩用户文件
-        let local_rule_names: Vec<&str> =
-            platform.local_rules.iter().map(|e| e.name.as_str()).collect();
+        let local_rule_names: Vec<&str> = platform
+            .local_rules
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect();
         assert_eq!(local_rule_names, vec!["user-rule.md"]);
 
         std::fs::remove_dir_all(&root).ok();
@@ -512,14 +506,9 @@ mod tests {
     fn project_scope_without_project_id_is_rejected() {
         let conn = setup_db();
         let plugins: Vec<Box<dyn PlatformPlugin>> = vec![];
-        let error = get_managed_distribution_state(
-            &conn,
-            &plugins,
-            &["test".to_string()],
-            "project",
-            None,
-        )
-        .unwrap_err();
+        let error =
+            get_managed_distribution_state(&conn, &plugins, &["test".to_string()], "project", None)
+                .unwrap_err();
         match error {
             AppError::DistributionInvalid(message) => {
                 assert!(message.contains("project 范围必须提供"));

@@ -29,7 +29,9 @@ impl DistributionFileSystem for EngineDistributionFileSystem {
 mod tests {
     use super::*;
     use crate::error::AppError;
-    use crate::types::{PlatformCapabilities, PlatformPaths, SkillPlatformStatus, Skill, SyncResult};
+    use crate::types::{
+        PlatformCapabilities, PlatformPaths, Skill, SkillPlatformStatus, SyncResult,
+    };
 
     /// 最小 mock 平台插件：仅用于驱动 rules 路径解析。
     struct MockPlugin {

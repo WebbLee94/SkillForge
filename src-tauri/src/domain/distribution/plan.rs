@@ -6,7 +6,9 @@
 //! - `AddOrUpdate`：仅补齐当前缺失的条目（已存在的不动，永不移除）；
 //! - `RemoveSelected`：只移除当前确实存在的条目（不存在的静默跳过）。
 
-use super::model::{DistributionIntent, DistributionIntentMode, DistributionRequest, PlatformDistributionPlan};
+use super::model::{
+    DistributionIntent, DistributionIntentMode, DistributionRequest, PlatformDistributionPlan,
+};
 use crate::error::AppError;
 
 /// 按意图模式对单个维度（技能或规则）计算 (to_add, to_remove) 差集。
@@ -95,7 +97,8 @@ mod tests {
     #[test]
     fn calculate_intent_diff_preserve_never_adds_or_removes() {
         let current = vec!["a".to_string(), "b".to_string()];
-        let diff = calculate_intent_diff(&intent(DistributionIntentMode::Preserve, &["a"]), &current);
+        let diff =
+            calculate_intent_diff(&intent(DistributionIntentMode::Preserve, &["a"]), &current);
         assert_eq!(diff, (vec![], vec![]));
     }
 
@@ -111,10 +114,7 @@ mod tests {
 
     #[test]
     fn add_or_update_with_empty_current_adds_all() {
-        let diff = calculate_intent_diff(
-            &intent(DistributionIntentMode::AddOrUpdate, &["x"]),
-            &[],
-        );
+        let diff = calculate_intent_diff(&intent(DistributionIntentMode::AddOrUpdate, &["x"]), &[]);
         assert_eq!(diff, (vec!["x".to_string()], vec![]));
     }
 
@@ -180,7 +180,7 @@ mod tests {
         let mut platform_with = platform_without.clone();
         platform_with.platform_id = "b".into();
         platform_with.rules_to_remove = vec!["r".into()];
-        assert!(!plan_has_removals(&[platform_without.clone()]));
+        assert!(!plan_has_removals(std::slice::from_ref(&platform_without)));
         assert!(plan_has_removals(&[platform_without, platform_with]));
     }
 }

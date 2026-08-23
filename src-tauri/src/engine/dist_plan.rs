@@ -231,7 +231,9 @@ mod tests {
     use super::*;
     use crate::db::schema;
     use crate::plugins::platform::PlatformPlugin;
-    use crate::types::{DistributionIntent, DistributionIntentMode, PlatformCapabilities, PlatformPaths, SyncResult};
+    use crate::types::{
+        DistributionIntent, DistributionIntentMode, PlatformCapabilities, PlatformPaths, SyncResult,
+    };
 
     fn setup_db() -> rusqlite::Connection {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
@@ -286,7 +288,11 @@ mod tests {
             fn remove(&self, _: &str, _: &PlatformInstance) -> Result<(), AppError> {
                 Ok(())
             }
-            fn status(&self, _: &str, _: &PlatformInstance) -> Result<crate::types::SkillPlatformStatus, AppError> {
+            fn status(
+                &self,
+                _: &str,
+                _: &PlatformInstance,
+            ) -> Result<crate::types::SkillPlatformStatus, AppError> {
                 Ok(crate::types::SkillPlatformStatus {
                     installed: false,
                     path: None,
@@ -324,8 +330,7 @@ mod tests {
     #[test]
     fn preview_rejects_scope_and_project_id_mismatch() {
         let conn = setup_db();
-        let plugins: Vec<Box<dyn PlatformPlugin>> =
-            vec![preview_plugin("{project}/skills")];
+        let plugins: Vec<Box<dyn PlatformPlugin>> = vec![preview_plugin("{project}/skills")];
 
         let mut request = DistributionRequest {
             scene_id: None,
@@ -342,19 +347,24 @@ mod tests {
             },
         };
         let err = build_distribution_plan_for_request(&conn, &plugins, &request).unwrap_err();
-        assert!(err.to_string().contains("project 范围必须提供 project_id"), "got: {err}");
+        assert!(
+            err.to_string().contains("project 范围必须提供 project_id"),
+            "got: {err}"
+        );
 
         request.scope = "global".to_string();
         request.project_id = Some("p1".to_string());
         let err = build_distribution_plan_for_request(&conn, &plugins, &request).unwrap_err();
-        assert!(err.to_string().contains("global 范围不能携带 project_id"), "got: {err}");
+        assert!(
+            err.to_string().contains("global 范围不能携带 project_id"),
+            "got: {err}"
+        );
     }
 
     #[test]
     fn preview_project_scope_requires_resolvable_project_path() {
         let conn = setup_db();
-        let plugins: Vec<Box<dyn PlatformPlugin>> =
-            vec![preview_plugin("{project}/skills")];
+        let plugins: Vec<Box<dyn PlatformPlugin>> = vec![preview_plugin("{project}/skills")];
         let request = DistributionRequest {
             scene_id: None,
             platform_ids: vec!["test".to_string()],
@@ -385,8 +395,7 @@ mod tests {
         let project_path = project_root.to_string_lossy().to_string();
         insert_project(&conn, "p1", &project_path);
         insert_skill(&conn, "skill-1", "/tmp/sources/skill-1");
-        let plugins: Vec<Box<dyn PlatformPlugin>> =
-            vec![preview_plugin("{project}/skills")];
+        let plugins: Vec<Box<dyn PlatformPlugin>> = vec![preview_plugin("{project}/skills")];
         let request = DistributionRequest {
             scene_id: None,
             platform_ids: vec!["test".to_string()],
@@ -447,7 +456,11 @@ mod tests {
         );
 
         let preserve = calculate_distribution_plan(
-            "test", "Test", &current, &[], &make_request(DistributionIntentMode::Preserve, &[]),
+            "test",
+            "Test",
+            &current,
+            &[],
+            &make_request(DistributionIntentMode::Preserve, &[]),
         )
         .unwrap();
         assert!(preserve.skills_to_add.is_empty() && preserve.skills_to_remove.is_empty());

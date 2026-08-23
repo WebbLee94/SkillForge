@@ -73,15 +73,11 @@ pub fn classify_skill_symlink(
         return SkillLinkOwnership::Absent;
     }
     match link_target {
-        None => SkillLinkOwnership::Reject(format!(
-            "技能 '{}' 不是 SkillForge 管理的符号链接",
-            id
-        )),
+        None => SkillLinkOwnership::Reject(format!("技能 '{}' 不是 SkillForge 管理的符号链接", id)),
         Some(link) if link == expected_local_path => SkillLinkOwnership::Owned,
-        Some(_) => SkillLinkOwnership::Reject(format!(
-            "技能 '{}' 的符号链接目标不是 SkillForge 来源",
-            id
-        )),
+        Some(_) => {
+            SkillLinkOwnership::Reject(format!("技能 '{}' 的符号链接目标不是 SkillForge 来源", id))
+        }
     }
 }
 
@@ -94,14 +90,11 @@ pub fn managed_block_content_matches(block_content: &str, rule_content: &str) ->
 
 #[cfg(test)]
 mod tests {
-    use super::super::model::{PlatformDistributionPlan};
+    use super::super::model::PlatformDistributionPlan;
 
     use super::*;
 
-    fn plan(
-        skills_to_remove: &[&str],
-        rules_to_remove: &[&str],
-    ) -> DistributionPlan {
+    fn plan(skills_to_remove: &[&str], rules_to_remove: &[&str]) -> DistributionPlan {
         DistributionPlan {
             platforms: vec![PlatformDistributionPlan {
                 platform_id: "claude-code".to_string(),
@@ -182,9 +175,7 @@ mod tests {
             ],
             has_removals: true,
         };
-        assert!(
-            ensure_remove_targets_covered(&p, &["s1".into(), "s2".into()], &[]).is_ok()
-        );
+        assert!(ensure_remove_targets_covered(&p, &["s1".into(), "s2".into()], &[]).is_ok());
     }
 
     #[test]
@@ -233,4 +224,3 @@ mod tests {
         assert!(managed_block_content_matches("", ""));
     }
 }
-
