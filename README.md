@@ -1,5 +1,7 @@
 # SkillForge - AI Agent 技能与规则编排工具
 
+[简体中文](./README.md) | [English](./README.en.md)
+
 ![License](https://img.shields.io/github/license/WebbLee94/SkillForge)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![Version](https://img.shields.io/github/v/release/WebbLee94/SkillForge?include_prereleases)

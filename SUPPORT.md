@@ -6,8 +6,8 @@
 
 - [README](README.md)
 - [贡献指南](CONTRIBUTING.md)
-- [使用手册](docs/06-使用手册/README.md)
-- [常见问题](docs/06-使用手册/03-常见问题.md)
+- 使用手册：位于独立文档仓库 `SkillForge-docs` 的 `06-使用手册/` 目录
+- 常见问题：同上仓库 `06-使用手册/03-常见问题.md`
 
 ## 报告 Bug
 
