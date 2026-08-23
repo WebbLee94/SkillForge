@@ -300,6 +300,12 @@ body {
 .group:focus .action-reveal {
   opacity: 1;
 }
+/* DEC-1 / 31 号 N-2：项目卡（命名 group/card）行级 focus-within 也揭示，
+   保证纯键盘 Tab 流在聚焦行内任意元素时即可发现 reveal/重命名按钮；
+   仅扩展 focus-within，不引入整卡 hover 揭示（保持跨区域 hover 不揭示的既有约束）。 */
+.group\/card:focus-within .action-reveal {
+  opacity: 1;
+}
 @media (hover: none) {
   .action-reveal {
     opacity: 1;

@@ -381,7 +381,7 @@ export function Settings() {
                     v{APP_VERSION}
                   </span>
                   <button
-                    className="flex items-center gap-1.5 rounded-lg bg-muted px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
+                    className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
                     onClick={() => addToast(t('topbar.notImplemented'), 'info')}
                   >
                     {t('settings:general.update.checkButton')}
