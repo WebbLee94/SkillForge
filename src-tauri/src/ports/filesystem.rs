@@ -21,11 +21,7 @@ pub trait DistributionFileSystem {
 
     /// 计算平台上单个已部署技能条目的内容摘要（SHA-256 hex）；
     /// 条目缺失或不可读时返回 `None`（不参与更新判定）。
-    fn deployed_skill_digest(
-        &self,
-        instance: &PlatformInstance,
-        skill_id: &str,
-    ) -> Option<String>;
+    fn deployed_skill_digest(&self, instance: &PlatformInstance, skill_id: &str) -> Option<String>;
 
     /// 计算平台上单个已部署规则条目的内容摘要（SHA-256 hex，
     /// 按 [`crate::engine::content_hash::canonical_rule_text`] 规范化）；

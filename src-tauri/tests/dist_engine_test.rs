@@ -1252,6 +1252,60 @@ fn test_plan_single_file_rules_boundary_without_updates() {
     assert!(!plan.has_removals);
 }
 
+#[test]
+fn plan_single_file_rules_flags_modified_block_as_update() {
+    let conn = init_db();
+
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO rules (id, name, format, content, version, updated_at)
+         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        rusqlite::params!["rule-active", "Active Rule", "md", "# Active", now],
+    )
+    .unwrap();
+
+    let plugin = support::TestPlatformPlugin::with_rules(
+        "test-plat",
+        "Test Platform",
+        true, // SingleFile mode
+        "AGENTS.md",
+    );
+    let paths = plugin.default_paths();
+    let rules_file = paths.global_rules_dir.as_ref().unwrap().clone();
+    std::fs::create_dir_all(std::path::Path::new(&rules_file).parent().unwrap()).unwrap();
+    std::fs::write(
+        &rules_file,
+        "<!-- SKILLFORGE:rule:rule-active -->\n# Active CHANGED\n<!-- /SKILLFORGE:rule:rule-active -->\n",
+    )
+    .unwrap();
+
+    let plugins: Vec<Box<dyn skillforge_lib::plugins::platform::PlatformPlugin>> =
+        vec![Box::new(plugin)];
+
+    let desired = vec!["rule-active".to_string()];
+
+    let plan = dist_engine::build_distribution_plan(
+        &conn,
+        &plugins,
+        &[],
+        &desired,
+        None,
+        &["test-plat".to_string()],
+        "global",
+        None,
+    )
+    .expect("plan should succeed");
+
+    let plat = &plan.platforms[0];
+    assert!(plat.rules_to_add.is_empty());
+    assert_eq!(
+        plat.rules_to_update,
+        vec!["rule-active"],
+        "托管块内容与库内规则不一致时必须进入更新分类"
+    );
+    assert!(plat.rules_to_remove.is_empty());
+}
+
 /// Finding 1+2 fix: source files are inside TempDir; plan never modifies them.
 #[test]
 fn test_plan_does_not_modify_source_files() {

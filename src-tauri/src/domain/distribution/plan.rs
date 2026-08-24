@@ -234,14 +234,8 @@ mod tests {
             intent(DistributionIntentMode::AddOrUpdate, &["s1"]),
             intent(DistributionIntentMode::Preserve, &[]),
         );
-        let plan = calculate_distribution_plan(
-            "p",
-            "P",
-            &["s1".to_string()],
-            &[],
-            &req,
-        )
-        .expect("ID 级入口应成功");
+        let plan = calculate_distribution_plan("p", "P", &["s1".to_string()], &[], &req)
+            .expect("ID 级入口应成功");
         assert!(plan.skills_to_update.is_empty());
     }
 
@@ -301,10 +295,7 @@ mod tests {
                 &current,
                 digests,
             );
-            assert!(
-                diff.to_update.is_empty(),
-                "任一侧摘要缺失时不得误报更新"
-            );
+            assert!(diff.to_update.is_empty(), "任一侧摘要缺失时不得误报更新");
         }
     }
 

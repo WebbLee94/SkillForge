@@ -186,6 +186,67 @@ fn legacy_distribution_intent(ids: &[String]) -> DistributionIntent {
     }
 }
 
+fn collect_skill_digests(
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
+    intent: &DistributionIntent,
+    current: &[String],
+    instance: &PlatformInstance,
+) -> ContentDigestPair {
+    if intent.mode != DistributionIntentMode::AddOrUpdate {
+        return ContentDigestPair::default();
+    }
+    let mut digests = ContentDigestPair::default();
+    for id in intent.ids.iter().filter(|id| current.contains(id)) {
+        let Some(deployed) = fs.deployed_skill_digest(instance, id) else {
+            continue;
+        };
+        let library = library_skill_digest(repo, id);
+        if let Some(library) = library {
+            digests.library.insert(id.clone(), library);
+            digests.deployed.insert(id.clone(), deployed);
+        }
+    }
+    digests
+}
+
+fn library_skill_digest(repo: &dyn DistributionRepository, skill_id: &str) -> Option<String> {
+    let skill = repo.get_skill(skill_id).ok()?;
+    let path = std::path::Path::new(&skill.local_path);
+    if !path.exists() {
+        return None;
+    }
+    content_hash::hash_directory(path).ok()
+}
+
+fn collect_rule_digests(
+    repo: &dyn DistributionRepository,
+    fs: &dyn DistributionFileSystem,
+    intent: &DistributionIntent,
+    current: &[String],
+    plugin: &dyn PlatformPlugin,
+    instance: &PlatformInstance,
+    project_base: Option<&str>,
+) -> Result<ContentDigestPair, AppError> {
+    if intent.mode != DistributionIntentMode::AddOrUpdate {
+        return Ok(ContentDigestPair::default());
+    }
+    let mut digests = ContentDigestPair::default();
+    for id in intent.ids.iter().filter(|id| current.contains(id)) {
+        let Some(deployed) = fs.deployed_rule_digest(plugin, instance, project_base, id)? else {
+            continue;
+        };
+        let Ok(rule) = repo.get_rule(id) else {
+            continue;
+        };
+        digests
+            .library
+            .insert(id.clone(), content_hash::rule_content_digest(&rule.content));
+        digests.deployed.insert(id.clone(), deployed);
+    }
+    Ok(digests)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -742,5 +803,164 @@ mod tests {
             }
             other => panic!("期望 ProjectNotFound，实际: {:?}", other),
         }
+    }
+
+    // ── CL-034 内容级 checksum 合同 ─────────────────────────────────
+
+    fn insert_skill_row(conn: &rusqlite::Connection, id: &str, local_path: &Path) {
+        conn.execute(
+            "INSERT INTO skills (id, name, source_type, installed_at, local_path)
+             VALUES (?1, ?1, 'local', ?2, ?3)",
+            rusqlite::params![
+                id,
+                chrono::Utc::now().to_rfc3339(),
+                local_path.to_string_lossy().to_string()
+            ],
+        )
+        .unwrap();
+    }
+
+    fn insert_rule_row(conn: &rusqlite::Connection, id: &str, content: &str) {
+        conn.execute(
+            "INSERT INTO rules (id, name, format, content, version, updated_at)
+             VALUES (?1, ?1, 'md', ?2, 1, ?3)",
+            rusqlite::params![id, content, chrono::Utc::now().to_rfc3339()],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn preview_classifies_outdated_skill_copy_as_update() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        let library_dir = tmp.path().join("library").join("skill-a");
+        std::fs::create_dir_all(skills_dir.join("skill-a")).unwrap();
+        std::fs::create_dir_all(&library_dir).unwrap();
+        std::fs::write(library_dir.join("SKILL.md"), "library v2").unwrap();
+        std::fs::write(skills_dir.join("skill-a").join("SKILL.md"), "deployed v1").unwrap();
+
+        let conn = setup_db();
+        insert_skill_row(&conn, "skill-a", &library_dir);
+
+        let plugins = vec![dir_plugin(&skills_dir, None)];
+        let req = request(
+            "global",
+            None,
+            intent(DistributionIntentMode::AddOrUpdate, &["skill-a"]),
+            intent(DistributionIntentMode::Preserve, &[]),
+        );
+
+        let plan = preview_via_both_paths(&conn, &plugins, &req);
+        let p = &plan.platforms[0];
+        assert!(p.skills_to_add.is_empty());
+        assert_eq!(p.skills_to_update, vec!["skill-a"]);
+        assert!(p.skills_to_remove.is_empty());
+    }
+
+    #[test]
+    fn preview_keeps_matching_skill_copy_out_of_update_list() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        let library_dir = tmp.path().join("library").join("skill-a");
+        std::fs::create_dir_all(skills_dir.join("skill-a")).unwrap();
+        std::fs::create_dir_all(&library_dir).unwrap();
+        std::fs::write(library_dir.join("SKILL.md"), "same").unwrap();
+        std::fs::write(skills_dir.join("skill-a").join("SKILL.md"), "same").unwrap();
+
+        let conn = setup_db();
+        insert_skill_row(&conn, "skill-a", &library_dir);
+
+        let plugins = vec![dir_plugin(&skills_dir, None)];
+        let req = request(
+            "global",
+            None,
+            intent(DistributionIntentMode::AddOrUpdate, &["skill-a"]),
+            intent(DistributionIntentMode::Preserve, &[]),
+        );
+
+        let plan = preview_via_both_paths(&conn, &plugins, &req);
+        let p = &plan.platforms[0];
+        assert!(p.skills_to_add.is_empty());
+        assert!(p.skills_to_update.is_empty(), "内容一致不得误报更新");
+    }
+
+    #[test]
+    fn preview_classifies_user_modified_rule_file_as_update() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        let rules_dir = tmp.path().join("rules");
+        std::fs::create_dir_all(skills_dir.join("a")).unwrap();
+        std::fs::create_dir_all(&rules_dir).unwrap();
+        std::fs::write(rules_dir.join("r1.md"), "user edited").unwrap();
+
+        let conn = setup_db();
+        insert_rule_row(&conn, "r1", "# R1");
+
+        let plugins = vec![dir_plugin(&skills_dir, Some(&rules_dir))];
+        let req = request(
+            "global",
+            None,
+            intent(DistributionIntentMode::Preserve, &[]),
+            intent(DistributionIntentMode::AddOrUpdate, &["r1", "r2"]),
+        );
+
+        let plan = preview_via_both_paths(&conn, &plugins, &req);
+        let p = &plan.platforms[0];
+        assert_eq!(p.rules_to_add, vec!["r2"]);
+        assert_eq!(p.rules_to_update, vec!["r1"]);
+        assert!(!plan.has_removals);
+    }
+
+    /// 解耦证明（CL-034）：fake 端口的部署侧摘要直接驱动规则 update 分类，
+    /// 全程无 DB、无真实磁盘；摘要一致的条目不进任何列表。
+    #[test]
+    fn fake_ports_drive_rule_update_classification_without_disk_or_db() {
+        use crate::application::distribution::test_fakes::{
+            FakeDistributionFileSystem, FakeDistributionRepository,
+        };
+
+        let mut repo = FakeDistributionRepository::default();
+        repo.insert_project_path("p1", "/mem/project");
+        repo.insert_rule("r1", "md", "# R1");
+        repo.insert_rule("r3", "md", "# R3");
+
+        let matching = content_hash::rule_content_digest("# R1");
+        let fs = FakeDistributionFileSystem::default()
+            .with_skills_at("/mem/project/.sf/skills", &["x"])
+            .with_rules_at("/mem/project/.sf/rules", &["r1", "r3"])
+            .with_skill_digest_at("/mem/project/.sf/skills", "x", "deployed-only")
+            .with_rule_digest_at("/mem/project/.sf/rules", "r1", &matching)
+            .with_rule_digest_at("/mem/project/.sf/rules", "r3", "drifted");
+
+        let plugins = vec![project_plugin(
+            "{project}/.sf/skills",
+            Some("{project}/.sf/rules"),
+        )];
+        let req = request(
+            "project",
+            Some("p1"),
+            intent(DistributionIntentMode::AddOrUpdate, &["x"]),
+            intent(DistributionIntentMode::AddOrUpdate, &["r1", "r2", "r3"]),
+        );
+
+        let plan = build_distribution_plan_for_request(&repo, &fs, &plugins, &req)
+            .expect("fake ports 驱动的 preview 应成功");
+
+        assert!(
+            !std::path::Path::new("/mem/project").exists(),
+            "全程未触达真实磁盘"
+        );
+        let p = &plan.platforms[0];
+        assert_eq!(p.rules_to_add, vec!["r2"], "缺失条目仍进 add");
+        assert_eq!(
+            p.rules_to_update,
+            vec!["r3"],
+            "摘要漂移的已部署规则进 update"
+        );
+        assert!(
+            p.skills_to_add.is_empty() && p.skills_to_update.is_empty(),
+            "库内摘要缺失时技能不参与 update 判定"
+        );
+        assert!(!plan.has_removals);
     }
 }

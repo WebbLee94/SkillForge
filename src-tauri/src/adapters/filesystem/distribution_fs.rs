@@ -24,11 +24,7 @@ impl DistributionFileSystem for EngineDistributionFileSystem {
         rule_distribution::read_current_rules_on_disk(plugin, instance, project_base)
     }
 
-    fn deployed_skill_digest(
-        &self,
-        instance: &PlatformInstance,
-        skill_id: &str,
-    ) -> Option<String> {
+    fn deployed_skill_digest(&self, instance: &PlatformInstance, skill_id: &str) -> Option<String> {
         let dir = std::path::Path::new(&instance.path).join(skill_id);
         if !dir.exists() {
             return None;
@@ -213,9 +209,8 @@ mod tests {
     #[test]
     fn read_current_rules_missing_target_is_empty() {
         let tmp = tempfile::tempdir().unwrap();
-        let plugin = MockPlugin::directory(Some(
-            tmp.path().join("nope").to_string_lossy().to_string(),
-        ));
+        let plugin =
+            MockPlugin::directory(Some(tmp.path().join("nope").to_string_lossy().to_string()));
         let instance = mock_instance(tmp.path());
 
         let fs = EngineDistributionFileSystem;
@@ -253,7 +248,8 @@ mod tests {
         let fs = EngineDistributionFileSystem;
 
         assert_eq!(
-            fs.deployed_rule_digest(&plugin, &instance, None, "r1").unwrap(),
+            fs.deployed_rule_digest(&plugin, &instance, None, "r1")
+                .unwrap(),
             Some(content_hash::rule_content_digest("# R1"))
         );
         assert_eq!(
@@ -281,7 +277,8 @@ mod tests {
         let fs = EngineDistributionFileSystem;
 
         assert_eq!(
-            fs.deployed_rule_digest(&plugin, &instance, None, "r1").unwrap(),
+            fs.deployed_rule_digest(&plugin, &instance, None, "r1")
+                .unwrap(),
             Some(content_hash::rule_content_digest("# R1"))
         );
         assert_eq!(
@@ -292,7 +289,8 @@ mod tests {
 
         std::fs::remove_file(&rules_file).unwrap();
         assert_eq!(
-            fs.deployed_rule_digest(&plugin, &instance, None, "r1").unwrap(),
+            fs.deployed_rule_digest(&plugin, &instance, None, "r1")
+                .unwrap(),
             None,
             "单文件缺失时返回 Ok(None)"
         );

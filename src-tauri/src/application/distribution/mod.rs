@@ -162,10 +162,7 @@ pub(crate) mod test_fakes {
             rule_id: &str,
         ) -> Result<Option<String>, AppError> {
             let key = self.resolved_rules_key(plugin, instance, project_base);
-            Ok(self
-                .rule_digests
-                .get(&(key, rule_id.to_string()))
-                .cloned())
+            Ok(self.rule_digests.get(&(key, rule_id.to_string())).cloned())
         }
     }
 
