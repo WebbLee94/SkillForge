@@ -89,9 +89,13 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
       { timeout: 10000, timeoutMsg: '设置页 URL 未就绪' }
     );
 
-    const title = await browser.$('h1.page-title');
-    await title.waitForExist({ timeout: 10000 });
-    expect(await title.getText()).toContain('设置');
+    // 懒加载过渡期旧页面的 h1.page-title 会先被命中，须等设置页标题就绪
+    const settingsTitle = '//h1[contains(@class, "page-title") and contains(., "设置")]';
+    await browser.waitUntil(
+      async () => (await browser.$(settingsTitle).isExisting()) === true,
+      { timeout: 10000, timeoutMsg: '设置页标题未挂载' }
+    );
+    expect(await (await browser.$(settingsTitle)).getText()).toContain('设置');
   });
 
 
@@ -598,6 +602,15 @@ describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
       async () => ((await browser.getUrl()) ?? '').includes('/rules'),
       { timeout: 10000, timeoutMsg: 'URL 未跳转到 /rules' }
     );
+    // 懒加载路由过渡期旧页面保持挂载且两页共用 lib-page-actions，
+    // 需同时等待 URL 与规则页 h1 就绪，避免命中残留的技能页容器
+    await browser.waitUntil(
+      async () =>
+        ((await browser.getUrl()) ?? '').includes('/rules') &&
+        (await browser.$('//h1[normalize-space(.)="规则"]').isExisting()) ===
+          true,
+      { timeout: 10000, timeoutMsg: 'URL 未跳转到 /rules 或规则页未挂载' }
+    );
     pageActions = await browser.$('[data-testid="lib-page-actions"]');
     await pageActions.waitForExist({ timeout: 10000 });
     pageButtons = await pageActions.$$('button');
@@ -619,6 +632,12 @@ describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
     await browser.waitUntil(
       async () => ((await browser.getUrl()) ?? '').includes('/settings'),
       { timeout: 10000, timeoutMsg: 'URL 未跳转到 /settings' }
+    );
+    // 懒加载 chunk 未预热时 URL 已变而页面尚未提交，先等任一通用卡渲染
+    // （React 单次 commit 保证 ≥1 卡即整卡列表就绪），再做全量断言
+    await browser.waitUntil(
+      async () => (await browser.$$('[data-testid="general-card"]')).length > 0,
+      { timeout: 10000, timeoutMsg: '设置页通用卡未渲染' }
     );
     const cards = await browser.$$('[data-testid="general-card"]');
     expect(cards.length).toBe(5);
