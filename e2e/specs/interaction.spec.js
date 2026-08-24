@@ -53,7 +53,7 @@ describe('SkillForge 桌面应用交互测试', () => {
     expect(scenes.length).toBeGreaterThanOrEqual(0);
   });
 
-  it('Rust 后端返回同步状态（get_sync_status）', async () => {
+  it('Rust 后端返回分发状态（get_sync_status）', async () => {
     const status = await invokeTauriCommand(({ core }) =>
       core.invoke('get_sync_status')
     );
@@ -376,7 +376,7 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
     expect(enabledPlatformIds.length).toBeGreaterThan(0);
 
     // 候选技能：启用时必进分发计划（skills_to_add / skills_to_update），
-    // 保证「重新启用 → 恢复包含」断言确定成立，而非因已全量同步而空计划
+    // 保证「重新启用 → 恢复包含」断言确定成立，而非因已全量分发而空计划
     let candidateId = null;
     for (const s of skills) {
       const plan = await invokeTauriCommand(

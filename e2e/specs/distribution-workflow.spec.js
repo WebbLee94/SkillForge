@@ -42,7 +42,7 @@ describe('SkillForge 首次分发完整流程', () => {
     expect(Array.isArray(plan.platforms)).toBe(true);
     expect(typeof plan.has_removals).toBe('boolean');
 
-    // 预览不改变同步状态
+    // 预览不改变分发状态
     const before = await invokeTauriCommand(({ core }) =>
       core.invoke('get_sync_status')
     );
@@ -120,8 +120,8 @@ describe('SkillForge 首次分发完整流程', () => {
   });
 
   it('幂等：重复执行同一分发不产生新增变更', async () => {
-    // 幂等语义：对同一目标重复执行，第二次不应重复安装/更新已同步项。
-    // 空变更执行两次，前后同步状态必须一致。
+    // 幂等语义：对同一目标重复执行，第二次不应重复安装/更新已分发项。
+    // 空变更执行两次，前后分发状态必须一致。
     const before = await invokeTauriCommand(({ core }) =>
       core.invoke('get_sync_status')
     );
@@ -159,9 +159,9 @@ describe('SkillForge 首次分发完整流程', () => {
     expect(JSON.stringify(after)).toBe(JSON.stringify(before));
   });
 
-  it('重启状态保持：同步状态可由文件系统扫描派生（等价重启后仍可读）', async () => {
+  it('重启状态保持：分发状态可由文件系统扫描派生（等价重启后仍可读）', async () => {
     // v6 后分发状态由目标文件系统扫描派生（11 号设计基线三段模型）。
-    // 即使应用重启，同步状态仍可读取 —— 这里验证读取路径可用且返回稳定结构。
+    // 即使应用重启，分发状态仍可读取 —— 这里验证读取路径可用且返回稳定结构。
     const status = await invokeTauriCommand(({ core }) =>
       core.invoke('get_sync_status')
     );
