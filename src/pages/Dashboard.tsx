@@ -173,51 +173,53 @@ export function Dashboard() {
         </button>
       </div>
 
-      <WatcherNotification />
+      <div className="mt-[20px] h-full flex-col">
+        <WatcherNotification />
 
-      {/* Stat Cards */}
-      <DashboardStatsGrid cards={statCards} onNavigate={setActiveNav} />
+        {/* Stat Cards */}
+        <DashboardStatsGrid cards={statCards} onNavigate={setActiveNav} />
 
-      {/* Welcome guide card — first launch; contains the 3-step stepper */}
-      {showGuideCard && (
-        <WelcomeGuideCard
-          onDismiss={handleDismissGuide}
-          onNavigate={setActiveNav}
-        />
-      )}
-
-      <div>
-        {/* Quick entry — enabled platforms only */}
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-foreground">
-              {t('dashboard.quickEntry.title')}
-            </h2>
-            <Globe className="h-4 w-4 text-primary" />
-          </div>
-          <DashboardQuickEntry
-            platforms={enabledPlatforms}
-            liveCounts={liveCounts}
-            t={t}
-            onChooseTarget={(platformId) => {
-              useAppStore.getState().setGlobalDistSelectedPlatform(platformId);
-              setActiveNav('globalDistribution');
-            }}
+        {/* Welcome guide card — first launch; contains the 3-step stepper */}
+        {showGuideCard && (
+          <WelcomeGuideCard
+            onDismiss={handleDismissGuide}
+            onNavigate={setActiveNav}
           />
-        </div>
-      </div>
+        )}
 
-      <Suspense fallback={null}>
-        <ImportPreviewDialog
-          open={showImportPreview}
-          platforms={importResult}
-          totalNew={totalNew}
-          totalSkipped={totalSkipped}
-          importing={importing}
-          onClose={() => setShowImportPreview(false)}
-          onConfirm={handleConfirmImport}
-        />
-      </Suspense>
+        <div>
+          {/* Quick entry — enabled platforms only */}
+          <div className="rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-foreground">
+                {t('dashboard.quickEntry.title')}
+              </h2>
+              <Globe className="h-4 w-4 text-primary" />
+            </div>
+            <DashboardQuickEntry
+              platforms={enabledPlatforms}
+              liveCounts={liveCounts}
+              t={t}
+              onChooseTarget={(platformId) => {
+                useAppStore.getState().setGlobalDistSelectedPlatform(platformId);
+                setActiveNav('globalDistribution');
+              }}
+            />
+          </div>
+        </div>
+
+        <Suspense fallback={null}>
+          <ImportPreviewDialog
+            open={showImportPreview}
+            platforms={importResult}
+            totalNew={totalNew}
+            totalSkipped={totalSkipped}
+            importing={importing}
+            onClose={() => setShowImportPreview(false)}
+            onConfirm={handleConfirmImport}
+          />
+        </Suspense>
+      </div>
     </div>
   );
 }
