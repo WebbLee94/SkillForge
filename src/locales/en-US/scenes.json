@@ -38,7 +38,7 @@
     "readOnly": "Read-only · target state is not saved",
     "memberEnabled": "Enabled",
     "memberDisabled": "Disabled",
-    "saveScopeNote": "Save only writes scenes / scene_skills / scene_rules and does not trigger distribution; Scene is not bound to a project or platform.",
+    "saveScopeNote": "Save only writes scene and scene member associations; does not trigger distribution. Scene is not bound to a project or platform.",
     "invalidRefsTitle": "Scene contains invalid references",
     "invalidRefsHint": "The following resources were deleted and cannot be carried into distribution:",
     "invalidRefsUseValid": "Use valid resources only",
@@ -58,7 +58,7 @@
   },
   "drawer": {
     "title": "Configure — {{name}}",
-    "saveScopeNote": "Save only writes scenes / scene_skills / scene_rules and does not trigger distribution.",
+    "saveScopeNote": "Save only writes scene and scene member associations; does not trigger distribution.",
     "availableSkills": "Available Skills",
     "availableRules": "Available Rules",
     "poolSearchPlaceholder": "Search available resources...",

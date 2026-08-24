@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.1.0 (2026-08-03)
+## v1.1.0 (待发布)
 
 ### 🔒 首个公开基线声明
 
@@ -50,13 +50,13 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 
 ### 🔧 改进
 
-- 技能列表不再将已缺失的技能显示为"已同步"
-- 新增 `watcher_events` 审计表，完整记录所有文件变更事件
+- 技能列表不再将已缺失的技能显示为"未分发"
 - **P0/P1 发布前修复**：修复 5 个 TypeScript 类型错误、2 个 clippy 告警
 - **i18n 硬编码迁移**：51 处硬编码中文替换为 i18n `t()` 调用，补齐国际化覆盖
 - **Emoji 替换为 lucide 图标**：移除 UI 中所有 Emoji 字符，统一使用 `@radix-ui/react-icons`（lucide）
 - **Dashboard 统计卡片配色修复**：统计数据卡片颜色值对齐设计规范
 - **清理失效 i18n 键**：移除 19 个未引用的死键，减少产物体积
+- **统一资源模型**（架构重构）：数据库存储层从 skills/rules 六表合并为 resources/resource_tags/scene_items 三表——标签与场景成员关系随之简化，为未来扩展新资源类型预留容器；对用户的可见变化为技能库/规则管理页数据源不变、标签系统按资源类型隔离（技能标签与规则标签各自独立）、场景编排支持技能与规则的混合成员
 - **分发预览可识别"内容有更新"的资源**（硬化批）：预览结果新增内容级 Update 分类——已分发资源的正文发生变化时（即使名称与位置不变），预览会正确归入待更新列表，不再被遗漏
 - **场景保存原子化**（硬化批）：场景及其成员关系以数据库事务整体提交，任一步骤失败即整体回滚，不再产生半保存的中间状态
 - **文件监控链路清理**（硬化批）：移除文件监控中已废弃的数据库写入路径，外部变更事件统一走内存通知链路
@@ -71,14 +71,14 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 
 - **桌面 E2E 测试框架落地**：WebdriverIO + @wdio/tauri-service，macOS embedded driver（内嵌 WebDriver，端口 4445），驱动真实 Tauri 窗口 + Rust IPC，不依赖 computer-use/accessibility bridge
 - **E2E 陈旧进程守卫**（硬化批）：运行 E2E 前自动清理残留的 Vite dev server / WebDriver 进程，避免端口占用导致的启动失败
-- **3 个 spec / 16 用例**：冒烟（5）、交互（6）、首次分发完整流程（5：预览→取消→确认→执行→幂等→重启状态保持）
+- **桌面 E2E 共 4 个 spec**：smoke（冒烟）/ interaction（交互）/ distribution-workflow（首次分发完整流程：预览→取消→确认→执行→幂等→重启状态保持）/ stats-grid-responsive（看板统计网格响应式）
 - **CI 三平台 e2e 矩阵**（`.github/workflows/e2e.yml`）：macOS（embedded）+ Windows/Linux（external + tauri-driver + xvfb），验证跨平台冒烟
 - **README 入口修正**：平台数 12→10、双向同步→单向分发、docs 路径指向 SkillForge-docs 独立仓库、补充测试命令
 
-### 📊 测试口径（统一为当前实测，2026-08-23）
+### 📊 测试口径（统一为当前实测，2026-08-24）
 
 - 前端 Vitest：60 文件 / 860 用例
-- Rust 后端：325 用例（198 lib 单元 + 127 集成，`cargo test` 实测）
+- Rust 后端：332 用例（206 lib 单元 + 126 集成，`cargo test` 实测）
 - 桌面 E2E：4 spec（smoke / interaction / distribution-workflow / stats-grid-responsive）
 
 ## v1.0.1 (2026-06-10)

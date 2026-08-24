@@ -472,7 +472,7 @@ describe('SceneEditorDrawer', () => {
     expect(document.activeElement).toBe(dialog);
   });
 
-  it('drawer header shows the save-scope note (只写 scenes/scene_skills/scene_rules)', async () => {
+  it('drawer header shows the save-scope note (只写场景与场景成员关联)', async () => {
     await seedInvoke({ list_tags: [] });
     renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')) });
     expect(screen.getByTestId('drawer-save-scope-note').textContent).toBe(

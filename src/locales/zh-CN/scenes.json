@@ -38,7 +38,7 @@
     "readOnly": "当前为读取态 · 不保存目标状态",
     "memberEnabled": "启用",
     "memberDisabled": "禁用",
-    "saveScopeNote": "保存只写 scenes / scene_skills / scene_rules，不触发分发；场景不绑定项目或平台。",
+    "saveScopeNote": "保存只写入场景与场景成员关联，不触发分发；场景不绑定项目或平台。",
     "invalidRefsTitle": "场景包含失效引用",
     "invalidRefsHint": "以下资源已被删除，无法带入分发：",
     "invalidRefsUseValid": "仅使用有效资源",
@@ -58,7 +58,7 @@
   },
   "drawer": {
     "title": "配置内容 — {{name}}",
-    "saveScopeNote": "保存只写 scenes / scene_skills / scene_rules，不触发分发。",
+    "saveScopeNote": "保存只写入场景与场景成员关联，不触发分发。",
     "availableSkills": "可用技能",
     "availableRules": "可用规则",
     "poolSearchPlaceholder": "搜索可用资源...",

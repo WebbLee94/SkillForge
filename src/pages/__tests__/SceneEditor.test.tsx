@@ -684,7 +684,7 @@ describe('SceneEditor — 详情读取态与原型操作顺序', () => {
     expect(screen.getAllByText('detail.memberDisabled').length).toBe(2);
   });
 
-  it('detail footer notes save scope: only scenes/scene_skills/scene_rules', async () => {
+  it('detail footer notes save scope: 场景与场景成员关联', async () => {
     const s1 = aScene('s-1', 'Scene One');
     await seedInvoke(baseRoutes([s1], aDetail(s1)));
     render(<SceneEditor />);
