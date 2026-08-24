@@ -25,8 +25,8 @@ describe('watcherStore', () => {
     const mockStatus = {
       unhandled_count: 3,
       events: [
-        { id: 1, event_type: 'modified', capability: 'skill', path: '/tmp/test', handled: 0 },
-        { id: 2, event_type: 'created', capability: 'rule', path: '/tmp/test2', handled: 0 },
+        { id: 1, event_type: 'MODIFIED', path: '/tmp/test' },
+        { id: 2, event_type: 'NEW', path: '/tmp/test2' },
       ],
     };
     const { invoke } = await import('@tauri-apps/api/core');

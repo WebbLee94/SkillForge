@@ -40,6 +40,7 @@ vi.mock('react-i18next', () => {
     'projects.statsEmpty': '暂无已分发内容',
   };
   return {
+    initReactI18next: { type: '3rdParty' },
     useTranslation: () => ({
       t: (key: string, options?: Record<string, unknown>) => {
         let out = templates[key] ?? key;

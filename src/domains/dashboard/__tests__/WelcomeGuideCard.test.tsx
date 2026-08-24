@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { WelcomeGuideCard } from '../WelcomeGuideCard';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string) => key,
   }),

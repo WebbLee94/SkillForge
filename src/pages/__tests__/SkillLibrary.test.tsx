@@ -23,6 +23,7 @@ const { tMap } = vi.hoisted(() => ({
 }));
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string) => tMap[key] ?? key,
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },

@@ -4,6 +4,7 @@ import { SortableRuleList } from '../SortableRuleList';
 import type { SceneRule } from '../../../types';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, defaultValue?: string) => defaultValue ?? key,
     i18n: { language: 'zh-CN' },

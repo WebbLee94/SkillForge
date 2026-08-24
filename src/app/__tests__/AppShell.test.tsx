@@ -6,6 +6,7 @@ import { useAppStore } from '../../stores/appStore';
 import { setTheme, THEME_STORAGE_KEY } from '../../hooks/useTheme';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string) => {
       const map: Record<string, string> = {

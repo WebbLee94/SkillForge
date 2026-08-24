@@ -4,6 +4,7 @@ import { ResourceImportDialog, type ImportItem } from '../ResourceImportDialog';
 import { BOUNDED_STEP } from '../../../lib/useBoundedReveal';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },

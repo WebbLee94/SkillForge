@@ -43,6 +43,7 @@ function interpolate(
 }
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) =>
       interpolate(tMap[key] ?? key, options),

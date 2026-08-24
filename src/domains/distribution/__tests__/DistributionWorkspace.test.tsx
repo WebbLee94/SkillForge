@@ -19,7 +19,20 @@ import { invoke } from '@tauri-apps/api/core';
 /* Hoisted mocks */
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
+vi.mock('../../../lib/i18n', () => ({
+  default: {
+    t: (key: string, options?: Record<string, unknown>) => {
+      const map: Record<string, string> = {
+        'messages.loadDistributedContentFailedWithReason': `获取已分发内容失败: ${options?.reason}`,
+        'messages.removeDistributedFailedWithReason': `移除失败: ${options?.reason}`,
+      };
+      return map[key] ?? key;
+    },
+  },
+}));
+
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, params?: Record<string, unknown>) => {
       if (key === 'ws.sourceFromScene') {

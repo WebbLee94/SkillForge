@@ -31,14 +31,8 @@ import type {
 
 export interface WatcherEvent {
   id: number;
-  event_type: string;
-  capability: string;
+  event_type: 'NEW' | 'DELETED' | 'MODIFIED';
   path: string;
-  platform: string | null;
-  old_hash: string | null;
-  new_hash: string | null;
-  handled: number;
-  created_at: string;
 }
 
 export interface WatcherStatus {

@@ -7,6 +7,7 @@ import { pushModalScope, popModalScope } from '../../../lib/modalScope';
 import type { Tag } from '../../../types';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, params?: { name?: string }) => {
       // T10 精确键名：mock 输出与断言一一对应（zh mock，不依赖 en 分支）

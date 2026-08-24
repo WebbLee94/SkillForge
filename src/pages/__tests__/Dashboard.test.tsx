@@ -20,6 +20,7 @@ import type {
 /* ===== Hoisted mocks ===== */
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
@@ -521,8 +522,8 @@ describe('Dashboard', () => {
     // WatcherNotification renders with its own event data from watcherStore
     useWatcherStore.setState({
       events: [
-        { id: 1, event_type: 'NEW', capability: 'skills', path: '/x/s1.md', platform: null, old_hash: null, new_hash: 'h1', handled: 0, created_at: '2026-08-20T10:00:00Z' },
-        { id: 2, event_type: 'MODIFIED', capability: 'skills', path: '/x/s2.md', platform: null, old_hash: null, new_hash: 'h2', handled: 0, created_at: '2026-08-20T10:00:00Z' },
+        { id: 1, event_type: 'NEW', path: '/x/s1.md' },
+        { id: 2, event_type: 'MODIFIED', path: '/x/s2.md' },
       ],
     });
 
@@ -556,7 +557,7 @@ describe('Dashboard', () => {
 
     // Set watcher events to trigger notification
     useWatcherStore.setState({
-      events: [{ id: 30, event_type: 'NEW', capability: 'skills', path: '/x/s1.md', platform: null, old_hash: null, new_hash: 'h30', handled: 0, created_at: '2026-08-20T10:00:00Z' }],
+      events: [{ id: 30, event_type: 'NEW', path: '/x/s1.md' }],
     });
 
     await waitFor(() => {

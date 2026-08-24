@@ -14,6 +14,7 @@ vi.mock('../domains/distribution/DistributionWorkspace.lazy', () => {
 });
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string) => key,
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },

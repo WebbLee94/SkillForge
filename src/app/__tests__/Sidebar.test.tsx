@@ -6,6 +6,7 @@ import { useAppStore } from '../../stores/appStore';
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, defaultValue?: string) => defaultValue ?? key,
     i18n: { language: 'zh-CN' },

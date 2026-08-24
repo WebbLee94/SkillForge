@@ -31,7 +31,8 @@ function resolveInitLanguage(): string {
   }
 }
 
-i18n.use(initReactI18next).init({
+i18n.use(initReactI18next);
+i18n.init({
   resources: {
     'zh-CN': {
       common: commonZh,

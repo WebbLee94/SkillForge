@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useAppStore } from '../../../stores/appStore';
 import { useWatcherStore } from '../../../stores/watcherStore';
+import type { WatcherEvent } from '../../../lib/ipc';
 import { WatcherNotification } from '../WatcherNotification';
 
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
       if (key === 'watcher.changesDetected' && typeof options?.count === 'number') {
@@ -29,16 +31,10 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const makeEvent = (id: number, event_type: string) => ({
+const makeEvent = (id: number, event_type: WatcherEvent['event_type']): WatcherEvent => ({
   id,
   event_type,
-  capability: 'skills',
   path: `/path/${id}.md`,
-  platform: null,
-  old_hash: null,
-  new_hash: `hash${id}`,
-  handled: 0,
-  created_at: '2026-08-03T10:00:00Z',
 });
 
 beforeEach(() => {

@@ -52,6 +52,7 @@ vi.mock('../stores/appStore', () => ({
   useAppStore: (selector: (state: typeof testState) => unknown) => selector(testState),
 }));
 vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) =>
       options ? `${key}:${JSON.stringify(options)}` : key,

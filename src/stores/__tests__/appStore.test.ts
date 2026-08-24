@@ -6,6 +6,80 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: vi.fn(),
 }));
 
+vi.mock('../../lib/i18n', () => ({
+  default: {
+    t: (key: string, options?: Record<string, unknown>) => {
+      const map: Record<string, string> = {
+        'messages.syncSuccess': '分发成功',
+        'messages.syncCompletedWithErrors': `分发完成，${options?.count} 项失败`,
+        'messages.syncFailedWithReason': `分发失败: ${options?.reason}`,
+        'messages.globalRulesUnsupportedWarning': `警告: ${options?.platform} 不支持全局规则分发`,
+        'messages.loadSyncStatusFailed': `获取分发状态失败: ${options?.reason}`,
+        'messages.loadSkillsListFailed': `获取技能列表失败: ${options?.reason}`,
+        'messages.installSuccess': '导入成功',
+        'messages.importFailedWithReason': `导入失败: ${options?.reason}`,
+        'messages.uninstallSuccess': '卸载成功',
+        'messages.uninstallFailedWithReason': `卸载失败: ${options?.reason}`,
+        'messages.updateSuccess': '更新成功',
+        'messages.updateFailedWithReason': `更新失败: ${options?.reason}`,
+        'messages.loadRulesListFailed': `获取规则列表失败: ${options?.reason}`,
+        'messages.createRuleSuccess': '创建规则成功',
+        'messages.createRuleFailedWithReason': `创建规则失败: ${options?.reason}`,
+        'messages.saveRuleSuccess': '保存规则成功',
+        'messages.saveRuleFailedWithReason': `保存规则失败: ${options?.reason}`,
+        'messages.deleteRuleSuccess': '删除规则成功',
+        'messages.deleteRuleFailedWithReason': `删除规则失败: ${options?.reason}`,
+        'messages.loadTagsListFailed': `获取标签列表失败: ${options?.reason}`,
+        'messages.createTagSuccess': '创建标签成功',
+        'messages.createTagFailedWithReason': `创建标签失败: ${options?.reason}`,
+        'messages.updateTagSuccess': '更新标签成功',
+        'messages.updateTagFailedWithReason': `更新标签失败: ${options?.reason}`,
+        'messages.deleteTagSuccess': '删除标签成功',
+        'messages.deleteTagFailedWithReason': `删除标签失败: ${options?.reason}`,
+        'messages.assignTagSuccess': '分配标签成功',
+        'messages.assignTagFailedWithReason': `分配标签失败: ${options?.reason}`,
+        'messages.removeTagSuccess': '移除标签成功',
+        'messages.removeTagFailedWithReason': `移除标签失败: ${options?.reason}`,
+        'messages.loadScenesListFailed': `获取场景列表失败: ${options?.reason}`,
+        'messages.createSceneSuccess': '创建场景成功',
+        'messages.createSceneFailedWithReason': `创建场景失败: ${options?.reason}`,
+        'messages.saveSceneSuccess': '保存场景成功',
+        'messages.saveSceneFailedWithReason': `保存场景失败: ${options?.reason}`,
+        'messages.deleteSceneSuccess': '删除场景成功',
+        'messages.deleteSceneFailedWithReason': `删除场景失败: ${options?.reason}`,
+        'messages.loadSceneDetailFailedWithReason': `获取场景详情失败: ${options?.reason}`,
+        'messages.sceneBaselineUnavailable': '无法获取场景基线，已取消保存',
+        'messages.addSkillToSceneSuccess': '添加技能到场景成功',
+        'messages.addSkillToSceneFailedWithReason': `添加技能到场景失败: ${options?.reason}`,
+        'messages.removeSkillFromSceneSuccess': '从场景移除技能成功',
+        'messages.removeSkillFromSceneFailedWithReason': `从场景移除技能失败: ${options?.reason}`,
+        'messages.addRuleToSceneSuccess': '添加规则到场景成功',
+        'messages.addRuleToSceneFailedWithReason': `添加规则到场景失败: ${options?.reason}`,
+        'messages.removeRuleFromSceneSuccess': '从场景移除规则成功',
+        'messages.removeRuleFromSceneFailedWithReason': `从场景移除规则失败: ${options?.reason}`,
+        'messages.loadProjectsListFailed': `获取项目列表失败: ${options?.reason}`,
+        'messages.addProjectSuccess': '添加项目成功',
+        'messages.addProjectFailedWithReason': `添加项目失败: ${options?.reason}`,
+        'messages.removeProjectSuccess': '移除项目成功',
+        'messages.removeProjectFailedWithReason': `移除项目失败: ${options?.reason}`,
+        'messages.removeProjectsBatchSuccess': `批量移除 ${options?.count} 个项目成功`,
+        'messages.removeProjectsBatchFailedWithReason': `批量移除项目失败: ${options?.reason}`,
+        'messages.loadPlatformsListFailed': `获取平台列表失败: ${options?.reason}`,
+        'messages.loadDistributedContentFailedWithReason': `获取已分发内容失败: ${options?.reason}`,
+        'messages.removeDistributedFailedWithReason': `移除失败: ${options?.reason}`,
+        'messages.loadDashboardStatsFailedWithReason': `获取概览统计失败: ${options?.reason}`,
+        'messages.scanFailedWithReason': `扫描失败: ${options?.reason}`,
+        'messages.previewNoData': '预览失败: 未返回数据',
+        'messages.previewFailedWithReason': `预览失败: ${options?.reason}`,
+        'messages.importScannedSummary': `导入完成: ${options?.skills} 技能, ${options?.rules} 规则`,
+        'messages.importSkippedSuffix': `（跳过 ${options?.count} 个已存在）`,
+        'messages.importErrorsSuffix': ` | ${options?.count} 个失败: ${options?.detail}`,
+      };
+      return map[key] ?? key;
+    },
+  },
+}));
+
 /**
  * Route-based invoke mock. Each key is a raw IPC command name (as produced by
  * src/lib/ipc.ts); values are resolved payloads or Error instances (rejected).
@@ -1626,9 +1700,8 @@ describe('appStore — Distribution', () => {
       .syncScene([], [], null, [], 'project');
 
     expect(result?.errors).toEqual([]);
-    expect(
-      useAppStore.getState().toasts.some((t) => t.type === 'success')
-    ).toBe(true);
+    const toast = useAppStore.getState().toasts.find((t) => t.type === 'success');
+    expect(toast?.message).toBe('分发成功');
   });
 
   it('syncScene toasts warning when result has errors', async () => {
@@ -1644,9 +1717,10 @@ describe('appStore — Distribution', () => {
       .syncScene([], [], null, [], 'global');
 
     expect(result?.errors).toEqual(['e1']);
-    expect(
-      useAppStore.getState().toasts.some((t) => t.type === 'warning')
-    ).toBe(true);
+    const warningToast = useAppStore
+      .getState()
+      .toasts.find((t) => t.type === 'warning');
+    expect(warningToast?.message).toBe('分发完成，1 项失败');
   });
 
   it('syncScene global scope warns when a platform lacks global rules', async () => {

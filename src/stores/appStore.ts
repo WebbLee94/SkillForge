@@ -26,6 +26,7 @@ import type {
   SceneCompositionDraft,
 } from '../types';
 import { ipc } from '../lib/ipc';
+import i18n from '../lib/i18n';
 
 export type LegacyDistributionSelection = {
   skillIds: string[];
@@ -336,7 +337,10 @@ export const useAppStore = create<AppStore>((set, get) => {
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         set({ loading: false });
-        get().addToast(`获取技能列表失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadSkillsListFailed', { reason: errMsg }),
+          'error'
+        );
         return false;
       }
     },
@@ -352,12 +356,15 @@ export const useAppStore = create<AppStore>((set, get) => {
         await ipc.installSkill(backendSource, id);
         await get().fetchSkills();
         if (!opts?.silent) {
-          get().addToast('安装成功', 'success');
+          get().addToast(i18n.t('messages.installSuccess'), 'success');
         }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         if (!opts?.silent) {
-          get().addToast(`安装失败: ${errMsg}`, 'error');
+          get().addToast(
+            i18n.t('messages.importFailedWithReason', { reason: errMsg }),
+            'error'
+          );
         }
       }
     },
@@ -369,20 +376,26 @@ export const useAppStore = create<AppStore>((set, get) => {
           set({ selectedSkill: null });
         }
         await get().fetchSkills();
-        get().addToast('卸载成功', 'success');
+        get().addToast(i18n.t('messages.uninstallSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`卸载失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.uninstallFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     updateSkill: async (id) => {
       try {
         await ipc.updateSkill(id);
         await get().fetchSkills();
-        get().addToast('更新成功', 'success');
+        get().addToast(i18n.t('messages.updateSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`更新失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.updateFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
 
@@ -396,7 +409,10 @@ export const useAppStore = create<AppStore>((set, get) => {
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         set({ loading: false });
-        get().addToast(`获取规则列表失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadRulesListFailed', { reason: errMsg }),
+          'error'
+        );
         return false;
       }
     },
@@ -406,21 +422,27 @@ export const useAppStore = create<AppStore>((set, get) => {
         await ipc.createRule(data);
         await get().fetchRules();
         if (!opts?.silent) {
-          get().addToast('创建规则成功', 'success');
+          get().addToast(i18n.t('messages.createRuleSuccess'), 'success');
         }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`创建规则失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.createRuleFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     updateRule: async (id, data) => {
       try {
         await ipc.updateRule(id, data);
         await get().fetchRules();
-        get().addToast('保存规则成功', 'success');
+        get().addToast(i18n.t('messages.saveRuleSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`保存规则失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.saveRuleFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     deleteRule: async (id) => {
@@ -432,10 +454,13 @@ export const useAppStore = create<AppStore>((set, get) => {
         }
         await get().fetchRules();
         await get().fetchTags('rule');
-        get().addToast('删除规则成功', 'success');
+        get().addToast(i18n.t('messages.deleteRuleSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`删除规则失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.deleteRuleFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
 
@@ -446,7 +471,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         set({ tags });
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取标签列表失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadTagsListFailed', { reason: errMsg }),
+          'error'
+        );
       }
     },
     createTag: async (data) => {
@@ -458,11 +486,14 @@ export const useAppStore = create<AppStore>((set, get) => {
           data.tag_type
         );
         await get().fetchTags(data.tag_type);
-        get().addToast('创建标签成功', 'success');
+        get().addToast(i18n.t('messages.createTagSuccess'), 'success');
         return newTag?.id;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`创建标签失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.createTagFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     updateTag: async (id, name, color, category) => {
@@ -471,10 +502,13 @@ export const useAppStore = create<AppStore>((set, get) => {
         // Re-fetch with current filter context — find the tag's type
         const tag = get().tags.find((t) => t.id === id);
         await get().fetchTags(tag?.tag_type);
-        get().addToast('更新标签成功', 'success');
+        get().addToast(i18n.t('messages.updateTagSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`更新标签失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.updateTagFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     deleteTag: async (id) => {
@@ -483,28 +517,37 @@ export const useAppStore = create<AppStore>((set, get) => {
         const tagType = tag?.tag_type;
         await ipc.deleteTag(id);
         await get().fetchTags(tagType);
-        get().addToast('删除标签成功', 'success');
+        get().addToast(i18n.t('messages.deleteTagSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`删除标签失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.deleteTagFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     assignTag: async (targetType, targetId, tagId) => {
       try {
         await ipc.assignTag(targetType, targetId, tagId);
-        get().addToast('分配标签成功', 'success');
+        get().addToast(i18n.t('messages.assignTagSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`分配标签失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.assignTagFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     removeTag: async (targetType, targetId, tagId) => {
       try {
         await ipc.removeTag(targetType, targetId, tagId);
-        get().addToast('移除标签成功', 'success');
+        get().addToast(i18n.t('messages.removeTagSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`移除标签失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.removeTagFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
 
@@ -516,7 +559,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         return true;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取场景列表失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadScenesListFailed', { reason: errMsg }),
+          'error'
+        );
         return false;
       }
     },
@@ -532,20 +578,26 @@ export const useAppStore = create<AppStore>((set, get) => {
       try {
         await ipc.createScene(data);
         await get().fetchScenes();
-        get().addToast('创建场景成功', 'success');
+        get().addToast(i18n.t('messages.createSceneSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`创建场景失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.createSceneFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     updateScene: async (id, data) => {
       try {
         await ipc.updateScene(id, data);
         await get().fetchScenes();
-        get().addToast('保存场景成功', 'success');
+        get().addToast(i18n.t('messages.saveSceneSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : JSON.stringify(e);
-        get().addToast(`保存场景失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.saveSceneFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     deleteScene: async (id) => {
@@ -556,10 +608,13 @@ export const useAppStore = create<AppStore>((set, get) => {
           set({ currentScene: null, currentSceneDetail: null });
         }
         await get().fetchScenes();
-        get().addToast('删除场景成功', 'success');
+        get().addToast(i18n.t('messages.deleteSceneSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`删除场景失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.deleteSceneFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     fetchSceneDetail: async (id) => {
@@ -574,47 +629,81 @@ export const useAppStore = create<AppStore>((set, get) => {
         }
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取场景详情失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadSceneDetailFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
     addSkillToScene: async (sceneId, skillId) => {
       try {
         await ipc.addSkillToScene(sceneId, skillId);
         await get().fetchSceneDetail(sceneId);
-        get().addToast('添加技能到场景成功', 'success');
+        get().addToast(
+          i18n.t('messages.addSkillToSceneSuccess'),
+          'success'
+        );
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`添加技能到场景失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.addSkillToSceneFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
     removeSkillFromScene: async (sceneId, skillId) => {
       try {
         await ipc.removeSkillFromScene(sceneId, skillId);
         await get().fetchSceneDetail(sceneId);
-        get().addToast('从场景移除技能成功', 'success');
+        get().addToast(
+          i18n.t('messages.removeSkillFromSceneSuccess'),
+          'success'
+        );
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`从场景移除技能失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.removeSkillFromSceneFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
     addRuleToScene: async (sceneId, ruleId) => {
       try {
         await ipc.addRuleToScene(sceneId, ruleId);
         await get().fetchSceneDetail(sceneId);
-        get().addToast('添加规则到场景成功', 'success');
+        get().addToast(i18n.t('messages.addRuleToSceneSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`添加规则到场景失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.addRuleToSceneFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
     removeRuleFromScene: async (sceneId, ruleId) => {
       try {
         await ipc.removeRuleFromScene(sceneId, ruleId);
         await get().fetchSceneDetail(sceneId);
-        get().addToast('从场景移除规则成功', 'success');
+        get().addToast(
+          i18n.t('messages.removeRuleFromSceneSuccess'),
+          'success'
+        );
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`从场景移除规则失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.removeRuleFromSceneFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
     saveSceneComposition: async (sceneId, draft) => {
@@ -625,7 +714,9 @@ export const useAppStore = create<AppStore>((set, get) => {
           await get().fetchSceneDetail(sceneId);
           baseline = get().currentSceneDetail;
           if (!baseline) {
-            throw new Error('无法获取场景基线，已取消保存');
+            throw new Error(
+              i18n.t('messages.sceneBaselineUnavailable')
+            );
           }
         }
         const savedSkills = baseline.skills ?? [];
@@ -707,13 +798,16 @@ export const useAppStore = create<AppStore>((set, get) => {
 
         await get().fetchSceneDetail(sceneId);
         await get().fetchScenes();
-        get().addToast('保存场景成功', 'success');
+        get().addToast(i18n.t('messages.saveSceneSuccess'), 'success');
         return true;
       } catch (e) {
         // 部分 IPC 失败后后端可能已部分生效，重新拉取详情让 UI 与后端一致
         await get().fetchSceneDetail(sceneId);
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`保存场景失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.saveSceneFailedWithReason', { reason: errMsg }),
+          'error'
+        );
         return false;
       }
     },
@@ -725,7 +819,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         return true;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取项目列表失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadProjectsListFailed', { reason: errMsg }),
+          'error'
+        );
         return false;
       }
     },
@@ -733,20 +830,26 @@ export const useAppStore = create<AppStore>((set, get) => {
       try {
         await ipc.addProject(name, path, description);
         await get().fetchProjects();
-        get().addToast('添加项目成功', 'success');
+        get().addToast(i18n.t('messages.addProjectSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`添加项目失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.addProjectFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     removeProject: async (id) => {
       try {
         await ipc.removeProject(id);
         await get().fetchProjects();
-        get().addToast('移除项目成功', 'success');
+        get().addToast(i18n.t('messages.removeProjectSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`移除项目失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.removeProjectFailedWithReason', { reason: errMsg }),
+          'error'
+        );
       }
     },
     // 批量移除：后端批量 IPC 落地后可在 removeProjects 内替换为单次批量调用
@@ -757,10 +860,18 @@ export const useAppStore = create<AppStore>((set, get) => {
           await ipc.removeProject(id);
         }
         await get().fetchProjects();
-        get().addToast(`批量移除 ${ids.length} 个项目成功`, 'success');
+        get().addToast(
+          i18n.t('messages.removeProjectsBatchSuccess', { count: ids.length }),
+          'success'
+        );
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`批量移除项目失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.removeProjectsBatchFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
 
@@ -772,7 +883,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         return true;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取平台列表失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadPlatformsListFailed', { reason: errMsg }),
+          'error'
+        );
         return false;
       }
     },
@@ -790,7 +904,12 @@ export const useAppStore = create<AppStore>((set, get) => {
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         set({ managedDistributionState: null });
-        get().addToast(`获取已分发内容失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadDistributedContentFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
         return false;
       }
     },
@@ -801,7 +920,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         return result;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`分发失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.syncFailedWithReason', { reason: errMsg }),
+          'error'
+        );
         return null;
       }
     },
@@ -812,7 +934,12 @@ export const useAppStore = create<AppStore>((set, get) => {
         return result;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`移除失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.removeDistributedFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
         return null;
       }
     },
@@ -833,7 +960,9 @@ export const useAppStore = create<AppStore>((set, get) => {
               if (!cap.rules_global) {
                 const p = get().platforms.find((pl) => pl.id === pid);
                 get().addToast(
-                  `警告: ${p?.name || pid} 不支持全局规则分发`,
+                  i18n.t('messages.globalRulesUnsupportedWarning', {
+                    platform: p?.name || pid,
+                  }),
                   'warning'
                 );
               }
@@ -853,14 +982,22 @@ export const useAppStore = create<AppStore>((set, get) => {
         );
         await get().fetchSyncStatus();
         if (result.errors.length === 0) {
-          get().addToast('分发成功', 'success');
+          get().addToast(i18n.t('messages.syncSuccess'), 'success');
         } else {
-          get().addToast(`分发完成，${result.errors.length} 项失败`, 'warning');
+          get().addToast(
+            i18n.t('messages.syncCompletedWithErrors', {
+              count: result.errors.length,
+            }),
+            'warning'
+          );
         }
         return result;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`分发失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.syncFailedWithReason', { reason: errMsg }),
+          'error'
+        );
         return null;
       }
     },
@@ -870,7 +1007,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         set({ syncStatus });
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取分发状态失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadSyncStatusFailed', { reason: errMsg }),
+          'error'
+        );
       }
     },
 
@@ -881,7 +1021,12 @@ export const useAppStore = create<AppStore>((set, get) => {
         set({ dashboardStats: stats });
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取概览统计失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.loadDashboardStatsFailedWithReason', {
+            reason: errMsg,
+          }),
+          'error'
+        );
       }
     },
     scanForImport: async () => {
@@ -889,7 +1034,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         return await ipc.scanForImport();
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`扫描失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.scanFailedWithReason', { reason: errMsg }),
+          'error'
+        );
         return null;
       }
     },
@@ -934,7 +1082,7 @@ export const useAppStore = create<AppStore>((set, get) => {
           if (requestToken !== confirmationRequestToken) return 'cancelled';
           if (!plan) {
             confirmationRequestActive = false;
-            get().addToast('预览失败: 未返回数据', 'error');
+            get().addToast(i18n.t('messages.previewNoData'), 'error');
             return 'preview_failed';
           }
           const hasChanges =
@@ -974,7 +1122,7 @@ export const useAppStore = create<AppStore>((set, get) => {
         if (requestToken !== confirmationRequestToken) return 'cancelled';
         if (!plan) {
           confirmationRequestActive = false;
-          get().addToast('预览失败: 未返回数据', 'error');
+          get().addToast(i18n.t('messages.previewNoData'), 'error');
           return 'preview_failed';
         }
 
@@ -1025,7 +1173,10 @@ export const useAppStore = create<AppStore>((set, get) => {
         if (requestToken !== confirmationRequestToken) return 'cancelled';
         confirmationRequestActive = false;
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`预览失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.previewFailedWithReason', { reason: errMsg }),
+          'error'
+        );
         return 'preview_failed';
       }
     },
@@ -1040,19 +1191,32 @@ export const useAppStore = create<AppStore>((set, get) => {
         const totalImported = result.imported_skills + result.imported_rules;
         const totalSkipped = result.skipped_skills + result.skipped_rules;
         const extra =
-          totalSkipped > 0 ? `（跳过 ${totalSkipped} 个已存在）` : '';
+          totalSkipped > 0
+            ? i18n.t('messages.importSkippedSuffix', { count: totalSkipped })
+            : '';
         const errExtra =
           result.errors.length > 0
-            ? ` | ${result.errors.length} 个失败: ${result.errors.slice(0, 3).join('; ')}${result.errors.length > 3 ? '...' : ''}`
+            ? i18n.t('messages.importErrorsSuffix', {
+                count: result.errors.length,
+                detail: result.errors.slice(0, 3).join('; '),
+              }) + (result.errors.length > 3 ? '...' : '')
             : '';
         get().addToast(
-          `导入完成: ${result.imported_skills} 技能, ${result.imported_rules} 规则${extra}${errExtra}`,
+          i18n.t('messages.importScannedSummary', {
+            skills: result.imported_skills,
+            rules: result.imported_rules,
+          }) +
+            extra +
+            errExtra,
           totalImported > 0 ? 'success' : 'error'
         );
         return result;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`导入失败: ${errMsg}`, 'error');
+        get().addToast(
+          i18n.t('messages.importFailedWithReason', { reason: errMsg }),
+          'error'
+        );
         return null;
       }
     },
