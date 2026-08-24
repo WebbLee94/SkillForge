@@ -116,8 +116,8 @@ export function Dashboard() {
       value: `${skillCount} / ${ruleCount}`,
       subtitle: t('dashboard.stats.resourcesSubtitle'),
       icon: <Package className="h-5 w-5" />,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
+      color: 'text-blue-600 dark:text-blue-400',
+      bgColor: 'bg-blue-100 dark:bg-blue-950',
       navKey: 'skills',
     },
     {
