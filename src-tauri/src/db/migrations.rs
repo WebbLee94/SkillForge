@@ -1,6 +1,6 @@
 use crate::error::AppError;
 
-/// v1.1.0 为首个公开基线（依据 SkillForge-docs/05-决策记录/008 决策）：
+/// v1.0.0 为首个公开基线（依据 SkillForge-docs/05-决策记录/008 决策）：
 /// schema 版本从 1 重新计数，历史 v2–v6 运行时迁移链已移除，
 /// 旧开发数据库不保证兼容，允许删除后由本初始化器重建。
 #[cfg(test)]

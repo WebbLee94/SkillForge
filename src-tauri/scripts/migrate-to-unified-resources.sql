@@ -84,7 +84,7 @@ SELECT 'preflight:orphan_scene_links', COUNT(*)
 BEGIN IMMEDIATE;
 
 -- ============================================================================
--- 1) 建三张新表（DDL 与 src/db/schema.rs v1.1.0 终稿逐字一致）
+-- 1) 建三张新表（DDL 与 src/db/schema.rs v1.0.0 终稿逐字一致）
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS resources (

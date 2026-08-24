@@ -16,7 +16,7 @@ import type {
 
 type SettingsTab = 'general' | 'platforms';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.0.0';
 const GITHUB_URL = 'https://github.com/WebbLee94/SkillForge';
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
@@ -445,9 +445,6 @@ export function Settings() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
-                    v{APP_VERSION}
-                  </span>
                   <a
                     href={GITHUB_URL}
                     target="_blank"

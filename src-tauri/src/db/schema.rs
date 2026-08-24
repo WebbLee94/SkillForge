@@ -1,6 +1,6 @@
 use crate::error::AppError;
 
-/// v1.1.0 统一资源模型基线（47 号方案 §四终稿）：
+/// v1.0.0 统一资源模型基线（47 号方案 §四终稿）：
 /// 六表（skills/rules/skill_tags/rule_tags/scene_skills/scene_rules）合并为
 /// resources/resource_tags/scene_items 三表；Skill/Rule 结构体作为
 /// `WHERE kind=?` 的双投影保留（§5.1），对外签名与 IPC DTO 零变化。

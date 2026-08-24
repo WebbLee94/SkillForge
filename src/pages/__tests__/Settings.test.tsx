@@ -139,7 +139,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/u/test/.skillforge',
         db_path: '/u/test/.skillforge/db.sqlite',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '2.3 MB',
     });
@@ -158,7 +158,7 @@ describe('Settings', () => {
     expect(within(updateCard).queryByRole('switch')).toBeNull();
     // 版本与社区卡：版本徽标 + GitHub 链接 + 分发方式说明
     const communityCard = cards[4];
-    expect(within(communityCard).getByText('v1.1.0')).toBeDefined();
+    expect(within(communityCard).getByText('v1.0.0')).toBeDefined();
     expect(
       within(communityCard).getByText('github.com/WebbLee94/SkillForge')
     ).toBeDefined(); // 生产显示 GITHUB_URL.replace('https://', '')
@@ -172,7 +172,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/u/test/.skillforge',
         db_path: '/u/test/.skillforge/db.sqlite',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '2.3 MB',
     });
@@ -217,7 +217,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [platformData],
@@ -256,7 +256,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -320,7 +320,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '3.1 MB',
     });
@@ -333,7 +333,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -357,7 +357,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -381,7 +381,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/u/test/.skillforge',
         db_path: '/u/test/.skillforge/db.sqlite',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '2.3 MB',
     });
@@ -408,7 +408,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -431,7 +431,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -463,7 +463,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -484,7 +484,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -509,7 +509,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
     });
@@ -551,7 +551,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -594,7 +594,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -670,7 +670,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -744,7 +744,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [platform('claude', 'Claude Code'), platform('github', 'GitHub Copilot')],
@@ -789,7 +789,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -860,7 +860,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -945,7 +945,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -1000,7 +1000,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -1054,7 +1054,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/u/test/.skillforge',
         db_path: '/u/test/.skillforge/db.sqlite',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '2.3 MB',
     });
@@ -1073,7 +1073,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [
@@ -1141,7 +1141,7 @@ describe('Settings', () => {
       get_app_config: {
         data_dir: '/d/.skillforge',
         db_path: '',
-        version: '1.1.0',
+        version: '1.0.0',
       },
       get_db_size: '1.1 MB',
       list_platforms: [

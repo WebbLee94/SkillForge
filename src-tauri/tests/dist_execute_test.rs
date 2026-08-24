@@ -194,7 +194,7 @@ fn sync_scene_scene_id_is_ignored_and_additive_behavior_retained() {
     assert!(!skills_dir.join("scene-skill").exists());
 }
 
-// ── skipped counting (v1.1.0 result bucket) ───────────────────────────
+// ── skipped counting (v1.0.0 result bucket) ───────────────────────────
 
 fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str, format: &str) {
     conn.execute(
