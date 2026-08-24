@@ -22,7 +22,7 @@
     "localPath": "Local Path",
     "installedAt": "Imported At",
     "dependencies": "Dependencies",
-    "platformStatus": "Platform Sync Status",
+    "platformStatus": "Platform Distribution Status",
     "noSkillSelected": "Select a skill to view details",
     "openInFinder": "Open in File Manager"
   },

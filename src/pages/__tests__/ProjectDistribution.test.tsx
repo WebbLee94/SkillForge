@@ -311,7 +311,7 @@ describe('ProjectDistribution', () => {
     expect(screen.getByLabelText('ws.revealMac')).toBeDefined();
   });
 
-  it('「去工作区分发」carries the project context and navigates to the shared workspace', async () => {
+  it('「去工作区分发」carries the project context and navigates to the distribution workspace', async () => {
     const proj = mkProj('p-1', 'My Project');
     await seedRoutes({
       list_projects: [proj],

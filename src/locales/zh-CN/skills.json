@@ -22,7 +22,7 @@
     "localPath": "本地路径",
     "installedAt": "导入时间",
     "dependencies": "依赖",
-    "platformStatus": "平台同步状态",
+    "platformStatus": "平台分发状态",
     "noSkillSelected": "选择一个技能查看详情",
     "openInFinder": "在文件管理器中打开"
   },

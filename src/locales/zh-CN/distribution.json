@@ -1,8 +1,8 @@
 {
   "globalTitle": "工作区",
   "projectTitle": "项目",
-  "globalSubtitle": "将技能和规则同步到全局平台配置",
-  "projectSubtitle": "管理项目，而分发统一在共享工作区进行",
+  "globalSubtitle": "将技能和规则分发到全局平台配置",
+  "projectSubtitle": "管理项目，而分发统一在分发工作区进行",
   "selectTargetPlatform": "选择目标平台",
   "addProject": "添加项目",
   "noProjects": "暂无项目",

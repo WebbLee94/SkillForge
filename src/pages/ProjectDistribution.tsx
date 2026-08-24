@@ -25,7 +25,7 @@ import { useBatchMode } from '../hooks/useBatchMode';
 /**
  * 项目页（差异3，交互稿 §7.8）：纯项目管理列表，不再内嵌分发工作区。
  * - 列表行内提供重命名与「去工作区分发」快捷入口（携带项目上下文）。
- * - 分发统一在共享工作区（/workspace，scope=global）进行；工作区挂载时
+ * - 分发统一在分发工作区（/workspace，scope=global）进行；工作区挂载时
  *   消费 `projectDistSelectedProjectId` 作为默认目标并清除，使后续直接
  *   进入工作区时默认回到全局目标。
  * - 删除仅支持批量（二次确认，只删 SkillForge 记录，不删磁盘）。
@@ -119,7 +119,7 @@ export function ProjectDistribution() {
     };
   }, [projects, enabledPlatforms]);
 
-  // 「去工作区分发」：携带项目上下文跳转到共享工作区（§7.8）。
+  // 「去工作区分发」：携带项目上下文跳转到分发工作区（§7.8）。
   // 同时清空资源库「去分发」可能残留的临时选择，避免与项目上下文混用。
   const goDistribute = (projectId: string) => {
     setProjectDistSelectedProjectId(projectId);

@@ -1,8 +1,8 @@
 {
   "globalTitle": "Workspace",
   "projectTitle": "Projects",
-  "globalSubtitle": "Sync skills and rules to global platform configs",
-  "projectSubtitle": "Manage projects, distribution happens in the shared Workspace",
+  "globalSubtitle": "Distribute skills and rules to global platform configs",
+  "projectSubtitle": "Manage projects, distribution happens in the Distribution Workspace",
   "selectTargetPlatform": "Select Target Platform",
   "addProject": "Add Project",
   "noProjects": "No Projects",
