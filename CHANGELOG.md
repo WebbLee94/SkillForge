@@ -1,10 +1,10 @@
 # Changelog
 
-## v1.1.0 (待发布)
+## v1.0.0 (待发布) 🎉 首个公开发布版本
 
 ### 🔒 首个公开基线声明
 
-**v1.1.0 是 SkillForge 的首个公开基线版本**。当前公开能力范围为 Skills（技能库）/ Rules（规则）/ Scenes（场景编排）/ Projects（项目分发）/ Platforms（平台管理）/ Distribution（全局与项目分发）六大模块。
+**v1.0.0 是 SkillForge 的首个公开基线版本**。当前公开能力范围为 Skills（技能库）/ Rules（规则）/ Scenes（场景编排）/ Projects（项目分发）/ Platforms（平台管理）/ Distribution（全局与项目分发）六大模块。
 
 - **数据库基线重置**：数据库迁移重置为 schema version 1——全新启动直接创建当前完整 schema 并标记版本 1，运行时不再保留 v2–v6 历史升级链；未来 schema 变更自该公开基线起演进
 - **旧开发数据库不保证兼容**：在旧开发版本上产生的本地数据库不再被升级修复。如遇异常请删除后重启应用，从零重建公开 v1 基线：
@@ -13,7 +13,7 @@
   rm -f ~/.skillforge/skillforge.db ~/.skillforge/skillforge.db-wal ~/.skillforge/skillforge.db-shm
   ```
 
-- **范围外能力**：MCP 管理（已归档）、Hook、LLM 集成、技能市场、多用户协作等均不在 v1.1.0 公开范围内
+- **范围外能力**：MCP 管理（已归档）、Hook、LLM 集成、技能市场、多用户协作等均不在 v1.0.0 公开范围内
 
 ### 🆕 新增
 
@@ -25,7 +25,7 @@
 
 ### 📦 MCP（已归档）
 
-MCP（Model Context Protocol）服务器管理功能已完成完整实现，但因各平台配置格式差异大、维护成本高，经评估决定从 v1.1.0 版本中移除，相关代码归档至分支 `back/mcp_v1.1.0`。未来是否上线待定。
+MCP（Model Context Protocol）服务器管理功能已完成完整实现，但因各平台配置格式差异大、维护成本高，经评估决定从 v1.0.0 版本中移除，相关代码归档至独立归档分支。未来是否上线待定。
 
 **已归档的成果：**
 - Rust 后端：mcp_servers DB 表 + CRUD 引擎 + 6 平台格式转换 + 6 平台导出适配器 + 健康检查 + MCP 平台计数
@@ -81,13 +81,13 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 - Rust 后端：332 用例（206 lib 单元 + 126 集成，`cargo test` 实测）
 - 桌面 E2E：4 spec（smoke / interaction / distribution-workflow / stats-grid-responsive）
 
-## v1.0.1 (2026-06-10)
+## v0.0.2 (2026-06-10) 内部测试版
 
 ### 🆕 新增
 
 - **一键导入**：Dashboard 新增"一键导入"功能，自动扫描所有 Agent 平台的全局目录，发现尚未导入的技能和规则，预览确认后批量导入。首次使用时自动弹出引导卡片
 
-> **推荐更新**：本版本修复了 3 项可能导致数据丢失或状态错误的严重问题，建议所有 v1.0.0 用户升级。
+> **推荐更新**：本版本修复了 3 项可能导致数据丢失或状态错误的严重问题，建议所有 v0.0.1 用户升级。
 
 ### 🔴 重要修复
 
@@ -111,9 +111,9 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 - GitHub 仓库链接修正为 `WebbLee94/SkillForge`
 - README.md 添加开源致谢
 
-## v1.0.0 (2026-05-27)
+## v0.0.1 (2026-05-27) 内部测试版
 
-> 勘误（2026-08-23）：本条目中'12 个平台'宣称有误，v1.0.x 实际内置平台为 10 个，详见 v1.1.0 条目。
+> 勘误（2026-08-23）：本条目中'12 个平台'宣称有误，v0.0.x 实际内置平台为 10 个，详见 v1.0.0 条目。
 
 ### 新增
 
@@ -155,7 +155,7 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 - 全局分发支持场景-平台关联和自定义覆盖
 - 看板全局分发状态：平台同步状态改为 compact badge 样式
 - 所有硬编码中文替换为 i18n t() 调用
-- 版本号统一为 v1.0.0（package.json / Cargo.toml / tauri.conf.json）
+- 版本号统一为 v0.0.1（package.json / Cargo.toml / tauri.conf.json）
 
 ### 移除
 

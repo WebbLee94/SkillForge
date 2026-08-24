@@ -35,16 +35,6 @@ SkillForge is a skill management tool built for AI Agent users. It solves the pa
 | 🧠 **Platform Capability Awareness** | Auto-detect each platform's Distribution capabilities and warn when unsupported |
 | 🌐 **Multi-Platform Support** | Claude Code / OpenCode / Cursor / Trae / CodeBuddy / Codex / Hermes / OpenClaw and more — 10 platforms in total |
 
-## 🧱 v1.1.0 Public Baseline
-
-> **v1.1.0 is SkillForge's first public baseline release.** The current public capability scope covers the Skill Library (Skills), Rule management (Rules), Scene orchestration (Scenes), Projects, platform management (Platforms), and Global/Project Distribution (Distribution). The database ships with the current schema as the public v1 baseline (schema version 1); historical upgrade chains are no longer carried over. MCP management, Hooks, LLM integration, a skill marketplace, and multi-user collaboration are not in scope for v1.1.0.
-
-> ⚠️ **Old development databases are not guaranteed to be compatible.** If you run into data issues, delete your local database and restart — the app will rebuild it from scratch against the public baseline:
->
-> ```bash
-> rm -f ~/.skillforge/skillforge.db ~/.skillforge/skillforge.db-wal ~/.skillforge/skillforge.db-shm
-> ```
-
 ## 📸 Screenshots
 
 ![SkillForge Dashboard](public/images/dashboard_en.png)
@@ -53,15 +43,15 @@ SkillForge is a skill management tool built for AI Agent users. It solves the pa
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology | Icon |
-|-------|------------|:----:|
-| Desktop framework | Tauri v2 | 🖥️ |
-| Frontend | React 19 + TypeScript | ⚛️ |
-| State management | Zustand | 🧠 |
-| Styling | Tailwind CSS v4 | 🎨 |
-| Backend | Rust | 🦀 |
-| Database | SQLite | 📊 |
-| Internationalization | i18next | 🌐 |
+| Layer | Technology |
+|-------|------------|
+| Desktop framework | Tauri v2 |
+| Frontend | React 19 + TypeScript |
+| State management | Zustand |
+| Styling | Tailwind CSS v4 |
+| Backend | Rust |
+| Database | SQLite |
+| Internationalization | i18next |
 
 ## 🚀 Getting Started
 
@@ -93,14 +83,18 @@ npm run tauri build
 ```
 SkillForge/
 ├── src/                      # Frontend source
+│   ├── app/                  # App shell (sidebar, topbar, etc.)
 │   ├── pages/                # Page components
 │   │   ├── Dashboard.tsx     # Dashboard
 │   │   ├── SkillLibrary.tsx  # Skill Library
 │   │   ├── RulesManager.tsx  # Rule Management
 │   │   ├── SceneEditor.tsx   # Scene Orchestration
 │   │   ├── GlobalDistribution.tsx  # Global Distribution
-│   │   └── ProjectDistribution.tsx # Project Distribution
+│   │   ├── ProjectDistribution.tsx # Project Distribution
+│   │   └── Settings.tsx      # Settings
+│   ├── domains/              # Domain modules (skills, rules, scenes, distribution, etc.)
 │   ├── components/           # Shared components
+│   ├── hooks/                # Custom hooks
 │   ├── stores/               # Zustand state management
 │   ├── lib/                  # Utilities and IPC wrappers
 │   └── locales/              # i18n translation files
@@ -109,7 +103,8 @@ SkillForge/
 │       ├── commands/         # IPC command handlers
 │       ├── engine/           # Business engines
 │       ├── db/               # Database schema and migrations
-│       └── plugins/          # Platform adapters (10)
+│       ├── plugins/          # Platform adapters (10)
+│       └── domain/ application/ ports/ adapters/  # Domain model and port/adapter layers
 ```
 
 ## 🏗️ Architecture Overview
