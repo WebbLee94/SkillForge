@@ -9,7 +9,7 @@ use skillforge_lib::db::migrations;
 
 const BASELINE_VERSION: u32 = 1;
 
-const BASELINE_TABLES: [&str; 12] = [
+const BASELINE_TABLES: [&str; 11] = [
     "schema_version",
     "skills",
     "tags",
@@ -21,18 +21,18 @@ const BASELINE_TABLES: [&str; 12] = [
     "scene_rules",
     "projects",
     "platforms",
-    "watcher_events",
 ];
 
 const SQLITE_INTERNAL_TABLES: [&str; 1] = ["sqlite_sequence"];
 
-const REMOVED_LEGACY_TABLES: [&str; 6] = [
+const REMOVED_LEGACY_TABLES: [&str; 7] = [
     "skill_versions",
     "rule_history",
     "distributions",
     "sync_logs",
     "app_config",
     "scene_platforms",
+    "watcher_events",
 ];
 
 const BASELINE_PLATFORM_IDS: [&str; 10] = [

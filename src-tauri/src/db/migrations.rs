@@ -113,7 +113,6 @@ mod tests {
             "tags",
             "skill_tags",
             "rule_tags",
-            "watcher_events",
         ] {
             assert!(tables.contains(&table.to_string()), "基线应包含表 {table}");
         }
@@ -123,6 +122,7 @@ mod tests {
         assert!(!tables.contains(&"skill_versions".to_string()));
         assert!(!tables.contains(&"rule_history".to_string()));
         assert!(!tables.contains(&"scene_platforms".to_string()));
+        assert!(!tables.contains(&"watcher_events".to_string()));
     }
 
     #[test]
