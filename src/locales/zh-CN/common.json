@@ -84,8 +84,8 @@
     "sceneInUse": "场景被 {{count}} 个项目使用",
     "referenceLoading": "正在统计场景引用…",
     "referenceSummary": "其中 {{referenced}} 个资源被 {{count}} 个场景引用",
-    "syncSuccess": "同步成功",
-    "syncFailed": "同步失败",
+    "syncSuccess": "分发成功",
+    "syncFailed": "分发失败",
     "installSuccess": "导入成功",
     "selectedDirectories": "已选择 {{count}} 个目录",
     "uninstallSuccess": "卸载成功",
@@ -99,7 +99,7 @@
     "clearFilter": "清除筛选",
     "loadSkillsFailed": "技能库加载失败",
     "loadRulesFailed": "规则库加载失败",
-    "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
+    "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则分发"
   },
   "detail": {
     "source": "来源",
@@ -273,9 +273,9 @@
     "notImplemented": "该功能暂未实现"
   },
   "syncConfirm": {
-    "title": "同步确认",
+    "title": "分发确认",
     "warning": "以下内容将从平台目录中永久删除：",
-    "changes": "以下内容将同步到平台目录：",
+    "changes": "以下内容将分发到平台目录：",
     "addSkills": "新增 {{count}} 个技能",
     "updateSkills": "更新 {{count}} 个技能",
     "removeSkills": "移除 {{count}} 个技能",
@@ -284,7 +284,7 @@
     "removeRules": "移除 {{count}} 条规则",
     "noChanges": "无变更项",
     "summary": "将新增 {{add}} 项，更新 {{update}} 项，移除 {{remove}} 项。此操作不可撤销。",
-    "confirm": "确认同步",
+    "confirm": "确认分发",
     "confirmRemoval": "确认分发并移除 {{count}} 项"
   }
 }

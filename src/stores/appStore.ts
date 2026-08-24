@@ -833,7 +833,7 @@ export const useAppStore = create<AppStore>((set, get) => {
               if (!cap.rules_global) {
                 const p = get().platforms.find((pl) => pl.id === pid);
                 get().addToast(
-                  `警告: ${p?.name || pid} 不支持全局规则同步`,
+                  `警告: ${p?.name || pid} 不支持全局规则分发`,
                   'warning'
                 );
               }
@@ -853,14 +853,14 @@ export const useAppStore = create<AppStore>((set, get) => {
         );
         await get().fetchSyncStatus();
         if (result.errors.length === 0) {
-          get().addToast('同步成功', 'success');
+          get().addToast('分发成功', 'success');
         } else {
-          get().addToast(`同步完成，${result.errors.length} 项失败`, 'warning');
+          get().addToast(`分发完成，${result.errors.length} 项失败`, 'warning');
         }
         return result;
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`同步失败: ${errMsg}`, 'error');
+        get().addToast(`分发失败: ${errMsg}`, 'error');
         return null;
       }
     },
@@ -870,7 +870,7 @@ export const useAppStore = create<AppStore>((set, get) => {
         set({ syncStatus });
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
-        get().addToast(`获取同步状态失败: ${errMsg}`, 'error');
+        get().addToast(`获取分发状态失败: ${errMsg}`, 'error');
       }
     },
 

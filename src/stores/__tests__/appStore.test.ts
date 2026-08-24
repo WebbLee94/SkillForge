@@ -1669,7 +1669,7 @@ describe('appStore — Distribution', () => {
       .getState()
       .toasts.find((t) => t.type === 'warning');
     expect(warning?.message).toContain('Claude Code');
-    expect(warning?.message).toContain('不支持全局规则同步');
+    expect(warning?.message).toContain('不支持全局规则分发');
   });
 
   it('syncScene global scope falls back to platform id when name is unknown', async () => {

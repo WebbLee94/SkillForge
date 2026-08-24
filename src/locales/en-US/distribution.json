@@ -40,7 +40,7 @@
   "distributeSuccess": "✓ Distribute successful",
   "distributeWarning": "⚠ Distribute completed, {{count}} failed",
   "distributeComplete": "Distribution complete",
-  "noChanges": "No changes, skipping sync",
+  "noChanges": "No changes, skipping distribution",
   "previewFailed": "Preview failed, please try again later",
   "missingProjectId": "Please select a project before distributing",
   "distributing": "Distributing...",

@@ -84,8 +84,8 @@
     "sceneInUse": "Scene is used by {{count}} project(s)",
     "referenceLoading": "Counting scene references…",
     "referenceSummary": "{{referenced}} of them are referenced by {{count}} scene(s)",
-    "syncSuccess": "Sync successful",
-    "syncFailed": "Sync failed",
+    "syncSuccess": "Distribute successful",
+    "syncFailed": "Distribute failed",
     "installSuccess": "Import successful",
     "selectedDirectories": "{{count}} directories selected",
     "uninstallSuccess": "Uninstall successful",
@@ -99,7 +99,7 @@
     "clearFilter": "Clear Filter",
     "loadSkillsFailed": "Failed to load skills",
     "loadRulesFailed": "Failed to load rules",
-    "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
+    "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules distribution"
   },
   "detail": {
     "source": "Source",
@@ -273,7 +273,7 @@
     "notImplemented": "This feature is not implemented yet"
   },
   "syncConfirm": {
-    "title": "Sync Confirmation",
+    "title": "Distribution Confirmation",
     "warning": "The following items will be permanently removed from the platform directory:",
     "addSkills": "Add {{count}} skill(s)",
     "updateSkills": "Update {{count}} skill(s)",
@@ -281,10 +281,10 @@
     "addRules": "Add {{count}} rule(s)",
     "updateRules": "Update {{count}} rule(s)",
     "removeRules": "Remove {{count}} rule(s)",
-    "changes": "The following items will be synced to the platform directory:",
+    "changes": "The following items will be distributed to the platform directory:",
     "noChanges": "No changes",
     "summary": "Will add {{add}} item(s), update {{update}} item(s), remove {{remove}} item(s). This action cannot be undone.",
-    "confirm": "Confirm Sync",
+    "confirm": "Confirm Distribution",
     "confirmRemoval": "Confirm distribution and remove {{count}} item(s)"
   }
 }

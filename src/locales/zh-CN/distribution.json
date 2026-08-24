@@ -40,7 +40,7 @@
   "distributeSuccess": "✓ 分发成功",
   "distributeWarning": "⚠ 分发完成，{{count}} 项失败",
   "distributeComplete": "分发完成",
-  "noChanges": "无变更内容，跳过同步",
+  "noChanges": "无变更内容，跳过分发",
   "previewFailed": "预览失败，请稍后重试",
   "missingProjectId": "请先选择项目后再分发",
   "distributing": "分发中...",

@@ -647,7 +647,7 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
         setPendingRemoveResult({ status: 'failed', removed: [], errors: [] });
         // 失败：保留全部选择，可重试
       }
-      // 状态失效：清空计划、刷新受管面板与同步状态（无论成败，目标文件系统可能已变化）
+      // 状态失效：清空计划、刷新受管面板与分发状态（无论成败，目标文件系统可能已变化）
       setPlan(null);
       setPlanStale(false);
       const ok = await fetchManagedState(
