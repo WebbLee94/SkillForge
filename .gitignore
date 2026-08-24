@@ -43,3 +43,4 @@ docs/
 # Rust / frontend build output (binaries are published via GitHub Releases)
 src-tauri/target/
 releases/AGENTS.md
+AGENTS.md
