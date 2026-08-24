@@ -125,8 +125,8 @@ mod tests {
 
     fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &std::path::Path) {
         conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path)
-             VALUES (?1, ?1, NULL, 'local', ?2, ?3)",
+            "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, local_path)
+             VALUES (?1, 'skill', ?1, NULL, 'local', ?2, ?2, ?3)",
             params![
                 id,
                 chrono::Utc::now().to_rfc3339(),
@@ -138,8 +138,8 @@ mod tests {
 
     fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str) {
         conn.execute(
-            "INSERT INTO rules (id, name, format, content, version, updated_at)
-             VALUES (?1, ?1, 'md', ?2, 1, ?3)",
+            "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, format, content, version)
+             VALUES (?1, 'rule', ?1, NULL, 'manual', ?3, ?3, 'md', ?2, 1)",
             params![id, content, chrono::Utc::now().to_rfc3339()],
         )
         .unwrap();

@@ -48,7 +48,7 @@ fn intent(mode: DistributionIntentMode, ids: &[&str]) -> DistributionIntent {
 fn insert_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
     let skill = plugin.create_source_skill(id, id, "---\nname: test\n---\n");
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params![skill.id, skill.name, skill.source_type, skill.installed_at, skill.local_path],
     )
     .unwrap();
@@ -116,7 +116,7 @@ fn execute_removes_selected_managed_skill() {
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |row| row.get::<_, String>(0),
         )
@@ -198,7 +198,7 @@ fn sync_scene_scene_id_is_ignored_and_additive_behavior_retained() {
 
 fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str, format: &str) {
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at) VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params![id, id, format, content, chrono::Utc::now().to_rfc3339()],
     )
     .unwrap();
@@ -208,9 +208,11 @@ fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str, format: &st
 /// `execute_removes_selected_managed_skill`).
 fn presync_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
     let source: String = conn
-        .query_row("SELECT local_path FROM skills WHERE id = ?1", [id], |row| {
-            row.get(0)
-        })
+        .query_row(
+            "SELECT local_path FROM resources WHERE id = ?1 AND kind = 'skill'",
+            [id],
+            |row| row.get(0),
+        )
         .unwrap();
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     #[cfg(unix)]
@@ -456,14 +458,18 @@ fn remove_distributed_collects_partial_failures() {
     std::fs::create_dir_all(&good_skills_dir).unwrap();
     std::fs::create_dir_all(&bad_skills_dir).unwrap();
     let src_a: String = conn
-        .query_row("SELECT local_path FROM skills WHERE id='s-a'", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT local_path FROM resources WHERE id='s-a' AND kind='skill'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     let src_b: String = conn
-        .query_row("SELECT local_path FROM skills WHERE id='s-b'", [], |r| {
-            r.get(0)
-        })
+        .query_row(
+            "SELECT local_path FROM resources WHERE id='s-b' AND kind='skill'",
+            [],
+            |r| r.get(0),
+        )
         .unwrap();
     std::os::unix::fs::symlink(&src_a, good_skills_dir.join("s-a")).unwrap();
     std::os::unix::fs::symlink(&src_b, bad_skills_dir.join("s-b")).unwrap();

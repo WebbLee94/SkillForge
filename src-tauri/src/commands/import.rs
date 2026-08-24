@@ -90,7 +90,7 @@ pub fn scan_for_import(state: tauri::State<'_, AppState>) -> Result<ScanForImpor
                         // Check if already in DB
                         let exists: bool = conn
                             .query_row(
-                                "SELECT COUNT(*) FROM skills WHERE id = ?1",
+                                "SELECT COUNT(*) FROM resources WHERE id = ?1 AND kind = 'skill'",
                                 params![dir_name],
                                 |r| r.get::<_, i64>(0),
                             )
@@ -142,7 +142,7 @@ pub fn scan_for_import(state: tauri::State<'_, AppState>) -> Result<ScanForImpor
                             // Check if already in DB
                             let exists: bool = conn
                                 .query_row(
-                                    "SELECT COUNT(*) FROM rules WHERE id = ?1",
+                                    "SELECT COUNT(*) FROM resources WHERE id = ?1 AND kind = 'rule'",
                                     params![stem],
                                     |r| r.get::<_, i64>(0),
                                 )
@@ -209,7 +209,7 @@ pub async fn import_scanned(
 
         for skill in &skills {
             let exists: bool = conn
-                .query_row("SELECT COUNT(*) FROM skills WHERE id = ?1", params![skill.id], |r| r.get::<_, i64>(0))
+                .query_row("SELECT COUNT(*) FROM resources WHERE id = ?1 AND kind = 'skill'", params![skill.id], |r| r.get::<_, i64>(0))
                 .map(|c| c > 0)
                 .unwrap_or(false);
             if exists {
@@ -234,7 +234,7 @@ pub async fn import_scanned(
             }
             let now = chrono::Utc::now().to_rfc3339();
             match conn.execute(
-                "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                "INSERT INTO resources (id, kind, name, description, source_type, source_url, current_ver, installed_at, updated_at, local_path, metadata) VALUES (?1, 'skill', ?2, ?3, ?4, ?5, ?6, ?7, ?7, ?8, ?9)",
                 params![bundle.meta.id, bundle.meta.name, bundle.meta.description, bundle.meta.source_type, bundle.meta.source_url, bundle.meta.version, now, local_path.to_string_lossy().to_string(), bundle.meta.metadata],
             ) {
                 Ok(_) => imported_skills += 1,
@@ -244,7 +244,7 @@ pub async fn import_scanned(
 
         for rule in &rules {
             let exists: bool = conn
-                .query_row("SELECT COUNT(*) FROM rules WHERE id = ?1", params![rule.id], |r| r.get::<_, i64>(0))
+                .query_row("SELECT COUNT(*) FROM resources WHERE id = ?1 AND kind = 'rule'", params![rule.id], |r| r.get::<_, i64>(0))
                 .map(|c| c > 0)
                 .unwrap_or(false);
             if exists {
@@ -258,7 +258,7 @@ pub async fn import_scanned(
             }
             let now = chrono::Utc::now().to_rfc3339();
             match conn.execute(
-                "INSERT INTO rules (id, name, description, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, 1, ?6)",
+                "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, format, content, platform, scope, version) VALUES (?1, 'rule', ?2, ?3, 'manual', ?6, ?6, ?4, ?5, NULL, NULL, 1)",
                 params![rule.id, rule.name, "", rule.format, content, now],
             ) {
                 Ok(_) => {

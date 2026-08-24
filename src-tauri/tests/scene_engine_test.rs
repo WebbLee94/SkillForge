@@ -126,7 +126,7 @@ fn test_set_scene_member_enabled_persists() {
 
     // Insert a skill first
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, 'test', datetime('now'), datetime('now'), ?1)",
         rusqlite::params!["test-skill", "Test Skill"],
     )
     .unwrap();
@@ -163,7 +163,7 @@ fn test_set_scene_member_enabled_rule_persists() {
 
     // Insert a rule first
     conn.execute(
-        "INSERT INTO rules (id, name, description, format, content, updated_at) VALUES (?1, ?2, ?3, 'directory', ?4, datetime('now'))",
+        "INSERT INTO resources (id, kind, name, description, source_type, format, content, version, updated_at, installed_at) VALUES (?1, 'rule', ?2, ?3, 'manual', 'directory', ?4, 1, datetime('now'), datetime('now'))",
         rusqlite::params!["test-rule", "Test Rule", "A test", "rule content"],
     )
     .unwrap();
@@ -222,7 +222,7 @@ fn test_create_scene_rolls_back_on_missing_skill() {
 
     // 插入一个有效技能，第二个技能不存在 → 循环中途失败
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, 'test', datetime('now'), datetime('now'), ?1)",
         rusqlite::params!["valid-skill", "Valid Skill"],
     )
     .unwrap();
@@ -251,7 +251,7 @@ fn test_create_scene_rolls_back_on_missing_skill() {
         "失败后不应残留半初始化的场景行"
     );
     assert_eq!(
-        count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"),
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_items si JOIN resources r ON si.resource_id = r.id WHERE r.kind = 'skill'"),
         0,
         "失败后不应残留已插入的技能关联"
     );
@@ -263,7 +263,7 @@ fn test_create_scene_rolls_back_on_missing_rule() {
 
     // 技能阶段全部成功，规则阶段中途失败 → 前面所有写入必须整体回滚
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, 'test', datetime('now'), datetime('now'), ?1)",
         rusqlite::params!["valid-skill", "Valid Skill"],
     )
     .unwrap();
@@ -291,12 +291,12 @@ fn test_create_scene_rolls_back_on_missing_rule() {
         "失败后不应残留场景行"
     );
     assert_eq!(
-        count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"),
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_items si JOIN resources r ON si.resource_id = r.id WHERE r.kind = 'skill'"),
         0,
         "技能关联应随事务一起回滚"
     );
     assert_eq!(
-        count_rows(&conn, "SELECT COUNT(*) FROM scene_rules"),
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_items si JOIN resources r ON si.resource_id = r.id WHERE r.kind = 'rule'"),
         0,
         "失败后不应残留规则关联"
     );
@@ -318,12 +318,12 @@ fn test_delete_scene_rolls_back_on_midway_failure() {
     let conn = init_db();
 
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, 'test', datetime('now'), datetime('now'), ?1)",
         rusqlite::params!["s1", "Skill One"],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO rules (id, name, description, format, content, updated_at) VALUES (?1, ?2, ?3, 'directory', ?4, datetime('now'))",
+        "INSERT INTO resources (id, kind, name, description, source_type, format, content, version, updated_at, installed_at) VALUES (?1, 'rule', ?2, ?3, 'manual', 'directory', ?4, 1, datetime('now'), datetime('now'))",
         rusqlite::params!["r1", "Rule One", "A test", "rule content"],
     )
     .unwrap();
@@ -337,9 +337,9 @@ fn test_delete_scene_rolls_back_on_midway_failure() {
     };
     let scene = scene_engine::create_scene(&conn, &dto).unwrap();
 
-    // 用触发器注入故障：DELETE scene_rules 时中止（模拟删除序列第 2 步失败）
+    // 用触发器注入故障：DELETE scene_items 时中止（模拟删除序列第 1 步失败）
     conn.execute(
-        "CREATE TRIGGER fail_rule_delete BEFORE DELETE ON scene_rules
+        "CREATE TRIGGER fail_item_delete BEFORE DELETE ON scene_items
          BEGIN SELECT RAISE(ABORT, 'simulated midway failure'); END;",
         [],
     )
@@ -348,7 +348,7 @@ fn test_delete_scene_rolls_back_on_midway_failure() {
     let result = scene_engine::delete_scene(&conn, &scene.id);
     assert!(result.is_err(), "触发器中止应使 delete_scene 失败");
 
-    // 整体回滚：场景行与第一步已执行的 scene_skills 删除都必须还原
+    // 整体回滚：场景行与成员关联都必须原样保留
     assert_eq!(
         count_rows(
             &conn,
@@ -358,15 +358,15 @@ fn test_delete_scene_rolls_back_on_midway_failure() {
         "失败后场景行必须仍然存在"
     );
     assert_eq!(
-        count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"),
+        count_rows(&conn, "SELECT COUNT(*) FROM scene_items si JOIN resources r ON si.resource_id = r.id WHERE r.kind = 'skill'"),
         1,
-        "失败后技能关联必须被还原（第 1 步删除随事务回滚）"
+        "失败后技能关联必须仍然存在"
     );
 
     // 清除故障后可正常删除，库状态未损坏
-    conn.execute("DROP TRIGGER fail_rule_delete", []).unwrap();
+    conn.execute("DROP TRIGGER fail_item_delete", []).unwrap();
     scene_engine::delete_scene(&conn, &scene.id).expect("清除触发器后删除应成功");
     assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scenes"), 0);
-    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scene_skills"), 0);
-    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scene_rules"), 0);
+    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scene_items si JOIN resources r ON si.resource_id = r.id WHERE r.kind = 'skill'"), 0);
+    assert_eq!(count_rows(&conn, "SELECT COUNT(*) FROM scene_items si JOIN resources r ON si.resource_id = r.id WHERE r.kind = 'rule'"), 0);
 }

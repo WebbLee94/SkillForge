@@ -121,7 +121,7 @@ fn delete_rule_files(id: &str) -> Result<(), AppError> {
 pub(crate) fn get_rule(conn: &Connection, rule_id: &str) -> Result<Rule, AppError> {
     conn.query_row(
         "SELECT id, name, description, format, content, platform, scope, version, updated_at
-         FROM rules WHERE id = ?1",
+         FROM resources WHERE id = ?1 AND kind = 'rule'",
         params![rule_id],
         |row| {
             Ok(Rule {
@@ -146,14 +146,15 @@ pub fn list_rules(conn: &Connection, platform: Option<&str>) -> Result<Vec<Rule>
     let mut sql = String::from(
         "SELECT r.id, r.name, r.description, r.format, r.content, r.platform, r.scope, r.version, r.updated_at, \
          IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
-         FROM rules r \
-         LEFT JOIN rule_tags rt ON r.id = rt.rule_id \
-         LEFT JOIN tags t ON rt.tag_id = t.id",
+         FROM resources r \
+         LEFT JOIN resource_tags rt ON r.id = rt.resource_id \
+         LEFT JOIN tags t ON rt.tag_id = t.id \
+         WHERE r.kind = 'rule'",
     );
     let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
 
     if let Some(platform) = platform {
-        sql.push_str(" WHERE r.platform = ?1");
+        sql.push_str(" AND r.platform = ?1");
         param_values.push(Box::new(platform.to_string()));
     }
 
@@ -195,31 +196,23 @@ pub fn create_rule(conn: &Connection, data: &CreateRuleDTO) -> Result<Rule, AppE
     let now = chrono::Utc::now().to_rfc3339();
 
     // Check for duplicate
-    let exists: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM rules WHERE id = ?1",
-            params![id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map(|c| c > 0)?;
+    let exists =
+        crate::db::resources_repo::kind_exists(conn, &id, crate::db::resources_repo::KIND_RULE)?;
 
     if exists {
         return Err(AppError::Validation(format!("规则标识 '{}' 已存在", id)));
     }
 
-    conn.execute(
-        "INSERT INTO rules (id, name, description, format, content, platform, scope, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 1, ?8)",
-        params![
-            id,
-            data.name,
-            data.description,
-            data.format,
-            data.content,
-            data.platform,
-            data.scope,
-            now
-        ],
+    crate::db::resources_repo::insert_rule_row(
+        conn,
+        &id,
+        &data.name,
+        data.description.as_deref(),
+        &data.format,
+        &data.content,
+        data.platform.as_deref(),
+        data.scope.as_deref(),
+        &now,
     )?;
 
     write_rule_file(&id, &data.format, &data.content)?;
@@ -245,7 +238,7 @@ pub fn update_rule(conn: &Connection, id: &str, data: &UpdateRuleDTO) -> Result<
     validate_rule_content(&new_content)?;
 
     conn.execute(
-        "UPDATE rules SET name = ?1, description = ?2, content = ?3, platform = ?4, scope = ?5, version = ?6, updated_at = ?7 WHERE id = ?8",
+        "UPDATE resources SET name = ?1, description = ?2, content = ?3, platform = ?4, scope = ?5, version = ?6, updated_at = ?7 WHERE id = ?8 AND kind = 'rule'",
         params![new_name, new_description, new_content, new_platform, new_scope, new_version, now, id],
     )?;
 
@@ -258,22 +251,26 @@ pub fn update_rule(conn: &Connection, id: &str, data: &UpdateRuleDTO) -> Result<
 /// Delete a rule and its scene/tag associations plus storage files.
 pub fn delete_rule(conn: &Connection, id: &str) -> Result<(), AppError> {
     // Verify rule exists
-    let exists: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM rules WHERE id = ?1",
-            params![id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map(|c| c > 0)?;
+    let exists =
+        crate::db::resources_repo::kind_exists(conn, id, crate::db::resources_repo::KIND_RULE)?;
 
     if !exists {
         return Err(AppError::RuleNotFound(id.to_string()));
     }
 
     // Delete associations and records
-    conn.execute("DELETE FROM scene_rules WHERE rule_id = ?1", params![id])?;
-    conn.execute("DELETE FROM rule_tags WHERE rule_id = ?1", params![id])?;
-    conn.execute("DELETE FROM rules WHERE id = ?1", params![id])?;
+    conn.execute(
+        "DELETE FROM scene_items WHERE resource_id = ?1",
+        params![id],
+    )?;
+    conn.execute(
+        "DELETE FROM resource_tags WHERE resource_id = ?1",
+        params![id],
+    )?;
+    conn.execute(
+        "DELETE FROM resources WHERE id = ?1 AND kind = 'rule'",
+        params![id],
+    )?;
 
     // Delete file from disk
     delete_rule_files(id)?;
@@ -522,7 +519,7 @@ mod tests {
             )
             .unwrap();
             conn.execute(
-                "INSERT INTO scene_rules (scene_id, rule_id, enabled, sort_order) VALUES ('s1', ?1, 1, 0)",
+                "INSERT INTO scene_items (scene_id, resource_id, enabled, sort_order) VALUES ('s1', ?1, 1, 0)",
                 params![rule.id],
             )
             .unwrap();
@@ -535,7 +532,7 @@ mod tests {
                 .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
                 .unwrap();
             conn.execute(
-                "INSERT INTO rule_tags (rule_id, tag_id) VALUES (?1, ?2)",
+                "INSERT INTO resource_tags (resource_id, tag_id) VALUES (?1, ?2)",
                 params![rule.id, tag_id],
             )
             .unwrap();
@@ -544,7 +541,7 @@ mod tests {
 
             let count: i64 = conn
                 .query_row(
-                    "SELECT COUNT(*) FROM rules WHERE id = ?1",
+                    "SELECT COUNT(*) FROM resources WHERE id = ?1 AND kind = 'rule'",
                     params![rule.id],
                     |r| r.get(0),
                 )
@@ -552,7 +549,7 @@ mod tests {
             assert_eq!(count, 0);
             let count: i64 = conn
                 .query_row(
-                    "SELECT COUNT(*) FROM scene_rules WHERE rule_id = ?1",
+                    "SELECT COUNT(*) FROM scene_items WHERE resource_id = ?1",
                     params![rule.id],
                     |r| r.get(0),
                 )
@@ -560,7 +557,7 @@ mod tests {
             assert_eq!(count, 0);
             let count: i64 = conn
                 .query_row(
-                    "SELECT COUNT(*) FROM rule_tags WHERE rule_id = ?1",
+                    "SELECT COUNT(*) FROM resource_tags WHERE resource_id = ?1",
                     params![rule.id],
                     |r| r.get(0),
                 )
@@ -602,7 +599,7 @@ mod tests {
                 .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
                 .unwrap();
             conn.execute(
-                "INSERT INTO rule_tags (rule_id, tag_id) VALUES ('alpha', ?1)",
+                "INSERT INTO resource_tags (resource_id, tag_id) VALUES ('alpha', ?1)",
                 params![tag_id],
             )
             .unwrap();

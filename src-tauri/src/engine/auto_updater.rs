@@ -56,7 +56,7 @@ pub fn start_auto_updater<R: Runtime>(app: AppHandle<R>, conn: Arc<Mutex<rusqlit
             let skills: Vec<(String, String)> = {
                 let db = conn.lock().unwrap();
                 let mut stmt = match db
-                    .prepare("SELECT id, local_path FROM skills WHERE source_type = 'git'")
+                    .prepare("SELECT id, local_path FROM resources WHERE kind = 'skill' AND source_type = 'git'")
                 {
                     Ok(s) => s,
                     Err(_) => {

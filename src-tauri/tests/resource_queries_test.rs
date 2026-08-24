@@ -23,8 +23,8 @@ fn init_db() -> rusqlite::Connection {
 fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &std::path::Path) {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO skills (id, name, description, source_type, installed_at, local_path)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, local_path)
+         VALUES (?1, 'skill', ?2, ?3, ?4, ?5, ?5, ?6)",
         rusqlite::params![
             id,
             id,
@@ -104,7 +104,7 @@ fn skill_scene_reference_count_counts_all_referencing_scenes() {
     for scene_id in ["scene-a", "scene-b", "scene-c"] {
         insert_scene(&conn, scene_id);
         conn.execute(
-            "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order)
+            "INSERT INTO scene_items (scene_id, resource_id, enabled, sort_order)
              VALUES (?1, ?2, 1, 0)",
             rusqlite::params![scene_id, "shared-skill"],
         )
@@ -131,8 +131,8 @@ fn skill_scene_reference_count_zero_when_unreferenced() {
 fn rule_scene_reference_count_counts_all_referencing_scenes() {
     let conn = init_db();
     conn.execute(
-        "INSERT INTO rules (id, name, description, format, content, platform, scope, version, updated_at)
-         VALUES ('my-rule', 'My Rule', 'desc', 'md', '# content', 'claude-code', 'global', 1, '2024-01-01T00:00:00Z')",
+        "INSERT INTO resources (id, kind, name, description, source_type, format, content, platform, scope, version, updated_at, installed_at)
+         VALUES ('my-rule', 'rule', 'My Rule', 'desc', 'manual', 'md', '# content', 'claude-code', 'global', 1, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
         [],
     )
     .unwrap();
@@ -140,7 +140,7 @@ fn rule_scene_reference_count_counts_all_referencing_scenes() {
     for scene_id in ["scene-x", "scene-y"] {
         insert_scene(&conn, scene_id);
         conn.execute(
-            "INSERT INTO scene_rules (scene_id, rule_id, enabled, sort_order)
+            "INSERT INTO scene_items (scene_id, resource_id, enabled, sort_order)
              VALUES (?1, ?2, 1, 0)",
             rusqlite::params![scene_id, "my-rule"],
         )
@@ -156,8 +156,8 @@ fn rule_scene_reference_count_counts_all_referencing_scenes() {
 fn rule_scene_reference_count_zero_when_unreferenced() {
     let conn = init_db();
     conn.execute(
-        "INSERT INTO rules (id, name, description, format, content, platform, scope, version, updated_at)
-         VALUES ('solo-rule', 'Solo', 'desc', 'md', '# content', 'claude-code', 'global', 1, '2024-01-01T00:00:00Z')",
+        "INSERT INTO resources (id, kind, name, description, source_type, format, content, platform, scope, version, updated_at, installed_at)
+         VALUES ('solo-rule', 'rule', 'Solo', 'desc', 'manual', 'md', '# content', 'claude-code', 'global', 1, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
         [],
     )
     .unwrap();

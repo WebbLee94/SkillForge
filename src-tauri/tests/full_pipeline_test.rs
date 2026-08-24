@@ -11,7 +11,7 @@ fn init_db() -> rusqlite::Connection {
 
 fn insert_skill(conn: &rusqlite::Connection, id: &str, name: &str) {
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, 'test', datetime('now'), ?1)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, 'test', datetime('now'), datetime('now'), ?1)",
         rusqlite::params![id, name],
     ).unwrap();
 }

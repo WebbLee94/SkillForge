@@ -60,7 +60,7 @@ fn distribution_request(
 fn insert_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
     let skill = plugin.create_source_skill(id, id, "---\nname: test\n---\n");
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params![skill.id, skill.name, skill.source_type, skill.installed_at, skill.local_path],
     )
     .unwrap();
@@ -68,7 +68,7 @@ fn insert_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugi
 
 fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str) {
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at) VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params![id, id, "md", content, chrono::Utc::now().to_rfc3339()],
     )
     .unwrap();
@@ -242,7 +242,7 @@ fn remove_selected_removes_managed_skill_and_preserves_unknown_directory() {
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let managed_source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |row| row.get::<_, String>(0),
         )
@@ -273,7 +273,7 @@ fn remove_selected_skill_and_invalid_single_file_rule_fail_before_any_mutation()
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let managed_source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |row| row.get::<_, String>(0),
         )
@@ -311,7 +311,7 @@ fn remove_selected_skill_with_invalid_non_utf8_single_file_fails_before_skill_mu
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let managed_source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |row| row.get::<_, String>(0),
         )
@@ -447,7 +447,7 @@ fn managed_state_query_separates_local_entries_from_removable_entries() {
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |row| row.get::<_, String>(0),
         )
@@ -1124,15 +1124,15 @@ fn test_plan_directory_rules_add_remove_without_updates() {
     let now = chrono::Utc::now().to_rfc3339();
     for (id, name) in &[("rule-x", "Rule X"), ("rule-y", "Rule Y")] {
         conn.execute(
-            "INSERT INTO rules (id, name, format, content, version, updated_at)
-             VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+            "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+             VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
             rusqlite::params![id, name, "md", format!("# {}", name), now],
         )
         .unwrap();
     }
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["rule-old", "Rule Old", "mdc", "# Old", now],
     )
     .unwrap();
@@ -1193,14 +1193,14 @@ fn test_plan_single_file_rules_boundary_without_updates() {
 
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["rule-active", "Active Rule", "md", "# Active", now],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["rule-old", "Rule Old", "md", "# Old", now],
     )
     .unwrap();
@@ -1258,8 +1258,8 @@ fn plan_single_file_rules_flags_modified_block_as_update() {
 
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["rule-active", "Active Rule", "md", "# Active", now],
     )
     .unwrap();
@@ -1316,8 +1316,8 @@ fn test_plan_does_not_modify_source_files() {
     let skill = plugin.create_source_skill("test-skill", "Test Skill", "# Original Content\n");
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path)
+         VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params!["test-skill", "Test Skill", "test", now, &skill.local_path],
     )
     .unwrap();
@@ -1485,14 +1485,14 @@ fn test_plan_project_scope_rules_path_resolution_without_updates() {
 
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["proj-rule", "Project Rule", "md", "# Project Rule", now],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["stale-rule", "Stale Rule", "mdc", "# Stale", now],
     )
     .unwrap();
@@ -1568,8 +1568,8 @@ fn sync_scene_project_scope_rules_target_uses_project_base() {
     let conn = init_db();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params![
             "project-rule",
             "Project Rule",
@@ -1632,8 +1632,8 @@ fn build_distribution_plan_preserves_unknown_directory_rules() {
     let conn = init_db();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["stale-rule", "Stale Rule", "md", "# Stale\n", now],
     )
     .unwrap();
@@ -1696,8 +1696,8 @@ fn sync_scene_plan_idempotency() {
     // Create one source skill inside the plugin's TempDir
     let skill = plugin.create_source_skill("skill-a", "Skill A", "# Skill A\n");
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path)
+         VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params!["skill-a", "Skill A", "test", now, &skill.local_path],
     )
     .unwrap();
@@ -1781,14 +1781,14 @@ fn sync_scene_rules_idempotency() {
     let now = chrono::Utc::now().to_rfc3339();
 
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["rule-a", "Rule A", "md", "# Rule A\n", now],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["stale-rule", "Stale Rule", "md", "# Stale\n", now],
     )
     .unwrap();
@@ -1857,14 +1857,14 @@ fn sync_scene_rules_preserves_unknown_files() {
     let conn = init_db();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["rule-a", "Rule A", "md", "# Rule A\n", now],
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["stale-rule", "Stale Rule", "md", "# Stale\n", now],
     )
     .unwrap();
@@ -1986,8 +1986,8 @@ fn build_distribution_plan_supports_project_only_rules() {
     let conn = init_db();
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params![
             "project-rule",
             "Project Rule",
@@ -1998,8 +1998,8 @@ fn build_distribution_plan_supports_project_only_rules() {
     )
     .unwrap();
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at)
-         VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params!["stale-rule", "Stale Rule", "md", "# Stale\n", now],
     )
     .unwrap();

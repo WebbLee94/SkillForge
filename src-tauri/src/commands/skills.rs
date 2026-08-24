@@ -78,7 +78,7 @@ pub fn update_skill(
     // Read both source_type and source_url from DB
     let (source_type, source_url): (String, Option<String>) = conn
         .query_row(
-            "SELECT source_type, source_url FROM skills WHERE id = ?1",
+            "SELECT source_type, source_url FROM resources WHERE id = ?1 AND kind = 'skill'",
             rusqlite::params![skill_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )

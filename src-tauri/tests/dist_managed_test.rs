@@ -22,7 +22,7 @@ fn init_db() -> rusqlite::Connection {
 fn insert_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
     let skill = plugin.create_source_skill(id, id, "---\nname: test\n---\n");
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params![skill.id, skill.name, skill.source_type, skill.installed_at, skill.local_path],
     )
     .unwrap();
@@ -30,7 +30,7 @@ fn insert_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugi
 
 fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str) {
     conn.execute(
-        "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at) VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
         rusqlite::params![id, id, "md", content, chrono::Utc::now().to_rfc3339()],
     )
     .unwrap();
@@ -45,7 +45,7 @@ fn managed_state_separates_managed_from_local_entries() {
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |row| row.get::<_, String>(0),
         )
@@ -112,7 +112,7 @@ fn managed_state_skips_symlink_not_pointing_at_skill_source() {
     // symlink in the platform dir that does NOT point at that source.
     let skill = plugin.create_source_skill("managed-skill", "Managed", "---\n---\n");
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params![
             skill.id,
             skill.name,
@@ -241,7 +241,7 @@ fn remove_distributed_fails_closed_when_target_not_managed() {
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |r| r.get::<_, String>(0),
         )
@@ -313,7 +313,7 @@ fn remove_distributed_removes_managed_skill_and_directory_rule() {
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
     let source = conn
         .query_row(
-            "SELECT local_path FROM skills WHERE id = 'managed-skill'",
+            "SELECT local_path FROM resources WHERE id = 'managed-skill' AND kind = 'skill'",
             [],
             |r| r.get::<_, String>(0),
         )
@@ -386,77 +386,26 @@ fn remove_distributed_removes_single_file_rule_block_preserving_user_content() {
 
 // ── 走查修复 F1：类型安全的 fail-closed 预检（技能/规则各自命名空间）────
 
-// 同 ID 碰撞：技能 'shared' 受管、规则 'shared' 未受管 —— 技能不得掩盖缺失的规则
+// 统一资源模型（47 号方案）：resources.id 为全局主键，跨 kind 同 ID 在存储层
+// 即被拒绝。拆分表时代「技能/规则同 ID 碰撞互相掩盖」的场景在结构上不可能发生，
+// 原两个碰撞防护用例合并为下方模式不变式测试（登记于 U1 报告）。
 #[test]
-fn remove_distributed_does_not_let_skill_id_hide_missing_rule_id() {
+fn resources_reject_cross_kind_duplicate_ids() {
     let conn = init_db();
     let plugin = support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", false, "");
     insert_skill(&conn, &plugin, "shared");
-    insert_rule(&conn, "shared", "content-shared");
-    let skills_dir = plugin.skills_dir();
-    let rules_dir = plugin.rules_dir();
-    std::fs::create_dir_all(&skills_dir).unwrap();
-    let source = conn
-        .query_row(
-            "SELECT local_path FROM skills WHERE id = 'shared'",
-            [],
-            |r| r.get::<_, String>(0),
+
+    let err = conn
+        .execute(
+            "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at)
+             VALUES (?1, 'rule', ?1, 'manual', 'md', 'content-shared', 1, ?2, ?2)",
+            rusqlite::params!["shared", chrono::Utc::now().to_rfc3339()],
         )
-        .unwrap();
-    std::os::unix::fs::symlink(&source, skills_dir.join("shared")).unwrap();
-    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
-
-    // 规则 'shared' 从未分发（磁盘无文件）→ 不在 rules_to_remove → 整体拒绝
-    let err = skillforge_lib::engine::dist_execute::execute_remove_distributed(
-        &conn,
-        &plugins,
-        &["test-plat".to_string()],
-        "global",
-        None,
-        &["shared".to_string()],
-        &["shared".to_string()],
-    )
-    .unwrap_err();
-    assert!(matches!(
-        err,
-        skillforge_lib::error::AppError::DistributionInvalid(_)
-    ));
-    // 技能 symlink 未被删除（fail-closed 整体拒绝）
-    assert!(skills_dir.join("shared").symlink_metadata().is_ok());
-    assert!(!rules_dir.join("shared.md").exists());
-}
-
-// 同 ID 碰撞：规则 'shared' 受管、技能 'shared' 未受管 —— 规则不得掩盖缺失的技能
-#[test]
-fn remove_distributed_does_not_let_rule_id_hide_missing_skill_id() {
-    let conn = init_db();
-    let plugin = support::TestPlatformPlugin::with_rules("test-plat", "Test Platform", false, "");
-    insert_skill(&conn, &plugin, "shared");
-    insert_rule(&conn, "shared", "content-shared");
-    let skills_dir = plugin.skills_dir();
-    let rules_dir = plugin.rules_dir();
-    std::fs::create_dir_all(&rules_dir).unwrap();
-    std::fs::write(rules_dir.join("shared.md"), "content-shared").unwrap();
-    let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
-
-    // 技能 'shared' 从未分发（磁盘无 symlink）→ 不在 skills_to_remove → 整体拒绝
-    let err = skillforge_lib::engine::dist_execute::execute_remove_distributed(
-        &conn,
-        &plugins,
-        &["test-plat".to_string()],
-        "global",
-        None,
-        &["shared".to_string()],
-        &["shared".to_string()],
-    )
-    .unwrap_err();
-    assert!(matches!(
-        err,
-        skillforge_lib::error::AppError::DistributionInvalid(_)
-    ));
-    // 规则文件未被删除（fail-closed 整体拒绝）
-    assert!(rules_dir.join("shared.md").exists());
-    assert!(skills_dir.join("shared").symlink_metadata().is_err());
+        .unwrap_err();
+    assert!(
+        err.to_string().contains("UNIQUE constraint failed"),
+        "跨 kind 同 ID 必须被 resources 主键拒绝: {err}"
+    );
 }
 
 // 多平台子集语义：选中项只需在至少一个目标平台受管即可移除（managed-state
@@ -472,9 +421,11 @@ fn remove_distributed_removes_from_subset_of_requested_platforms() {
     std::fs::create_dir_all(&plat_a_skills_dir).unwrap();
     std::fs::create_dir_all(&plat_b_skills_dir).unwrap();
     let source = conn
-        .query_row("SELECT local_path FROM skills WHERE id = 's-a'", [], |r| {
-            r.get::<_, String>(0)
-        })
+        .query_row(
+            "SELECT local_path FROM resources WHERE id = 's-a' AND kind = 'skill'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
         .unwrap();
     std::os::unix::fs::symlink(&source, plat_a_skills_dir.join("s-a")).unwrap();
     let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plat_a), Box::new(plat_b)];

@@ -1,24 +1,41 @@
 use crate::error::AppError;
 
+/// v1.1.0 统一资源模型基线（47 号方案 §四终稿）：
+/// 六表（skills/rules/skill_tags/rule_tags/scene_skills/scene_rules）合并为
+/// resources/resource_tags/scene_items 三表；Skill/Rule 结构体作为
+/// `WHERE kind=?` 的双投影保留（§5.1），对外签名与 IPC DTO 零变化。
+///
+/// 死列随表消亡（47 号 §四附）：
+/// - skills.content_hash / skills.sync_status：全仓零读写，不入 resources；
+/// - scene_skills.version / config：全仓零引用，scene_items 不纳入。
 pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
-    // ── skills ─────────────────────────────────────────────────────
+    // ── resources（统一资源表；FS-as-Truth：skill 正文仍在 local_path 文件，不入库）──
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS skills (
-            id          TEXT PRIMARY KEY,
-            name        TEXT NOT NULL,
-            description TEXT,
-            source_type TEXT NOT NULL,
-            source_url  TEXT,
-            current_ver TEXT,
+        "CREATE TABLE IF NOT EXISTS resources (
+            id           TEXT PRIMARY KEY,
+            kind         TEXT NOT NULL CHECK (kind IN ('skill','rule')),
+            name         TEXT NOT NULL,
+            description  TEXT,
+            source_type  TEXT NOT NULL,
+            source_url   TEXT,
+            current_ver  TEXT,
             installed_at TEXT NOT NULL,
-            local_path  TEXT NOT NULL,
-            metadata    TEXT,
-            content_hash TEXT,
-            sync_status  TEXT DEFAULT 'synced'
+            updated_at   TEXT NOT NULL,
+            local_path   TEXT,
+            metadata     TEXT,
+            format       TEXT,
+            content      TEXT,
+            platform     TEXT,
+            scope        TEXT,
+            version      INTEGER NOT NULL DEFAULT 1,
+            CHECK ((kind='skill' AND content IS NULL AND format IS NULL AND local_path IS NOT NULL)
+                OR (kind='rule'  AND content IS NOT NULL AND local_path IS NULL))
         );",
     )?;
 
     // ── tags ───────────────────────────────────────────────────────
+    // T2 裁决：tag_type 列保留并继续使用——技能打标签选 tag_type='skill'，
+    // 规则选 'rule'，两套标签场景独立、互不可见。
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS tags (
             id       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,36 +46,12 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
         );",
     )?;
 
-    // ── skill_tags ─────────────────────────────────────────────────
+    // ── resource_tags（统一资源标签关联）────────────────────────────
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS skill_tags (
-            skill_id TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-            tag_id   INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-            PRIMARY KEY (skill_id, tag_id)
-        );",
-    )?;
-
-    // ── rules ──────────────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS rules (
-            id          TEXT PRIMARY KEY,
-            name        TEXT NOT NULL,
-            description TEXT,
-            format      TEXT NOT NULL,
-            content     TEXT NOT NULL,
-            platform    TEXT,
-            scope       TEXT,
-            version     INTEGER NOT NULL DEFAULT 1,
-            updated_at  TEXT NOT NULL
-        );",
-    )?;
-
-    // ── rule_tags ──────────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS rule_tags (
-            rule_id TEXT NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
-            tag_id  INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-            PRIMARY KEY (rule_id, tag_id)
+        "CREATE TABLE IF NOT EXISTS resource_tags (
+            resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+            tag_id      INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+            PRIMARY KEY (resource_id, tag_id)
         );",
     )?;
 
@@ -76,27 +69,14 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
         );",
     )?;
 
-    // ── scene_skills ───────────────────────────────────────────────
+    // ── scene_items（统一场景成员；T3 裁决不纳入 version/config）─────
     conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS scene_skills (
-            scene_id   TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
-            skill_id   TEXT NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
-            version    TEXT,
-            enabled    INTEGER NOT NULL DEFAULT 1,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            config     TEXT,
-            PRIMARY KEY (scene_id, skill_id)
-        );",
-    )?;
-
-    // ── scene_rules ────────────────────────────────────────────────
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS scene_rules (
-            scene_id   TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
-            rule_id    TEXT NOT NULL REFERENCES rules(id) ON DELETE CASCADE,
-            enabled    INTEGER NOT NULL DEFAULT 1,
-            sort_order INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (scene_id, rule_id)
+        "CREATE TABLE IF NOT EXISTS scene_items (
+            scene_id    TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
+            resource_id TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
+            enabled     INTEGER NOT NULL DEFAULT 1,
+            sort_order  INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (scene_id, resource_id)
         );",
     )?;
 
@@ -125,9 +105,10 @@ pub fn create_tables(conn: &rusqlite::Connection) -> Result<(), AppError> {
 
     // ── Indexes ────────────────────────────────────────────────────
     conn.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_skills_source_type ON skills(source_type);
+        "CREATE INDEX IF NOT EXISTS idx_resources_source_type ON resources(source_type);
+         CREATE INDEX IF NOT EXISTS idx_resources_kind ON resources(kind);
          CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_name_type ON tags(name, tag_type);
-         CREATE INDEX IF NOT EXISTS idx_scene_skills_scene ON scene_skills(scene_id);",
+         CREATE INDEX IF NOT EXISTS idx_scene_items_scene ON scene_items(scene_id);",
     )?;
 
     // ── Built-in data: platforms ───────────────────────────────────
@@ -173,17 +154,21 @@ mod tests {
             .filter_map(|r| r.ok())
             .collect();
 
-        assert!(tables.contains(&"skills".to_string()));
+        assert!(tables.contains(&"resources".to_string()));
+        assert!(tables.contains(&"resource_tags".to_string()));
+        assert!(tables.contains(&"scene_items".to_string()));
         assert!(tables.contains(&"scenes".to_string()));
         assert!(tables.contains(&"platforms".to_string()));
         assert!(tables.contains(&"projects".to_string()));
         assert!(tables.contains(&"tags".to_string()));
-        assert!(tables.contains(&"skill_tags".to_string()));
-        assert!(tables.contains(&"rule_tags".to_string()));
-        assert!(tables.contains(&"scene_skills".to_string()));
-        assert!(tables.contains(&"scene_rules".to_string()));
 
         for table in [
+            "skills",
+            "rules",
+            "skill_tags",
+            "rule_tags",
+            "scene_skills",
+            "scene_rules",
             "skill_versions",
             "rule_history",
             "distributions",
@@ -192,7 +177,7 @@ mod tests {
         ] {
             assert!(
                 !tables.contains(&table.to_string()),
-                "表 {table} 不应存在于 v1 基线 schema"
+                "表 {table} 不应存在于统一资源模型基线 schema"
             );
         }
 

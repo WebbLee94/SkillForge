@@ -692,8 +692,8 @@ mod tests {
 
     fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &str) {
         conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata)
-             VALUES (?1, ?1, NULL, 'local', NULL, '1.0.0', ?2, ?3, NULL)",
+            "INSERT INTO resources (id, kind, name, description, source_type, source_url, current_ver, installed_at, updated_at, local_path, metadata)
+             VALUES (?1, 'skill', ?1, NULL, 'local', NULL, '1.0.0', ?2, ?2, ?3, NULL)",
             params![id, chrono::Utc::now().to_rfc3339(), local_path],
         )
         .unwrap();
@@ -1009,7 +1009,7 @@ mod tests {
         let conn = setup_db();
         insert_skill(&conn, "skill-1", "/tmp/sources/skill-1");
         conn.execute(
-            "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES ('rule-1', 'Rule 1', 'md', '# Rule 1\n', 1, ?1)",
+            "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, format, content, version) VALUES ('rule-1', 'rule', 'Rule 1', NULL, 'manual', ?1, ?1, 'md', '# Rule 1\n', 1)",
             params![chrono::Utc::now().to_rfc3339()],
         )
         .unwrap();

@@ -9,23 +9,20 @@ use skillforge_lib::db::migrations;
 
 const BASELINE_VERSION: u32 = 1;
 
-const BASELINE_TABLES: [&str; 11] = [
+const BASELINE_TABLES: [&str; 8] = [
     "schema_version",
-    "skills",
+    "resources",
     "tags",
-    "skill_tags",
-    "rules",
-    "rule_tags",
+    "resource_tags",
     "scenes",
-    "scene_skills",
-    "scene_rules",
+    "scene_items",
     "projects",
     "platforms",
 ];
 
 const SQLITE_INTERNAL_TABLES: [&str; 1] = ["sqlite_sequence"];
 
-const REMOVED_LEGACY_TABLES: [&str; 7] = [
+const REMOVED_LEGACY_TABLES: [&str; 13] = [
     "skill_versions",
     "rule_history",
     "distributions",
@@ -33,6 +30,13 @@ const REMOVED_LEGACY_TABLES: [&str; 7] = [
     "app_config",
     "scene_platforms",
     "watcher_events",
+    // 统一资源模型换底（47 号方案）：六旧表随三表基线消亡
+    "skills",
+    "rules",
+    "skill_tags",
+    "rule_tags",
+    "scene_skills",
+    "scene_rules",
 ];
 
 const BASELINE_PLATFORM_IDS: [&str; 10] = [
@@ -48,10 +52,11 @@ const BASELINE_PLATFORM_IDS: [&str; 10] = [
     "openclaw",
 ];
 
-const BASELINE_INDEXES: [&str; 3] = [
-    "idx_skills_source_type",
+const BASELINE_INDEXES: [&str; 4] = [
+    "idx_resources_source_type",
+    "idx_resources_kind",
     "idx_tags_name_type",
-    "idx_scene_skills_scene",
+    "idx_scene_items_scene",
 ];
 
 fn cold_start_in_memory() -> rusqlite::Connection {
@@ -84,7 +89,7 @@ fn cold_start_creates_public_v1_baseline() {
     let conn = cold_start_in_memory();
 
     let tables = object_names(&conn, "table");
-    for table in ["skills", "rules", "scenes", "projects", "platforms"] {
+    for table in ["resources", "scenes", "projects", "platforms"] {
         assert!(
             tables.contains(&table.to_string()),
             "冷启动后应存在表 {table}"

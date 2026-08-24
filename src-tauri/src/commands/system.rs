@@ -26,11 +26,19 @@ pub fn get_dashboard_stats(state: tauri::State<'_, AppState>) -> Result<Dashboar
         .map_err(|e| AppError::Database(e.to_string()))?;
 
     let skill_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM skills", [], |row| row.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM resources WHERE kind = 'skill'",
+            [],
+            |row| row.get(0),
+        )
         .unwrap_or(0);
 
     let rule_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM rules", [], |row| row.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM resources WHERE kind = 'rule'",
+            [],
+            |row| row.get(0),
+        )
         .unwrap_or(0);
 
     let scene_count: i64 = conn

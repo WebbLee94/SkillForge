@@ -103,16 +103,13 @@ mod tests {
             .collect();
 
         for table in [
-            "skills",
-            "rules",
+            "resources",
+            "resource_tags",
+            "scene_items",
+            "tags",
             "scenes",
-            "scene_skills",
-            "scene_rules",
             "projects",
             "platforms",
-            "tags",
-            "skill_tags",
-            "rule_tags",
         ] {
             assert!(tables.contains(&table.to_string()), "基线应包含表 {table}");
         }
@@ -137,18 +134,21 @@ mod tests {
     }
 
     #[test]
-    fn test_fresh_db_baseline_has_current_skill_columns() {
+    fn test_fresh_db_baseline_has_current_resource_columns() {
         let mut conn = rusqlite::Connection::open_in_memory().unwrap();
         run_migrations(&mut conn).unwrap();
 
-        let mut stmt = conn.prepare("PRAGMA table_info(skills)").unwrap();
+        // 统一资源模型（47 号 §四附）：content_hash / sync_status 死列不入 resources
+        let mut stmt = conn.prepare("PRAGMA table_info(resources)").unwrap();
         let columns: Vec<String> = stmt
             .query_map([], |row| row.get::<_, String>(1))
             .unwrap()
             .filter_map(|r| r.ok())
             .collect();
-        assert!(columns.contains(&"content_hash".to_string()));
-        assert!(columns.contains(&"sync_status".to_string()));
+        assert!(columns.contains(&"kind".to_string()));
+        assert!(columns.contains(&"local_path".to_string()));
+        assert!(!columns.contains(&"content_hash".to_string()));
+        assert!(!columns.contains(&"sync_status".to_string()));
 
         let mut stmt = conn.prepare("PRAGMA table_info(projects)").unwrap();
         let columns: Vec<String> = stmt

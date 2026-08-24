@@ -259,14 +259,14 @@ fn sync_rules_to_directory(
             // Get rule content from DB
             let rule_content: Option<String> = conn
                 .query_row(
-                    "SELECT content FROM rules WHERE id = ?1",
+                    "SELECT content FROM resources WHERE id = ?1 AND kind = 'rule'",
                     params![rule_id],
                     |row| row.get(0),
                 )
                 .ok();
             let rule_format: Option<String> = conn
                 .query_row(
-                    "SELECT format FROM rules WHERE id = ?1",
+                    "SELECT format FROM resources WHERE id = ?1 AND kind = 'rule'",
                     params![rule_id],
                     |row| row.get(0),
                 )
@@ -404,7 +404,7 @@ fn sync_rules_to_single_file(
     for rule_id in rule_ids {
         let rule_content: Option<String> = conn
             .query_row(
-                "SELECT content FROM rules WHERE id = ?1",
+                "SELECT content FROM resources WHERE id = ?1 AND kind = 'rule'",
                 params![rule_id],
                 |row| row.get(0),
             )
@@ -773,7 +773,7 @@ mod tests {
 
     fn insert_rule(conn: &rusqlite::Connection, id: &str, name: &str, content: &str, format: &str) {
         conn.execute(
-            "INSERT INTO rules (id, name, format, content, version, updated_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)",
+            "INSERT INTO resources (id, kind, name, source_type, format, content, version, updated_at, installed_at) VALUES (?1, 'rule', ?2, 'manual', ?3, ?4, 1, ?5, ?5)",
             params![id, name, format, content, chrono::Utc::now().to_rfc3339()],
         )
         .unwrap();
@@ -992,7 +992,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&file_path).unwrap(), pre_content);
 
         conn.execute(
-            "UPDATE rules SET content = ?1, version = version + 1 WHERE id = ?2",
+            "UPDATE resources SET content = ?1, version = version + 1 WHERE id = ?2 AND kind = 'rule'",
             params!["New library content", "changed-rule"],
         )
         .unwrap();
@@ -1303,7 +1303,7 @@ mod tests {
         insert_rule(&conn, "rule-1", "Rule 1", "# Old\n", "md");
         std::fs::write(dir.path().join("rule-1.md"), "# Old\n").unwrap();
         conn.execute(
-            "UPDATE rules SET content = ?1, version = version + 1 WHERE id = ?2",
+            "UPDATE resources SET content = ?1, version = version + 1 WHERE id = ?2 AND kind = 'rule'",
             params!["# New\n", "rule-1"],
         )
         .unwrap();

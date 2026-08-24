@@ -45,10 +45,17 @@ mod tests {
     #[test]
     fn get_skill_returns_inserted_row() {
         let conn = setup_db();
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata)
-             VALUES (?1, ?1, NULL, 'local', NULL, '1.0.0', ?2, '/tmp/skills/demo', NULL)",
-            params!["demo", chrono::Utc::now().to_rfc3339()],
+        crate::db::resources_repo::insert_skill_row(
+            &conn,
+            "demo",
+            "demo",
+            None,
+            "local",
+            None,
+            Some("1.0.0"),
+            &chrono::Utc::now().to_rfc3339(),
+            "/tmp/skills/demo",
+            None,
         )
         .unwrap();
 

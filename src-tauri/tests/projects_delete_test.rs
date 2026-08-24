@@ -44,8 +44,8 @@ fn project_count(conn: &rusqlite::Connection, id: &str) -> i64 {
 fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &str) {
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO skills (id, name, description, source_type, installed_at, local_path)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, local_path)
+         VALUES (?1, 'skill', ?2, ?3, ?4, ?5, ?5, ?6)",
         rusqlite::params![id, id, "a skill", "local-fs", now, local_path],
     )
     .unwrap();
@@ -53,8 +53,8 @@ fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &str) {
 
 fn insert_rule(conn: &rusqlite::Connection, id: &str) {
     conn.execute(
-        "INSERT INTO rules (id, name, description, format, content, platform, scope, version, updated_at)
-         VALUES (?1, ?2, ?3, 'md', '# content', 'claude-code', 'global', 1, '2024-01-01T00:00:00Z')",
+        "INSERT INTO resources (id, kind, name, description, source_type, format, content, platform, scope, version, updated_at, installed_at)
+         VALUES (?1, 'rule', ?2, ?3, 'manual', 'md', '# content', 'claude-code', 'global', 1, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
         rusqlite::params![id, id, "a rule"],
     )
     .unwrap();
@@ -181,14 +181,14 @@ fn delete_projects_does_not_delete_skills_rules_or_scenes() {
 
     let skill_count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM skills WHERE id = 'keep-skill'",
+            "SELECT COUNT(*) FROM resources WHERE id = 'keep-skill' AND kind = 'skill'",
             [],
             |r| r.get(0),
         )
         .unwrap();
     let rule_count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM rules WHERE id = 'keep-rule'",
+            "SELECT COUNT(*) FROM resources WHERE id = 'keep-rule' AND kind = 'rule'",
             [],
             |r| r.get(0),
         )

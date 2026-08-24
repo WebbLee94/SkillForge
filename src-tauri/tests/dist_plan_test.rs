@@ -48,7 +48,7 @@ fn intent(mode: DistributionIntentMode, ids: &[&str]) -> DistributionIntent {
 fn insert_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
     let skill = plugin.create_source_skill(id, id, "---\nname: test\n---\n");
     conn.execute(
-        "INSERT INTO skills (id, name, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO resources (id, kind, name, source_type, installed_at, updated_at, local_path) VALUES (?1, 'skill', ?2, ?3, ?4, ?4, ?5)",
         rusqlite::params![skill.id, skill.name, skill.source_type, skill.installed_at, skill.local_path],
     )
     .unwrap();

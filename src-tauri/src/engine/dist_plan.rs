@@ -159,15 +159,18 @@ pub fn resolve_scene_skills(
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
     if scene_id.is_empty() {
-        let mut stmt = conn.prepare("SELECT id FROM skills")?;
+        let mut stmt = conn.prepare("SELECT id FROM resources WHERE kind = 'skill' ORDER BY id")?;
         let result: Vec<String> = stmt
             .query_map([], |row| row.get(0))?
             .filter_map(|r| r.ok())
             .collect();
         Ok(result)
     } else {
-        let mut stmt =
-            conn.prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?;
+        let mut stmt = conn.prepare(
+            "SELECT si.resource_id FROM scene_items si \
+             JOIN resources r ON si.resource_id = r.id \
+             WHERE si.scene_id = ?1 AND si.enabled = 1 AND r.kind = 'skill'",
+        )?;
         let result: Vec<String> = stmt
             .query_map(params![scene_id], |row| row.get(0))?
             .filter_map(|r| r.ok())
@@ -183,15 +186,18 @@ pub fn resolve_scene_rules(
     scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
     if scene_id.is_empty() {
-        let mut stmt = conn.prepare("SELECT id FROM rules")?;
+        let mut stmt = conn.prepare("SELECT id FROM resources WHERE kind = 'rule' ORDER BY id")?;
         let result: Vec<String> = stmt
             .query_map([], |row| row.get(0))?
             .filter_map(|r| r.ok())
             .collect();
         Ok(result)
     } else {
-        let mut stmt =
-            conn.prepare("SELECT rule_id FROM scene_rules WHERE scene_id = ?1 AND enabled = 1")?;
+        let mut stmt = conn.prepare(
+            "SELECT si.resource_id FROM scene_items si \
+             JOIN resources r ON si.resource_id = r.id \
+             WHERE si.scene_id = ?1 AND si.enabled = 1 AND r.kind = 'rule'",
+        )?;
         let result: Vec<String> = stmt
             .query_map(params![scene_id], |row| row.get(0))?
             .filter_map(|r| r.ok())
@@ -203,7 +209,7 @@ pub fn resolve_scene_rules(
 pub(crate) fn get_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppError> {
     conn.query_row(
         "SELECT id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata
-         FROM skills WHERE id = ?1",
+         FROM resources WHERE id = ?1 AND kind = 'skill'",
         params![skill_id],
         |row| {
             Ok(Skill {
@@ -248,10 +254,17 @@ mod tests {
     }
 
     fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &str) {
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata)
-             VALUES (?1, ?1, NULL, 'local', NULL, '1.0.0', ?2, ?3, NULL)",
-            params![id, chrono::Utc::now().to_rfc3339(), local_path],
+        crate::db::resources_repo::insert_skill_row(
+            conn,
+            id,
+            id,
+            None,
+            "local",
+            None,
+            Some("1.0.0"),
+            &chrono::Utc::now().to_rfc3339(),
+            local_path,
+            None,
         )
         .unwrap();
     }
