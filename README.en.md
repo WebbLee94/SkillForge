@@ -47,7 +47,7 @@ SkillForge is a skill management tool built for AI Agent users. It solves the pa
 
 ## 📸 Screenshots
 
-![SkillForge Dashboard](public/images/dashboard.png)
+![SkillForge Dashboard](public/images/dashboard_en.png)
 
 *SkillForge desktop app main window — manage AI Agent Skills and Rules in one place*
 
