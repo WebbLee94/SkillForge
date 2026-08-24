@@ -32,7 +32,7 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 - 前端：McpManager 页面 + McpCard/McpForm/McpDistributeDialog 组件 + 场景编排 MCP tab + 看板 MCP 统计卡片
 - 导出适配器：Claude Desktop / Cursor / VS Code / Cline / Roo Code / Windsurf 6 平台原生格式
 
-详见 [ADR-007](../SkillForge-docs/05-决策记录/007-MCP功能归档决策.md)。
+详见独立文档仓库 SkillForge-docs 中 ADR-007《MCP 功能归档决策》。
 
 ### 📦 依赖
 
@@ -57,6 +57,9 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 - **Emoji 替换为 lucide 图标**：移除 UI 中所有 Emoji 字符，统一使用 `@radix-ui/react-icons`（lucide）
 - **Dashboard 统计卡片配色修复**：统计数据卡片颜色值对齐设计规范
 - **清理失效 i18n 键**：移除 19 个未引用的死键，减少产物体积
+- **分发预览可识别"内容有更新"的资源**（硬化批）：预览结果新增内容级 Update 分类——已分发资源的正文发生变化时（即使名称与位置不变），预览会正确归入待更新列表，不再被遗漏
+- **场景保存原子化**（硬化批）：场景及其成员关系以数据库事务整体提交，任一步骤失败即整体回滚，不再产生半保存的中间状态
+- **文件监控链路清理**（硬化批）：移除文件监控中已废弃的数据库写入路径，外部变更事件统一走内存通知链路
 
 ### 🛠 工具链
 
@@ -67,14 +70,15 @@ MCP（Model Context Protocol）服务器管理功能已完成完整实现，但�
 ### 🧪 E2E 测试框架（2026-08-11）
 
 - **桌面 E2E 测试框架落地**：WebdriverIO + @wdio/tauri-service，macOS embedded driver（内嵌 WebDriver，端口 4445），驱动真实 Tauri 窗口 + Rust IPC，不依赖 computer-use/accessibility bridge
+- **E2E 陈旧进程守卫**（硬化批）：运行 E2E 前自动清理残留的 Vite dev server / WebDriver 进程，避免端口占用导致的启动失败
 - **3 个 spec / 16 用例**：冒烟（5）、交互（6）、首次分发完整流程（5：预览→取消→确认→执行→幂等→重启状态保持）
 - **CI 三平台 e2e 矩阵**（`.github/workflows/e2e.yml`）：macOS（embedded）+ Windows/Linux（external + tauri-driver + xvfb），验证跨平台冒烟
 - **README 入口修正**：平台数 12→10、双向同步→单向分发、docs 路径指向 SkillForge-docs 独立仓库、补充测试命令
 
-### 📊 测试口径（统一为当前实测）
+### 📊 测试口径（统一为当前实测，2026-08-23）
 
-- 前端 Vitest：60 文件 / 859 用例
-- Rust 后端：305 用例（182 单元 + 123 集成，`cargo test` 实测）
+- 前端 Vitest：60 文件 / 860 用例
+- Rust 后端：325 用例（198 lib 单元 + 127 集成，`cargo test` 实测）
 - 桌面 E2E：4 spec（smoke / interaction / distribution-workflow / stats-grid-responsive）
 
 ## v1.0.1 (2026-06-10)
