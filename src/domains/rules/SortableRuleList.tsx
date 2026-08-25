@@ -17,7 +17,7 @@ export const SortableRuleList = memo(function SortableRuleList({
   onToggle,
   disabled = false,
 }: SortableRuleListProps) {
-  const { t } = useTranslation('scenes');
+  const { t } = useTranslation(['scenes', 'common']);
 
   if (rules.length === 0) {
     return (
@@ -62,7 +62,9 @@ export const SortableRuleList = memo(function SortableRuleList({
                 : 'text-muted-foreground hover:text-primary'
             )}
             onClick={() => !disabled && onToggle(rule.rule_id)}
-            title={rule.enabled ? t('disable', '禁用') : t('enable', '启用')}
+            title={rule.enabled
+              ? t('common:actions.disable')
+              : t('common:actions.enable')}
           >
             {rule.enabled ? (
               <ToggleRight className="h-4 w-4 text-primary" />

@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../lib/utils';
+import i18n from '../../lib/i18n';
 import { AlertTriangle, RotateCw } from 'lucide-react';
 
 interface ErrorBoundaryProps {
@@ -41,10 +42,10 @@ export class ErrorBoundary extends React.Component<
               <AlertTriangle className="h-8 w-8 text-error" />
             </div>
             <h2 className="mb-2 text-lg font-semibold text-foreground">
-              应用出现了错误
+              {i18n.t('errors.boundaryTitle')}
             </h2>
             <p className="mb-4 text-sm text-muted-foreground">
-              {this.state.error?.message || '发生了意外错误，请尝试重新加载。'}
+              {this.state.error?.message || i18n.t('errors.boundaryFallback')}
             </p>
             <button
               className={cn(
@@ -55,7 +56,7 @@ export class ErrorBoundary extends React.Component<
               onClick={this.handleReload}
             >
               <RotateCw className="h-4 w-4" />
-              重新加载
+              {i18n.t('errors.reload')}
             </button>
           </div>
         </div>

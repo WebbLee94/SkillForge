@@ -667,12 +667,12 @@ export function RulesManager() {
             />
           </div>
           <button
-            aria-label={collapsedAll ? '展开分组' : '收起分组'}
+            aria-label={collapsedAll ? tc('view.expandGroups') : tc('view.collapseGroups')}
             className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             onClick={() => setCollapsedAll((prev) => !prev)}
           >
             <ChevronsUpDown className="h-3.5 w-3.5" />
-            {collapsedAll ? '展开分组' : '收起分组'}
+            {collapsedAll ? tc('view.expandGroups') : tc('view.collapseGroups')}
           </button>
         </div>
       </div>

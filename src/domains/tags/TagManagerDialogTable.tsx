@@ -44,7 +44,7 @@ export function TagManagerDialogTable({
         <thead>
           <tr className="border-b border-border bg-muted/50">
             <th className="w-32 px-4 py-2 text-left font-medium text-muted-foreground">
-              颜色
+              {t('tag.color')}
             </th>
             <th className="px-4 py-2 text-left font-medium text-muted-foreground">
               {t('tag.name')}

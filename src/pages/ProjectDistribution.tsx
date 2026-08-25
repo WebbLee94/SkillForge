@@ -160,9 +160,9 @@ export function ProjectDistribution() {
         <ProjectDistributionEmptyProjectsState title={t('noProjects')} hint={t('noProjectsHint')} />
       ) : platforms.filter((p) => p.enabled).length === 0 ? (
         <ProjectDistributionNoPlatformsState
-          title={t('noEnabledPlatforms') || '暂无启用的 Agent 平台'}
-          hint={t('noEnabledPlatformsHint') || '请先在设置中开启至少一个 Agent 平台'}
-          actionLabel={t('goToSettings') || '前往设置'}
+          title={t('noEnabledPlatforms')}
+          hint={t('noEnabledPlatformsHint')}
+          actionLabel={t('goToSettings')}
           onGoToSettings={() => useAppStore.getState().setActiveNav('settings')}
         />
       ) : (

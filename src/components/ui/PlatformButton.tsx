@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 import type { ComponentType } from 'react';
 
@@ -20,10 +21,15 @@ export function PlatformButton({
   isSelected = false,
   onClick,
 }: PlatformButtonProps) {
+  const { t } = useTranslation('common');
   return (
     <button
       onClick={onClick}
-      title={`${name}: ${skillCount} 技能 / ${ruleCount} 规则`}
+      title={t('platforms.countTooltip', {
+        name,
+        skills: skillCount,
+        rules: ruleCount,
+      })}
       className={cn(
         'flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors',
         isSelected

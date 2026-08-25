@@ -52,7 +52,8 @@
     "openInFileManager": "Open in File Manager",
     "openDir": "Open Directory",
     "undo": "Undo",
-    "goDistribute": "Distribute"
+    "goDistribute": "Distribute",
+    "manage": "Manage"
   },
   "status": {
     "synced": "Distributed",
@@ -170,7 +171,9 @@
     "list": "List",
     "collapseAll": "Collapse All",
     "expandAll": "Expand All",
-    "showMore": "Show more ({{count}})"
+    "showMore": "Show more ({{count}})",
+    "expandGroups": "Expand groups",
+    "collapseGroups": "Collapse groups"
   },
   "batch": {
     "guide": "Select resources to act on",
@@ -207,7 +210,8 @@
     "enabled": "Enabled",
     "autoBindHint": "System scene auto-binds all enabled platforms",
     "noGlobalRules": "No global rules support",
-    "noProjectRules": "No project rules support"
+    "noProjectRules": "No project rules support",
+    "countTooltip": "{{name}}: {{skills}} skills / {{rules}} rules"
   },
   "tag": {
     "name": "Name",
@@ -225,7 +229,10 @@
     "createNew": "Create",
     "untagged": "Untagged",
     "allTags": "All",
-    "manageTags": "Manage Tags"
+    "manageTags": "Manage Tags",
+    "empty": "No tags available",
+    "createNewWithName": "Create \"{{name}}\"",
+    "collapse": "Show less"
   },
   "dashboard": {
     "subtitle": "Current overview of resources, scenes, projects, and enabled platforms.",
@@ -345,5 +352,10 @@
     "summary": "Will add {{add}} item(s), update {{update}} item(s), remove {{remove}} item(s). This action cannot be undone.",
     "confirm": "Confirm Distribution",
     "confirmRemoval": "Confirm distribution and remove {{count}} item(s)"
+  },
+  "errors": {
+    "boundaryTitle": "Something went wrong",
+    "boundaryFallback": "An unexpected error occurred. Please try reloading.",
+    "reload": "Reload"
   }
 }

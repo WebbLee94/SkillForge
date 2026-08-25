@@ -1,4 +1,5 @@
 import { Suspense, lazy, memo, useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
 
 const RulePreviewPanel = lazy(
@@ -39,10 +40,12 @@ export const RuleEditor = memo(function RuleEditor({
 
   const lineCount = content.split('\n').length;
 
+  const { t } = useTranslation(['rules', 'common']);
+
   const viewModes: { key: ViewMode; label: string }[] = [
-    { key: 'edit', label: '编辑' },
-    { key: 'preview', label: '预览' },
-    { key: 'split', label: '双栏' },
+    { key: 'edit', label: t('editor.edit') },
+    { key: 'preview', label: t('editor.preview') },
+    { key: 'split', label: t('editor.split') },
   ];
 
   return (
@@ -50,10 +53,10 @@ export const RuleEditor = memo(function RuleEditor({
       <div className="flex items-center justify-between border-b border-border bg-muted/50 px-3 py-1.5">
         <div className="flex items-center gap-3">
           <span className="text-xs text-muted-foreground">
-            {format.toUpperCase()} Editor
+            {t('editor.title', { format: format.toUpperCase() })}
           </span>
           <span className="text-xs text-muted-foreground">
-            {lineCount} lines
+            {t('editor.lines', { count: lineCount })}
           </span>
         </div>
         <div className="flex items-center gap-0.5 rounded-md bg-background p-0.5">
@@ -107,7 +110,9 @@ export const RuleEditor = memo(function RuleEditor({
             )}
           >
             <div className="shrink-0 border-b border-border bg-muted/30 px-3 py-1">
-              <span className="text-xs text-muted-foreground">Preview</span>
+              <span className="text-xs text-muted-foreground">
+                {t('common:detail.preview')}
+              </span>
             </div>
             <div className="flex-1 overflow-y-auto bg-background">
               <Suspense fallback={null}>

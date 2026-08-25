@@ -134,7 +134,7 @@ describe('Settings', () => {
     setTheme('light');
   });
 
-  it('通用设置恰好 5 张卡：语言/深色模式/更新/数据目录/版本与社区；更新卡仅保留检查更新按钮；社区卡含版本/GitHub/分发说明', async () => {
+  it('通用设置恰好 5 张卡：语言/深色模式/更新/数据目录/版本与社区；更新卡仅保留检查更新按钮；社区卡含 GitHub/分发说明', async () => {
     await seedRoutes({
       get_app_config: {
         data_dir: '/u/test/.skillforge',
@@ -156,9 +156,11 @@ describe('Settings', () => {
       within(updateCard).getByRole('button', { name: '检查更新' })
     ).toBeDefined();
     expect(within(updateCard).queryByRole('switch')).toBeNull();
-    // 版本与社区卡：版本徽标 + GitHub 链接 + 分发方式说明
+    // 版本与社区卡：GitHub 链接 + 分发方式说明（社区卡不再内嵌版本号）
     const communityCard = cards[4];
-    expect(within(communityCard).getByText('v1.0.0')).toBeDefined();
+    expect(
+      within(communityCard).getByText('settings:general.community.desc')
+    ).toBeDefined();
     expect(
       within(communityCard).getByText('github.com/WebbLee94/SkillForge')
     ).toBeDefined(); // 生产显示 GITHUB_URL.replace('https://', '')

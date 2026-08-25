@@ -74,7 +74,7 @@ export const AddProjectDialog = memo(function AddProjectDialog({
               {t('projectName')}
             </label>
             <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-              placeholder={t('projectNamePlaceholder') || '输入项目名称'}
+              placeholder={t('projectNamePlaceholder')}
               className={cn('w-full rounded-lg border border-input bg-background px-3 py-2 text-sm',
                 'focus:outline-none focus:ring-2 focus:ring-ring')} />
           </div>

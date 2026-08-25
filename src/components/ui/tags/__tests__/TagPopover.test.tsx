@@ -3,6 +3,22 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TagPopover } from '../../../TagPopover';
 import type { Tag } from '../../../../types';
 
+// i18n mock：仅映射 TagPopover 消费的 common:tag.* key（zh-CN 语义）
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown>) => {
+      const map: Record<string, string> = {
+        'tag.searchPlaceholder': '搜索或输入标签名...',
+        'tag.empty': '无可用标签',
+      };
+      if (key === 'tag.createNewWithName') return `创建 "${opts?.name ?? ''}"`;
+      return map[key] ?? key;
+    },
+    i18n: { language: 'zh-CN' },
+  }),
+}));
+
 const mockTags: Tag[] = [
   { id: 1, name: 'Java', color: '#ff6600', tag_type: 'skill', count: 3 },
   { id: 2, name: 'React', color: '#3B82F6', tag_type: 'skill', count: 5 },

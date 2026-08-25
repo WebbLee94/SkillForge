@@ -13,10 +13,10 @@ import type {
   PlatformCapabilities,
   PlatformEntryCount,
 } from '../types';
+import { version } from '../../package.json';
 
 type SettingsTab = 'general' | 'platforms';
 
-const APP_VERSION = '1.0.0';
 const GITHUB_URL = 'https://github.com/WebbLee94/SkillForge';
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
@@ -378,7 +378,7 @@ export function Settings() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="rounded-lg bg-muted px-3 py-1.5 text-xs font-mono text-foreground">
-                    v{APP_VERSION}
+                    {`v${version}`}
                   </span>
                   <button
                     className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
@@ -439,9 +439,7 @@ export function Settings() {
                     {t('settings:general.community.title')}
                   </h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t('settings:general.community.desc', {
-                      version: APP_VERSION,
-                    })}
+                    {t('settings:general.community.desc')}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">

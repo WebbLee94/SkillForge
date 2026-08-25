@@ -1,5 +1,6 @@
 {
   "createScene": "New Scene",
+  "pageSubtitle": "Reusable composition and orchestration for resources",
   "editScene": "Edit Scene",
   "sceneName": "Scene Name",
   "sceneDescription": "Scene Description",
@@ -38,6 +39,7 @@
     "readOnly": "Read-only · target state is not saved",
     "memberEnabled": "Enabled",
     "memberDisabled": "Disabled",
+    "memberDeletedName": "{{name}} (deleted)",
     "saveScopeNote": "Save only writes scene and scene member associations; does not trigger distribution. Scene is not bound to a project or platform.",
     "invalidRefsTitle": "Scene contains invalid references",
     "invalidRefsHint": "The following resources were deleted and cannot be carried into distribution:",

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../../../lib/utils';
 import { TagChip } from './TagChip';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -27,6 +28,7 @@ export function TagFilterBar({
 }: TagFilterBarProps) {
   const hasSelection = selectedTagIds.length > 0 || !!untaggedFilter;
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation('common');
 
   // Sort tags by count descending
   const sortedTags = [...tags].sort((a, b) => (b.count || 0) - (a.count || 0));
@@ -48,7 +50,7 @@ export function TagFilterBar({
         )}
         onClick={onClearAll}
       >
-        全部
+        {t('tag.allTags')}
       </button>
 
       {/* Tag chips */}
@@ -76,7 +78,7 @@ export function TagFilterBar({
           )}
           onClick={onToggleUntagged}
         >
-          未分类
+          {t('tag.untagged')}
         </button>
       )}
 
@@ -88,7 +90,7 @@ export function TagFilterBar({
         >
           {expanded ? (
             <>
-              收起 <ChevronUp className="h-3 w-3" />
+              {t('tag.collapse')} <ChevronUp className="h-3 w-3" />
             </>
           ) : (
             <>

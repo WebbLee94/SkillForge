@@ -45,5 +45,13 @@
   "willCreateAs": "将创建为: {{name}}",
   "fullscreenEdit": "全屏编辑",
   "exitFullscreen": "退出全屏 (Esc)",
-  "preview": "预览"
+  "preview": "预览",
+  "previewEmpty": "暂无内容",
+  "editor": {
+    "title": "{{format}} 编辑器",
+    "lines": "{{count}} 行",
+    "edit": "编辑",
+    "preview": "预览",
+    "split": "双栏"
+  }
 }

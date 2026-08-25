@@ -27,7 +27,7 @@
     },
     "community": {
       "title": "Version & Community",
-      "desc": "v{{version}} · Release Notes / Feedback"
+      "desc": "Release Notes / Feedback"
     },
     "distribution": {
       "desc": "Skills use symbolic links (source changes take effect immediately), rules use file copy (ensures reliability for multi-rule merging)."

@@ -19,7 +19,11 @@ vi.mock('@tauri-apps/plugin-fs', () => ({ readDir: vi.fn() }));
 
 // zh 测试环境仅映射搜索框 placeholder 为全角中文；生产 JSX 使用 t('searchPlaceholder')（决策 9）
 const { tMap } = vi.hoisted(() => ({
-  tMap: { searchPlaceholder: '搜索技能…' } as Record<string, string>,
+  tMap: {
+    searchPlaceholder: '搜索技能…',
+    'view.expandGroups': '展开分组',
+    'view.collapseGroups': '收起分组',
+  } as Record<string, string>,
 }));
 
 vi.mock('react-i18next', () => ({

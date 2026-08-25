@@ -6,7 +6,13 @@ import type { SceneSkill } from '../../../types';
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
-    t: (key: string, defaultValue?: string) => defaultValue ?? key,
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        'common:actions.enable': '启用',
+        'common:actions.disable': '禁用',
+      };
+      return map[key] ?? key;
+    },
     i18n: { language: 'zh-CN' },
   }),
 }));

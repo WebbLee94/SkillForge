@@ -1,6 +1,11 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ErrorBoundary } from '../ErrorBoundary';
+import i18n from '../../../lib/i18n';
+
+beforeAll(() => {
+  i18n.changeLanguage('zh-CN');
+});
 
 describe('ErrorBoundary', () => {
   it('renders children when no error occurs', () => {

@@ -1,6 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { RulePreviewPanel } from '../../RulePreviewPanel';
+
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
+  useTranslation: () => ({
+    t: (key: string) => (key === 'previewEmpty' ? '暂无内容' : key),
+    i18n: { language: 'zh-CN' },
+  }),
+}));
 
 describe('RulePreviewPanel', () => {
   it('shows empty state when content is empty string', () => {

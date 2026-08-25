@@ -45,5 +45,13 @@
   "willCreateAs": "Will create as: {{name}}",
   "fullscreenEdit": "Fullscreen Edit",
   "exitFullscreen": "Exit Fullscreen (Esc)",
-  "preview": "Preview"
+  "preview": "Preview",
+  "previewEmpty": "Nothing to preview",
+  "editor": {
+    "title": "{{format}} Editor",
+    "lines": "{{count}} lines",
+    "edit": "Edit",
+    "preview": "Preview",
+    "split": "Split"
+  }
 }

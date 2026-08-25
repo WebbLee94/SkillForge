@@ -1,4 +1,5 @@
 import { Suspense, lazy, memo, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const RuleMarkdownRenderer = lazy(
   () => import('./RuleMarkdownRenderer.lazy')
@@ -40,6 +41,7 @@ export const RulePreviewPanel = memo(function RulePreviewPanel({
   content,
   format,
 }: RulePreviewPanelProps) {
+  const { t } = useTranslation('rules');
   const isMarkdown = format === 'md' || format === 'mdc';
 
   const yamlPairs = useMemo(() => {
@@ -50,7 +52,7 @@ export const RulePreviewPanel = memo(function RulePreviewPanel({
   if (!content.trim()) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        暂无内容
+        {t('previewEmpty')}
       </div>
     );
   }

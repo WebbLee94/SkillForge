@@ -3,6 +3,18 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Globe } from 'lucide-react';
 import { PlatformButton } from '../PlatformButton';
 
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
+  useTranslation: () => ({
+    t: (key: string, opts?: Record<string, unknown>) => {
+      if (key === 'platforms.countTooltip')
+        return `${opts?.name}: ${opts?.skills} 技能 / ${opts?.rules} 规则`;
+      return key;
+    },
+    i18n: { language: 'zh-CN' },
+  }),
+}));
+
 describe('PlatformButton', () => {
   const baseProps = {
     name: 'Cursor',

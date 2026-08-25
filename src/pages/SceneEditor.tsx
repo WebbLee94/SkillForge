@@ -219,7 +219,7 @@ export function SceneEditor() {
         <div className="min-w-0">
           <h1 className="page-title mb-1 text-foreground">{tc('nav.scenes')}</h1>
           <p className="text-xs text-muted-foreground">
-            提供针对资源的可复用组合编排能力
+            {t('pageSubtitle')}
           </p>
         </div>
         <button
@@ -351,7 +351,10 @@ export function SceneEditor() {
                     >
                       <Package className="h-4 w-4 shrink-0 text-primary" />
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                        {skill.skill_name || `${skill.skill_id}（已删除）`}
+                        {skill.skill_name ||
+                          t('detail.memberDeletedName', {
+                            name: skill.skill_id,
+                          })}
                       </span>
                       <span
                         className={cn(
@@ -392,7 +395,10 @@ export function SceneEditor() {
                     >
                       <FileText className="h-4 w-4 shrink-0 text-success" />
                       <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                        {rule.rule_name || `${rule.rule_id}（已删除）`}
+                        {rule.rule_name ||
+                          t('detail.memberDeletedName', {
+                            name: rule.rule_id,
+                          })}
                       </span>
                       <span
                         className={cn(

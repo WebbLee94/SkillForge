@@ -17,7 +17,7 @@ export const SortableSkillList = memo(function SortableSkillList({
   onToggle,
   disabled = false,
 }: SortableSkillListProps) {
-  const { t } = useTranslation('scenes');
+  const { t } = useTranslation(['scenes', 'common']);
 
   if (skills.length === 0) {
     return (
@@ -67,7 +67,9 @@ export const SortableSkillList = memo(function SortableSkillList({
                 : 'text-muted-foreground hover:text-primary'
             )}
             onClick={() => !disabled && onToggle(skill.skill_id)}
-            title={skill.enabled ? t('disable', '禁用') : t('enable', '启用')}
+            title={skill.enabled
+              ? t('common:actions.disable')
+              : t('common:actions.enable')}
           >
             {skill.enabled ? (
               <ToggleRight className="h-4 w-4 text-primary" />

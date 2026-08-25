@@ -3,6 +3,21 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TagFilterBar } from '../TagFilterBar';
 import type { Tag } from '../../../../types';
 
+vi.mock('react-i18next', () => ({
+  initReactI18next: { type: '3rdParty' },
+  useTranslation: () => ({
+    t: (key: string) => {
+      const map: Record<string, string> = {
+        'tag.allTags': '全部',
+        'tag.untagged': '未分类',
+        'tag.collapse': '收起',
+      };
+      return map[key] ?? key;
+    },
+    i18n: { language: 'zh-CN' },
+  }),
+}));
+
 const sampleTags: Tag[] = [
   { id: 1, name: 'Java', color: '#ff6600', tag_type: 'skill', count: 5 },
   { id: 2, name: 'TypeScript', color: '#3178c6', tag_type: 'skill', count: 3 },

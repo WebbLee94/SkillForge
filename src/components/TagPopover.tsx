@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
 import { Plus, Search, Check } from 'lucide-react';
 import type { Tag } from '../types';
@@ -36,6 +37,7 @@ export function TagPopover({
   onCreate,
   ariaLabel,
 }: TagPopoverProps) {
+  const { t } = useTranslation('common');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [newColor, setNewColor] = useState(
@@ -206,7 +208,7 @@ export function TagPopover({
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="搜索或输入标签名..."
+                  placeholder={t('tag.searchPlaceholder')}
                   className={cn(
                     'w-full rounded-md border border-input bg-background py-1.5 pl-7 pr-2 text-xs',
                     'placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring'
@@ -265,7 +267,7 @@ export function TagPopover({
                   })
                 : search.trim().length === 0 && (
                     <p className="px-2 py-2 text-xs text-muted-foreground text-center">
-                      无可用标签
+                      {t('tag.empty')}
                     </p>
                   )}
             </div>
@@ -283,7 +285,7 @@ export function TagPopover({
                   }}
                 >
                   <Plus className="h-3.5 w-3.5" />
-                  创建 &quot;{search.trim()}&quot;
+                  {t('tag.createNewWithName', { name: search.trim() })}
                 </button>
                 <div className="mt-2 flex flex-wrap gap-1.5 px-1">
                   {PRESET_COLORS.map((color) => (

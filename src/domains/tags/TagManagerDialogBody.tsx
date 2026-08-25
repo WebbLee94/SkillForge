@@ -67,7 +67,7 @@ export function TagManagerDialogBody({
       <div className="flex max-h-[80vh] w-[520px] flex-col rounded-lg border border-border bg-card shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="text-lg font-semibold text-foreground">
-            {t('actions.manage', { defaultValue: '管理' })}
+            {t('actions.manage')}
             {title}
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">

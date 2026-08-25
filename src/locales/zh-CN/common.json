@@ -52,7 +52,8 @@
     "openInFileManager": "在文件管理器中打开",
     "openDir": "打开目录",
     "undo": "撤销",
-    "goDistribute": "去分发"
+    "goDistribute": "去分发",
+    "manage": "管理"
   },
   "status": {
     "synced": "已分发",
@@ -170,7 +171,9 @@
     "list": "列表",
     "collapseAll": "全部折叠",
     "expandAll": "全部展开",
-    "showMore": "显示更多 ({{count}})"
+    "showMore": "显示更多 ({{count}})",
+    "expandGroups": "展开分组",
+    "collapseGroups": "收起分组"
   },
   "batch": {
     "guide": "勾选资源后操作",
@@ -207,7 +210,8 @@
     "enabled": "已启用",
     "autoBindHint": "系统场景自动关联所有已启用的 Agent 平台",
     "noGlobalRules": "不支持全局规则",
-    "noProjectRules": "不支持项目规则"
+    "noProjectRules": "不支持项目规则",
+    "countTooltip": "{{name}}: {{skills}} 技能 / {{rules}} 规则"
   },
   "tag": {
     "name": "名称",
@@ -225,7 +229,10 @@
     "createNew": "创建",
     "untagged": "未分类",
     "allTags": "全部",
-    "manageTags": "管理标签"
+    "manageTags": "管理标签",
+    "empty": "无可用标签",
+    "createNewWithName": "创建 \"{{name}}\"",
+    "collapse": "收起"
   },
   "dashboard": {
     "subtitle": "资源、场景、项目与已开启平台的当前概况。",
@@ -345,5 +352,10 @@
     "summary": "将新增 {{add}} 项，更新 {{update}} 项，移除 {{remove}} 项。此操作不可撤销。",
     "confirm": "确认分发",
     "confirmRemoval": "确认分发并移除 {{count}} 项"
+  },
+  "errors": {
+    "boundaryTitle": "应用出现了错误",
+    "boundaryFallback": "发生了意外错误，请尝试重新加载。",
+    "reload": "重新加载"
   }
 }
