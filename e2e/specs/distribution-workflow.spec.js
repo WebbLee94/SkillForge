@@ -1,5 +1,6 @@
 import { expect } from '@wdio/globals';
 import { invokeTauriCommand } from './tauri.js';
+import { ensureSeedSkill, SEED_SKILL_ID } from './seed.js';
 
 /**
  * 首次分发完整流程 E2E（只读安全策略）
@@ -184,14 +185,11 @@ describe('SkillForge 33 号 A 批整改独立移除流程（Task 13 补强）', 
     const enabled = platforms.filter((p) => p.enabled);
     expect(enabled.length).toBeGreaterThan(0);
 
-    const skills = await invokeTauriCommand(({ core }) =>
-      core.invoke('list_skills')
-    );
-    expect(Array.isArray(skills)).toBe(true);
-    expect(skills.length).toBeGreaterThan(0);
+    // 自足性：全新 ~/.skillforge 环境 skills 表为空，显式经 IPC 安装种子技能，
+    // 不依赖其他 spec 遗留状态（CI 无 seed 步骤，list_skills[0] 不可靠）
+    const skillId = await ensureSeedSkill();
 
     const platformId = enabled[0].id;
-    const skillId = skills[0].id;
 
     const result = await invokeTauriCommand(({ core }, arg) =>
       core.invoke('sync_scene', {
@@ -205,6 +203,23 @@ describe('SkillForge 33 号 A 批整改独立移除流程（Task 13 补强）', 
       { platformId, skillId }
     );
     expect(result).toBeDefined();
+
+    // 受管列表必须立即包含种子技能（分发落盘 + 状态派生闭环）
+    const state = await invokeTauriCommand(({ core }, arg) =>
+      core.invoke('get_managed_distribution_state', {
+        platformIds: [arg.platformId],
+        scope: 'global',
+        projectId: null,
+      }),
+      { platformId }
+    );
+    const platformState = (state.platforms || []).find(
+      (p) => p.platform_id === platformId
+    );
+    const managedSkills = platformState?.skills || [];
+    expect(managedSkills.length).toBeGreaterThan(0);
+    expect(managedSkills.some((s) => s.id === SEED_SKILL_ID)).toBe(true);
+
     return { platformId, skillId };
   }
 

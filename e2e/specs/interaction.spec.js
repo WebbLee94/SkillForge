@@ -1,5 +1,6 @@
 import { expect } from '@wdio/globals';
 import { invokeTauriCommand } from './tauri.js';
+import { ensureSeedSkill, SEED_SKILL_ID } from './seed.js';
 
 describe('SkillForge 桌面应用交互测试', () => {
   before(async () => {
@@ -363,10 +364,11 @@ describe('SkillForge 视觉对齐关键路径（Task 9 补强）', () => {
   });
 
   it('Scene 成员禁用 → 详情 enabled=false → 分发计划不含该成员；重新启用 → 恢复包含（决策 10）', async () => {
+    await ensureSeedSkill();
     const skills = await invokeTauriCommand(({ core }) =>
       core.invoke('list_skills')
     );
-    expect(skills.length).toBeGreaterThan(0);
+    expect(skills.some((s) => s.id === SEED_SKILL_ID)).toBe(true);
     const platforms = await invokeTauriCommand(({ core }) =>
       core.invoke('list_platforms')
     );
@@ -784,6 +786,7 @@ describe('SkillForge 33 号 A 批整改关键路径（Task 13 补强）', () => 
   });
 
   it('Step4 无错误时仅「返回工作区」按钮', async () => {
+    await ensureSeedSkill();
     const platforms = await invokeTauriCommand(({ core }) =>
       core.invoke('list_platforms')
     );
@@ -794,7 +797,7 @@ describe('SkillForge 33 号 A 批整改关键路径（Task 13 补强）', () => 
     const skills = await invokeTauriCommand(({ core }) =>
       core.invoke('list_skills')
     );
-    expect(skills.length).toBeGreaterThan(0);
+    expect(skills.some((s) => s.id === SEED_SKILL_ID)).toBe(true);
 
     let candidateId = null;
     for (const skill of skills) {

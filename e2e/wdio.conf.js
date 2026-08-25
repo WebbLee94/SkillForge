@@ -35,7 +35,28 @@ const appBinaryPath = resolveAppBinaryPath(process.env.APP_BINARY_PATH);
 
 export const config = {
   runner: 'local',
-  specs: ['./specs/**/*.spec.js'],
+  /**
+   * 嵌套分组 = 所有 spec 归入同一组、由单个 worker 顺序执行（WDIO 语义：
+   * specs 数组的每个元素是一个调度单元，内层数组整体交给同一个 worker）。
+   *
+   * 为什么必须串行：@wdio/tauri-service 固定 tauriDriverPort:4444 且 app 共享
+   * 同一 ~/.skillforge 数据库。多 worker 并行时各起一个 app 实例，会出现
+   * driver 端口绑定冲突（注入半途而废 → __TAURI__ undefined）与实例间
+   * SQLite 竞争（如 distribution-workflow 读到空数据）。maxInstances:1 只约束
+   * 浏览器实例数，不能阻止多 worker 各自拉起 app。
+   *
+   * 对 CLI 单跑的影响为零：`--spec` 经 ConfigParser.setFilePathToFilterOptions
+   * 处理后会把 specs 整体替换为扁平绝对路径数组（嵌套结构本就不保留），
+   * Windows/Linux 的 `npm run test -- --spec ./specs/smoke.spec.js` 行为不变。
+   */
+  specs: [
+    [
+      './specs/smoke.spec.js',
+      './specs/interaction.spec.js',
+      './specs/distribution-workflow.spec.js',
+      './specs/stats-grid-responsive.spec.js',
+    ],
+  ],
   exclude: [],
   maxInstances: 1,
 

@@ -507,30 +507,47 @@ fn remove_distributed_collects_partial_failures() {
 
 // ── 走查修复 F3：同平台规则部分失败时保留实际成功的移除 ─────────────
 
-/// 尝试让单个文件的 unlink 确定性失败（macOS: uchg 不可变标志；Windows: 只读属性）。
-/// 返回是否成功注入失败（Linux 无法对单个 unlink 注入失败，返回 false）。
-fn block_file_unlink(path: &std::path::Path) -> bool {
+/// 尝试让单个文件的 unlink 确定性失败。
+///
+/// 平台手段：macOS 用 uchg 不可变标志（unlink 被内核拒绝）；Windows 用
+/// 「无 FILE_SHARE_DELETE」的句柄占住文件——只读属性注入已失效，现代 Rust std
+/// 的 `remove_file` 会先清掉只读属性再删除（rust-lang/rust#134679 起，
+/// Windows 与其他平台行为对齐），共享冲突是仍能确定性阻断删除的真实失败模式
+/// （对应编辑器/监控进程打开文件但不带删除共享的生产场景）。
+///
+/// 返回 (是否成功注入失败, 阻断资源守卫)：Windows 上守卫持有占用句柄，
+/// 断言完成后必须 drop 以便 tempdir 回收；Linux 无法对单个 unlink 注入失败，
+/// 返回 (false, None)。
+fn block_file_unlink(path: &std::path::Path) -> (bool, Option<std::fs::File>) {
     #[cfg(target_os = "macos")]
     {
-        std::process::Command::new("chflags")
+        let ok = std::process::Command::new("chflags")
             .arg("uchg")
             .arg(path)
             .status()
             .map(|status| status.success())
-            .unwrap_or(false)
+            .unwrap_or(false);
+        (ok, None)
     }
     #[cfg(target_os = "windows")]
     {
-        let mut permissions = std::fs::metadata(path)
-            .expect("rule file metadata")
-            .permissions();
-        permissions.set_readonly(true);
-        std::fs::set_permissions(path, permissions).is_ok()
+        use std::os::windows::fs::OpenOptionsExt;
+        const FILE_SHARE_READ: u32 = 0x1;
+        const FILE_SHARE_WRITE: u32 = 0x2;
+        // 刻意排除 FILE_SHARE_DELETE(0x4)：任何删除尝试将得到共享冲突错误
+        match std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+            .open(path)
+        {
+            Ok(handle) => (true, Some(handle)),
+            Err(_) => (false, None),
+        }
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         let _ = path;
-        false
+        (false, None)
     }
 }
 
@@ -547,7 +564,7 @@ fn remove_distributed_preserves_successful_rule_removals_when_later_rule_fails()
     let b_path = rules_dir.join("rule-b.md");
     std::fs::write(&b_path, "content-b").unwrap();
     // 后置规则（rule-b）的 unlink 被注入失败；前置规则（rule-a）在失败前已实际移除
-    let blocked = block_file_unlink(&b_path);
+    let (blocked, blocker) = block_file_unlink(&b_path);
     let plugins: Vec<Box<dyn PlatformPlugin>> = vec![Box::new(plugin)];
 
     let result = dist_execute::execute_remove_distributed(
@@ -568,7 +585,8 @@ fn remove_distributed_preserves_successful_rule_removals_when_later_rule_fails()
         assert!(result.errors[0].starts_with("test-plat:"));
         assert!(!rules_dir.join("rule-a.md").exists());
         assert!(b_path.exists());
-        // 清理不可变标志，保证 tempdir 可回收
+        // 释放 Windows 占位句柄 / 清理 macOS 不可变标志，保证 tempdir 可回收
+        drop(blocker);
         let _ = std::process::Command::new("chflags")
             .arg("nouchg")
             .arg(&b_path)
