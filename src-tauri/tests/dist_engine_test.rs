@@ -234,6 +234,7 @@ fn distribution_request_rejects_invalid_scope_combinations() {
     assert!(request.validate().is_err());
 }
 
+#[cfg(unix)]
 #[test]
 fn remove_selected_removes_managed_skill_and_preserves_unknown_directory() {
     let conn = init_db();
@@ -263,6 +264,7 @@ fn remove_selected_removes_managed_skill_and_preserves_unknown_directory() {
     assert!(skills_dir.join("unknown-skill").exists());
 }
 
+#[cfg(unix)]
 #[test]
 fn remove_selected_skill_and_invalid_single_file_rule_fail_before_any_mutation() {
     let conn = init_db();
@@ -302,6 +304,7 @@ fn remove_selected_skill_and_invalid_single_file_rule_fail_before_any_mutation()
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn remove_selected_skill_with_invalid_non_utf8_single_file_fails_before_skill_mutation() {
     let conn = init_db();
@@ -438,6 +441,7 @@ fn malformed_single_file_marker_rejects_removal_without_writing() {
     assert_eq!(std::fs::read_to_string(rules_file).unwrap(), original);
 }
 
+#[cfg(unix)]
 #[test]
 fn managed_state_query_separates_local_entries_from_removable_entries() {
     let conn = init_db();

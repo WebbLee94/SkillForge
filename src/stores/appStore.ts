@@ -641,10 +641,7 @@ export const useAppStore = create<AppStore>((set, get) => {
       try {
         await ipc.addSkillToScene(sceneId, skillId);
         await get().fetchSceneDetail(sceneId);
-        get().addToast(
-          i18n.t('messages.addSkillToSceneSuccess'),
-          'success'
-        );
+        get().addToast(i18n.t('messages.addSkillToSceneSuccess'), 'success');
       } catch (e) {
         const errMsg = e instanceof Error ? e.message : String(e);
         get().addToast(
@@ -714,9 +711,7 @@ export const useAppStore = create<AppStore>((set, get) => {
           await get().fetchSceneDetail(sceneId);
           baseline = get().currentSceneDetail;
           if (!baseline) {
-            throw new Error(
-              i18n.t('messages.sceneBaselineUnavailable')
-            );
+            throw new Error(i18n.t('messages.sceneBaselineUnavailable'));
           }
         }
         const savedSkills = baseline.skills ?? [];
@@ -777,9 +772,7 @@ export const useAppStore = create<AppStore>((set, get) => {
           }
         }
         for (const m of draft.rules) {
-          const baselineEntry = savedRules.find(
-            (r) => r.rule_id === m.rule_id
-          );
+          const baselineEntry = savedRules.find((r) => r.rule_id === m.rule_id);
           const enabledChanged =
             baselineEntry !== undefined &&
             m.enabled !== undefined &&

@@ -38,7 +38,8 @@ vi.mock('../domains/inspector/Inspector', () => {
 vi.mock('../domains/resources/ResourceImportDialog', () => {
   routeLoadCounts.resourceImportDialog += 1;
   return {
-    ResourceImportDialog: () => React.createElement('div', null, 'ImportDialog'),
+    ResourceImportDialog: () =>
+      React.createElement('div', null, 'ImportDialog'),
   };
 });
 

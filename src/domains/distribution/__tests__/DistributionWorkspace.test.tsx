@@ -803,9 +803,7 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
 
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() =>
         expect(screen.getByText('ws.managedPanelTitle')).toBeDefined()
       );
@@ -894,9 +892,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() =>
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
@@ -936,9 +932,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() =>
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
@@ -976,9 +970,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() =>
         expect(screen.getByText('ws.revealMac')).toBeDefined()
       );
@@ -1016,8 +1008,12 @@ describe('DistributionWorkspace', () => {
       // 生产默认白名单为空（REVEAL_ROOT_SELF_PLATFORMS = new Set([])）；
       // 为验证机制，注入非空白名单（skills 目录即平台根目录的平台在全局目标下揭示自身 → false）
       const rootSelf = new Set(['opencode-root-self']);
-      expect(resolveRevealAsSkillsDir('opencode-root-self', false, rootSelf)).toBe(false);
-      expect(resolveRevealAsSkillsDir('opencode-root-self', true, rootSelf)).toBe(false); // 项目目标恒 false
+      expect(
+        resolveRevealAsSkillsDir('opencode-root-self', false, rootSelf)
+      ).toBe(false);
+      expect(
+        resolveRevealAsSkillsDir('opencode-root-self', true, rootSelf)
+      ).toBe(false); // 项目目标恒 false
       expect(resolveRevealAsSkillsDir('trae-cn', false, rootSelf)).toBe(true); // 非白名单不受注入影响
     });
   });
@@ -1032,10 +1028,18 @@ describe('DistributionWorkspace', () => {
         )
       ).toBe('.claude/skills');
       expect(
-        resolveStep1PathDisplay('/tmp/p-1/CLAUDE.md', true, '{project}/CLAUDE.md')
+        resolveStep1PathDisplay(
+          '/tmp/p-1/CLAUDE.md',
+          true,
+          '{project}/CLAUDE.md'
+        )
       ).toBe('CLAUDE.md');
       expect(
-        resolveStep1PathDisplay('/home/.claude/skills', false, '/home/.claude/skills')
+        resolveStep1PathDisplay(
+          '/home/.claude/skills',
+          false,
+          '/home/.claude/skills'
+        )
       ).toBe('/home/.claude/skills');
       expect(resolveStep1PathDisplay('/abs/path', true, '/abs/path')).toBe(
         '/abs/path'
@@ -1166,9 +1170,7 @@ describe('DistributionWorkspace', () => {
 
       fireEvent.click(screen.getByText('React'));
       fireEvent.click(screen.getByText('ws.nextToPlan'));
-      await waitFor(() =>
-        expect(screen.getByText('计划明细')).toBeDefined()
-      );
+      await waitFor(() => expect(screen.getByText('计划明细')).toBeDefined());
       const previewCall = (invoke as any).mock.calls.find(
         (c: string[]) => c[0] === 'preview_distribution'
       );
@@ -1248,15 +1250,15 @@ describe('DistributionWorkspace', () => {
         expect(screen.getByTestId('ws-skills-list').textContent).toContain(
           'React'
         );
-        expect(
-          screen.getByTestId('ws-skills-list').textContent
-        ).not.toContain('Vue');
+        expect(screen.getByTestId('ws-skills-list').textContent).not.toContain(
+          'Vue'
+        );
         expect(screen.getByTestId('ws-rules-list').textContent).toContain(
           'Style'
         );
-        expect(
-          screen.getByTestId('ws-rules-list').textContent
-        ).not.toContain('Lint');
+        expect(screen.getByTestId('ws-rules-list').textContent).not.toContain(
+          'Lint'
+        );
       });
       expect(screen.queryByText('ws.invalidRefsTitle')).toBeNull();
     });
@@ -1524,7 +1526,9 @@ describe('DistributionWorkspace', () => {
       fireEvent.click(screen.getByTestId('ws-select-all-skills'));
       await waitFor(() =>
         expect(
-          screen.getByTestId('ws-select-all-skills').getAttribute('aria-checked')
+          screen
+            .getByTestId('ws-select-all-skills')
+            .getAttribute('aria-checked')
         ).toBe('true')
       );
       // 切到 scene 来源（baseRoutes 有 scene-1）→ T5 实现应重置选择 → aria-checked=false
@@ -1691,9 +1695,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // Enter managed panel and check s1 for removal (checkbox selection)
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() => expect(screen.getByText('React')).toBeDefined());
       fireEvent.click(
         within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
@@ -1766,7 +1768,9 @@ describe('DistributionWorkspace', () => {
       // 解析为 {project}/AGENTS.md；同时 seed project_rules_format 触发 rulesSingleFile。
       const plat = mkPlat('claude-code', 'Claude Code');
       plat.paths.project_rules_pattern = 'AGENTS.md';
-      plat.paths.project_rules_format = { SingleFile: { file_name: 'AGENTS.md' } };
+      plat.paths.project_rules_format = {
+        SingleFile: { file_name: 'AGENTS.md' },
+      };
       seedStore({
         projects: [mkProj('p-1', 'My Project')],
         platforms: [plat],
@@ -1839,13 +1843,11 @@ describe('DistributionWorkspace', () => {
       expect(screen.getByText('错误')).toBeDefined();
       expect(screen.queryByText('已移除')).toBeNull();
       expect(screen.queryByTestId('ws-result-resultRemoved')).toBeNull();
-      expect(
-        screen.getByTestId('ws-result-resultInstalled').textContent
-      ).toBe('1');
+      expect(screen.getByTestId('ws-result-resultInstalled').textContent).toBe(
+        '1'
+      );
       // 按钮收敛：无错误 → 仅「返回工作区」
-      expect(
-        screen.getByRole('button', { name: '返回工作区' })
-      ).toBeDefined();
+      expect(screen.getByRole('button', { name: '返回工作区' })).toBeDefined();
       expect(
         screen.queryByRole('button', { name: 'ws.retryFailed' })
       ).toBeNull();
@@ -1882,9 +1884,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.resultTitle')).toBeDefined()
       );
-      expect(
-        screen.getByRole('button', { name: '返回工作区' })
-      ).toBeDefined();
+      expect(screen.getByRole('button', { name: '返回工作区' })).toBeDefined();
       expect(
         screen.queryByRole('button', { name: 'ws.retryFailed' })
       ).toBeNull();
@@ -1924,9 +1924,7 @@ describe('DistributionWorkspace', () => {
       expect(
         screen.getByRole('button', { name: 'ws.retryFailed' })
       ).toBeDefined();
-      expect(
-        screen.getByRole('button', { name: '返回工作区' })
-      ).toBeDefined();
+      expect(screen.getByRole('button', { name: '返回工作区' })).toBeDefined();
     });
 
     it('Step4 返回工作区保留目标/平台/资源选择上下文', async () => {
@@ -1968,9 +1966,7 @@ describe('DistributionWorkspace', () => {
       // 资源选择保留：回到 Step2 检查 React 仍勾选
       fireEvent.click(screen.getByText('ws.nextToResources'));
       await waitForStep2();
-      const reactCheckbox = within(
-        screen.getByTestId('ws-skills-list')
-      )
+      const reactCheckbox = within(screen.getByTestId('ws-skills-list'))
         .getByText('React')
         .closest('label')!
         .querySelector('input') as HTMLInputElement;
@@ -2006,9 +2002,9 @@ describe('DistributionWorkspace', () => {
       );
       // removed 统计不渲染；结果指标渲染中文（P0-2）
       expect(screen.queryByTestId('ws-result-resultRemoved')).toBeNull();
-      expect(
-        screen.getByTestId('ws-result-resultInstalled').textContent
-      ).toBe('1');
+      expect(screen.getByTestId('ws-result-resultInstalled').textContent).toBe(
+        '1'
+      );
       expect(screen.getByText('已安装')).toBeDefined();
       expect(screen.queryByText('installed')).toBeNull(); // zh 值不再为英文小写
     });
@@ -2385,9 +2381,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // 面板勾选 s1 待移除（checkbox）
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() => expect(screen.getByText('React')).toBeDefined());
       fireEvent.click(
         within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
@@ -2401,9 +2395,7 @@ describe('DistributionWorkspace', () => {
       fireEvent.click(screen.getByText('ws.nextToPlan'));
 
       // 不再阻塞：进入 Step3、无 mixedAddRemoveBlocked toast、preview 已提交
-      await waitFor(() =>
-        expect(screen.getByText('计划明细')).toBeDefined()
-      );
+      await waitFor(() => expect(screen.getByText('计划明细')).toBeDefined());
       expect(
         useAppStore
           .getState()
@@ -2447,9 +2439,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // 面板勾选 r1 待移除（checkbox）
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() => expect(screen.getByText('Style.md')).toBeDefined());
       fireEvent.click(
         within(screen.getByTestId('ws-managed-rule-r1')).getByRole('checkbox')
@@ -2463,9 +2453,7 @@ describe('DistributionWorkspace', () => {
       fireEvent.click(screen.getByText('ws.nextToPlan'));
 
       // 不再阻塞：进入 Step3、无 mixedAddRemoveBlocked toast、preview 已提交
-      await waitFor(() =>
-        expect(screen.getByText('计划明细')).toBeDefined()
-      );
+      await waitFor(() => expect(screen.getByText('计划明细')).toBeDefined());
       expect(
         useAppStore
           .getState()
@@ -2676,9 +2664,7 @@ describe('DistributionWorkspace', () => {
       );
 
       fireEvent.click(screen.getByText('ws.nextToPlan'));
-      await waitFor(() =>
-        expect(screen.getByText('计划明细')).toBeDefined()
-      );
+      await waitFor(() => expect(screen.getByText('计划明细')).toBeDefined());
       const previewCalls = (invoke as any).mock.calls.filter(
         (c: string[]) => c[0] === 'preview_distribution'
       );
@@ -2700,9 +2686,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await waitFor(() =>
         expect(
           useAppStore
@@ -2744,9 +2728,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       // 面板打开依赖 get_managed_distribution_state 异步返回，先等摘要出现
       const summary = await screen.findByTestId('ws-managed-summary');
       expect(summary.getAttribute('aria-live')).toBe('polite');
@@ -2763,7 +2745,9 @@ describe('DistributionWorkspace', () => {
       fireEvent.click(checkbox);
       await waitFor(() =>
         expect(
-          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole(
+            'checkbox'
+          )
         ).toBeChecked()
       );
       expect(screen.getByTestId('ws-managed-summary').textContent).toContain(
@@ -2800,15 +2784,17 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
 
-      const localRow = await screen.findByTestId('ws-managed-local-local-helper');
+      const localRow = await screen.findByTestId(
+        'ws-managed-local-local-helper'
+      );
       expect(localRow).toBeDefined();
       expect(within(localRow).queryByRole('button')).toBeNull();
       expect(within(localRow).getByText('ws.managed.badgeKeep')).toBeDefined();
-      expect(within(localRow).getByText('ws.managed.unknownNote')).toBeDefined();
+      expect(
+        within(localRow).getByText('ws.managed.unknownNote')
+      ).toBeDefined();
     });
   });
 
@@ -2840,13 +2826,13 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
 
       // Skills 分区应有全选 checkbox
-      const selectAllSkills = screen.getByTestId('ws-managed-select-all-skills');
+      const selectAllSkills = screen.getByTestId(
+        'ws-managed-select-all-skills'
+      );
       expect(selectAllSkills).toBeDefined();
       expect(selectAllSkills.getAttribute('aria-label')).toBe('全选技能');
       expect(selectAllSkills.getAttribute('aria-checked')).toBe('false');
@@ -2911,9 +2897,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-rule-r1');
 
       const selectAllRules = screen.getByTestId('ws-managed-select-all-rules');
@@ -2978,9 +2962,7 @@ describe('DistributionWorkspace', () => {
       await waitFor(() =>
         expect(screen.getByText('ws.step1.title')).toBeDefined()
       );
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-drawer');
 
       // 面板标题含「受管内容」语义
@@ -3025,9 +3007,7 @@ describe('DistributionWorkspace', () => {
               platform_name: 'OpenCode',
               scope: 'global',
               project_path: null,
-              skills: [
-                { id: 's1', path: '/home/.opencode/skills/React' },
-              ],
+              skills: [{ id: 's1', path: '/home/.opencode/skills/React' }],
               rules: [],
               local_skills: [],
               local_rules: [],
@@ -3043,14 +3023,14 @@ describe('DistributionWorkspace', () => {
       );
 
       // 打开面板，全选
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
       fireEvent.click(screen.getByTestId('ws-managed-select-all-skills'));
       await waitFor(() =>
         expect(
-          screen.getByTestId('ws-managed-select-all-skills').getAttribute('aria-checked')
+          screen
+            .getByTestId('ws-managed-select-all-skills')
+            .getAttribute('aria-checked')
         ).toBe('true')
       );
 
@@ -3063,12 +3043,12 @@ describe('DistributionWorkspace', () => {
       );
 
       // 重新打开 → 选择已清空
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
       expect(
-        screen.getByTestId('ws-managed-select-all-skills').getAttribute('aria-checked')
+        screen
+          .getByTestId('ws-managed-select-all-skills')
+          .getAttribute('aria-checked')
       ).toBe('false');
     });
   });
@@ -3316,7 +3296,9 @@ describe('DistributionWorkspace', () => {
         ).toHaveTextContent('部分失败：已移除 1 项，失败 1 项')
       );
       expect(
-        screen.getByText('移除 r1 失败：目标规则文件已被用户修改，无法确认所有权')
+        screen.getByText(
+          '移除 r1 失败：目标规则文件已被用户修改，无法确认所有权'
+        )
       ).toBeDefined();
 
       // 成功项 s1 从选择中清除，失败项 r1 保留可重试（确认按钮计数回到 1 且可用）
@@ -3326,10 +3308,12 @@ describe('DistributionWorkspace', () => {
       expect(
         within(screen.getByTestId('ws-managed-rule-r1')).getByRole('checkbox')
       ).toBeChecked();
+      expect(screen.getByTestId('ws-managed-confirm-remove')).toHaveTextContent(
+        '确认移除 1 项'
+      );
       expect(
         screen.getByTestId('ws-managed-confirm-remove')
-      ).toHaveTextContent('确认移除 1 项');
-      expect(screen.getByTestId('ws-managed-confirm-remove')).not.toBeDisabled();
+      ).not.toBeDisabled();
 
       // 刷新行为：面板打开 1 次 + 移除后刷新 1 次
       await waitFor(() => {
@@ -3457,16 +3441,16 @@ describe('DistributionWorkspace', () => {
       );
 
       // 打开受管面板并勾选 s1 待移除
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
       fireEvent.click(
         within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
       await waitFor(() =>
         expect(
-          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole(
+            'checkbox'
+          )
         ).toBeChecked()
       );
 
@@ -3479,9 +3463,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // 重新打开面板：移除标记已清空（计数 0、checkbox 未选中）
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       const summary = await screen.findByTestId('ws-managed-summary');
       expect(summary.textContent).toContain('当前已选择 0 项');
       expect(
@@ -3527,16 +3509,16 @@ describe('DistributionWorkspace', () => {
       );
 
       // 打开受管面板并勾选 s1 待移除
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
       fireEvent.click(
         within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
       await waitFor(() =>
         expect(
-          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole(
+            'checkbox'
+          )
         ).toBeChecked()
       );
 
@@ -3549,9 +3531,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // 重新打开面板：移除标记已清空
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       const summary = await screen.findByTestId('ws-managed-summary');
       expect(summary.textContent).toContain('当前已选择 0 项');
       expect(
@@ -3587,14 +3567,14 @@ describe('DistributionWorkspace', () => {
       );
 
       // 打开抽屉
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       const drawer = await screen.findByTestId('ws-managed-drawer');
       expect(drawer.tagName).toBe('ASIDE');
       expect(drawer.getAttribute('role')).toBe('dialog');
       expect(drawer.getAttribute('aria-modal')).toBe('true');
-      expect(drawer.getAttribute('aria-labelledby')).toBe('ws-managed-panel-title');
+      expect(drawer.getAttribute('aria-labelledby')).toBe(
+        'ws-managed-panel-title'
+      );
       expect(drawer.getAttribute('id')).toBe('ws-managed-panel');
 
       // Backdrop
@@ -3612,9 +3592,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // 重新打开 → Escape 关闭
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-drawer');
       fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() =>
@@ -3648,16 +3626,16 @@ describe('DistributionWorkspace', () => {
       );
 
       // 打开抽屉并勾选 s1
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
       fireEvent.click(
         within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
       );
       await waitFor(() =>
         expect(
-          within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')
+          within(screen.getByTestId('ws-managed-skill-s1')).getByRole(
+            'checkbox'
+          )
         ).toBeChecked()
       );
 
@@ -3668,9 +3646,7 @@ describe('DistributionWorkspace', () => {
       );
 
       // 重新打开 → 选择保留
-      fireEvent.click(
-        screen.getByRole('button', { name: /查看|收起/ })
-      );
+      fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
       await screen.findByTestId('ws-managed-skill-s1');
       expect(
         within(screen.getByTestId('ws-managed-skill-s1')).getByRole('checkbox')

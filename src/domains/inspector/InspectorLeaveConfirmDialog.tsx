@@ -39,7 +39,10 @@ export function InspectorLeaveConfirmDialog({
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
     >
       <div className="w-[400px] rounded-lg border border-border bg-card p-6 shadow-xl animate-fade-in">
-        <h2 id="inspector-leave-title" className="text-lg font-semibold text-foreground">
+        <h2
+          id="inspector-leave-title"
+          className="text-lg font-semibold text-foreground"
+        >
           {title}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">{message}</p>

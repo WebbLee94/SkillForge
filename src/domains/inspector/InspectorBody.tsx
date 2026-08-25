@@ -80,7 +80,10 @@ export function InspectorBody({
             {t('messages.noData')}
           </p>
         ) : (
-          <div className="flex flex-wrap gap-1.5" data-testid="inspector-tag-chips">
+          <div
+            className="flex flex-wrap gap-1.5"
+            data-testid="inspector-tag-chips"
+          >
             {draftTags.map((tag) => (
               <TagChip
                 key={tag.id}

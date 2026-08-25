@@ -62,9 +62,11 @@ export const SortableRuleList = memo(function SortableRuleList({
                 : 'text-muted-foreground hover:text-primary'
             )}
             onClick={() => !disabled && onToggle(rule.rule_id)}
-            title={rule.enabled
-              ? t('common:actions.disable')
-              : t('common:actions.enable')}
+            title={
+              rule.enabled
+                ? t('common:actions.disable')
+                : t('common:actions.enable')
+            }
           >
             {rule.enabled ? (
               <ToggleRight className="h-4 w-4 text-primary" />

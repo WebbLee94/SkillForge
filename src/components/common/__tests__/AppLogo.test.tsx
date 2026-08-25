@@ -40,7 +40,9 @@ describe('AppLogo', () => {
   it('contains gradient defs and circle elements', () => {
     const { container } = render(<AppLogo />);
     expect(container.querySelector('defs')).toBeDefined();
-    expect(container.querySelectorAll('circle').length).toBeGreaterThanOrEqual(3);
+    expect(container.querySelectorAll('circle').length).toBeGreaterThanOrEqual(
+      3
+    );
     expect(container.querySelectorAll('path').length).toBeGreaterThanOrEqual(3);
   });
 });

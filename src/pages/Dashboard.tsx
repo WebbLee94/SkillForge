@@ -1,14 +1,10 @@
 import { Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
-import {
-  Package,
-  Film,
-  FolderOpen,
-  Plus,
-  Globe,
-} from 'lucide-react';
-const ImportPreviewDialog = lazy(() => import('../domains/resources/ImportPreviewDialog.lazy'));
+import { Package, Film, FolderOpen, Plus, Globe } from 'lucide-react';
+const ImportPreviewDialog = lazy(
+  () => import('../domains/resources/ImportPreviewDialog.lazy')
+);
 import { DashboardQuickEntry } from '../domains/dashboard/DashboardQuickEntry';
 import { DashboardStatsGrid } from '../domains/dashboard/DashboardStatsGrid';
 import { WatcherNotification } from '../domains/dashboard/WatcherNotification';
@@ -201,7 +197,9 @@ export function Dashboard() {
               liveCounts={liveCounts}
               t={t}
               onChooseTarget={(platformId) => {
-                useAppStore.getState().setGlobalDistSelectedPlatform(platformId);
+                useAppStore
+                  .getState()
+                  .setGlobalDistSelectedPlatform(platformId);
                 setActiveNav('globalDistribution');
               }}
             />

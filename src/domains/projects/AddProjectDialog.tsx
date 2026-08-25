@@ -36,7 +36,10 @@ export const AddProjectDialog = memo(function AddProjectDialog({
           <h2 className="text-lg font-semibold text-foreground">
             {t('addProjectDialog.title')}
           </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -47,15 +50,25 @@ export const AddProjectDialog = memo(function AddProjectDialog({
               {t('projectPath')}
             </label>
             <div className="flex gap-2">
-              <input type="text" value={path} onChange={(e) => setPath(e.target.value)}
+              <input
+                type="text"
+                value={path}
+                onChange={(e) => setPath(e.target.value)}
                 placeholder={t('addProjectDialog.selectFolder')}
-                className={cn('flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm',
-                  'focus:outline-none focus:ring-2 focus:ring-ring')} />
-              <button className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground hover:bg-secondary/80"
+                className={cn(
+                  'flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm',
+                  'focus:outline-none focus:ring-2 focus:ring-ring'
+                )}
+              />
+              <button
+                className="flex items-center gap-1 rounded-lg bg-secondary px-3 py-2 text-sm text-secondary-foreground hover:bg-secondary/80"
                 onClick={async () => {
                   try {
                     const { open } = await import('@tauri-apps/plugin-dialog');
-                    const selected = await open({ directory: true, multiple: false });
+                    const selected = await open({
+                      directory: true,
+                      multiple: false,
+                    });
                     if (selected && typeof selected === 'string') {
                       setPath(selected);
                       if (!name) setName(selected.split('/').pop() || '');
@@ -63,7 +76,8 @@ export const AddProjectDialog = memo(function AddProjectDialog({
                   } catch (e) {
                     console.error('dialog open failed:', e);
                   }
-                }}>
+                }}
+              >
                 <FolderOpen className="h-4 w-4" />
               </button>
             </div>
@@ -73,20 +87,34 @@ export const AddProjectDialog = memo(function AddProjectDialog({
             <label className="mb-1.5 block text-sm font-medium text-foreground">
               {t('projectName')}
             </label>
-            <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               placeholder={t('projectNamePlaceholder')}
-              className={cn('w-full rounded-lg border border-input bg-background px-3 py-2 text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-ring')} />
+              className={cn(
+                'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm',
+                'focus:outline-none focus:ring-2 focus:ring-ring'
+              )}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <button onClick={onClose}
-              className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80">
+            <button
+              onClick={onClose}
+              className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
+            >
               {tc('actions.cancel')}
             </button>
-            <button onClick={handleConfirm} disabled={!name.trim() || !path.trim()}
-              className={cn('rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90',
-                (!name.trim() || !path.trim()) && 'opacity-50 pointer-events-none')}>
+            <button
+              onClick={handleConfirm}
+              disabled={!name.trim() || !path.trim()}
+              className={cn(
+                'rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90',
+                (!name.trim() || !path.trim()) &&
+                  'opacity-50 pointer-events-none'
+              )}
+            >
               {t('addProjectDialog.confirm')}
             </button>
           </div>

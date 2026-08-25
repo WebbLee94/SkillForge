@@ -46,7 +46,9 @@ export function PlatformButton({
       {Icon && <Icon className="h-5 w-5 shrink-0" />}
       <span className="font-medium">{name}</span>
       <span className="text-xs text-muted-foreground">
-        {skillCount}<span className="mx-0.5 opacity-40">/</span>{ruleCount}
+        {skillCount}
+        <span className="mx-0.5 opacity-40">/</span>
+        {ruleCount}
       </span>
     </button>
   );

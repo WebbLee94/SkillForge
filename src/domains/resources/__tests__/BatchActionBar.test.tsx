@@ -43,13 +43,29 @@ describe('BatchActionBar', () => {
   });
 
   it('renders a sticky bottom wrapper with an accent inner bar', () => {
-    const { container } = render(<BatchActionBar {...base} selectedCount={2} />);
+    const { container } = render(
+      <BatchActionBar {...base} selectedCount={2} />
+    );
     const wrap = container.querySelector('[data-testid="batch-action-bar"]');
     expect(wrap).not.toBeNull();
-    expect(wrap).toHaveClass('sticky', 'bottom-0', 'z-40', 'bg-background', 'pt-2');
-    const inner = container.querySelector('[data-testid="batch-action-bar-inner"]');
+    expect(wrap).toHaveClass(
+      'sticky',
+      'bottom-0',
+      'z-40',
+      'bg-background',
+      'pt-2'
+    );
+    const inner = container.querySelector(
+      '[data-testid="batch-action-bar-inner"]'
+    );
     expect(inner).not.toBeNull();
-    expect(inner).toHaveClass('bg-accent', 'border', 'rounded-lg', 'px-3', 'py-2');
+    expect(inner).toHaveClass(
+      'bg-accent',
+      'border',
+      'rounded-lg',
+      'px-3',
+      'py-2'
+    );
   });
 
   it('selected: shows the count label exactly as passed (i18n interpolation done by caller)', () => {

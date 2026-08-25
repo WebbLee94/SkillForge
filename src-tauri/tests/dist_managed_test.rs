@@ -36,6 +36,7 @@ fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str) {
     .unwrap();
 }
 
+#[cfg(unix)]
 #[test]
 fn managed_state_separates_managed_from_local_entries() {
     let conn = init_db();
@@ -104,6 +105,7 @@ fn managed_state_separates_managed_from_local_entries() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn managed_state_skips_symlink_not_pointing_at_skill_source() {
     let conn = init_db();
@@ -162,6 +164,7 @@ fn managed_state_rejects_global_with_project_id() {
     ));
 }
 
+#[cfg(unix)]
 #[test]
 fn removeselected_rejects_non_skillforge_symlink_before_mutation() {
     let conn = init_db();
@@ -233,6 +236,7 @@ fn remove_distributed_rejects_project_scope_without_project_id() {
 }
 
 // 契约 2：fail-closed —— 请求移除一个「不再受管/不存在」的技能 → 整体拒绝、无任何删除
+#[cfg(unix)]
 #[test]
 fn remove_distributed_fails_closed_when_target_not_managed() {
     let conn = init_db();
@@ -271,6 +275,7 @@ fn remove_distributed_fails_closed_when_target_not_managed() {
 }
 
 // 契约 3：所有权校验 —— symlink 指向非来源 → fail-closed 拒绝
+#[cfg(unix)]
 #[test]
 fn remove_distributed_rejects_symlink_not_pointing_at_source() {
     let conn = init_db();
@@ -304,6 +309,7 @@ fn remove_distributed_rejects_symlink_not_pointing_at_source() {
 }
 
 // 契约 4：正常移除 —— 受管技能 + Directory 规则均被移除，removed 记录 id，errors 为空
+#[cfg(unix)]
 #[test]
 fn remove_distributed_removes_managed_skill_and_directory_rule() {
     let conn = init_db();
@@ -410,6 +416,7 @@ fn resources_reject_cross_kind_duplicate_ids() {
 
 // 多平台子集语义：选中项只需在至少一个目标平台受管即可移除（managed-state
 // 选择是扁平 id 列表，某项可能只在请求平台的一个子集上受管）
+#[cfg(unix)]
 #[test]
 fn remove_distributed_removes_from_subset_of_requested_platforms() {
     let conn = init_db();

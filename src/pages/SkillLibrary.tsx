@@ -1,11 +1,20 @@
-import { Suspense, useEffect, useMemo, useState, useCallback, lazy } from 'react';
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  lazy,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { cn, sanitizePath } from '../lib/utils';
 import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
 import { TagFilterBar } from '../components/ui/tags/TagFilterBar';
-const TagManagerDialog = lazy(() => import('../domains/tags/TagManagerDialog.lazy'));
+const TagManagerDialog = lazy(
+  () => import('../domains/tags/TagManagerDialog.lazy')
+);
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
 import {
   ResourceViewToggle,
@@ -13,7 +22,9 @@ import {
 } from '../components/ui/ResourceViewToggle';
 import { ResourceCollection } from '../domains/resources/ResourceCollection';
 import { BatchActionBar } from '../domains/resources/BatchActionBar';
-const BatchTagDialog = lazy(() => import('../domains/tags/BatchTagDialog.lazy'));
+const BatchTagDialog = lazy(
+  () => import('../domains/tags/BatchTagDialog.lazy')
+);
 import { Inspector } from '../domains/inspector/Inspector';
 import {
   ResourceImportDialog,
@@ -453,9 +464,7 @@ export function SkillLibrary() {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="page-title">{t('title')}</h1>
-            <p className="text-xs text-muted-foreground">
-              {t('subtitle')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
           </div>
           <div
             className="flex shrink-0 items-center gap-3"
@@ -535,7 +544,8 @@ export function SkillLibrary() {
 
       {/* 筛选行（决策 7）：标签 chips + 右侧 全部展开/收起 */}
       <div className="shrink-0">
-        <div className="flex items-center gap-3 mb-2 mt-2"
+        <div
+          className="flex items-center gap-3 mb-2 mt-2"
           data-testid="lib-filters"
         >
           <div className="min-w-0 flex-1">
@@ -550,7 +560,9 @@ export function SkillLibrary() {
             />
           </div>
           <button
-            aria-label={collapsedAll ? tc('view.expandGroups') : tc('view.collapseGroups')}
+            aria-label={
+              collapsedAll ? tc('view.expandGroups') : tc('view.collapseGroups')
+            }
             className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             onClick={() => setCollapsedAll((prev) => !prev)}
           >
@@ -561,7 +573,10 @@ export function SkillLibrary() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto mb-2 mt-2" data-testid="lib-content">
+        <div
+          className="flex-1 overflow-y-auto mb-2 mt-2"
+          data-testid="lib-content"
+        >
           {loading ? (
             <div
               className="grid gap-3"
@@ -845,7 +860,6 @@ export function SkillLibrary() {
         }}
         onCancel={() => setConfirmUninstallId(null)}
       />
-
     </div>
   );
 }

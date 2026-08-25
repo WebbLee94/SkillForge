@@ -70,7 +70,10 @@ export function TagManagerDialogBody({
             {t('actions.manage')}
             {title}
           </h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -167,7 +170,6 @@ export function TagManagerDialogBody({
             </div>
           </div>
         )}
-
       </div>
     </div>
   );

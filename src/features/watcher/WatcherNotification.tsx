@@ -46,11 +46,15 @@ export function WatcherNotification() {
       <div className="flex items-start gap-3">
         <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium">{t('watcher.changesDetected', { count: activeCount })}</p>
+          <p className="text-sm font-medium">
+            {t('watcher.changesDetected', { count: activeCount })}
+          </p>
           <p className="text-xs text-muted-foreground mt-1">
             {newCount > 0 && t('watcher.newFiles', { count: newCount }) + ' '}
-            {deletedCount > 0 && t('watcher.deletedFiles', { count: deletedCount }) + ' '}
-            {modifiedCount > 0 && t('watcher.modifiedFiles', { count: modifiedCount })}
+            {deletedCount > 0 &&
+              t('watcher.deletedFiles', { count: deletedCount }) + ' '}
+            {modifiedCount > 0 &&
+              t('watcher.modifiedFiles', { count: modifiedCount })}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {t('watcher.importHint')}

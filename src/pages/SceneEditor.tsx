@@ -1,13 +1,15 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { cn, formatDate } from '../lib/utils';
-import {
-  Film,
-  Package,
-  FileText,
-  Plus,
-  X,
-} from 'lucide-react';
+import { Film, Package, FileText, Plus, X } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import { ipc } from '../lib/ipc';
 import { ConfirmDialog } from '../components/common/ConfirmDialog';
@@ -217,10 +219,10 @@ export function SceneEditor() {
       {/* 页面壳层标题（决策 3）：统一 page-toolbar / page-title */}
       <div className="page-toolbar flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="page-title mb-1 text-foreground">{tc('nav.scenes')}</h1>
-          <p className="text-xs text-muted-foreground">
-            {t('pageSubtitle')}
-          </p>
+          <h1 className="page-title mb-1 text-foreground">
+            {tc('nav.scenes')}
+          </h1>
+          <p className="text-xs text-muted-foreground">{t('pageSubtitle')}</p>
         </div>
         <button
           className="flex shrink-0 items-center gap-1 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"

@@ -24,6 +24,8 @@ describe('33 号 P6：.action-reveal 全局规范', () => {
   });
   it('触控或无 hover 环境保持可达', () => {
     expect(css).toMatch(/@media\s*\(hover:\s*none\)/s);
-    expect(css).toMatch(/@media\s*\(hover:\s*none\)[\s\S]*?\.action-reveal\s*\{\s*opacity:\s*1/s);
+    expect(css).toMatch(
+      /@media\s*\(hover:\s*none\)[\s\S]*?\.action-reveal\s*\{\s*opacity:\s*1/s
+    );
   });
 });

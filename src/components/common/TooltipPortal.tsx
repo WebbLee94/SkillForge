@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode, type FocusEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type FocusEvent,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 interface TooltipPortalProps {

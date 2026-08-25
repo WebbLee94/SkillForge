@@ -7,7 +7,10 @@ const LANG_STORAGE_KEY = 'skillforge-lang';
  * set up localStorage/navigator, then dynamically import ../i18n.
  * Returns the init mock function so we can assert what `lng` was passed.
  */
-async function importI18nWithMocks(storageValue: string | null, browserLang: string) {
+async function importI18nWithMocks(
+  storageValue: string | null,
+  browserLang: string
+) {
   vi.resetModules();
 
   const store: Record<string, string> = {};
@@ -16,9 +19,15 @@ async function importI18nWithMocks(storageValue: string | null, browserLang: str
   Object.defineProperty(globalThis, 'localStorage', {
     value: {
       getItem: (key: string) => store[key] ?? null,
-      setItem: (key: string, val: string) => { store[key] = val; },
-      removeItem: (key: string) => { delete store[key]; },
-      clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+      setItem: (key: string, val: string) => {
+        store[key] = val;
+      },
+      removeItem: (key: string) => {
+        delete store[key];
+      },
+      clear: () => {
+        Object.keys(store).forEach((k) => delete store[k]);
+      },
       length: Object.keys(store).length,
       key: (index: number) => Object.keys(store)[index] ?? null,
     },

@@ -17,14 +17,15 @@ describe('TooltipPortal', () => {
 
   it('renders portal to document.body when open is true', () => {
     const el = document.createElement('button');
-    el.getBoundingClientRect = () => ({
-      top: 100,
-      left: 200,
-      width: 80,
-      height: 32,
-      bottom: 132,
-      right: 280,
-    } as DOMRect);
+    el.getBoundingClientRect = () =>
+      ({
+        top: 100,
+        left: 200,
+        width: 80,
+        height: 32,
+        bottom: 132,
+        right: 280,
+      }) as DOMRect;
     const triggerRef = { current: el };
 
     render(
@@ -38,14 +39,15 @@ describe('TooltipPortal', () => {
 
   it('positions portal based on trigger rect and offsetY', () => {
     const el = document.createElement('button');
-    el.getBoundingClientRect = () => ({
-      top: 100,
-      left: 200,
-      width: 80,
-      height: 32,
-      bottom: 132,
-      right: 280,
-    } as DOMRect);
+    el.getBoundingClientRect = () =>
+      ({
+        top: 100,
+        left: 200,
+        width: 80,
+        height: 32,
+        bottom: 132,
+        right: 280,
+      }) as DOMRect;
     const triggerRef = { current: el };
 
     render(
@@ -62,14 +64,15 @@ describe('TooltipPortal', () => {
 
   it('applies default offsetY of 8 when not specified', () => {
     const el = document.createElement('button');
-    el.getBoundingClientRect = () => ({
-      top: 100,
-      left: 200,
-      width: 80,
-      height: 32,
-      bottom: 132,
-      right: 280,
-    } as DOMRect);
+    el.getBoundingClientRect = () =>
+      ({
+        top: 100,
+        left: 200,
+        width: 80,
+        height: 32,
+        bottom: 132,
+        right: 280,
+      }) as DOMRect;
     const triggerRef = { current: el };
 
     render(
@@ -84,14 +87,15 @@ describe('TooltipPortal', () => {
 
   it('has pointer-events-none class', () => {
     const el = document.createElement('button');
-    el.getBoundingClientRect = () => ({
-      top: 0,
-      left: 0,
-      width: 100,
-      height: 30,
-      bottom: 30,
-      right: 100,
-    } as DOMRect);
+    el.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 30,
+        bottom: 30,
+        right: 100,
+      }) as DOMRect;
     const triggerRef = { current: el };
 
     render(
@@ -106,14 +110,15 @@ describe('TooltipPortal', () => {
 
   it('renders children inside portal popover', () => {
     const el = document.createElement('button');
-    el.getBoundingClientRect = () => ({
-      top: 0,
-      left: 0,
-      width: 100,
-      height: 30,
-      bottom: 30,
-      right: 100,
-    } as DOMRect);
+    el.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        left: 0,
+        width: 100,
+        height: 30,
+        bottom: 30,
+        right: 100,
+      }) as DOMRect;
     const triggerRef = { current: el };
 
     render(

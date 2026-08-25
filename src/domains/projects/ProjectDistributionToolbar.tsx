@@ -27,7 +27,10 @@ export function ProjectDistributionToolbar({
         <h1 className="page-title mb-1 text-foreground">{title}</h1>
         <p className="text-xs text-muted-foreground">{subtitle}</p>
       </div>
-      <div data-testid="project-page-actions" className="flex shrink-0 items-center gap-2">
+      <div
+        data-testid="project-page-actions"
+        className="flex shrink-0 items-center gap-2"
+      >
         <button
           aria-label="batchMode"
           onClick={onToggleBatch}

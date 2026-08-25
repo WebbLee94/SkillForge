@@ -16,11 +16,19 @@ export function SceneDetailHeader({
       <h2 className="text-lg font-semibold text-foreground">
         {sceneDetail.scene.name}
       </h2>
-      <p className="mt-1 text-sm text-muted-foreground" data-testid="scene-updated-at">
-        {sceneDetail.scene.description ? `${sceneDetail.scene.description} · ` : ''}
+      <p
+        className="mt-1 text-sm text-muted-foreground"
+        data-testid="scene-updated-at"
+      >
+        {sceneDetail.scene.description
+          ? `${sceneDetail.scene.description} · `
+          : ''}
         {updatedAtLabel}
       </p>
-      <p className="text-xs text-muted-foreground" data-testid="scene-read-only">
+      <p
+        className="text-xs text-muted-foreground"
+        data-testid="scene-read-only"
+      >
         {readOnlyLabel}
       </p>
     </>

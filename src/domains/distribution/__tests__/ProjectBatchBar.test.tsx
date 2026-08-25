@@ -10,7 +10,12 @@ const baseLabels = {
   exitLabel: '退出批量模式',
 };
 
-function renderBar(overrides: Partial<typeof baseLabels> & { enabled?: boolean; selectedCount?: number } = {}) {
+function renderBar(
+  overrides: Partial<typeof baseLabels> & {
+    enabled?: boolean;
+    selectedCount?: number;
+  } = {}
+) {
   const props = {
     enabled: true,
     selectedCount: 0,
@@ -75,8 +80,20 @@ describe('ProjectBatchBar', () => {
   it('renders a sticky bottom wrapper with an accent inner bar', () => {
     renderBar({ selectedCount: 1 });
     const wrap = screen.getByTestId('project-batch-bar');
-    expect(wrap).toHaveClass('sticky', 'bottom-0', 'z-40', 'bg-background', 'pt-2');
+    expect(wrap).toHaveClass(
+      'sticky',
+      'bottom-0',
+      'z-40',
+      'bg-background',
+      'pt-2'
+    );
     const inner = screen.getByTestId('project-batch-bar-inner');
-    expect(inner).toHaveClass('bg-accent', 'border', 'rounded-lg', 'px-3', 'py-2');
+    expect(inner).toHaveClass(
+      'bg-accent',
+      'border',
+      'rounded-lg',
+      'px-3',
+      'py-2'
+    );
   });
 });

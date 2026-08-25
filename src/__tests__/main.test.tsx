@@ -30,7 +30,9 @@ describe('main entry', () => {
     await import('../main');
 
     expect(createRootMock).toHaveBeenCalledTimes(1);
-    const rootEl = (createRootMock.mock.calls[0] as unknown as [HTMLElement])[0];
+    const rootEl = (
+      createRootMock.mock.calls[0] as unknown as [HTMLElement]
+    )[0];
     expect(rootEl).toBe(document.getElementById('root'));
 
     const rootInstance = createRootMock.mock.results[0].value;

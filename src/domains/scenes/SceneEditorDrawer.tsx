@@ -303,438 +303,445 @@ export function SceneEditorDrawer({
           mounted ? 'translate-x-0' : 'translate-x-full'
         )}
       >
-      {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <Package className="h-5 w-5 text-primary" />
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold text-foreground">
-            {t('drawer.title', { name: saved.scene.name })}
-          </h2>
-          <p
-            className="truncate text-xs text-muted-foreground"
-            data-testid="drawer-save-scope-note"
-          >
-            {t('drawer.saveScopeNote')}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <button
-          className="text-muted-foreground hover:text-foreground"
-          onClick={requestClose}
-          title={t('drawer.ariaClose')}
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="flex min-h-0 flex-1">
-        {/* Left: available pool */}
-        <div className="flex w-[300px] shrink-0 flex-col border-r border-border">
-          <div className="border-b border-border p-3">
-            <div
-              role="tablist"
-              aria-label={t('drawer.availableSkills')}
-              className="flex rounded-lg bg-muted p-0.5"
+        {/* Header */}
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <Package className="h-5 w-5 text-primary" />
+          <div className="min-w-0">
+            <h2 className="text-base font-semibold text-foreground">
+              {t('drawer.title', { name: saved.scene.name })}
+            </h2>
+            <p
+              className="truncate text-xs text-muted-foreground"
+              data-testid="drawer-save-scope-note"
             >
-              <button
-                role="tab"
-                aria-selected={tab === 'skills'}
-                className={cn(
-                  'flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                  tab === 'skills'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-                onClick={() => switchTab('skills')}
+              {t('drawer.saveScopeNote')}
+            </p>
+          </div>
+          <div className="flex-1" />
+          <button
+            className="text-muted-foreground hover:text-foreground"
+            onClick={requestClose}
+            title={t('drawer.ariaClose')}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1">
+          {/* Left: available pool */}
+          <div className="flex w-[300px] shrink-0 flex-col border-r border-border">
+            <div className="border-b border-border p-3">
+              <div
+                role="tablist"
+                aria-label={t('drawer.availableSkills')}
+                className="flex rounded-lg bg-muted p-0.5"
               >
-                <Package className="mr-1 inline h-3 w-3" />
-                {t('drawer.availableSkills')}
-              </button>
+                <button
+                  role="tab"
+                  aria-selected={tab === 'skills'}
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                    tab === 'skills'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => switchTab('skills')}
+                >
+                  <Package className="mr-1 inline h-3 w-3" />
+                  {t('drawer.availableSkills')}
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={tab === 'rules'}
+                  className={cn(
+                    'flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors',
+                    tab === 'rules'
+                      ? 'bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                  onClick={() => switchTab('rules')}
+                >
+                  <FileText className="mr-1 inline h-3 w-3" />
+                  {t('drawer.availableRules')}
+                </button>
+              </div>
+              <div className="relative mt-2">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t('drawer.poolSearchPlaceholder')}
+                  className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="mt-2">
+                <TagFilterBar
+                  tags={currentTags}
+                  selectedTagIds={tagFilter}
+                  onToggleTag={(tagId) =>
+                    setTagFilter((prev) =>
+                      prev.includes(tagId)
+                        ? prev.filter((id) => id !== tagId)
+                        : [...prev, tagId]
+                    )
+                  }
+                  onClearAll={() => setTagFilter([])}
+                  showUntagged={false}
+                />
+              </div>
               <button
-                role="tab"
-                aria-selected={tab === 'rules'}
                 className={cn(
-                  'flex-1 rounded-md px-3 py-1 text-xs font-medium transition-colors',
-                  tab === 'rules'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                  'mt-2 flex w-full items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  selectedIds.size > 0
+                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                    : 'cursor-not-allowed bg-secondary text-secondary-foreground/50'
                 )}
-                onClick={() => switchTab('rules')}
+                onClick={addSelected}
+                disabled={selectedIds.size === 0}
               >
-                <FileText className="mr-1 inline h-3 w-3" />
-                {t('drawer.availableRules')}
+                <Plus className="h-4 w-4" />
+                {t('drawer.addSelected')}
+                <span className="text-xs">
+                  {selectedIds.size > 0
+                    ? t('drawer.selectedCount', { count: selectedIds.size })
+                    : ''}
+                </span>
               </button>
             </div>
-            <div className="relative mt-2">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <div
+              className="min-h-0 flex-1 overflow-y-auto p-2"
+              data-testid="drawer-pool"
+            >
+              {pool.length === 0 && (
+                <p className="py-4 text-center text-xs text-muted-foreground">
+                  {tc('messages.noData')}
+                </p>
+              )}
+              {pool.slice(0, revealed).map((item) => (
+                <label
+                  key={item.id}
+                  data-testid="pool-item"
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2 transition-colors hover:bg-accent/50"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                    className="h-4 w-4 shrink-0"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-foreground">
+                      {item.name}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {'description' in item && item.description
+                        ? item.description
+                        : 'format' in item
+                          ? `.${item.format}`
+                          : ''}
+                    </span>
+                  </span>
+                </label>
+              ))}
+              {hasMore && (
+                <button
+                  data-testid="show-more"
+                  className="flex w-full items-center justify-center gap-1 rounded-md border border-border py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  onClick={revealMore}
+                >
+                  {t('drawer.showMore', { count: pool.length - revealed })}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right: current scene draft */}
+          <div className="min-w-0 flex-1 overflow-y-auto p-4">
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                {t('sceneName')}
+              </label>
               <input
                 type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('drawer.poolSearchPlaceholder')}
-                className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               />
-            </div>
-            <div className="mt-2">
-              <TagFilterBar
-                tags={currentTags}
-                selectedTagIds={tagFilter}
-                onToggleTag={(tagId) =>
-                  setTagFilter((prev) =>
-                    prev.includes(tagId)
-                      ? prev.filter((id) => id !== tagId)
-                      : [...prev, tagId]
-                  )
-                }
-                onClearAll={() => setTagFilter([])}
-                showUntagged={false}
-              />
-            </div>
-            <button
-              className={cn(
-                'mt-2 flex w-full items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                selectedIds.size > 0
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'cursor-not-allowed bg-secondary text-secondary-foreground/50'
-              )}
-              onClick={addSelected}
-              disabled={selectedIds.size === 0}
-            >
-              <Plus className="h-4 w-4" />
-              {t('drawer.addSelected')}
-              <span className="text-xs">
-                {selectedIds.size > 0
-                  ? t('drawer.selectedCount', { count: selectedIds.size })
-                  : ''}
-              </span>
-            </button>
-          </div>
-          <div
-            className="min-h-0 flex-1 overflow-y-auto p-2"
-            data-testid="drawer-pool"
-          >
-            {pool.length === 0 && (
-              <p className="py-4 text-center text-xs text-muted-foreground">
-                {tc('messages.noData')}
-              </p>
-            )}
-            {pool.slice(0, revealed).map((item) => (
-              <label
-                key={item.id}
-                data-testid="pool-item"
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card p-2 transition-colors hover:bg-accent/50"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.has(item.id)}
-                  onChange={() => toggleSelect(item.id)}
-                  className="h-4 w-4 shrink-0"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-foreground">
-                    {item.name}
-                  </span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {'description' in item && item.description
-                      ? item.description
-                      : 'format' in item
-                        ? `.${item.format}`
-                        : ''}
-                  </span>
-                </span>
+              <label className="mb-1.5 mt-3 block text-sm font-medium text-foreground">
+                {t('sceneDescription')}
               </label>
-            ))}
-            {hasMore && (
-              <button
-                data-testid="show-more"
-                className="flex w-full items-center justify-center gap-1 rounded-md border border-border py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                onClick={revealMore}
-              >
-                {t('drawer.showMore', { count: pool.length - revealed })}
-              </button>
-            )}
-          </div>
-        </div>
+              <textarea
+                value={draftDesc}
+                onChange={(e) => setDraftDesc(e.target.value)}
+                rows={2}
+                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
 
-        {/* Right: current scene draft */}
-        <div className="min-w-0 flex-1 overflow-y-auto p-4">
-          <div className="mb-4">
-            <label className="mb-1.5 block text-sm font-medium text-foreground">
-              {t('sceneName')}
-            </label>
-            <input
-              type="text"
-              value={draftName}
-              onChange={(e) => setDraftName(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-            <label className="mb-1.5 mt-3 block text-sm font-medium text-foreground">
-              {t('sceneDescription')}
-            </label>
-            <textarea
-              value={draftDesc}
-              onChange={(e) => setDraftDesc(e.target.value)}
-              rows={2}
-              className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Package className="h-4 w-4 text-primary" />
-            {t('sceneSkills')}
-            <span className="text-xs font-normal text-muted-foreground">
-              ({draftSkills.length})
-            </span>
-          </h3>
-          <div className="mb-6 space-y-1" data-testid="drawer-current-skills">
-            {draftSkills.length === 0 && (
-              <p className="py-2 text-center text-xs text-muted-foreground">
-                {t('detail.noSkills')}
-              </p>
-            )}
-            {draftSkills.map((skill, index) => (
-              <div
-                key={skill.skill_id}
-                data-testid="scene-member"
-                className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                  {skill.skill_name || skill.skill_id}
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={skill.enabled}
-                  data-testid="scene-member-toggle"
-                  aria-label={
-                    skill.enabled
-                      ? t('detail.memberEnabled')
-                      : t('detail.memberDisabled')
-                  }
-                  title={
-                    skill.enabled
-                      ? t('detail.memberDisabled')
-                      : t('detail.memberEnabled')
-                  }
-                  onClick={() =>
-                    setDraftSkills((prev) =>
-                      prev.map((s) =>
-                        s.skill_id === skill.skill_id
-                          ? { ...s, enabled: !s.enabled }
-                          : s
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <Package className="h-4 w-4 text-primary" />
+              {t('sceneSkills')}
+              <span className="text-xs font-normal text-muted-foreground">
+                ({draftSkills.length})
+              </span>
+            </h3>
+            <div className="mb-6 space-y-1" data-testid="drawer-current-skills">
+              {draftSkills.length === 0 && (
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  {t('detail.noSkills')}
+                </p>
+              )}
+              {draftSkills.map((skill, index) => (
+                <div
+                  key={skill.skill_id}
+                  data-testid="scene-member"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                    {skill.skill_name || skill.skill_id}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={skill.enabled}
+                    data-testid="scene-member-toggle"
+                    aria-label={
+                      skill.enabled
+                        ? t('detail.memberEnabled')
+                        : t('detail.memberDisabled')
+                    }
+                    title={
+                      skill.enabled
+                        ? t('detail.memberDisabled')
+                        : t('detail.memberEnabled')
+                    }
+                    onClick={() =>
+                      setDraftSkills((prev) =>
+                        prev.map((s) =>
+                          s.skill_id === skill.skill_id
+                            ? { ...s, enabled: !s.enabled }
+                            : s
+                        )
                       )
-                    )
-                  }
-                  className={cn(
-                    'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
-                    skill.enabled
-                      ? 'border-success/40 bg-success/10 text-success'
-                      : 'border-border bg-muted text-muted-foreground'
-                  )}
-                >
-                  {skill.enabled
-                    ? t('detail.memberEnabled')
-                    : t('detail.memberDisabled')}
-                </button>
-                <button
-                  className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
-                  onClick={() =>
-                    setDraftSkills((prev) => move(prev, index, -1))
-                  }
-                  disabled={index === 0}
-                  title={t('drawer.moveUp')}
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </button>
-                <button
-                  className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
-                  onClick={() => setDraftSkills((prev) => move(prev, index, 1))}
-                  disabled={index === draftSkills.length - 1}
-                  title={t('drawer.moveDown')}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-                <button
-                  className="shrink-0 text-muted-foreground hover:text-error"
-                  onClick={() =>
-                    setDraftSkills((prev) =>
-                      prev.filter((s) => s.skill_id !== skill.skill_id)
-                    )
-                  }
-                  title={t('drawer.remove')}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
-            <FileText className="h-4 w-4 text-success" />
-            {t('sceneRules')}
-            <span className="text-xs font-normal text-muted-foreground">
-              ({draftRules.length})
-            </span>
-          </h3>
-          <div className="mb-6 space-y-1" data-testid="drawer-current-rules">
-            {draftRules.length === 0 && (
-              <p className="py-2 text-center text-xs text-muted-foreground">
-                {t('detail.noRules')}
-              </p>
-            )}
-            {draftRules.map((rule, index) => (
-              <div
-                key={rule.rule_id}
-                data-testid="scene-member"
-                className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
-              >
-                <span className="min-w-0 flex-1 truncate text-sm text-foreground">
-                  {rule.rule_name || rule.rule_id}
-                </span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={rule.enabled}
-                  data-testid="scene-member-toggle"
-                  aria-label={
-                    rule.enabled
+                    }
+                    className={cn(
+                      'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
+                      skill.enabled
+                        ? 'border-success/40 bg-success/10 text-success'
+                        : 'border-border bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {skill.enabled
                       ? t('detail.memberEnabled')
-                      : t('detail.memberDisabled')
-                  }
-                  title={
-                    rule.enabled
-                      ? t('detail.memberDisabled')
-                      : t('detail.memberEnabled')
-                  }
-                  onClick={() =>
-                    setDraftRules((prev) =>
-                      prev.map((r) =>
-                        r.rule_id === rule.rule_id
-                          ? { ...r, enabled: !r.enabled }
-                          : r
+                      : t('detail.memberDisabled')}
+                  </button>
+                  <button
+                    className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
+                    onClick={() =>
+                      setDraftSkills((prev) => move(prev, index, -1))
+                    }
+                    disabled={index === 0}
+                    title={t('drawer.moveUp')}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
+                    onClick={() =>
+                      setDraftSkills((prev) => move(prev, index, 1))
+                    }
+                    disabled={index === draftSkills.length - 1}
+                    title={t('drawer.moveDown')}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="shrink-0 text-muted-foreground hover:text-error"
+                    onClick={() =>
+                      setDraftSkills((prev) =>
+                        prev.filter((s) => s.skill_id !== skill.skill_id)
                       )
-                    )
-                  }
-                  className={cn(
-                    'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
-                    rule.enabled
-                      ? 'border-success/40 bg-success/10 text-success'
-                      : 'border-border bg-muted text-muted-foreground'
-                  )}
-                >
-                  {rule.enabled
-                    ? t('detail.memberEnabled')
-                    : t('detail.memberDisabled')}
-                </button>
-                <button
-                  className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
-                  onClick={() => setDraftRules((prev) => move(prev, index, -1))}
-                  disabled={index === 0}
-                  title={t('drawer.moveUp')}
-                >
-                  <ChevronUp className="h-4 w-4" />
-                </button>
-                <button
-                  className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
-                  onClick={() => setDraftRules((prev) => move(prev, index, 1))}
-                  disabled={index === draftRules.length - 1}
-                  title={t('drawer.moveDown')}
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-                <button
-                  className="shrink-0 text-muted-foreground hover:text-error"
-                  onClick={() =>
-                    setDraftRules((prev) =>
-                      prev.filter((r) => r.rule_id !== rule.rule_id)
-                    )
-                  }
-                  title={t('drawer.remove')}
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
+                    }
+                    title={t('drawer.remove')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
 
-          {/* Changed-state summary */}
-          <div
-            aria-live="polite"
-            data-testid="drawer-summary"
-            className="mb-4 rounded-lg border border-border bg-muted/40 p-3"
-          >
-            <p className="mb-1 text-xs font-medium text-muted-foreground">
-              {t('drawer.summary')}
-            </p>
-            {!hasSummary && (
-              <p className="text-xs text-muted-foreground">
-                {t('drawer.summaryEmpty')}
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+              <FileText className="h-4 w-4 text-success" />
+              {t('sceneRules')}
+              <span className="text-xs font-normal text-muted-foreground">
+                ({draftRules.length})
+              </span>
+            </h3>
+            <div className="mb-6 space-y-1" data-testid="drawer-current-rules">
+              {draftRules.length === 0 && (
+                <p className="py-2 text-center text-xs text-muted-foreground">
+                  {t('detail.noRules')}
+                </p>
+              )}
+              {draftRules.map((rule, index) => (
+                <div
+                  key={rule.rule_id}
+                  data-testid="scene-member"
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2"
+                >
+                  <span className="min-w-0 flex-1 truncate text-sm text-foreground">
+                    {rule.rule_name || rule.rule_id}
+                  </span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={rule.enabled}
+                    data-testid="scene-member-toggle"
+                    aria-label={
+                      rule.enabled
+                        ? t('detail.memberEnabled')
+                        : t('detail.memberDisabled')
+                    }
+                    title={
+                      rule.enabled
+                        ? t('detail.memberDisabled')
+                        : t('detail.memberEnabled')
+                    }
+                    onClick={() =>
+                      setDraftRules((prev) =>
+                        prev.map((r) =>
+                          r.rule_id === rule.rule_id
+                            ? { ...r, enabled: !r.enabled }
+                            : r
+                        )
+                      )
+                    }
+                    className={cn(
+                      'shrink-0 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors',
+                      rule.enabled
+                        ? 'border-success/40 bg-success/10 text-success'
+                        : 'border-border bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {rule.enabled
+                      ? t('detail.memberEnabled')
+                      : t('detail.memberDisabled')}
+                  </button>
+                  <button
+                    className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
+                    onClick={() =>
+                      setDraftRules((prev) => move(prev, index, -1))
+                    }
+                    disabled={index === 0}
+                    title={t('drawer.moveUp')}
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="shrink-0 text-muted-foreground hover:text-primary disabled:opacity-30"
+                    onClick={() =>
+                      setDraftRules((prev) => move(prev, index, 1))
+                    }
+                    disabled={index === draftRules.length - 1}
+                    title={t('drawer.moveDown')}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  <button
+                    className="shrink-0 text-muted-foreground hover:text-error"
+                    onClick={() =>
+                      setDraftRules((prev) =>
+                        prev.filter((r) => r.rule_id !== rule.rule_id)
+                      )
+                    }
+                    title={t('drawer.remove')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Changed-state summary */}
+            <div
+              aria-live="polite"
+              data-testid="drawer-summary"
+              className="mb-4 rounded-lg border border-border bg-muted/40 p-3"
+            >
+              <p className="mb-1 text-xs font-medium text-muted-foreground">
+                {t('drawer.summary')}
               </p>
-            )}
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              {summary.addedSkills > 0 && (
-                <span className="text-success">
-                  {t('drawer.summaryAddedSkills', {
-                    count: summary.addedSkills,
-                  })}
-                </span>
+              {!hasSummary && (
+                <p className="text-xs text-muted-foreground">
+                  {t('drawer.summaryEmpty')}
+                </p>
               )}
-              {summary.removedSkills > 0 && (
-                <span className="text-error">
-                  {t('drawer.summaryRemovedSkills', {
-                    count: summary.removedSkills,
-                  })}
-                </span>
-              )}
-              {summary.addedRules > 0 && (
-                <span className="text-success">
-                  {t('drawer.summaryAddedRules', { count: summary.addedRules })}
-                </span>
-              )}
-              {summary.removedRules > 0 && (
-                <span className="text-error">
-                  {t('drawer.summaryRemovedRules', {
-                    count: summary.removedRules,
-                  })}
-                </span>
-              )}
-              {summary.reordered && (
-                <span className="text-foreground">
-                  {t('drawer.summaryReordered')}
-                </span>
-              )}
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {summary.addedSkills > 0 && (
+                  <span className="text-success">
+                    {t('drawer.summaryAddedSkills', {
+                      count: summary.addedSkills,
+                    })}
+                  </span>
+                )}
+                {summary.removedSkills > 0 && (
+                  <span className="text-error">
+                    {t('drawer.summaryRemovedSkills', {
+                      count: summary.removedSkills,
+                    })}
+                  </span>
+                )}
+                {summary.addedRules > 0 && (
+                  <span className="text-success">
+                    {t('drawer.summaryAddedRules', {
+                      count: summary.addedRules,
+                    })}
+                  </span>
+                )}
+                {summary.removedRules > 0 && (
+                  <span className="text-error">
+                    {t('drawer.summaryRemovedRules', {
+                      count: summary.removedRules,
+                    })}
+                  </span>
+                )}
+                {summary.reordered && (
+                  <span className="text-foreground">
+                    {t('drawer.summaryReordered')}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {saveError && (
-        <div
-          role="alert"
-          data-testid="drawer-save-error"
-          className="border-t border-error/30 bg-error/5 px-4 py-2 text-sm text-error"
-        >
-          {saveError}
+        {saveError && (
+          <div
+            role="alert"
+            data-testid="drawer-save-error"
+            className="border-t border-error/30 bg-error/5 px-4 py-2 text-sm text-error"
+          >
+            {saveError}
+          </div>
+        )}
+
+        {/* Footer — primary Save on the left anchor, Cancel after */}
+        <div className="flex items-center gap-2 border-t border-border px-4 py-3">
+          <button
+            className="flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {tc('actions.save')}
+          </button>
+          <button
+            className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
+            onClick={requestClose}
+          >
+            {tc('actions.cancel')}
+          </button>
         </div>
-      )}
-
-      {/* Footer — primary Save on the left anchor, Cancel after */}
-      <div className="flex items-center gap-2 border-t border-border px-4 py-3">
-        <button
-          className="flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          onClick={handleSave}
-          disabled={saving}
-        >
-          {tc('actions.save')}
-        </button>
-        <button
-          className="rounded-lg bg-secondary px-4 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/80"
-          onClick={requestClose}
-        >
-          {tc('actions.cancel')}
-        </button>
-      </div>
-
       </div>
       {/* Unsaved-leave dialog */}
       {showUnsaved && (

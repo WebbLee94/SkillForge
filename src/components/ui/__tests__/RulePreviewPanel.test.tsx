@@ -22,7 +22,9 @@ describe('RulePreviewPanel', () => {
   });
 
   it('renders markdown content when format is md', () => {
-    render(<RulePreviewPanel content="# Hello\nThis is **bold** text." format="md" />);
+    render(
+      <RulePreviewPanel content="# Hello\nThis is **bold** text." format="md" />
+    );
     return waitFor(() => {
       expect(screen.getByText('Hello', { exact: false })).toBeDefined();
       expect(screen.getByText('bold')).toBeDefined();
@@ -30,7 +32,9 @@ describe('RulePreviewPanel', () => {
   });
 
   it('renders markdown content when format is mdc', () => {
-    render(<RulePreviewPanel content="## Section\nSome content" format="mdc" />);
+    render(
+      <RulePreviewPanel content="## Section\nSome content" format="mdc" />
+    );
     return waitFor(() => {
       expect(screen.getByText('Section', { exact: false })).toBeDefined();
       expect(screen.getByText('Some content', { exact: false })).toBeDefined();
@@ -38,7 +42,8 @@ describe('RulePreviewPanel', () => {
   });
 
   it('renders YAML key-value pairs when format is not md/mdc', () => {
-    const yamlContent = 'name: test-rule\ndescription: A test rule\nseverity: warning';
+    const yamlContent =
+      'name: test-rule\ndescription: A test rule\nseverity: warning';
     render(<RulePreviewPanel content={yamlContent} format="yaml" />);
     expect(screen.getByText('name:')).toBeDefined();
     expect(screen.getByText('test-rule')).toBeDefined();
@@ -56,11 +61,14 @@ describe('RulePreviewPanel', () => {
   });
 
   it('ignores comment lines in YAML', () => {
-    const yamlContent = '# This is a comment\nname: real-value\n# another comment';
+    const yamlContent =
+      '# This is a comment\nname: real-value\n# another comment';
     render(<RulePreviewPanel content={yamlContent} format="yaml" />);
     expect(screen.getByText('name:')).toBeDefined();
     expect(screen.getByText('real-value')).toBeDefined();
-    const keySpans = document.querySelectorAll('[class*="font-mono text-primary"]');
+    const keySpans = document.querySelectorAll(
+      '[class*="font-mono text-primary"]'
+    );
     expect(keySpans.length).toBe(1);
   });
 
@@ -84,7 +92,8 @@ describe('RulePreviewPanel', () => {
   });
 
   it('renders GFM markdown (tables, links)', () => {
-    const mdContent = '| A | B |\n|---|---|\n| 1 | 2 |\n\n[link](https://example.com)';
+    const mdContent =
+      '| A | B |\n|---|---|\n| 1 | 2 |\n\n[link](https://example.com)';
     render(<RulePreviewPanel content={mdContent} format="md" />);
     return waitFor(() => {
       expect(screen.getByText('A', { exact: false })).toBeDefined();

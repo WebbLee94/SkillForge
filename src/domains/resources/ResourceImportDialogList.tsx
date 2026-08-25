@@ -1,6 +1,12 @@
 import { useTranslation } from 'react-i18next';
 import { cn } from '../../lib/utils';
-import { CheckCircle2, RotateCcw, AlertTriangle, X, XCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  RotateCcw,
+  AlertTriangle,
+  X,
+  XCircle,
+} from 'lucide-react';
 import type { ImportItem } from './ResourceImportDialog';
 
 const RESULT_BADGE = {
@@ -102,7 +108,9 @@ export function ResourceImportDialogList({
               <span
                 className={cn(
                   'shrink-0 rounded px-1.5 py-0.5 text-xs font-medium',
-                          RESULT_BADGE[(item.result || 'skipped') as keyof typeof RESULT_BADGE]
+                  RESULT_BADGE[
+                    (item.result || 'skipped') as keyof typeof RESULT_BADGE
+                  ]
                 )}
               >
                 {item.result === 'success' && (
@@ -131,7 +139,9 @@ export function ResourceImportDialogList({
                 {item.name}
               </p>
               {item.format && (
-                <span className="text-xs text-muted-foreground">.{item.format}</span>
+                <span className="text-xs text-muted-foreground">
+                  .{item.format}
+                </span>
               )}
               {!hasResults && item.reason && (
                 <p className="truncate text-xs text-muted-foreground">

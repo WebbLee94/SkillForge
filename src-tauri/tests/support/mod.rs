@@ -244,7 +244,7 @@ impl PlatformPlugin for TestPlatformPlugin {
         #[cfg(unix)]
         std::os::unix::fs::symlink(source, &target)?;
         #[cfg(not(unix))]
-        crate::plugins::platform::copy_dir_recursive(source, &target)?;
+        skillforge_lib::plugins::platform::copy_dir_recursive(source, &target)?;
         Ok(())
     }
 

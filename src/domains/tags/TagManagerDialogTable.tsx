@@ -1,6 +1,11 @@
 import { cn } from '../../lib/utils';
 import { Trash2 } from 'lucide-react';
-import type { Dispatch, KeyboardEventHandler, MutableRefObject, SetStateAction } from 'react';
+import type {
+  Dispatch,
+  KeyboardEventHandler,
+  MutableRefObject,
+  SetStateAction,
+} from 'react';
 import type { Tag } from '../../types';
 
 interface TagManagerDialogTableProps {
@@ -59,7 +64,10 @@ export function TagManagerDialogTable({
         </thead>
         <tbody>
           {filteredTags.map((tag) => (
-            <tr key={tag.id} className="group border-b border-border last:border-0">
+            <tr
+              key={tag.id}
+              className="group border-b border-border last:border-0"
+            >
               <td className="px-4 py-2">
                 <div className="relative">
                   <button
@@ -67,7 +75,9 @@ export function TagManagerDialogTable({
                     className="h-5 w-5 shrink-0 rounded-full border border-white/30 transition-transform hover:scale-125"
                     style={{ backgroundColor: tag.color || '#888' }}
                     onClick={() =>
-                      setColorPickerTagId(colorPickerTagId === tag.id ? null : tag.id)
+                      setColorPickerTagId(
+                        colorPickerTagId === tag.id ? null : tag.id
+                      )
                     }
                     title={t('tag.selectColor')}
                   />
@@ -77,7 +87,9 @@ export function TagManagerDialogTable({
                       className="fixed z-[9999] rounded-lg border border-border bg-popover p-2 shadow-lg"
                       style={{
                         top: (() => {
-                          const btn = document.querySelector(`[data-color-btn="${tag.id}"]`);
+                          const btn = document.querySelector(
+                            `[data-color-btn="${tag.id}"]`
+                          );
                           if (btn) {
                             const rect = btn.getBoundingClientRect();
                             return `${rect.bottom + 4}px`;
@@ -85,7 +97,9 @@ export function TagManagerDialogTable({
                           return '0px';
                         })(),
                         left: (() => {
-                          const btn = document.querySelector(`[data-color-btn="${tag.id}"]`);
+                          const btn = document.querySelector(
+                            `[data-color-btn="${tag.id}"]`
+                          );
                           if (btn) {
                             const rect = btn.getBoundingClientRect();
                             return `${rect.left}px`;
@@ -133,7 +147,9 @@ export function TagManagerDialogTable({
                   </button>
                 )}
               </td>
-              <td className="px-4 py-2 text-muted-foreground">{tag.count || 0}</td>
+              <td className="px-4 py-2 text-muted-foreground">
+                {tag.count || 0}
+              </td>
               <td className="px-4 py-2 text-right">
                 <button
                   className="text-muted-foreground transition-colors hover:text-error"
@@ -147,7 +163,10 @@ export function TagManagerDialogTable({
           ))}
           {filteredTags.length === 0 && (
             <tr>
-              <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
+              <td
+                colSpan={4}
+                className="px-4 py-8 text-center text-sm text-muted-foreground"
+              >
                 {t('messages.noData')}
               </td>
             </tr>

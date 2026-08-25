@@ -96,7 +96,11 @@ vi.mock('../domains/settings/Settings', () => {
   routeLoadCounts.settings += 1;
   return {
     Settings: () =>
-      React.createElement('div', { 'data-testid': 'page-settings' }, 'Settings'),
+      React.createElement(
+        'div',
+        { 'data-testid': 'page-settings' },
+        'Settings'
+      ),
   };
 });
 

@@ -8,7 +8,12 @@ const loadCounts = vi.hoisted(() => ({
 }));
 
 const testState = vi.hoisted(() => ({
-  scenes: [] as Array<{ id: string; name: string; description: string | null; updated_at: string }>,
+  scenes: [] as Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    updated_at: string;
+  }>,
   skills: [],
   rules: [],
   currentScene: null,
@@ -18,14 +23,16 @@ const testState = vi.hoisted(() => ({
 vi.mock('../domains/scenes/SceneEditorDrawer.lazy', () => {
   loadCounts.sceneEditorDrawer += 1;
   return {
-    default: () => React.createElement('div', { 'data-testid': 'scene-editor-drawer' }),
+    default: () =>
+      React.createElement('div', { 'data-testid': 'scene-editor-drawer' }),
   };
 });
 
 vi.mock('../domains/scenes/SceneInvalidRefsDialog.lazy', () => {
   loadCounts.sceneInvalidRefsDialog += 1;
   return {
-    default: () => React.createElement('div', { 'data-testid': 'scene-invalid-refs' }),
+    default: () =>
+      React.createElement('div', { 'data-testid': 'scene-invalid-refs' }),
   };
 });
 
@@ -43,7 +50,8 @@ vi.mock('../lib/ipc', () => ({
   },
 }));
 vi.mock('../stores/appStore', () => ({
-  useAppStore: (selector: (state: typeof testState) => unknown) => selector(testState),
+  useAppStore: (selector: (state: typeof testState) => unknown) =>
+    selector(testState),
 }));
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty' },

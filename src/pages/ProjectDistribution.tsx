@@ -157,7 +157,10 @@ export function ProjectDistribution() {
 
       {projects.length === 0 &&
       platforms.filter((p) => p.enabled).length === 0 ? (
-        <ProjectDistributionEmptyProjectsState title={t('noProjects')} hint={t('noProjectsHint')} />
+        <ProjectDistributionEmptyProjectsState
+          title={t('noProjects')}
+          hint={t('noProjectsHint')}
+        />
       ) : platforms.filter((p) => p.enabled).length === 0 ? (
         <ProjectDistributionNoPlatformsState
           title={t('noEnabledPlatforms')}
@@ -190,34 +193,40 @@ export function ProjectDistribution() {
           ) : (
             <ul className="space-y-2">
               {filteredProjects.map((project) => (
-                  <Suspense fallback={null}>
-                    <ProjectDistributionItem
-                      key={project.id}
-                      project={project}
-                      enabledPlatforms={enabledPlatforms}
-                      stats={platformStats[project.id]}
-                      batchEnabled={batch.enabled}
-                      isSelected={batch.isSelected(project.id)}
-                      editing={editingId === project.id}
-                      editNameValue={editNameValue}
-                      onSelectToggle={() => batch.toggleSelect(project.id)}
-                      onEditStart={() => {
-                        setEditingId(project.id);
-                        setEditNameValue(project.name);
-                      }}
-                      onEditNameChange={setEditNameValue}
-                      onEditCommit={() => void commitRename(project.id, editNameValue)}
-                      onEditCancel={() => setEditingId(null)}
-                      onGoDistribute={() => goDistribute(project.id)}
-                      onRevealFallback={() =>
-                        useAppStore.getState().addToast(t('ws.revealFallback'), 'info')
-                      }
-                      onRevealFailed={() =>
-                        useAppStore.getState().addToast(t('ws.revealFailed'), 'error')
-                      }
-                    />
-                  </Suspense>
-                ))}
+                <Suspense fallback={null}>
+                  <ProjectDistributionItem
+                    key={project.id}
+                    project={project}
+                    enabledPlatforms={enabledPlatforms}
+                    stats={platformStats[project.id]}
+                    batchEnabled={batch.enabled}
+                    isSelected={batch.isSelected(project.id)}
+                    editing={editingId === project.id}
+                    editNameValue={editNameValue}
+                    onSelectToggle={() => batch.toggleSelect(project.id)}
+                    onEditStart={() => {
+                      setEditingId(project.id);
+                      setEditNameValue(project.name);
+                    }}
+                    onEditNameChange={setEditNameValue}
+                    onEditCommit={() =>
+                      void commitRename(project.id, editNameValue)
+                    }
+                    onEditCancel={() => setEditingId(null)}
+                    onGoDistribute={() => goDistribute(project.id)}
+                    onRevealFallback={() =>
+                      useAppStore
+                        .getState()
+                        .addToast(t('ws.revealFallback'), 'info')
+                    }
+                    onRevealFailed={() =>
+                      useAppStore
+                        .getState()
+                        .addToast(t('ws.revealFailed'), 'error')
+                    }
+                  />
+                </Suspense>
+              ))}
             </ul>
           )}
 
@@ -243,7 +252,13 @@ export function ProjectDistribution() {
               <AddProjectDialog
                 open={showAddDialog}
                 onClose={() => setShowAddDialog(false)}
-                onConfirm={async ({ name, path }: { name: string; path: string }) => {
+                onConfirm={async ({
+                  name,
+                  path,
+                }: {
+                  name: string;
+                  path: string;
+                }) => {
                   await addProject(name, path);
                   setShowAddDialog(false);
                 }}

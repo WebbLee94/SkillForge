@@ -8,7 +8,9 @@ export const SyncConfirmDialog = memo(function SyncConfirmDialog() {
   const { t: tc } = useTranslation('common');
   const pending = useAppStore((s) => s.pendingSyncConfirm);
   const resolveConfirm = useAppStore((s) => s.resolveSyncConfirm);
-  const pendingRemovalConfirmation = useAppStore((s) => s.pendingRemovalConfirmation);
+  const pendingRemovalConfirmation = useAppStore(
+    (s) => s.pendingRemovalConfirmation
+  );
 
   if (!pending || !resolveConfirm) return null;
 
@@ -61,7 +63,9 @@ export const SyncConfirmDialog = memo(function SyncConfirmDialog() {
         </div>
 
         <p className="mb-3 text-sm text-muted-foreground">
-          {hasActualRemovals ? tc('syncConfirm.warning') : tc('syncConfirm.changes')}
+          {hasActualRemovals
+            ? tc('syncConfirm.warning')
+            : tc('syncConfirm.changes')}
         </p>
 
         <div className="space-y-3 mb-4">

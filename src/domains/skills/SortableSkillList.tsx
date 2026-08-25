@@ -67,9 +67,11 @@ export const SortableSkillList = memo(function SortableSkillList({
                 : 'text-muted-foreground hover:text-primary'
             )}
             onClick={() => !disabled && onToggle(skill.skill_id)}
-            title={skill.enabled
-              ? t('common:actions.disable')
-              : t('common:actions.enable')}
+            title={
+              skill.enabled
+                ? t('common:actions.disable')
+                : t('common:actions.enable')
+            }
           >
             {skill.enabled ? (
               <ToggleRight className="h-4 w-4 text-primary" />

@@ -24,27 +24,38 @@ describe('RuleEditor', () => {
   const baseContent = '# Test Rule\n\nsome content here\n\nthird line';
 
   it('渲染内容文本', () => {
-    render(<RuleEditor content={baseContent} onChange={() => {}} format="md" />);
+    render(
+      <RuleEditor content={baseContent} onChange={() => {}} format="md" />
+    );
     const textarea = screen.getByRole('textbox');
     expect(textarea).toHaveValue(baseContent);
   });
 
   it('显示 format 标签和行数', () => {
-    render(<RuleEditor content={baseContent} onChange={() => {}} format="yaml" />);
+    render(
+      <RuleEditor content={baseContent} onChange={() => {}} format="yaml" />
+    );
     expect(screen.getByText('YAML 编辑器')).toBeDefined();
     expect(screen.getByText('5 行')).toBeDefined();
   });
 
   it('在 readOnly 模式下 textarea 为只读', () => {
     render(
-      <RuleEditor content={baseContent} onChange={() => {}} format="md" readOnly />
+      <RuleEditor
+        content={baseContent}
+        onChange={() => {}}
+        format="md"
+        readOnly
+      />
     );
     const textarea = screen.getByRole('textbox');
     expect(textarea).toHaveAttribute('readonly');
   });
 
   it('切换视图模式：edit → preview → split', () => {
-    render(<RuleEditor content={baseContent} onChange={() => {}} format="md" />);
+    render(
+      <RuleEditor content={baseContent} onChange={() => {}} format="md" />
+    );
 
     // 默认 split 模式 — textarea 和 preview 都存在
     expect(screen.getByRole('textbox')).toBeDefined();
@@ -70,14 +81,19 @@ describe('RuleEditor', () => {
     const handleChange = vi.fn();
     render(<RuleEditor content="" onChange={handleChange} format="md" />);
 
-    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'new content' } });
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'new content' },
+    });
     expect(handleChange).toHaveBeenCalledWith('new content');
   });
 
   it('显示占位文本', () => {
     render(<RuleEditor content="" onChange={() => {}} format="md" />);
     const textarea = screen.getByRole('textbox');
-    expect(textarea).toHaveAttribute('placeholder', 'Write rule content here...');
+    expect(textarea).toHaveAttribute(
+      'placeholder',
+      'Write rule content here...'
+    );
   });
 
   it('空内容显示 1 行', () => {
@@ -86,7 +102,9 @@ describe('RuleEditor', () => {
   });
 
   it('MD editor 标签显示', () => {
-    render(<RuleEditor content={baseContent} onChange={() => {}} format="md" />);
+    render(
+      <RuleEditor content={baseContent} onChange={() => {}} format="md" />
+    );
     expect(screen.getByText('MD 编辑器')).toBeDefined();
   });
 });

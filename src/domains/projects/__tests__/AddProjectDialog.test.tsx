@@ -32,7 +32,9 @@ describe('AddProjectDialog', () => {
 
   it('输入项目路径和名称', () => {
     render(<AddProjectDialog {...baseProps} open />);
-    const pathInput = screen.getByPlaceholderText('addProjectDialog.selectFolder');
+    const pathInput = screen.getByPlaceholderText(
+      'addProjectDialog.selectFolder'
+    );
     const nameInput = screen.getByPlaceholderText('projectNamePlaceholder');
 
     fireEvent.change(pathInput, { target: { value: '/Users/test/project' } });
@@ -50,9 +52,12 @@ describe('AddProjectDialog', () => {
 
   it('填写字段后确认按钮启用', () => {
     render(<AddProjectDialog {...baseProps} open />);
-    fireEvent.change(screen.getByPlaceholderText('addProjectDialog.selectFolder'), {
-      target: { value: '/path' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText('addProjectDialog.selectFolder'),
+      {
+        target: { value: '/path' },
+      }
+    );
     fireEvent.change(screen.getByPlaceholderText('projectNamePlaceholder'), {
       target: { value: 'Name' },
     });
@@ -63,14 +68,20 @@ describe('AddProjectDialog', () => {
   it('点击确认触发 onConfirm 并清空字段', () => {
     const onConfirm = vi.fn();
     render(<AddProjectDialog {...baseProps} open onConfirm={onConfirm} />);
-    fireEvent.change(screen.getByPlaceholderText('addProjectDialog.selectFolder'), {
-      target: { value: '/my/path' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText('addProjectDialog.selectFolder'),
+      {
+        target: { value: '/my/path' },
+      }
+    );
     fireEvent.change(screen.getByPlaceholderText('projectNamePlaceholder'), {
       target: { value: 'MyProj' },
     });
     fireEvent.click(screen.getByText('addProjectDialog.confirm'));
-    expect(onConfirm).toHaveBeenCalledWith({ name: 'MyProj', path: '/my/path' });
+    expect(onConfirm).toHaveBeenCalledWith({
+      name: 'MyProj',
+      path: '/my/path',
+    });
   });
 
   it('点击取消触发 onClose', () => {
@@ -83,14 +94,18 @@ describe('AddProjectDialog', () => {
   it('点击 X 按钮触发 onClose', () => {
     const onClose = vi.fn();
     render(<AddProjectDialog {...baseProps} open onClose={onClose} />);
-    const xButton = document.querySelector('button svg.lucide-x')?.closest('button');
+    const xButton = document
+      .querySelector('button svg.lucide-x')
+      ?.closest('button');
     if (xButton) fireEvent.click(xButton);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('文件夹选择按钮存在', () => {
     render(<AddProjectDialog {...baseProps} open />);
-    const folderButton = document.querySelector('button svg.lucide-folder-open')?.closest('button');
+    const folderButton = document
+      .querySelector('button svg.lucide-folder-open')
+      ?.closest('button');
     expect(folderButton).toBeDefined();
   });
 });

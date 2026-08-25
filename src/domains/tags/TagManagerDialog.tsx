@@ -147,31 +147,31 @@ export function TagManagerDialog({
     <>
       <TagManagerDialogBody
         filteredTags={filteredTags}
-      searchQuery={searchQuery}
-      setSearchQuery={setSearchQuery}
-      showCreate={showCreate}
-      setShowCreate={setShowCreate}
-      newName={newName}
-      setNewName={setNewName}
-      newColor={newColor}
-      setNewColor={setNewColor}
-      editingTagId={editingTagId}
-      editName={editName}
-      setEditName={setEditName}
-      colorPickerTagId={colorPickerTagId}
-      setColorPickerTagId={setColorPickerTagId}
-      editInputRef={editInputRef}
-      colorPickerRef={colorPickerRef}
-      title={title}
-      presetColors={PRESET_COLORS}
-      onClose={onClose}
-      onCreate={handleCreate}
-      onDeleteRequest={handleDelete}
-      onStartEditName={startEditName}
-      onSaveEditName={saveEditName}
-      onEditKeyDown={handleEditKeyDown}
-      onColorSelect={handleColorSelect}
-    />
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        showCreate={showCreate}
+        setShowCreate={setShowCreate}
+        newName={newName}
+        setNewName={setNewName}
+        newColor={newColor}
+        setNewColor={setNewColor}
+        editingTagId={editingTagId}
+        editName={editName}
+        setEditName={setEditName}
+        colorPickerTagId={colorPickerTagId}
+        setColorPickerTagId={setColorPickerTagId}
+        editInputRef={editInputRef}
+        colorPickerRef={colorPickerRef}
+        title={title}
+        presetColors={PRESET_COLORS}
+        onClose={onClose}
+        onCreate={handleCreate}
+        onDeleteRequest={handleDelete}
+        onStartEditName={startEditName}
+        onSaveEditName={saveEditName}
+        onEditKeyDown={handleEditKeyDown}
+        onColorSelect={handleColorSelect}
+      />
 
       <ConfirmDialog
         open={confirmDeleteTagId !== null}

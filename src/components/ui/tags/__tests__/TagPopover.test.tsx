@@ -174,7 +174,9 @@ describe('TagPopover', () => {
     render(<TagPopover {...baseProps} />);
     fireEvent.click(screen.getByTestId('tag-popover-trigger'));
 
-    const listbox = document.body.querySelector('[role="listbox"]') as HTMLElement;
+    const listbox = document.body.querySelector(
+      '[role="listbox"]'
+    ) as HTMLElement;
     expect(listbox).not.toBeNull();
     expect(listbox.style.position).toBe('fixed');
     expect(listbox.style.top).toBeTruthy();

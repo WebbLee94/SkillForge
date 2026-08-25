@@ -10,9 +10,10 @@ use skillforge_lib::db::migrations;
 use skillforge_lib::engine::dist_execute;
 use skillforge_lib::error::AppError;
 use skillforge_lib::plugins::platform::PlatformPlugin;
+use skillforge_lib::types::{DistributionIntent, DistributionIntentMode, DistributionRequest};
+#[cfg(unix)]
 use skillforge_lib::types::{
-    DistributionIntent, DistributionIntentMode, DistributionRequest, PlatformCapabilities,
-    PlatformInstance, PlatformPaths, Skill, SkillPlatformStatus, SyncResult,
+    PlatformCapabilities, PlatformInstance, PlatformPaths, Skill, SkillPlatformStatus, SyncResult,
 };
 
 mod support;
@@ -108,6 +109,7 @@ fn execute_rejects_stale_plan() {
     ));
 }
 
+#[cfg(unix)]
 #[test]
 fn execute_removes_selected_managed_skill() {
     let conn = init_db();
@@ -206,6 +208,7 @@ fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str, format: &st
 
 /// Pre-deploy a skill symlink so it is already in sync (mirrors
 /// `execute_removes_selected_managed_skill`).
+#[cfg(unix)]
 fn presync_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlugin, id: &str) {
     let source: String = conn
         .query_row(
@@ -215,12 +218,10 @@ fn presync_skill(conn: &rusqlite::Connection, plugin: &support::TestPlatformPlug
         )
         .unwrap();
     std::fs::create_dir_all(plugin.skills_dir()).unwrap();
-    #[cfg(unix)]
     std::os::unix::fs::symlink(&source, plugin.skills_dir().join(id)).unwrap();
-    #[cfg(not(unix))]
-    std::fs::create_dir_all(plugin.skills_dir().join(id)).unwrap();
 }
 
+#[cfg(unix)]
 #[test]
 fn execute_distribution_counts_skipped_for_skill_already_in_sync() {
     let conn = init_db();
@@ -325,6 +326,7 @@ fn execute_distribution_counts_skipped_for_single_file_rule_already_in_sync() {
     assert!(result.errors.is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn execute_distribution_counts_skipped_across_skills_and_rules() {
     let conn = init_db();
@@ -351,6 +353,7 @@ fn execute_distribution_counts_skipped_across_skills_and_rules() {
     assert!(result.errors.is_empty());
 }
 
+#[cfg(unix)]
 #[test]
 fn sync_scene_counts_skipped_for_skill_already_on_disk() {
     let conn = init_db();
@@ -407,9 +410,11 @@ fn sync_scene_counts_skipped_for_rule_already_in_sync() {
 // ── remove_distributed 执行契约（33 号 3.3 / DEC-1，A6）─────────────
 
 /// 确定性失败注入：委托 TestPlatformPlugin 全部方法，仅 remove 恒返 Err。
+#[cfg(unix)]
 struct FailingRemovePlugin {
     inner: support::TestPlatformPlugin,
 }
+#[cfg(unix)]
 impl PlatformPlugin for FailingRemovePlugin {
     fn platform_name(&self) -> &'static str {
         self.inner.platform_name()

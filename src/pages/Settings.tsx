@@ -1,4 +1,11 @@
-import { Suspense, lazy, useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Suspense,
+  lazy,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { ipc } from '../lib/ipc';
 import { cn } from '../lib/utils';
@@ -7,7 +14,9 @@ import { ExternalLink, Database, FolderOpen, Sun, Moon } from 'lucide-react';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useAppStore } from '../stores/appStore';
 import { useTheme } from '../hooks/useTheme';
-const PlatformsPanel = lazy(() => import('../domains/settings/PlatformsPanel.lazy'));
+const PlatformsPanel = lazy(
+  () => import('../domains/settings/PlatformsPanel.lazy')
+);
 import type {
   Platform,
   PlatformCapabilities,
@@ -51,7 +60,9 @@ export function Settings() {
   const [countsMap, setCountsMap] = useState<
     Record<string, PlatformEntryCount>
   >({});
-  const [tooltipPlatformId, setTooltipPlatformId] = useState<string | null>(null);
+  const [tooltipPlatformId, setTooltipPlatformId] = useState<string | null>(
+    null
+  );
   const [pinnedPlatformId, setPinnedPlatformId] = useState<string | null>(null);
   const closeDelayRef = useRef<number | null>(null);
   const triggerRefs = useRef(new Map<string, HTMLButtonElement | null>());
@@ -138,7 +149,10 @@ export function Settings() {
       const results = await Promise.all(
         platforms.map(async (platform) => {
           try {
-            return [platform.id, await ipc.getCapabilities(platform.id)] as const;
+            return [
+              platform.id,
+              await ipc.getCapabilities(platform.id),
+            ] as const;
           } catch (error) {
             console.error('getCapabilities failed:', error);
             return null;
@@ -195,8 +209,6 @@ export function Settings() {
     [i18n]
   );
 
-
-
   const handleTogglePlatform = useCallback(async (platform: Platform) => {
     setTogglingId(platform.id);
     try {
@@ -210,10 +222,13 @@ export function Settings() {
     }
   }, []);
 
-  const handleCopyPath = useCallback((path: string) => {
-    navigator.clipboard.writeText(path);
-    addToast(t('settings:platforms.capLabels.copied'), 'success');
-  }, [addToast, t]);
+  const handleCopyPath = useCallback(
+    (path: string) => {
+      navigator.clipboard.writeText(path);
+      addToast(t('settings:platforms.capLabels.copied'), 'success');
+    },
+    [addToast, t]
+  );
 
   const handleShowTooltip = useCallback((platformId: string) => {
     setTooltipPlatformId(platformId);
@@ -237,7 +252,8 @@ export function Settings() {
   ];
 
   return (
-    <div data-testid="dashboard-page"
+    <div
+      data-testid="dashboard-page"
       className="flex h-full flex-col overflow-y-auto"
     >
       <div className="border-b border-border pb-3">
@@ -388,7 +404,6 @@ export function Settings() {
                   </button>
                 </div>
               </div>
-
             </div>
 
             {/* Data directory + DB size */}

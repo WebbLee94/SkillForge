@@ -200,10 +200,16 @@ describe('ProjectDistribution', () => {
       list_platforms: [mkPlat('claude', 'Claude Code')],
     });
     render(<ProjectDistribution />);
-    await waitFor(() => expect(screen.getByTestId('project-card-p-1')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('project-card-p-1')).toBeDefined()
+    );
     const card = screen.getByTestId('project-card-p-1');
-    const nameZone = card.querySelector('[data-testid="project-name-zone-p-1"]');
-    const pathZone = card.querySelector('[data-testid="project-path-zone-p-1"]');
+    const nameZone = card.querySelector(
+      '[data-testid="project-name-zone-p-1"]'
+    );
+    const pathZone = card.querySelector(
+      '[data-testid="project-path-zone-p-1"]'
+    );
     // 整卡：仅命名 group/card，无普通 group（.group:hover .action-reveal 不跨区域揭示）
     const cardTokens = card.className.split(/\s+/);
     expect(cardTokens).not.toContain('group');
@@ -236,7 +242,9 @@ describe('ProjectDistribution', () => {
     );
 
     const card = screen.getByTestId('project-card-p-1');
-    const pathZone = card.querySelector('[data-testid="project-path-zone-p-1"]');
+    const pathZone = card.querySelector(
+      '[data-testid="project-path-zone-p-1"]'
+    );
     const reveal = screen.getByTestId('project-reveal-p-1');
     expect(pathZone?.className).toContain('group');
     expect(reveal.className).toContain('action-reveal');
@@ -265,7 +273,9 @@ describe('ProjectDistribution', () => {
       const { toasts } = useAppStore.getState();
       // i18n mock 返回 raw key，toast message 即为 'ws.revealFailed'
       expect(
-        toasts.some((t) => t.message === 'ws.revealFailed' && t.type === 'error')
+        toasts.some(
+          (t) => t.message === 'ws.revealFailed' && t.type === 'error'
+        )
       ).toBe(true);
     });
   });
@@ -630,7 +640,12 @@ describe('ProjectDistribution', () => {
       // 各平台返回不同统计：若 claude/cursor 内容串线，相同值无法暴露，必须差异化
       count_platform_entries: async (p: { platformId: string }) => {
         if (p.platformId === 'claude') {
-          return { platform_id: 'claude', skills: 2, rules: 1, dir_exists: true };
+          return {
+            platform_id: 'claude',
+            skills: 2,
+            rules: 1,
+            dir_exists: true,
+          };
         }
         return { platform_id: 'cursor', skills: 5, rules: 3, dir_exists: true };
       },
@@ -676,10 +691,17 @@ describe('ProjectDistribution', () => {
     await seedRoutes({
       list_projects: [proj],
       list_platforms: [plat],
-      count_platform_entries: { platform_id: 'claude', skills: 2, rules: 1, dir_exists: true },
+      count_platform_entries: {
+        platform_id: 'claude',
+        skills: 2,
+        rules: 1,
+        dir_exists: true,
+      },
     });
     render(<ProjectDistribution />);
-    await waitFor(() => expect(screen.getByTestId('project-stats-chip-claude')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('project-stats-chip-claude')).toBeDefined()
+    );
     const chip = screen.getByTestId('project-stats-chip-claude');
     expect(chip.textContent).toContain('2');
     expect(chip.textContent).toContain('1');
@@ -691,19 +713,25 @@ describe('ProjectDistribution', () => {
 
   it('dirExists=false 或双零平台不渲染 chip', async () => {
     const proj = mkProj('p-1', 'My Project');
-    const a = mkPlat('a', 'A'); const b = mkPlat('b', 'B'); const c = mkPlat('c', 'C');
+    const a = mkPlat('a', 'A');
+    const b = mkPlat('b', 'B');
+    const c = mkPlat('c', 'C');
     await seedRoutes({
       list_projects: [proj],
       list_platforms: [a, b, c],
       // a: 无目录；b: 双零；c: 有内容
       count_platform_entries: async (p: { platformId: string }) => {
-        if (p.platformId === 'a') return { platform_id: 'a', skills: 0, rules: 0, dir_exists: false };
-        if (p.platformId === 'b') return { platform_id: 'b', skills: 0, rules: 0, dir_exists: true };
+        if (p.platformId === 'a')
+          return { platform_id: 'a', skills: 0, rules: 0, dir_exists: false };
+        if (p.platformId === 'b')
+          return { platform_id: 'b', skills: 0, rules: 0, dir_exists: true };
         return { platform_id: 'c', skills: 3, rules: 0, dir_exists: true };
       },
     });
     render(<ProjectDistribution />);
-    await waitFor(() => expect(screen.getByTestId('project-stats-chip-c')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('project-stats-chip-c')).toBeDefined()
+    );
     expect(screen.queryByTestId('project-stats-chip-a')).toBeNull();
     expect(screen.queryByTestId('project-stats-chip-b')).toBeNull();
   });
@@ -713,10 +741,17 @@ describe('ProjectDistribution', () => {
     await seedRoutes({
       list_projects: [proj],
       list_platforms: [mkPlat('claude', 'Claude Code')],
-      count_platform_entries: { platform_id: 'claude', skills: 0, rules: 0, dir_exists: false },
+      count_platform_entries: {
+        platform_id: 'claude',
+        skills: 0,
+        rules: 0,
+        dir_exists: false,
+      },
     });
     render(<ProjectDistribution />);
-    await waitFor(() => expect(screen.getByTestId('project-stats-empty')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('project-stats-empty')).toBeDefined()
+    );
     expect(screen.queryByTestId(/project-stats-chip-/)).toBeNull();
   });
 });

@@ -372,9 +372,9 @@ describe('Settings', () => {
     );
     expect(document.documentElement).toHaveClass('dark');
     expect(
-      screen.getByRole('switch', { name: /深色模式|dark mode/i }).getAttribute(
-        'aria-checked'
-      )
+      screen
+        .getByRole('switch', { name: /深色模式|dark mode/i })
+        .getAttribute('aria-checked')
     ).toBe('true');
   });
 
@@ -647,10 +647,18 @@ describe('Settings', () => {
 
     fireEvent.focus(trigger);
     const tooltip = await screen.findByTestId('platform-path-tooltip');
-    expect(within(tooltip).getByText('settings:platforms.capLabels.skillsGlobal')).toBeDefined();
-    expect(within(tooltip).getByText('settings:platforms.capLabels.skillsProject')).toBeDefined();
-    expect(within(tooltip).getByText('settings:platforms.capLabels.rulesGlobal')).toBeDefined();
-    expect(within(tooltip).getByText('settings:platforms.capLabels.rulesProject')).toBeDefined();
+    expect(
+      within(tooltip).getByText('settings:platforms.capLabels.skillsGlobal')
+    ).toBeDefined();
+    expect(
+      within(tooltip).getByText('settings:platforms.capLabels.skillsProject')
+    ).toBeDefined();
+    expect(
+      within(tooltip).getByText('settings:platforms.capLabels.rulesGlobal')
+    ).toBeDefined();
+    expect(
+      within(tooltip).getByText('settings:platforms.capLabels.rulesProject')
+    ).toBeDefined();
     expect(within(tooltip).getByText('/home/.claude/skills')).toBeDefined();
     expect(within(tooltip).getByText('/home/.claude/rules')).toBeDefined();
     expect(
@@ -659,7 +667,9 @@ describe('Settings', () => {
     expect(screen.queryByText(/检测/i)).toBeNull();
 
     fireEvent.blur(trigger);
-    expect(screen.queryByText('settings:platforms.capLabels.skillsGlobal')).toBeNull();
+    expect(
+      screen.queryByText('settings:platforms.capLabels.skillsGlobal')
+    ).toBeNull();
 
     fireEvent.focus(trigger);
     expect(await screen.findByTestId('platform-path-tooltip')).toBeDefined();
@@ -684,7 +694,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,
@@ -749,7 +760,10 @@ describe('Settings', () => {
         version: '1.0.0',
       },
       get_db_size: '1.1 MB',
-      list_platforms: [platform('claude', 'Claude Code'), platform('github', 'GitHub Copilot')],
+      list_platforms: [
+        platform('claude', 'Claude Code'),
+        platform('github', 'GitHub Copilot'),
+      ],
       get_platform_capabilities: {
         skills_global: true,
         skills_project: true,
@@ -803,7 +817,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,
@@ -835,15 +850,15 @@ describe('Settings', () => {
     await waitFor(() => expect(screen.getByText('Claude Code')).toBeDefined());
     await waitForCapabilityTriggers();
 
-    fireEvent.click(
-      screen.getAllByRole('button', { name: /路径与能力/ })[0]
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: /路径与能力/ })[0]);
     fireEvent.click(
       screen.getAllByRole('button', {
         name: 'settings:platforms.capLabels.copyPath',
       })[0]
     );
-    expect(writeText).toHaveBeenCalledWith('/Users/test/.config/opencode/skills');
+    expect(writeText).toHaveBeenCalledWith(
+      '/Users/test/.config/opencode/skills'
+    );
     expect(
       screen.getByText('settings:platforms.capLabels.skillsGlobal')
     ).toBeDefined();
@@ -874,7 +889,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,
@@ -959,7 +975,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,
@@ -991,9 +1008,7 @@ describe('Settings', () => {
     await waitFor(() => expect(screen.getByText('Claude Code')).toBeDefined());
     await waitForCapabilityTriggers();
 
-    fireEvent.click(
-      screen.getAllByRole('button', { name: /路径与能力/ })[0]
-    );
+    fireEvent.click(screen.getAllByRole('button', { name: /路径与能力/ })[0]);
     expect(screen.queryByText(/检测/i)).toBeNull();
   });
 
@@ -1014,7 +1029,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,
@@ -1065,7 +1081,9 @@ describe('Settings', () => {
     expect(general.className).not.toContain('max-w-[600px]');
     expect(general.className).toContain('max-w-[1180px]');
     expect(general.className).toContain('pt-3');
-    fireEvent.click(screen.getByRole('tab', { name: /settings:tabs.platforms/ }));
+    fireEvent.click(
+      screen.getByRole('tab', { name: /settings:tabs.platforms/ })
+    );
     const platformWrap = screen.getByTestId('platform-table-wrap');
     expect(platformWrap.className).toContain('pt-3');
   });
@@ -1087,7 +1105,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,
@@ -1102,7 +1121,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/github/skills',
-            project_skills_pattern: '/Users/test/github/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/github/projects/{project}/skills',
             global_rules_dir: null,
             project_rules_pattern: null,
             global_rules_format: null,
@@ -1155,7 +1175,8 @@ describe('Settings', () => {
           icon: null,
           paths: {
             global_skills_dir: '/Users/test/.config/opencode/skills',
-            project_skills_pattern: '/Users/test/.config/opencode/projects/{project}/skills',
+            project_skills_pattern:
+              '/Users/test/.config/opencode/projects/{project}/skills',
             global_rules_dir: '/Users/test/.config/opencode/rules',
             project_rules_pattern: null,
             global_rules_format: null,

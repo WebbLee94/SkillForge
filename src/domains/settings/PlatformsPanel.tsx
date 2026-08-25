@@ -50,7 +50,10 @@ export function PlatformsPanel({
   const { t } = useTranslation('settings');
 
   return (
-    <div data-testid="platform-table-wrap" className="max-w-[1180px] space-y-3 pt-3">
+    <div
+      data-testid="platform-table-wrap"
+      className="max-w-[1180px] space-y-3 pt-3"
+    >
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium text-foreground">
           {t('settings:platforms.title')}
@@ -86,8 +89,16 @@ export function PlatformsPanel({
                 const caps = capabilitiesMap[platform.id];
                 const cnt = countsMap[platform.id];
                 return (
-                  <tr key={platform.id} className="border-b border-border last:border-0">
-                    <td className={cn('px-4 py-3', !platform.enabled && 'opacity-60')}>
+                  <tr
+                    key={platform.id}
+                    className="border-b border-border last:border-0"
+                  >
+                    <td
+                      className={cn(
+                        'px-4 py-3',
+                        !platform.enabled && 'opacity-60'
+                      )}
+                    >
                       <div className="flex items-center gap-3">
                         <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60">
                           <IconComp className="h-5 w-5 text-muted-foreground" />
@@ -99,7 +110,9 @@ export function PlatformsPanel({
                           />
                         </span>
                         <div className="min-w-0">
-                          <div className="font-medium text-foreground">{platform.name}</div>
+                          <div className="font-medium text-foreground">
+                            {platform.name}
+                          </div>
                           {platform.enabled && cnt ? (
                             <div className="text-xs text-muted-foreground">
                               {t('settings:platforms.countsFormat', {
@@ -114,12 +127,32 @@ export function PlatformsPanel({
                     <td className="px-5 py-2 text-center">
                       {(() => {
                         if (!caps)
-                          return <span className="text-xs text-muted-foreground">-</span>;
+                          return (
+                            <span className="text-xs text-muted-foreground">
+                              -
+                            </span>
+                          );
                         const capabilityRows = [
-                          ['S', caps.skills_global, platform.paths?.global_skills_dir],
-                          ['S', caps.skills_project, platform.paths?.project_skills_pattern],
-                          ['R', caps.rules_global, platform.paths?.global_rules_dir],
-                          ['R', caps.rules_project, platform.paths?.project_rules_pattern],
+                          [
+                            'S',
+                            caps.skills_global,
+                            platform.paths?.global_skills_dir,
+                          ],
+                          [
+                            'S',
+                            caps.skills_project,
+                            platform.paths?.project_skills_pattern,
+                          ],
+                          [
+                            'R',
+                            caps.rules_global,
+                            platform.paths?.global_rules_dir,
+                          ],
+                          [
+                            'R',
+                            caps.rules_project,
+                            platform.paths?.project_rules_pattern,
+                          ],
                         ] as const;
                         const capabilityLabels = [
                           t('settings:platforms.capLabels.skillsGlobal'),
@@ -137,22 +170,29 @@ export function PlatformsPanel({
                               ref={(el) => {
                                 triggerRefs.current.set(platform.id, el);
                               }}
-                              aria-label={t('settings:platforms.capLabels.openTooltip', {
-                                name: platform.name,
-                              })}
+                              aria-label={t(
+                                'settings:platforms.capLabels.openTooltip',
+                                {
+                                  name: platform.name,
+                                }
+                              )}
                               className="inline-flex items-center gap-1 rounded-md px-0.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-ring"
                               onFocus={() => onShowTooltip(platform.id)}
                               onBlur={(e) => {
                                 if (pinnedPlatformId === platform.id) return;
-                                const next = e.relatedTarget as HTMLElement | null;
-                                if (next?.closest('[data-tooltip-panel]')) return;
+                                const next =
+                                  e.relatedTarget as HTMLElement | null;
+                                if (next?.closest('[data-tooltip-panel]'))
+                                  return;
                                 onHideTooltip(platform.id);
                               }}
                               onMouseEnter={() => {
                                 onClearTooltipCloseDelay();
                                 onShowTooltip(platform.id);
                               }}
-                              onMouseLeave={() => onScheduleTooltipClose(platform.id)}
+                              onMouseLeave={() =>
+                                onScheduleTooltipClose(platform.id)
+                              }
                               onClick={() => {
                                 if (pinnedPlatformId === platform.id) {
                                   onUnpinTooltip(platform.id);
@@ -194,28 +234,38 @@ export function PlatformsPanel({
                               }
                               triggerRef={triggerRef}
                               onMouseEnter={onClearTooltipCloseDelay}
-                              onMouseLeave={() => onScheduleTooltipClose(platform.id)}
+                              onMouseLeave={() =>
+                                onScheduleTooltipClose(platform.id)
+                              }
                               onBlur={(e) => {
                                 if (pinnedPlatformId === platform.id) return;
-                                const next = e.relatedTarget as HTMLElement | null;
-                                if (triggerRefs.current.get(platform.id) === next)
+                                const next =
+                                  e.relatedTarget as HTMLElement | null;
+                                if (
+                                  triggerRefs.current.get(platform.id) === next
+                                )
                                   return;
-                                if (next?.closest('[data-tooltip-panel]')) return;
+                                if (next?.closest('[data-tooltip-panel]'))
+                                  return;
                                 onHideTooltip(platform.id);
                               }}
                             >
                               <div className="text-xs">
                                 <div className="mb-2 font-medium text-foreground">
-                                  {t('settings:platforms.capLabels.tooltipTitle', {
-                                    name: platform.name,
-                                  })}
+                                  {t(
+                                    'settings:platforms.capLabels.tooltipTitle',
+                                    {
+                                      name: platform.name,
+                                    }
+                                  )}
                                 </div>
                                 <div
                                   data-testid="platform-path-tooltip"
                                   className="grid grid-cols-[76px_minmax(0,1fr)] gap-x-4 gap-y-1"
                                 >
                                   {capabilityRows.map((row, i) => {
-                                    const supported = row[1] === true && !!row[2];
+                                    const supported =
+                                      row[1] === true && !!row[2];
                                     return (
                                       <Fragment key={`${i}-${row[0]}`}>
                                         <span className="text-muted-foreground">
@@ -229,15 +279,21 @@ export function PlatformsPanel({
                                             <button
                                               type="button"
                                               className="shrink-0 text-muted-foreground hover:text-primary"
-                                              onClick={() => onCopyPath(row[2] as string)}
-                                              title={t('settings:platforms.capLabels.copyPath')}
+                                              onClick={() =>
+                                                onCopyPath(row[2] as string)
+                                              }
+                                              title={t(
+                                                'settings:platforms.capLabels.copyPath'
+                                              )}
                                             >
                                               <Clipboard className="h-3 w-3" />
                                             </button>
                                           </span>
                                         ) : (
                                           <span className="text-muted-foreground/50">
-                                            {t('settings:platforms.capLabels.notSupported')}
+                                            {t(
+                                              'settings:platforms.capLabels.notSupported'
+                                            )}
                                           </span>
                                         )}
                                       </Fragment>

@@ -16,7 +16,9 @@ export function DashboardQuickEntry({
   t,
 }: DashboardQuickEntryProps) {
   if (platforms.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t('messages.noData')}</p>;
+    return (
+      <p className="text-sm text-muted-foreground">{t('messages.noData')}</p>
+    );
   }
 
   return (

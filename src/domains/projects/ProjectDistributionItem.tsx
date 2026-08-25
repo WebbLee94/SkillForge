@@ -53,7 +53,10 @@ function ProjectStatsRow({
 
   if (rows.length === 0) {
     return (
-      <div className="mt-1 text-xs text-muted-foreground" data-testid="project-stats-empty">
+      <div
+        className="mt-1 text-xs text-muted-foreground"
+        data-testid="project-stats-empty"
+      >
         {t('projects.statsEmpty')}
       </div>
     );
@@ -150,8 +153,13 @@ export const ProjectDistributionItem = memo(function ProjectDistributionItem({
             </div>
           )}
 
-          <div data-testid={`project-path-zone-${project.id}`} className="group flex items-center gap-2">
-            <div className="truncate text-xs text-muted-foreground">{sanitizePath(project.path)}</div>
+          <div
+            data-testid={`project-path-zone-${project.id}`}
+            className="group flex items-center gap-2"
+          >
+            <div className="truncate text-xs text-muted-foreground">
+              {sanitizePath(project.path)}
+            </div>
             <button
               aria-label={isMacOS() ? t('ws.revealMac') : t('ws.revealWin')}
               title={isMacOS() ? t('ws.revealMac') : t('ws.revealWin')}
@@ -181,7 +189,11 @@ export const ProjectDistributionItem = memo(function ProjectDistributionItem({
         </button>
       </div>
 
-      <ProjectStatsRow enabledPlatforms={enabledPlatforms} stats={stats} t={t} />
+      <ProjectStatsRow
+        enabledPlatforms={enabledPlatforms}
+        stats={stats}
+        t={t}
+      />
     </li>
   );
 });

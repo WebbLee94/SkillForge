@@ -546,7 +546,10 @@ describe('SceneEditorDrawer — A16 有界渲染（可用资源池）', () => {
 
   it('renders only a bounded subset of a large skill pool', async () => {
     await seedInvoke({ list_tags: [] });
-    renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')), skills: manySkills(120) });
+    renderDrawer({
+      saved: aDetail(aScene('s1', 'Scene One')),
+      skills: manySkills(120),
+    });
     expect(screen.getAllByTestId('pool-item').length).toBe(BOUNDED_STEP);
     expect(screen.getByText('Pool Skill 0')).toBeDefined();
     expect(screen.queryByText(`Pool Skill ${BOUNDED_STEP}`)).toBeNull();
@@ -554,7 +557,10 @@ describe('SceneEditorDrawer — A16 有界渲染（可用资源池）', () => {
 
   it('pool show-more reveals the next bounded batch until exhausted', async () => {
     await seedInvoke({ list_tags: [] });
-    renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')), skills: manySkills(120) });
+    renderDrawer({
+      saved: aDetail(aScene('s1', 'Scene One')),
+      skills: manySkills(120),
+    });
     fireEvent.click(screen.getByTestId('show-more'));
     expect(screen.getAllByTestId('pool-item').length).toBe(BOUNDED_STEP * 2);
     expect(screen.getByText(`Pool Skill ${BOUNDED_STEP}`)).toBeDefined();
@@ -566,7 +572,10 @@ describe('SceneEditorDrawer — A16 有界渲染（可用资源池）', () => {
 
   it('selection and batch add still work on the bounded pool', async () => {
     await seedInvoke({ list_tags: [] });
-    renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')), skills: manySkills(120) });
+    renderDrawer({
+      saved: aDetail(aScene('s1', 'Scene One')),
+      skills: manySkills(120),
+    });
     const checkboxes = screen.getAllByRole('checkbox');
     expect(checkboxes.length).toBe(BOUNDED_STEP);
     fireEvent.click(checkboxes[0]);
@@ -577,7 +586,10 @@ describe('SceneEditorDrawer — A16 有界渲染（可用资源池）', () => {
 
   it('small pools render in full with no show-more button', async () => {
     await seedInvoke({ list_tags: [] });
-    renderDrawer({ saved: aDetail(aScene('s1', 'Scene One')), skills: manySkills(3) });
+    renderDrawer({
+      saved: aDetail(aScene('s1', 'Scene One')),
+      skills: manySkills(3),
+    });
     expect(screen.getAllByTestId('pool-item').length).toBe(3);
     expect(screen.queryByTestId('show-more')).toBeNull();
   });

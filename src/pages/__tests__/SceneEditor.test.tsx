@@ -467,11 +467,15 @@ describe('SceneEditor — configuration drawer', () => {
       expect(screen.getByText('detail.configure')).toBeDefined()
     );
     fireEvent.click(screen.getByText('detail.configure'));
-    await waitFor(() => expect(screen.getByTestId('scene-drawer')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('scene-drawer')).toBeDefined()
+    );
     expect(screen.getByTestId('scene-page-content')).toBeDefined();
 
     fireEvent.click(screen.getByTestId('scene-drawer-overlay'));
-    await waitFor(() => expect(screen.queryByTestId('scene-drawer')).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByTestId('scene-drawer')).toBeNull()
+    );
   });
 });
 
@@ -702,7 +706,9 @@ describe('SceneEditor — 详情读取态与原型操作顺序', () => {
     await seedInvoke(baseRoutes([s1], aDetail(s1)));
     render(<SceneEditor />);
 
-    await waitFor(() => expect(screen.getByTestId('scene-actions')).toBeDefined());
+    await waitFor(() =>
+      expect(screen.getByTestId('scene-actions')).toBeDefined()
+    );
     const actions = screen.getByTestId('scene-actions');
     expect(actions.className).toContain('flex-row');
     const buttons = within(actions).getAllByRole('button');

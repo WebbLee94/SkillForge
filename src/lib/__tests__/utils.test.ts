@@ -38,7 +38,9 @@ describe('sanitizePath', () => {
   });
 
   it('handles nested /Users/ path with multiple segments', () => {
-    expect(sanitizePath('/Users/admin/Documents/work/file.txt')).toBe('~/Documents/work/file.txt');
+    expect(sanitizePath('/Users/admin/Documents/work/file.txt')).toBe(
+      '~/Documents/work/file.txt'
+    );
   });
 
   it('handles just /Users/username alone', () => {

@@ -171,7 +171,9 @@ describe('ResourceCollection — A16 有界渲染', () => {
   it('list view "show more" reveals the next bounded batch until exhausted', () => {
     renderCollection({ view: 'list', items: manyItems(120) });
     fireEvent.click(screen.getByTestId('show-more'));
-    expect(screen.getAllByTestId('resource-item').length).toBe(BOUNDED_STEP * 2);
+    expect(screen.getAllByTestId('resource-item').length).toBe(
+      BOUNDED_STEP * 2
+    );
     expect(screen.getByText(`item-${BOUNDED_STEP}`)).toBeDefined();
     fireEvent.click(screen.getByTestId('show-more'));
     expect(screen.getAllByTestId('resource-item').length).toBe(120);
@@ -182,7 +184,10 @@ describe('ResourceCollection — A16 有界渲染', () => {
   it('group view bounds each group but keeps the full count in the header', () => {
     const tags = [mkTag(1, 'frontend')];
     renderCollection({
-      items: manyItems(120).map((it) => ({ ...it, tags: [mkTag(1, 'frontend')] })),
+      items: manyItems(120).map((it) => ({
+        ...it,
+        tags: [mkTag(1, 'frontend')],
+      })),
       tags,
     });
     const group = screen.getByRole('button', { name: /frontend\s*120/ });
@@ -195,13 +200,20 @@ describe('ResourceCollection — A16 有界渲染', () => {
   it('group view "show more" reveals the rest of a large group', () => {
     const tags = [mkTag(1, 'frontend')];
     renderCollection({
-      items: manyItems(120).map((it) => ({ ...it, tags: [mkTag(1, 'frontend')] })),
+      items: manyItems(120).map((it) => ({
+        ...it,
+        tags: [mkTag(1, 'frontend')],
+      })),
       tags,
     });
     fireEvent.click(screen.getByTestId('show-more'));
-    expect(screen.getAllByTestId('resource-item').length).toBe(BOUNDED_STEP * 2);
+    expect(screen.getAllByTestId('resource-item').length).toBe(
+      BOUNDED_STEP * 2
+    );
     expect(screen.getByText(`item-${BOUNDED_STEP}`)).toBeDefined();
-    expect(screen.getByRole('button', { name: /frontend\s*120/ })).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: /frontend\s*120/ })
+    ).toBeDefined();
   });
 
   it('small lists render in full with no show-more button', () => {

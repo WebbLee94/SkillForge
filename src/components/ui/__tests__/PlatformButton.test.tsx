@@ -28,8 +28,8 @@ describe('PlatformButton', () => {
   it('renders platform name and skill/rule counts', () => {
     render(<PlatformButton {...baseProps} />);
     expect(screen.getByText('Cursor')).toBeDefined();
-    const countContainer = screen.getByText((content) =>
-      content.includes('5') && content.includes('3')
+    const countContainer = screen.getByText(
+      (content) => content.includes('5') && content.includes('3')
     );
     expect(countContainer).toBeDefined();
   });
@@ -41,26 +41,34 @@ describe('PlatformButton', () => {
   });
 
   it('shows green dot when installed', () => {
-    const { container } = render(<PlatformButton {...baseProps} isInstalled={true} />);
+    const { container } = render(
+      <PlatformButton {...baseProps} isInstalled={true} />
+    );
     const dot = container.querySelector('button > span:first-child');
     expect(dot?.className).toContain('bg-green-500');
   });
 
   it('shows muted dot when not installed', () => {
-    const { container } = render(<PlatformButton {...baseProps} isInstalled={false} />);
+    const { container } = render(
+      <PlatformButton {...baseProps} isInstalled={false} />
+    );
     const dot = container.querySelector('button > span:first-child');
     expect(dot?.className).toContain('bg-muted-foreground');
   });
 
   it('applies selected styles when isSelected is true', () => {
-    const { container } = render(<PlatformButton {...baseProps} isSelected={true} />);
+    const { container } = render(
+      <PlatformButton {...baseProps} isSelected={true} />
+    );
     const btn = container.querySelector('button');
     expect(btn?.className).toContain('border-primary');
     expect(btn?.className).toContain('bg-primary');
   });
 
   it('applies default styles when not selected', () => {
-    const { container } = render(<PlatformButton {...baseProps} isSelected={false} />);
+    const { container } = render(
+      <PlatformButton {...baseProps} isSelected={false} />
+    );
     const btn = container.querySelector('button');
     expect(btn?.className).toContain('border-border');
     expect(btn?.className).toContain('bg-card');

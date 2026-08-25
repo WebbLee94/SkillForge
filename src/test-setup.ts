@@ -7,7 +7,10 @@ import '@testing-library/jest-dom';
  * 此处仅在缺失时安装一个内存版 polyfill，保证依赖 localStorage 的
  * 组件（如 Dashboard 的首启引导持久化）可以正常测试。
  */
-if (typeof window !== 'undefined' && typeof window.localStorage === 'undefined') {
+if (
+  typeof window !== 'undefined' &&
+  typeof window.localStorage === 'undefined'
+) {
   const store = new Map<string, string>();
   const localStorageMock = {
     getItem: (key: string) => (store.has(key) ? store.get(key)! : null),

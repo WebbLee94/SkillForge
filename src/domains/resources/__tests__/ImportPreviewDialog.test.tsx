@@ -14,7 +14,9 @@ const mockPlatforms = [
     platform_id: 'claude-code',
     platform_name: 'Claude Code',
     new_skills: [{ id: 's1', name: 'React', source_path: '/x/react.md' }],
-    new_rules: [{ id: 'r1', name: 'Style', format: 'md', source_path: '/x/style.md' }],
+    new_rules: [
+      { id: 'r1', name: 'Style', format: 'md', source_path: '/x/style.md' },
+    ],
     existing_skills: 2,
     existing_rules: 1,
   },
@@ -57,13 +59,17 @@ describe('ImportPreviewDialog', () => {
 
   it('显示新增技能和规则标签', () => {
     render(<ImportPreviewDialog {...baseProps} open />);
-    expect(screen.getByText('import.newSkills', { exact: false })).toBeDefined();
+    expect(
+      screen.getByText('import.newSkills', { exact: false })
+    ).toBeDefined();
     expect(screen.getByText('import.newRules', { exact: false })).toBeDefined();
   });
 
   it('显示已存在计数', () => {
     render(<ImportPreviewDialog {...baseProps} open />);
-    expect(screen.getAllByText('import.existing', { exact: false }).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText('import.existing', { exact: false }).length
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it('显示导入摘要', () => {
@@ -97,19 +103,37 @@ describe('ImportPreviewDialog', () => {
 
   it('导入中禁用取消按钮', () => {
     const onClose = vi.fn();
-    render(<ImportPreviewDialog {...baseProps} open importing onClose={onClose} />);
+    render(
+      <ImportPreviewDialog {...baseProps} open importing onClose={onClose} />
+    );
     const cancelBtn = screen.getByText('actions.cancel');
     fireEvent.click(cancelBtn);
     expect(onClose).not.toHaveBeenCalled();
   });
 
   it('无平台时显示未发现提示', () => {
-    render(<ImportPreviewDialog {...baseProps} open platforms={[]} totalNew={0} totalSkipped={0} />);
+    render(
+      <ImportPreviewDialog
+        {...baseProps}
+        open
+        platforms={[]}
+        totalNew={0}
+        totalSkipped={0}
+      />
+    );
     expect(screen.getByText('import.noDiscoverable')).toBeDefined();
   });
 
   it('无新内容时不显示确认按钮', () => {
-    render(<ImportPreviewDialog {...baseProps} open platforms={[]} totalNew={0} totalSkipped={0} />);
+    render(
+      <ImportPreviewDialog
+        {...baseProps}
+        open
+        platforms={[]}
+        totalNew={0}
+        totalSkipped={0}
+      />
+    );
     expect(screen.queryByText('import.confirmImport')).toBeNull();
   });
 
@@ -119,7 +143,9 @@ describe('ImportPreviewDialog', () => {
     expect(screen.getByText('Claude Code')).toBeDefined();
     expect(screen.getByText('Cursor')).toBeDefined();
     // No watcher event counts appear in the import dialog
-    expect(screen.queryByText(/文件变更|新增.*个|删除.*个|修改.*个/)).toBeNull();
+    expect(
+      screen.queryByText(/文件变更|新增.*个|删除.*个|修改.*个/)
+    ).toBeNull();
   });
 
   it('separates Skills/Rules from skipped counts — does not add them together', () => {
@@ -139,6 +165,8 @@ describe('ImportPreviewDialog', () => {
   it('does not display scan time when data is unavailable — does not fake timestamps', () => {
     render(<ImportPreviewDialog {...baseProps} open />);
     // No timestamp or scan time should be displayed since the data doesn't provide one
-    expect(screen.queryByText(/扫描时间|scan.*time|2026|20\d{2}[/-]/)).toBeNull();
+    expect(
+      screen.queryByText(/扫描时间|scan.*time|2026|20\d{2}[/-]/)
+    ).toBeNull();
   });
 });

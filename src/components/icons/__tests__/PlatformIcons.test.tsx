@@ -1,10 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
 import type { JSX } from 'react';
-import {
-  getPlatformIcon,
-  DefaultPlatformIcon,
-} from '../PlatformIcons';
+import { getPlatformIcon, DefaultPlatformIcon } from '../PlatformIcons';
 
 describe('PlatformIcons', () => {
   beforeEach(() => {
@@ -65,12 +62,12 @@ describe('PlatformIcons', () => {
   });
 
   it('renders distinct svg content for different platforms', () => {
-    const ClaudeIcon = getPlatformIcon('claude') as unknown as (
-      props: { className?: string }
-    ) => JSX.Element;
-    const CursorIcon = getPlatformIcon('cursor') as unknown as (
-      props: { className?: string }
-    ) => JSX.Element;
+    const ClaudeIcon = getPlatformIcon('claude') as unknown as (props: {
+      className?: string;
+    }) => JSX.Element;
+    const CursorIcon = getPlatformIcon('cursor') as unknown as (props: {
+      className?: string;
+    }) => JSX.Element;
     const { container: c1 } = render(<ClaudeIcon className="c" />);
     const { container: c2 } = render(<CursorIcon className="c" />);
     expect(c1.innerHTML).not.toBe(c2.innerHTML);
@@ -83,9 +80,9 @@ describe('PlatformIcons', () => {
   });
 
   it('renders agent icon with className passed through', () => {
-    const Icon = getPlatformIcon('agent') as unknown as (
-      props: { className?: string }
-    ) => JSX.Element;
+    const Icon = getPlatformIcon('agent') as unknown as (props: {
+      className?: string;
+    }) => JSX.Element;
     const { container } = render(<Icon className="h-5 w-5 text-blue-500" />);
     const svg = container.querySelector('svg');
     expect(svg).not.toBeNull();

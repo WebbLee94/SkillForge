@@ -1018,29 +1018,23 @@ describe('appStore — Scenes', () => {
     });
 
     // Start fetching scene A (stale in-flight request)
-    const fetchAPromise =
-      useAppStore.getState().fetchSceneDetail('scene-a');
+    const fetchAPromise = useAppStore.getState().fetchSceneDetail('scene-a');
 
     // Before A resolves, start fetching scene B (newer request supersedes A)
-    const fetchBPromise =
-      useAppStore.getState().fetchSceneDetail('scene-b');
+    const fetchBPromise = useAppStore.getState().fetchSceneDetail('scene-b');
 
     // Resolve A's response — stale because B was requested after A
     resolveA({ scene: scene('scene-a'), skills: [], rules: [] });
     await fetchAPromise;
 
     // currentSceneDetail must still be scene B's detail (stale A discarded)
-    expect(useAppStore.getState().currentSceneDetail?.scene.id).toBe(
-      'scene-b'
-    );
+    expect(useAppStore.getState().currentSceneDetail?.scene.id).toBe('scene-b');
 
     // Now resolve B — should update the detail
     resolveB({ scene: scene('scene-b'), skills: [], rules: [] });
     await fetchBPromise;
 
-    expect(useAppStore.getState().currentSceneDetail?.scene.id).toBe(
-      'scene-b'
-    );
+    expect(useAppStore.getState().currentSceneDetail?.scene.id).toBe('scene-b');
   });
 });
 
@@ -1700,7 +1694,9 @@ describe('appStore — Distribution', () => {
       .syncScene([], [], null, [], 'project');
 
     expect(result?.errors).toEqual([]);
-    const toast = useAppStore.getState().toasts.find((t) => t.type === 'success');
+    const toast = useAppStore
+      .getState()
+      .toasts.find((t) => t.type === 'success');
     expect(toast?.message).toBe('分发成功');
   });
 

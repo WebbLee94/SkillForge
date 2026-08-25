@@ -29,27 +29,31 @@ const testState = vi.hoisted(() => ({
 vi.mock('../domains/projects/AddProjectDialog.lazy', () => {
   loadCounts.addProjectDialog += 1;
   return {
-    default: () => React.createElement('div', { 'data-testid': 'add-project-dialog' }),
+    default: () =>
+      React.createElement('div', { 'data-testid': 'add-project-dialog' }),
   };
 });
 
 vi.mock('../domains/projects/ProjectDistributionItem.lazy', () => {
   loadCounts.projectDistributionItem += 1;
   return {
-    default: () => React.createElement('div', { 'data-testid': 'project-item' }),
+    default: () =>
+      React.createElement('div', { 'data-testid': 'project-item' }),
   };
 });
 
 vi.mock('../domains/distribution/ProjectBatchBar.lazy', () => {
   loadCounts.projectBatchBar += 1;
   return {
-    default: () => React.createElement('div', { 'data-testid': 'project-batch-bar' }),
+    default: () =>
+      React.createElement('div', { 'data-testid': 'project-batch-bar' }),
   };
 });
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
 vi.mock('../stores/appStore', () => ({
-  useAppStore: (selector: (state: typeof testState) => unknown) => selector(testState),
+  useAppStore: (selector: (state: typeof testState) => unknown) =>
+    selector(testState),
 }));
 vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty' },
@@ -69,7 +73,8 @@ describe('ProjectDistribution chunk loading', () => {
     testState.projects = [];
     testState.platforms = [];
 
-    const { ProjectDistribution } = await import('../pages/ProjectDistribution');
+    const { ProjectDistribution } =
+      await import('../pages/ProjectDistribution');
 
     expect(loadCounts.addProjectDialog).toBe(0);
     expect(loadCounts.projectDistributionItem).toBe(0);

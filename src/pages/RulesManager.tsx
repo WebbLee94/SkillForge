@@ -559,9 +559,7 @@ export function RulesManager() {
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="page-title">{t('title')}</h1>
-            <p className="text-xs text-muted-foreground">
-              {t('subtitle')}
-            </p>
+            <p className="text-xs text-muted-foreground">{t('subtitle')}</p>
           </div>
           <div
             className="flex shrink-0 items-center gap-3"
@@ -667,7 +665,9 @@ export function RulesManager() {
             />
           </div>
           <button
-            aria-label={collapsedAll ? tc('view.expandGroups') : tc('view.collapseGroups')}
+            aria-label={
+              collapsedAll ? tc('view.expandGroups') : tc('view.collapseGroups')
+            }
             className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
             onClick={() => setCollapsedAll((prev) => !prev)}
           >
@@ -678,7 +678,10 @@ export function RulesManager() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto mb-2 mt-2" data-testid="lib-content">
+        <div
+          className="flex-1 overflow-y-auto mb-2 mt-2"
+          data-testid="lib-content"
+        >
           {loading ? (
             <div
               className="grid gap-3"

@@ -266,7 +266,10 @@ describe('ResourceImportDialog — A16 有界渲染', () => {
       <ResourceImportDialog
         {...base}
         open
-        items={manyItems(120).map((it) => ({ ...it, result: 'success' as const }))}
+        items={manyItems(120).map((it) => ({
+          ...it,
+          result: 'success' as const,
+        }))}
       />
     );
     expect(screen.getAllByTestId('import-item').length).toBe(BOUNDED_STEP);

@@ -9,16 +9,25 @@ vi.mock('react-i18next', () => ({
   initReactI18next: { type: '3rdParty' },
   useTranslation: () => ({
     t: (key: string, options?: Record<string, unknown>) => {
-      if (key === 'watcher.changesDetected' && typeof options?.count === 'number') {
+      if (
+        key === 'watcher.changesDetected' &&
+        typeof options?.count === 'number'
+      ) {
         return `检测到 ${options.count} 个文件变更`;
       }
       if (key === 'watcher.newFiles' && typeof options?.count === 'number') {
         return `${options.count} 个新增`;
       }
-      if (key === 'watcher.deletedFiles' && typeof options?.count === 'number') {
+      if (
+        key === 'watcher.deletedFiles' &&
+        typeof options?.count === 'number'
+      ) {
         return `${options.count} 个删除`;
       }
-      if (key === 'watcher.modifiedFiles' && typeof options?.count === 'number') {
+      if (
+        key === 'watcher.modifiedFiles' &&
+        typeof options?.count === 'number'
+      ) {
         return `${options.count} 个修改`;
       }
       const map: Record<string, string> = {
@@ -31,7 +40,10 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-const makeEvent = (id: number, event_type: WatcherEvent['event_type']): WatcherEvent => ({
+const makeEvent = (
+  id: number,
+  event_type: WatcherEvent['event_type']
+): WatcherEvent => ({
   id,
   event_type,
   path: `/path/${id}.md`,
@@ -62,7 +74,9 @@ describe('WatcherNotification', () => {
     });
     render(<WatcherNotification />);
     expect(screen.getByText('检测到 1 个文件变更')).toBeDefined();
-    expect(screen.getByText((c: string) => c.includes('1 个新增'))).toBeDefined();
+    expect(
+      screen.getByText((c: string) => c.includes('1 个新增'))
+    ).toBeDefined();
   });
 
   it('shows breakdown for multiple event types', () => {
@@ -75,8 +89,11 @@ describe('WatcherNotification', () => {
     });
     render(<WatcherNotification />);
     expect(screen.getByText('检测到 3 个文件变更')).toBeDefined();
-    const breakdownEl = screen.getByText((c: string) =>
-      c.includes('1 个新增') && c.includes('1 个删除') && c.includes('1 个修改')
+    const breakdownEl = screen.getByText(
+      (c: string) =>
+        c.includes('1 个新增') &&
+        c.includes('1 个删除') &&
+        c.includes('1 个修改')
     );
     expect(breakdownEl).toBeDefined();
   });
@@ -117,8 +134,8 @@ describe('WatcherNotification', () => {
       events: [makeEvent(10, 'NEW')],
     });
     render(<WatcherNotification />);
-    const hint = screen.getByText((c: string) =>
-      c.includes('文件变更通知') && c.includes('查看可导入')
+    const hint = screen.getByText(
+      (c: string) => c.includes('文件变更通知') && c.includes('查看可导入')
     );
     expect(hint).toBeDefined();
   });
@@ -134,9 +151,15 @@ describe('WatcherNotification', () => {
     });
     render(<WatcherNotification />);
     expect(screen.getByText('检测到 4 个文件变更')).toBeDefined();
-    expect(screen.getByText((c: string) => c.includes('2 个新增'))).toBeDefined();
-    expect(screen.getByText((c: string) => c.includes('1 个删除'))).toBeDefined();
-    expect(screen.getByText((c: string) => c.includes('1 个修改'))).toBeDefined();
+    expect(
+      screen.getByText((c: string) => c.includes('2 个新增'))
+    ).toBeDefined();
+    expect(
+      screen.getByText((c: string) => c.includes('1 个删除'))
+    ).toBeDefined();
+    expect(
+      screen.getByText((c: string) => c.includes('1 个修改'))
+    ).toBeDefined();
     const hintEl = screen.getByText((c: string) => c.includes('文件变更通知'));
     expect(hintEl).toBeDefined();
     expect(hintEl.textContent).not.toContain('全部导入');

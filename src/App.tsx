@@ -13,20 +13,31 @@ import { useAppStore } from './stores/appStore';
 import { useWatcherStore } from './stores/watcherStore';
 import { SyncConfirmDialog } from './app/SyncConfirmDialog';
 
-function lazyNamed<T extends Record<string, ComponentType<Record<string, never>>>>(
-  loader: () => Promise<T>,
-  exportName: keyof T
-) {
+function lazyNamed<
+  T extends Record<string, ComponentType<Record<string, never>>>,
+>(loader: () => Promise<T>, exportName: keyof T) {
   return lazy(async () => {
     const module = await loader();
     return { default: module[exportName] };
   });
 }
 
-const Dashboard = lazyNamed(() => import('./domains/dashboard/Dashboard'), 'Dashboard');
-const SkillLibrary = lazyNamed(() => import('./pages/SkillLibrary'), 'SkillLibrary');
-const RulesManager = lazyNamed(() => import('./pages/RulesManager'), 'RulesManager');
-const SceneEditor = lazyNamed(() => import('./domains/scenes/SceneEditor'), 'SceneEditor');
+const Dashboard = lazyNamed(
+  () => import('./domains/dashboard/Dashboard'),
+  'Dashboard'
+);
+const SkillLibrary = lazyNamed(
+  () => import('./pages/SkillLibrary'),
+  'SkillLibrary'
+);
+const RulesManager = lazyNamed(
+  () => import('./pages/RulesManager'),
+  'RulesManager'
+);
+const SceneEditor = lazyNamed(
+  () => import('./domains/scenes/SceneEditor'),
+  'SceneEditor'
+);
 const GlobalDistribution = lazyNamed(
   () => import('./domains/distribution/GlobalDistribution'),
   'GlobalDistribution'
@@ -35,7 +46,10 @@ const ProjectDistribution = lazyNamed(
   () => import('./domains/distribution/ProjectDistribution'),
   'ProjectDistribution'
 );
-const Settings = lazyNamed(() => import('./domains/settings/Settings'), 'Settings');
+const Settings = lazyNamed(
+  () => import('./domains/settings/Settings'),
+  'Settings'
+);
 
 const routeToNavMap: Record<string, string> = {
   '/': 'dashboard',
@@ -117,13 +131,62 @@ function App() {
         <NavSync />
         <Routes>
           <Route element={<AppShell />}>
-            <Route path="/" element={<Suspense fallback={null}><Dashboard /></Suspense>} />
-            <Route path="/skills" element={<Suspense fallback={null}><SkillLibrary /></Suspense>} />
-            <Route path="/rules" element={<Suspense fallback={null}><RulesManager /></Suspense>} />
-            <Route path="/scenes" element={<Suspense fallback={null}><SceneEditor /></Suspense>} />
-            <Route path="/workspace" element={<Suspense fallback={null}><GlobalDistribution /></Suspense>} />
-            <Route path="/projects" element={<Suspense fallback={null}><ProjectDistribution /></Suspense>} />
-            <Route path="/settings" element={<Suspense fallback={null}><Settings /></Suspense>} />
+            <Route
+              path="/"
+              element={
+                <Suspense fallback={null}>
+                  <Dashboard />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/skills"
+              element={
+                <Suspense fallback={null}>
+                  <SkillLibrary />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/rules"
+              element={
+                <Suspense fallback={null}>
+                  <RulesManager />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/scenes"
+              element={
+                <Suspense fallback={null}>
+                  <SceneEditor />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/workspace"
+              element={
+                <Suspense fallback={null}>
+                  <GlobalDistribution />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/projects"
+              element={
+                <Suspense fallback={null}>
+                  <ProjectDistribution />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <Suspense fallback={null}>
+                  <Settings />
+                </Suspense>
+              }
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

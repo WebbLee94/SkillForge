@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { Tag } from '../../types';
-import { computeTagChanges, formatFullTimestamp } from '../../lib/resourceLibrary';
+import {
+  computeTagChanges,
+  formatFullTimestamp,
+} from '../../lib/resourceLibrary';
 import { hasOpenModal } from '../../lib/modalScope';
 import { useDialogA11y } from '../../hooks/useDialogA11y';
 import { InspectorActions } from './InspectorActions';
@@ -75,7 +78,10 @@ export function Inspector({
   const [draftIds, setDraftIds] = useState<number[]>(savedIds);
   const [saving, setSaving] = useState(false);
   const [leaveConfirm, setLeaveConfirm] = useState(false);
-  const draftTags = useMemo(() => allTags.filter((tag) => draftIds.includes(tag.id)), [allTags, draftIds]);
+  const draftTags = useMemo(
+    () => allTags.filter((tag) => draftIds.includes(tag.id)),
+    [allTags, draftIds]
+  );
 
   const dirty = !sameIds(draftIds, savedIds);
 

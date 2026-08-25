@@ -1,9 +1,7 @@
 import { Suspense, lazy, memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const RuleMarkdownRenderer = lazy(
-  () => import('./RuleMarkdownRenderer.lazy')
-);
+const RuleMarkdownRenderer = lazy(() => import('./RuleMarkdownRenderer.lazy'));
 
 interface RulePreviewPanelProps {
   content: string;

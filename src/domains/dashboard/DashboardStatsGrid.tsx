@@ -16,7 +16,10 @@ interface DashboardStatsGridProps {
   onNavigate: (navKey: string) => void;
 }
 
-export function DashboardStatsGrid({ cards, onNavigate }: DashboardStatsGridProps) {
+export function DashboardStatsGrid({
+  cards,
+  onNavigate,
+}: DashboardStatsGridProps) {
   return (
     <div
       data-testid="dashboard-stats-grid"
@@ -42,7 +45,9 @@ export function DashboardStatsGrid({ cards, onNavigate }: DashboardStatsGridProp
           </div>
           <div>
             <div className="text-sm text-muted-foreground">{card.label}</div>
-            <div className="text-2xl font-bold text-foreground">{card.value}</div>
+            <div className="text-2xl font-bold text-foreground">
+              {card.value}
+            </div>
             <div className="text-xs text-muted-foreground">{card.subtitle}</div>
           </div>
         </button>

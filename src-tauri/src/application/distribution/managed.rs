@@ -316,6 +316,8 @@ mod tests {
         .unwrap();
     }
 
+    // 调用点均被 #[cfg(unix)] 门控
+    #[cfg(unix)]
     fn insert_rule(conn: &rusqlite::Connection, id: &str, content: &str) {
         conn.execute(
             "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, format, content, version)
