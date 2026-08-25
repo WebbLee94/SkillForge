@@ -426,6 +426,19 @@ mod tests {
         dir
     }
 
+    /// 各平台安全的「不存在」探测路径：temp_dir 下按进程 ID 唯一，全程不创建。
+    ///
+    /// 必要警示（跨平台失败模式，代码不可见）：勿用 `mem://` 等含冒号伪协议
+    /// 充当测试路径——Windows 视为非法路径语法（os error 123）使真实 fs 探测
+    /// 以非 NotFound 错误失败；Unix 上静默返回 NotFound 掩盖问题。
+    fn absent_probe_dir(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "skillforge-app-managed-absent-{}-{}",
+            tag,
+            std::process::id()
+        ))
+    }
+
     /// 受管分类回归锁定：只有「存在于 DB 且符号链接目标等于 DB 来源」的技能
     /// 才进入 managed 列表；链接目标不一致的同名条目不得误判为受管。
     #[test]
@@ -568,8 +581,8 @@ mod tests {
 
     /// 解耦证明：受管技能分类链路经 ports trait 对象由 fake 驱动——
     /// fake 磁盘现状含 skill-a，但 fake 仓储无此技能 → get_skill 未命中
-    /// 不得进入受管列表；全程不建表、不触真实目录（conn 仅服务尚未接线的
-    /// 规则读取边界）。
+    /// 不得进入受管列表；全程不建表、不写磁盘（磁盘侧仅对不存在的临时
+    /// 探测目录做只读扫描，各平台一致返回空列表）。
     #[test]
     fn managed_state_runs_through_fake_ports_without_db_or_disk() {
         use crate::application::distribution::test_fakes::{
@@ -577,10 +590,11 @@ mod tests {
         };
 
         let repo = FakeDistributionRepository::default();
-        let fs = FakeDistributionFileSystem::default().with_skills_at("mem://skills", &["skill-a"]);
+        let probe_dir = absent_probe_dir("fake-ports");
+        let fs = FakeDistributionFileSystem::default()
+            .with_skills_at(probe_dir.to_string_lossy().as_ref(), &["skill-a"]);
 
-        let plugins: Vec<Box<dyn PlatformPlugin>> =
-            vec![global_plugin(std::path::Path::new("mem://skills"), None)];
+        let plugins: Vec<Box<dyn PlatformPlugin>> = vec![global_plugin(&probe_dir, None)];
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         let state = get_managed_distribution_state(
             &conn,
@@ -593,10 +607,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(
-            !std::path::Path::new("mem://skills").exists(),
-            "全程未触达真实磁盘"
-        );
+        assert!(!probe_dir.exists(), "探测目录未被创建：全程未写入真实磁盘");
         let platform = &state.platforms[0];
         assert!(platform.skills.is_empty(), "仓储未命中的条目不得判为受管");
         assert!(platform.rules.is_empty());
