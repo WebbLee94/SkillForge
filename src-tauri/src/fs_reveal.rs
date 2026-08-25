@@ -40,10 +40,8 @@ pub fn resolve_reveal_target(path: &str, as_skills_dir: bool) -> Option<(PathBuf
             let fallback = current != candidate;
             return Some((current.to_path_buf(), fallback));
         }
-        match current.parent() {
-            Some(parent) => current = parent,
-            None => return None,
-        }
+        let parent = current.parent()?;
+        current = parent;
     }
 }
 

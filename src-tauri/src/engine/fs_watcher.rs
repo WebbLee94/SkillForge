@@ -279,7 +279,7 @@ pub fn start_file_watcher<R: Runtime>(app: AppHandle<R>, watch_paths: Vec<PathBu
 
             match rx.recv_timeout(Duration::from_millis(500)) {
                 Ok(Ok(event)) => {
-                    log::info!("Watcher: 检测到文件变更 {:?}", &event.paths);
+                    log::info!("Watcher: 检测到文件变更 {:?}", event.paths);
                     let kind = classify_kind(&event.kind);
                     let mut roots: HashSet<PathBuf> = HashSet::new();
                     for path in &event.paths {

@@ -848,6 +848,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn execute_remove_distributed_removes_owned_symlink_only() {
         use std::os::unix::fs::symlink;
 

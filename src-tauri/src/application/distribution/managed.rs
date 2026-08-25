@@ -302,6 +302,7 @@ mod tests {
         )
     }
 
+    #[cfg(unix)]
     fn insert_skill(conn: &rusqlite::Connection, id: &str, local_path: &std::path::Path) {
         conn.execute(
             "INSERT INTO resources (id, kind, name, description, source_type, installed_at, updated_at, local_path)
@@ -405,10 +406,12 @@ mod tests {
         })
     }
 
+    #[cfg(unix)]
     fn symlink(target: &std::path::Path, link: &std::path::Path) {
         std::os::unix::fs::symlink(target, link).unwrap();
     }
 
+    #[cfg(unix)]
     fn unique_root(tag: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "skillforge-app-managed-{}-{}",
@@ -422,6 +425,7 @@ mod tests {
     /// 受管分类回归锁定：只有「存在于 DB 且符号链接目标等于 DB 来源」的技能
     /// 才进入 managed 列表；链接目标不一致的同名条目不得误判为受管。
     #[test]
+    #[cfg(unix)]
     fn managed_state_only_classifies_owned_symlinks_as_managed() {
         let conn = setup_db();
         let root = unique_root("owned");
@@ -468,6 +472,7 @@ mod tests {
     /// 本地条目过滤回归锁定：local 列表必须排除全部受管路径；
     /// 技能侧只收目录/符号链接，规则侧（Directory 模式）只收未受管的文件。
     #[test]
+    #[cfg(unix)]
     fn local_entries_exclude_managed_paths() {
         let conn = setup_db();
         let root = unique_root("filter");

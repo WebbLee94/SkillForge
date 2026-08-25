@@ -1,0 +1,7 @@
+# 工具链钉版：本地与 CI 锁定同一 rustc 版本，消除「本地绿 CI 红」的工具链漂移。
+# 背景：2026-08 CI stable 漂移至 1.98 后新增 lint 与编译差异导致三平台门禁失败；
+# 本仓库全部门禁（fmt/clippy/test）已在 1.96.1 完整验证通过。
+# 升级工具链时需显式修改此文件并重新过全部门禁。
+[toolchain]
+channel = "1.96.1"
+components = ["rustfmt", "clippy"]

@@ -238,6 +238,7 @@ mod tests {
         })
     }
 
+    #[cfg(unix)]
     fn symlink(target: &std::path::Path, link: &std::path::Path) {
         std::os::unix::fs::symlink(target, link).unwrap();
     }
@@ -305,6 +306,7 @@ mod tests {
     /// fail-closed 锁定：符号链接指向非 SkillForge 来源时必须整体拒绝，
     /// 错误文案与迁移前逐字一致。
     #[test]
+    #[cfg(unix)]
     fn rejects_symlink_whose_target_is_not_skillforge_source() {
         let conn = setup_db();
         let root = unique_root("wrong-target");
@@ -369,6 +371,7 @@ mod tests {
 
     /// 正常路径锁定：目标缺失（跳过）与正确归属的符号链接均放行。
     #[test]
+    #[cfg(unix)]
     fn accepts_absent_and_correctly_owned_targets() {
         let conn = setup_db();
         let root = unique_root("owned-ok");
