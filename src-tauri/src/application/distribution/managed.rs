@@ -281,6 +281,8 @@ mod tests {
     use super::*;
     use crate::db::schema;
     use crate::types::{PlatformCapabilities, PlatformInstance, PlatformPaths, SyncResult};
+    // 消费者 insert_skill/insert_rule 均为 #[cfg(unix)]（Windows 上为孤儿 import）
+    #[cfg(unix)]
     use rusqlite::params;
 
     fn setup_db() -> rusqlite::Connection {

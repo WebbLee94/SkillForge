@@ -8,6 +8,8 @@
 
 use skillforge_lib::db::migrations;
 use skillforge_lib::engine::dist_execute;
+// 仅被下方 #[cfg(unix)] 门控的 FailingRemovePlugin 实现消费（Windows 上为孤儿 import）
+#[cfg(unix)]
 use skillforge_lib::error::AppError;
 use skillforge_lib::plugins::platform::PlatformPlugin;
 use skillforge_lib::types::{DistributionIntent, DistributionIntentMode, DistributionRequest};
@@ -450,6 +452,8 @@ impl PlatformPlugin for FailingRemovePlugin {
 }
 
 // 契约 6：部分失败收集 —— 平台 A 移除成功、平台 B 注入失败，单项失败不中止其他项
+// 依赖 std::os::unix::fs::symlink 预置状态与 FailingRemovePlugin（均 unix-only）
+#[cfg(unix)]
 #[test]
 fn remove_distributed_collects_partial_failures() {
     let conn = init_db();
