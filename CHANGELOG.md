@@ -2,19 +2,6 @@
 
 ## v1.0.0 (待发布) 🎉 首个公开发布版本
 
-### 🔒 首个公开基线声明
-
-**v1.0.0 是 SkillForge 的首个公开基线版本**。当前公开能力范围为 Skills（技能库）/ Rules（规则）/ Scenes（场景编排）/ Projects（项目分发）/ Platforms（平台管理）/ Distribution（全局与项目分发）六大模块。
-
-- **数据库基线重置**：数据库迁移重置为 schema version 1——全新启动直接创建当前完整 schema 并标记版本 1，运行时不再保留 v2–v6 历史升级链；未来 schema 变更自该公开基线起演进
-- **旧开发数据库不保证兼容**：在旧开发版本上产生的本地数据库不再被升级修复。如遇异常请删除后重启应用，从零重建公开 v1 基线：
-
-  ```bash
-  rm -f ~/.skillforge/skillforge.db ~/.skillforge/skillforge.db-wal ~/.skillforge/skillforge.db-shm
-  ```
-
-- **范围外能力**：MCP 管理（已归档）、Hook、LLM 集成、技能市场、多用户协作等均不在 v1.0.0 公开范围内
-
 ### 🆕 新增
 
 - **外部变更感知（文件监控）**：文件监控引擎实时感知所有已启用 Agent 平台的外部技能/规则变更（辅助能力，非核心承诺范围——核心仍为 Skills/Rules 分发）
@@ -22,17 +9,6 @@
 - **三态同步状态**：看板支持已同步🟢 / 已缺失🔴 / 有更新🟡 三种状态
 - **变更通知栏**：检测到外部变更时自动弹出通知，支持一键导入/忽略
 - **自动更新检测**：Git 来源的技能定时检查新版本（默认 6h）
-
-### 📦 MCP（已归档）
-
-MCP（Model Context Protocol）服务器管理功能已完成完整实现，但因各平台配置格式差异大、维护成本高，经评估决定从 v1.0.0 版本中移除，相关代码归档至独立归档分支。未来是否上线待定。
-
-**已归档的成果：**
-- Rust 后端：mcp_servers DB 表 + CRUD 引擎 + 6 平台格式转换 + 6 平台导出适配器 + 健康检查 + MCP 平台计数
-- 前端：McpManager 页面 + McpCard/McpForm/McpDistributeDialog 组件 + 场景编排 MCP tab + 看板 MCP 统计卡片
-- 导出适配器：Claude Desktop / Cursor / VS Code / Cline / Roo Code / Windsurf 6 平台原生格式
-
-详见独立文档仓库 SkillForge-docs 中 ADR-007《MCP 功能归档决策》。
 
 ### 📦 依赖
 
