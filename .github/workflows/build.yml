@@ -1,9 +1,9 @@
 name: Build
 on:
   push:
-    branches: [master]
+    branches: [release]
   pull_request:
-    branches: [master]
+    branches: [release]
 
 concurrency:
   group: build-${{ github.ref }}
