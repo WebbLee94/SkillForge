@@ -1,10 +1,12 @@
 name: Release
 on:
+  push:
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       version:
         description: "Release version (e.g. v1.0.0)"
-        required: true
+        required: false
         type: string
 
 permissions:
@@ -41,8 +43,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ inputs.version }}
-          releaseName: SkillForge ${{ inputs.version }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: SkillForge ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
@@ -73,8 +75,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ inputs.version }}
-          releaseName: SkillForge ${{ inputs.version }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: SkillForge ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
@@ -109,8 +111,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ inputs.version }}
-          releaseName: SkillForge ${{ inputs.version }}
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: SkillForge ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
           releaseDraft: true
           prerelease: false
