@@ -1,0 +1,4 @@
+# 依赖与运行时产物（不提交）
+node_modules/
+logs/
+allure-results/

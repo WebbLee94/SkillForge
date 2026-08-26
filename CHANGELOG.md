@@ -1,12 +1,69 @@
 # Changelog
 
-## v1.0.1 (2026-06-10)
+## v1.0.0 (待发布) 🎉 首个公开发布版本
+
+### 🆕 新增
+
+- **外部变更感知（文件监控）**：文件监控引擎实时感知所有已启用 Agent 平台的外部技能/规则变更（辅助能力，非核心承诺范围——核心仍为 Skills/Rules 分发）
+- **自写回声抑制**：dist_engine 写操作自动静音 watcher，避免假阳性事件
+- **三态同步状态**：看板支持已同步🟢 / 已缺失🔴 / 有更新🟡 三种状态
+- **变更通知栏**：检测到外部变更时自动弹出通知，支持一键导入/忽略
+- **自动更新检测**：Git 来源的技能定时检查新版本（默认 6h）
+
+### 📦 依赖
+
+- 新增 `notify` 6.x（跨平台文件系统监控）
+- 新增 `hex` 0.4（哈希编码）
+- 新增 `walkdir` 2.x（目录遍历）
+- 新增 `log` 0.4（日志门面）
+
+### 🧪 质量与测试
+
+- **Vitest 覆盖率门禁 ≥60%**：配置 Vitest 覆盖率阈值，确保前端核心模块最小覆盖，防止未测试代码合入
+- **ESLint flat config + typescript-eslint**：从旧式 `.eslintrc` 迁移至 ESLint flat config，统一前端代码规范
+- **前端 Zustand Store 测试**：覆盖分发状态管理的完整链路，验证同步状态机运转正确
+- **Rust 集成测试**：覆盖完整分发链路（watcher → dist_engine → platform 写入），验证端到端正确性
+
+### 🔧 改进
+
+- 技能列表不再将已缺失的技能显示为"未分发"
+- **P0/P1 发布前修复**：修复 5 个 TypeScript 类型错误、2 个 clippy 告警
+- **i18n 硬编码迁移**：51 处硬编码中文替换为 i18n `t()` 调用，补齐国际化覆盖
+- **Emoji 替换为 lucide 图标**：移除 UI 中所有 Emoji 字符，统一使用 `@radix-ui/react-icons`（lucide）
+- **Dashboard 统计卡片配色修复**：统计数据卡片颜色值对齐设计规范
+- **清理失效 i18n 键**：移除 19 个未引用的死键，减少产物体积
+- **统一资源模型**（架构重构）：数据库存储层从 skills/rules 六表合并为 resources/resource_tags/scene_items 三表——标签与场景成员关系随之简化，为未来扩展新资源类型预留容器；对用户的可见变化为技能库/规则管理页数据源不变、标签系统按资源类型隔离（技能标签与规则标签各自独立）、场景编排支持技能与规则的混合成员
+- **分发预览可识别"内容有更新"的资源**（硬化批）：预览结果新增内容级 Update 分类——已分发资源的正文发生变化时（即使名称与位置不变），预览会正确归入待更新列表，不再被遗漏
+- **场景保存原子化**（硬化批）：场景及其成员关系以数据库事务整体提交，任一步骤失败即整体回滚，不再产生半保存的中间状态
+- **文件监控链路清理**（硬化批）：移除文件监控中已废弃的数据库写入路径，外部变更事件统一走内存通知链路
+
+### 🛠 工具链
+
+- **coverage/ 目录加入 .gitignore**：避免覆盖率报告文件和产物被版本控制追踪
+- **CI build.yml 增加 ESLint 检查 + 覆盖率报告**：PR 自动执行前端 lint 和覆盖率检查
+- **CI release.yml 增加测试门禁**：版本发布前自动运行测试套件，测试失败阻断发布流程
+
+### 🧪 E2E 测试框架（2026-08-11）
+
+- **桌面 E2E 测试框架落地**：WebdriverIO + @wdio/tauri-service，macOS embedded driver（内嵌 WebDriver，端口 4445），驱动真实 Tauri 窗口 + Rust IPC，不依赖 computer-use/accessibility bridge
+- **E2E 陈旧进程守卫**（硬化批）：运行 E2E 前自动清理残留的 Vite dev server / WebDriver 进程，避免端口占用导致的启动失败
+- **桌面 E2E 共 4 个 spec**：smoke（冒烟）/ interaction（交互）/ distribution-workflow（首次分发完整流程：预览→取消→确认→执行→幂等→重启状态保持）/ stats-grid-responsive（看板统计网格响应式）
+- **CI 三平台 e2e 矩阵**（`.github/workflows/e2e.yml`）：macOS（embedded）+ Windows/Linux（external + tauri-driver + xvfb），验证跨平台冒烟
+- **README 入口修正**：平台数 12→10、双向同步→单向分发、docs 路径指向 SkillForge-docs 独立仓库、补充测试命令
+
+### 📊 测试口径（统一为当前实测，2026-08-24）
+
+- 前端 Vitest：60 文件 / 860 用例
+- Rust 后端：332 用例（206 lib 单元 + 126 集成，`cargo test` 实测）
+- 桌面 E2E：4 spec（smoke / interaction / distribution-workflow / stats-grid-responsive）
+
+## v0.0.2 (2026-06-10) 内部测试版
 
 ### 🆕 新增
 
 - **一键导入**：Dashboard 新增"一键导入"功能，自动扫描所有 Agent 平台的全局目录，发现尚未导入的技能和规则，预览确认后批量导入。首次使用时自动弹出引导卡片
 
-> **推荐更新**：本版本修复了 3 项可能导致数据丢失或状态错误的严重问题，建议所有 v1.0.0 用户升级。
+> **推荐更新**：本版本修复了 3 项可能导致数据丢失或状态错误的严重问题，建议所有 v0.0.1 用户升级。
 
 ### 🔴 重要修复
 
@@ -30,7 +87,9 @@
 - GitHub 仓库链接修正为 `WebbLee94/SkillForge`
 - README.md 添加开源致谢
 
-## v1.0.0 (2026-05-27)
+## v0.0.1 (2026-05-27) 内部测试版
+
+> 勘误（2026-08-23）：本条目中'12 个平台'宣称有误，v0.0.x 实际内置平台为 10 个，详见 v1.0.0 条目。
 
 ### 新增
 
@@ -72,7 +131,7 @@
 - 全局分发支持场景-平台关联和自定义覆盖
 - 看板全局分发状态：平台同步状态改为 compact badge 样式
 - 所有硬编码中文替换为 i18n t() 调用
-- 版本号统一为 v1.0.0（package.json / Cargo.toml / tauri.conf.json）
+- 版本号统一为 v0.0.1（package.json / Cargo.toml / tauri.conf.json）
 
 ### 移除
 

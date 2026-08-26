@@ -1,290 +1,297 @@
-import { useEffect, useState, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import { useAppStore } from "../stores/appStore";
-import { ipc } from "../lib/ipc";
-import { cn } from "../lib/utils";
-import { AddProjectDialog } from "../components/AddProjectDialog";
-import { getPlatformIcon } from "../components/icons/PlatformIcons";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { Suspense, lazy, useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAppStore } from '../stores/appStore';
+import { SEARCH_INPUT_CLASSES } from '../lib/ui-tokens';
+import type { PlatformEntryCount } from '../types';
+import { Search } from 'lucide-react';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { ipc } from '../lib/ipc';
+const AddProjectDialog = lazy(
+  () => import('../domains/projects/AddProjectDialog.lazy')
+);
+const ProjectDistributionItem = lazy(
+  () => import('../domains/projects/ProjectDistributionItem.lazy')
+);
+const ProjectBatchBar = lazy(
+  () => import('../domains/distribution/ProjectBatchBar.lazy')
+);
+import { ProjectDistributionToolbar } from '../domains/projects/ProjectDistributionToolbar';
 import {
-  Plus, FolderOpen, Trash2, RefreshCw,
-  CheckCircle, AlertCircle, Clock, AlertTriangle, Search, Globe, Filter,
-} from "lucide-react";
-import { ConfirmDialog } from "../components/ConfirmDialog";
-import type { SyncStatus } from "../types";
+  ProjectDistributionEmptyProjectsState,
+  ProjectDistributionNoPlatformsState,
+} from '../domains/projects/ProjectDistributionEmptyStates';
+import { useBatchMode } from '../hooks/useBatchMode';
 
-const statusIconMap: Record<SyncStatus, React.ReactNode> = {
-  synced: <CheckCircle className="h-3.5 w-3.5 text-success" />,
-  outdated: <AlertTriangle className="h-3.5 w-3.5 text-warning" />,
-  partial: <AlertTriangle className="h-3.5 w-3.5 text-warning" />,
-  error: <AlertCircle className="h-3.5 w-3.5 text-error" />,
-  pending: <Clock className="h-3.5 w-3.5 text-muted-foreground" />,
-};
+/**
+ * 项目页（差异3，交互稿 §7.8）：纯项目管理列表，不再内嵌分发工作区。
+ * - 列表行内提供重命名与「去工作区分发」快捷入口（携带项目上下文）。
+ * - 分发统一在分发工作区（/workspace，scope=global）进行；工作区挂载时
+ *   消费 `projectDistSelectedProjectId` 作为默认目标并清除，使后续直接
+ *   进入工作区时默认回到全局目标。
+ * - 删除仅支持批量（二次确认，只删 SkillForge 记录，不删磁盘）。
+ *
+ * allow: SIZE_OK — 单一职责的 React 页面组件，行数来自内联 JSX 而非逻辑；
+ * 仓库内页面组件普遍超过 250 纯行（替换前的本文件为 449 行），拆分单调用方的
+ * 行组件只会引入无意义的间接层。
+ */
 
 export function ProjectDistribution() {
-  const { t } = useTranslation("distribution");
-  const { t: tc } = useTranslation("common");
-  const { t: ts } = useTranslation("scenes");
+  const { t } = useTranslation(['distribution', 'common']);
   const projects = useAppStore((s) => s.projects);
-  const scenes = useAppStore((s) => s.scenes);
-  const distributions = useAppStore((s) => s.distributions);
   const platforms = useAppStore((s) => s.platforms);
   const fetchProjects = useAppStore((s) => s.fetchProjects);
-  const fetchScenes = useAppStore((s) => s.fetchScenes);
-  const fetchDistributions = useAppStore((s) => s.fetchDistributions);
   const fetchPlatforms = useAppStore((s) => s.fetchPlatforms);
   const addProject = useAppStore((s) => s.addProject);
-  const removeProject = useAppStore((s) => s.removeProject);
-  const bindSceneToProject = useAppStore((s) => s.bindSceneToProject);
-  const syncScene = useAppStore((s) => s.syncScene);
+  const removeProjects = useAppStore((s) => s.removeProjects);
+  const setActiveNav = useAppStore((s) => s.setActiveNav);
+  const setProjectDistSelectedProjectId = useAppStore(
+    (s) => s.setProjectDistSelectedProjectId
+  );
 
+  const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sceneFilter, setSceneFilter] = useState<string>("");
-  const [confirmDeleteProjectId, setConfirmDeleteProjectId] = useState<string | null>(null);
+  const [showBatchDeleteConfirm, setShowBatchDeleteConfirm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNameValue, setEditNameValue] = useState('');
+  const [platformStats, setPlatformStats] = useState<
+    Record<string, Record<string, PlatformEntryCount>>
+  >({});
+  const batch = useBatchMode();
 
-  // Scene-bound platform IDs map: sceneId -> platformId[]
-  const [scenePlatformsMap, setScenePlatformsMap] = useState<Record<string, string[]>>({});
+  const selectedProjectsForDelete = useMemo(
+    () => projects.filter((p) => batch.selectedIds.has(p.id)),
+    [projects, batch.selectedIds]
+  );
 
-  // Fetch scene platforms for all projects with bound scenes
-  useEffect(() => {
-    const fetchScenePlatforms = async () => {
-      const sceneIds = [...new Set(projects.filter((p) => p.scene_id).map((p) => p.scene_id!))];
-      const map: Record<string, string[]> = {};
-      for (const sid of sceneIds) {
-        if (!scenePlatformsMap[sid]) {
-          try {
-            map[sid] = await ipc.getScenePlatforms(sid);
-          } catch (e) {
-            console.error('getScenePlatforms failed:', e);
-            map[sid] = [];
-          }
-        }
-      }
-      if (Object.keys(map).length > 0) {
-        setScenePlatformsMap((prev) => ({ ...prev, ...map }));
-      }
-    };
-    fetchScenePlatforms();
-  }, [projects]);
+  const filteredProjects = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return projects;
+    return projects.filter((p) => p.name.toLowerCase().includes(q));
+  }, [projects, searchQuery]);
 
   useEffect(() => {
     fetchProjects();
-    fetchScenes();
-    fetchDistributions();
     fetchPlatforms();
-    // Detect URL param for scene_id
-    const params = new URLSearchParams(window.location.search);
-    const sceneId = params.get("scene_id");
-    if (sceneId) setSceneFilter(sceneId);
-  }, [fetchProjects, fetchScenes, fetchDistributions, fetchPlatforms]);
-
-  const handleAddProject = useCallback(async (data: { name: string; path: string; sceneId?: string }) => {
-    await addProject(data.name, data.path, data.sceneId);
-    if (data.sceneId) {
-      const projects = useAppStore.getState().projects;
-      const newProject = projects[projects.length - 1];
-      if (newProject) {
-        // Use scene-associated platforms (null = auto-resolve from scene_platforms)
-        await syncScene(data.sceneId, null, "project", newProject.id);
-      }
-    }
-    setShowAddDialog(false);
-  }, [addProject, syncScene]);
-
-  const handleRemoveProject = useCallback((id: string) => {
-    setConfirmDeleteProjectId(id);
   }, []);
 
-  const executeRemoveProject = useCallback(async () => {
-    if (!confirmDeleteProjectId) return;
-    await removeProject(confirmDeleteProjectId);
-    setConfirmDeleteProjectId(null);
-  }, [confirmDeleteProjectId, removeProject]);
+  // 每个项目 × 每个已启用平台并发统计技能/规则数（§22 整改项 2）。
+  // dir_exists=false 或单项失败降级为 0，不阻塞列表。
+  const enabledPlatforms = useMemo(
+    () => platforms.filter((p) => p.enabled),
+    [platforms]
+  );
+  useEffect(() => {
+    if (projects.length === 0 || enabledPlatforms.length === 0) {
+      setPlatformStats({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const next: Record<string, Record<string, PlatformEntryCount>> = {};
+      await Promise.all(
+        projects.map(async (project) => {
+          const perPlatform: Record<string, PlatformEntryCount> = {};
+          await Promise.all(
+            enabledPlatforms.map(async (platform) => {
+              try {
+                const res = await ipc.countPlatformEntries(
+                  platform.id,
+                  project.path
+                );
+                perPlatform[platform.id] = res;
+              } catch {
+                perPlatform[platform.id] = {
+                  platform_id: platform.id,
+                  skills: 0,
+                  rules: 0,
+                  dir_exists: false,
+                };
+              }
+            })
+          );
+          next[project.id] = perPlatform;
+        })
+      );
+      if (!cancelled) setPlatformStats(next);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [projects, enabledPlatforms]);
 
-  const handleSyncProject = useCallback(async (projectId: string, sceneId: string, platformId: string) => {
-    await syncScene(sceneId, [platformId], "project", projectId);
-  }, [syncScene]);
+  // 「去工作区分发」：携带项目上下文跳转到分发工作区（§7.8）。
+  // 同时清空资源库「去分发」可能残留的临时选择，避免与项目上下文混用。
+  const goDistribute = (projectId: string) => {
+    setProjectDistSelectedProjectId(projectId);
+    useAppStore.getState().setPendingDistributionSelection(null);
+    setActiveNav('globalDistribution');
+  };
 
-  const getProjectDistributions = useCallback((projectId: string) => {
-    return distributions.filter((d) => d.project_id === projectId);
-  }, [distributions]);
+  const commitRename = async (projectId: string, name: string) => {
+    if (name.trim() && projectId) {
+      await ipc.renameProject(projectId, name.trim());
+      await fetchProjects();
+    }
+    setEditingId(null);
+  };
 
-  const filteredProjects = projects.filter((p) => {
-    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase()) && !p.path.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    if (sceneFilter && p.scene_id !== sceneFilter) return false;
-    return true;
-  });
+  const handleBatchDelete = async () => {
+    if (batch.selectedCount === 0) return;
+    await removeProjects([...batch.selectedIds]);
+    setShowBatchDeleteConfirm(false);
+    batch.exit();
+  };
 
   return (
-    <div className="flex h-full flex-col overflow-y-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{t("projectTitle")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t("projectSubtitle")}</p>
-        </div>
-        <button
-          className={cn(
-            "flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5",
-            "text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors",
-          )}
-          onClick={() => setShowAddDialog(true)}
-        >
-          <Plus className="h-4 w-4" />
-          {t("addProject")}
-        </button>
-      </div>
+    <div className="flex h-full flex-col overflow-y-auto">
+      <ProjectDistributionToolbar
+        title={t('projectTitle')}
+        subtitle={t('projectSubtitle')}
+        batchEnabled={batch.enabled}
+        batchSelectLabel={t('common:actions.batchSelect')}
+        exitSelectLabel={t('common:actions.exitSelect')}
+        addProjectLabel={t('addProject')}
+        onToggleBatch={batch.toggle}
+        onAddProject={() => setShowAddDialog(true)}
+      />
 
-      {/* Search + Scene Filter */}
-      <div className="mb-4 flex items-center gap-3">
-        <div className="relative max-w-[400px] flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={tc("actions.searchProjects")}
-            className={cn(
-              "w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm",
-              "placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring",
-            )}
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <select
-            value={sceneFilter}
-            onChange={(e) => setSceneFilter(e.target.value)}
-            className="rounded-lg border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">{ts("allScenes")}</option>
-            {scenes.map((scene) => (
-              <option key={scene.id} value={scene.id}>{scene.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Project Cards */}
-      <div className="space-y-4">
-        {filteredProjects.map((project) => {
-          const projectDists = getProjectDistributions(project.id);
-          const platformStatuses = new Map<string, string>();
-          projectDists.forEach((d) => {
-            if (!platformStatuses.has(d.platform_id)) {
-              platformStatuses.set(d.platform_id, d.status || "pending");
-            }
-          });
-
-          return (
-            <div key={project.id} className="rounded-lg border border-border bg-card p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <button
-                    className="text-primary hover:text-primary/80 transition-colors"
-                    onClick={() => revealItemInDir(project.path)}
-                    title={tc("actions.openInFileManager")}
-                  >
-                    <FolderOpen className="h-5 w-5" />
-                  </button>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">{project.name}</h3>
-                    <p className="text-xs text-muted-foreground">{project.path}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={project.scene_id || ""}
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        bindSceneToProject(project.id, e.target.value);
-                      }
-                    }}
-                    className="rounded-md border border-input bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                  >
-                    <option value="">{t("bindScene")}</option>
-                    {scenes.map((scene) => (
-                      <option key={scene.id} value={scene.id}>{scene.name}</option>
-                    ))}
-                  </select>
-                  <button
-                    className="text-muted-foreground hover:text-error transition-colors"
-                    onClick={() => handleRemoveProject(project.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Platform Status Grid - filtered by scene-bound platforms */}
-              {!project.scene_id ? (
-                <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-                  <Globe className="h-4 w-4 mr-2 text-muted-foreground/50" />
-                  {t("bindSceneFirst")}
-                </div>
-              ) : (scenePlatformsMap[project.scene_id] || []).length === 0 ? (
-                <div className="flex items-center justify-center py-4 text-sm text-muted-foreground">
-                  <Globe className="h-4 w-4 mr-2 text-muted-foreground/50" />
-                  {t("noPlatformForSceneProject")}
-                </div>
-              ) : (
-                <div className="grid grid-cols-4 gap-2">
-                  {platforms
-                    .filter((p) => (scenePlatformsMap[project.scene_id!] || []).includes(p.id))
-                    .map((platform) => {
-                  const rawStatus = platformStatuses.get(platform.id) || "pending";
-                  const status = rawStatus as SyncStatus;
-                  return (
-                    <div key={platform.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        {statusIconMap[status] || statusIconMap.pending}
-                        {(() => { const Icon = getPlatformIcon(platform.id); return <Icon className="h-4 w-4 text-muted-foreground" />; })()}
-                        <span className="text-xs font-medium text-foreground">{platform.name}</span>
-                      </div>
-                      <button
-                        className="text-muted-foreground hover:text-primary transition-colors"
-                        onClick={() => {
-                          if (project.scene_id) {
-                            handleSyncProject(project.id, project.scene_id, platform.id);
-                          }
-                        }}
-                        disabled={!project.scene_id}
-                      >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              )}
+      {projects.length === 0 &&
+      platforms.filter((p) => p.enabled).length === 0 ? (
+        <ProjectDistributionEmptyProjectsState
+          title={t('noProjects')}
+          hint={t('noProjectsHint')}
+        />
+      ) : platforms.filter((p) => p.enabled).length === 0 ? (
+        <ProjectDistributionNoPlatformsState
+          title={t('noEnabledPlatforms')}
+          hint={t('noEnabledPlatformsHint')}
+          actionLabel={t('goToSettings')}
+          onGoToSettings={() => useAppStore.getState().setActiveNav('settings')}
+        />
+      ) : (
+        <>
+          {/* 搜索行：位于标题行下一行 */}
+          <div className="mb-3 mt-5">
+            <div className="relative w-[220px]">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t('common:actions.searchProjects')}
+                aria-label={t('common:actions.searchProjects')}
+                className={SEARCH_INPUT_CLASSES}
+              />
             </div>
-          );
-        })}
-      </div>
+          </div>
 
-      {filteredProjects.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-12">
-          <FolderOpen className="mb-3 h-12 w-12 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">{t("empty")}</p>
-        </div>
+          {/* 项目管理列表 */}
+          {filteredProjects.length === 0 ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">
+              {searchQuery ? t('noMatchProjects') : t('noProjectsAdd')}
+            </div>
+          ) : (
+            <ul className="space-y-2">
+              {filteredProjects.map((project) => (
+                <Suspense fallback={null}>
+                  <ProjectDistributionItem
+                    key={project.id}
+                    project={project}
+                    enabledPlatforms={enabledPlatforms}
+                    stats={platformStats[project.id]}
+                    batchEnabled={batch.enabled}
+                    isSelected={batch.isSelected(project.id)}
+                    editing={editingId === project.id}
+                    editNameValue={editNameValue}
+                    onSelectToggle={() => batch.toggleSelect(project.id)}
+                    onEditStart={() => {
+                      setEditingId(project.id);
+                      setEditNameValue(project.name);
+                    }}
+                    onEditNameChange={setEditNameValue}
+                    onEditCommit={() =>
+                      void commitRename(project.id, editNameValue)
+                    }
+                    onEditCancel={() => setEditingId(null)}
+                    onGoDistribute={() => goDistribute(project.id)}
+                    onRevealFallback={() =>
+                      useAppStore
+                        .getState()
+                        .addToast(t('ws.revealFallback'), 'info')
+                    }
+                    onRevealFailed={() =>
+                      useAppStore
+                        .getState()
+                        .addToast(t('ws.revealFailed'), 'error')
+                    }
+                  />
+                </Suspense>
+              ))}
+            </ul>
+          )}
+
+          <Suspense fallback={null}>
+            <ProjectBatchBar
+              enabled={batch.enabled}
+              selectedCount={batch.selectedCount}
+              selectedLabel={t('common:messages.selectedCount', {
+                count: batch.selectedCount,
+              })}
+              guideLabel={t('common:batch.guide')}
+              deleteLabel={t('common:batch.delete')}
+              clearLabel={t('common:actions.cancelSelect')}
+              exitLabel={t('common:batch.exit')}
+              onDelete={() => setShowBatchDeleteConfirm(true)}
+              onClear={batch.clear}
+              onExit={batch.exit}
+            />
+          </Suspense>
+
+          {showAddDialog && (
+            <Suspense fallback={null}>
+              <AddProjectDialog
+                open={showAddDialog}
+                onClose={() => setShowAddDialog(false)}
+                onConfirm={async ({
+                  name,
+                  path,
+                }: {
+                  name: string;
+                  path: string;
+                }) => {
+                  await addProject(name, path);
+                  setShowAddDialog(false);
+                }}
+              />
+            </Suspense>
+          )}
+        </>
       )}
 
-      <AddProjectDialog
-        open={showAddDialog}
-        onClose={() => setShowAddDialog(false)}
-        onConfirm={handleAddProject}
-        scenes={scenes.map((s) => ({ id: s.id, name: s.name }))}
-      />
-
       <ConfirmDialog
-        open={confirmDeleteProjectId !== null}
-        title={tc("messages.confirmDelete")}
-        message={tc("messages.confirmDelete")}
+        open={showBatchDeleteConfirm}
+        title={t('batchDeleteTitle', { count: batch.selectedCount })}
+        message={t('batchDeleteMessage')}
         variant="danger"
-        confirmLabel={tc("actions.delete")}
-        onConfirm={executeRemoveProject}
-        onCancel={() => setConfirmDeleteProjectId(null)}
-      />
+        confirmLabel={t('batchDeleteConfirm')}
+        onConfirm={handleBatchDelete}
+        onCancel={() => setShowBatchDeleteConfirm(false)}
+      >
+        {selectedProjectsForDelete.length > 0 && (
+          <div className="mb-6">
+            <p className="mb-1 text-xs text-muted-foreground">
+              {t('batchDeleteSummary')}
+            </p>
+            <ul className="max-h-40 overflow-y-auto rounded border border-border bg-background p-2 text-sm text-foreground">
+              {selectedProjectsForDelete.map((p) => (
+                <li key={p.id} className="truncate">
+                  {p.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

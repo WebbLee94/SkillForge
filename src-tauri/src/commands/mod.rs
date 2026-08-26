@@ -1,9 +1,10 @@
-pub mod skills;
-pub mod scenes;
 pub mod distribution;
-pub mod projects;
-pub mod rules;
-pub mod tags;
-pub mod system;
-pub mod platform;
 pub mod import;
+pub mod platform;
+pub mod projects;
+pub mod resources;
+pub mod rules;
+pub mod scenes;
+pub mod skills;
+pub mod system;
+pub mod tags;

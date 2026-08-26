@@ -18,15 +18,6 @@ pub struct Skill {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SkillVersion {
-    pub skill_id: String,
-    pub version: String,
-    pub source_ref: Option<String>,
-    pub checksum: Option<String>,
-    pub fetched_at: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tag {
     pub id: i64,
     pub name: String,
@@ -50,14 +41,6 @@ pub struct Rule {
     pub updated_at: String,
     #[serde(default)]
     pub tags: Vec<Tag>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RuleHistory {
-    pub rule_id: String,
-    pub version: i32,
-    pub content: String,
-    pub changed_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -95,10 +78,23 @@ pub struct Project {
     pub id: String,
     pub name: String,
     pub path: String,
-    pub scene_id: Option<String>,
     pub description: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// Result of a batch project deletion (Phase 7 confirmed semantics).
+///
+/// - `deleted`: ids whose SkillForge `projects` row was removed.
+/// - `not_found`: ids that did not exist — reported per-id instead of failing
+///   the whole batch, so a stale id mid-batch never blocks the others.
+///
+/// Deleting a project only removes the SkillForge record: it never deletes the
+/// project directory on disk, nor any skill / rule / scene resources.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteProjectsResult {
+    pub deleted: Vec<String>,
+    pub not_found: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -109,31 +105,6 @@ pub struct Platform {
     pub enabled: bool,
     pub icon: Option<String>,
     pub paths: PlatformPaths,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Distribution {
-    pub id: i64,
-    pub scene_id: String,
-    pub platform_id: String,
-    pub scope: String,
-    pub project_id: Option<String>,
-    pub project_path: Option<String>,
-    pub status: String,
-    pub last_synced_at: Option<String>,
-    pub checksum: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SyncLog {
-    pub id: i64,
-    pub action: String,
-    pub target_type: String,
-    pub target_id: String,
-    pub platform_id: Option<String>,
-    pub status: String,
-    pub message: Option<String>,
-    pub created_at: String,
 }
 
 // ── DTOs ───────────────────────────────────────────────────────────
@@ -158,7 +129,6 @@ pub struct UpdateSceneDTO {
 pub struct AddProjectDTO {
     pub name: String,
     pub path: String,
-    pub scene_id: Option<String>,
     pub description: Option<String>,
 }
 
@@ -215,16 +185,13 @@ pub struct SkillMeta {
 ///
 /// - `Directory`: each rule is written as `{rules_dir}/{rule_id}.{format}`
 /// - `SingleFile`: all rules are merged into one named file using SKILLFORGE markers
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum RulesFormat {
+    #[default]
     Directory,
-    SingleFile { file_name: String },
-}
-
-impl Default for RulesFormat {
-    fn default() -> Self {
-        RulesFormat::Directory
-    }
+    SingleFile {
+        file_name: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -276,6 +243,10 @@ pub struct SyncResult {
     pub installed: Vec<String>,
     pub updated: Vec<String>,
     pub removed: Vec<String>,
+    /// Count of requested skills/rules that required no write because the
+    /// target was already in the desired state (AddOrUpdate only).
+    #[serde(default)]
+    pub skipped: u32,
     pub errors: Vec<String>,
 }
 
@@ -373,4 +344,31 @@ pub struct SceneRuleEntry {
 pub struct SkillFilter {
     pub source_type: Option<String>,
     pub tag: Option<String>,
+}
+
+/// 文件树节点，用于分发页面的目录浏览
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FileTreeNode {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub children: Vec<FileTreeNode>,
+}
+
+// ── Distribution（领域模型已迁移至 domain/distribution，此处保留类型路径兼容）──
+//
+// 分发域的不可变模型已原样迁移到 `crate::domain::distribution::model`，
+// 校验实现迁移到 `validation`；通过 re-export 保持 `crate::types::*`
+// 的既有引用路径与 IPC 载荷形状完全不变。
+pub use crate::domain::distribution::model::{
+    DistributionIntent, DistributionIntentMode, DistributionPlan, DistributionRequest,
+    LocalDistributionEntry, ManagedDistributionEntry, ManagedDistributionState,
+    ManagedPlatformState, PlatformDistributionPlan,
+};
+
+/// reveal_path 命令返回：实际揭示的路径 + 是否发生了祖先回退。
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RevealPathResult {
+    pub revealed_path: String,
+    pub fallback: bool,
 }

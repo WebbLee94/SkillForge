@@ -34,6 +34,8 @@ pub enum AppError {
     Io(String),
     #[error("验证错误: {0}")]
     Validation(String),
+    #[error("分发请求无效: {0}")]
+    DistributionInvalid(String),
 }
 
 impl From<rusqlite::Error> for AppError {

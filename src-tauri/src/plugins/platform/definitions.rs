@@ -1,8 +1,7 @@
 /// Compile-time constant definitions for all supported Agent platforms.
 /// This is the single source of truth for platform metadata (paths, capabilities).
 /// DB `platforms` table stores only mutable fields (enabled, icon).
-
-use crate::types::{RulesFormat, PlatformPaths as PlatformPathsType};
+use crate::types::{PlatformPaths as PlatformPathsType, RulesFormat};
 
 /// Static platform definition — all data known at compile time.
 pub struct PlatformDef {
@@ -27,10 +26,10 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         adapter: "claude-code",
         skills_global: "~/.claude/skills",
         skills_project: ".claude/skills",
-        rules_global: Some("~/.claude/rules"),
-        rules_project: Some(".claude/rules"),
-        rules_single_file_global: false,
-        rules_single_file_project: false,
+        rules_global: Some("~/.claude/CLAUDE.md"),
+        rules_project: Some("CLAUDE.md"),
+        rules_single_file_global: true,
+        rules_single_file_project: true,
     },
     PlatformDef {
         id: "opencode",
@@ -38,10 +37,10 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         adapter: "opencode",
         skills_global: "~/.config/opencode/skills",
         skills_project: ".opencode/skills",
-        rules_global: Some("~/.config/opencode/rules"),
-        rules_project: Some(".opencode/rules"),
-        rules_single_file_global: false,
-        rules_single_file_project: false,
+        rules_global: Some("~/.config/opencode/AGENTS.md"),
+        rules_project: Some("AGENTS.md"),
+        rules_single_file_global: true,
+        rules_single_file_project: true,
     },
     PlatformDef {
         id: "cursor",
@@ -60,7 +59,7 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         adapter: "trae",
         skills_global: "~/.trae/skills",
         skills_project: ".trae/skills",
-        rules_global: Some("~/.trae/rules"),
+        rules_global: Some("~/.trae/user_rules"),
         rules_project: Some(".trae/rules"),
         rules_single_file_global: false,
         rules_single_file_project: false,
@@ -70,9 +69,9 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         name: "Trae CN",
         adapter: "trae-cn",
         skills_global: "~/.trae-cn/skills",
-        skills_project: ".trae-cn/skills",
+        skills_project: ".trae/skills",
         rules_global: Some("~/.trae-cn/user_rules"),
-        rules_project: Some(".trae-cn/user_rules"),
+        rules_project: Some(".trae/rules"),
         rules_single_file_global: false,
         rules_single_file_project: false,
     },
@@ -91,10 +90,10 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         id: "codebuddy-cn",
         name: "CodeBuddy CN",
         adapter: "codebuddy-cn",
-        skills_global: "~/.codebuddy-cn/skills",
-        skills_project: ".codebuddy-cn/skills",
-        rules_global: Some("~/.codebuddy-cn/rules"),
-        rules_project: Some(".codebuddy-cn/rules"),
+        skills_global: "~/.codebuddy/skills",
+        skills_project: ".codebuddy/skills",
+        rules_global: Some("~/.codebuddy/rules"),
+        rules_project: Some(".codebuddy/rules"),
         rules_single_file_global: false,
         rules_single_file_project: false,
     },
@@ -104,9 +103,9 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         adapter: "codex",
         skills_global: "~/.codex/skills",
         skills_project: ".codex/skills",
-        rules_global: Some("~/.codex/AGENTS.md"),
+        rules_global: Some("~/.codex/rules"),
         rules_project: Some("AGENTS.md"),
-        rules_single_file_global: true,
+        rules_single_file_global: false,
         rules_single_file_project: true,
     },
     PlatformDef {
@@ -115,7 +114,7 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         adapter: "hermes",
         skills_global: "~/.hermes/skills",
         skills_project: ".hermes/skills",
-        rules_global: Some("~/.hermes/SOUL.md"),
+        rules_global: Some("~/.hermes/AGENTS.md"),
         rules_project: Some(".hermes.md"),
         rules_single_file_global: true,
         rules_single_file_project: true,
@@ -130,28 +129,6 @@ pub const ALL_PLATFORMS: &[PlatformDef] = &[
         rules_project: Some("AGENTS.md"),
         rules_single_file_global: false,
         rules_single_file_project: true,
-    },
-    PlatformDef {
-        id: "antigravity",
-        name: "Antigravity",
-        adapter: "antigravity",
-        skills_global: "~/.antigravity/skills",
-        skills_project: ".antigravity/skills",
-        rules_global: Some("~/.gemini/GEMINI.md"),
-        rules_project: Some(".agent/rules"),
-        rules_single_file_global: true,
-        rules_single_file_project: false,
-    },
-    PlatformDef {
-        id: "windsurf",
-        name: "Windsurf",
-        adapter: "windsurf",
-        skills_global: "~/.windsurf/skills",
-        skills_project: ".windsurf/skills",
-        rules_global: None,
-        rules_project: Some(".windsurf/rules"),
-        rules_single_file_global: false,
-        rules_single_file_project: false,
     },
 ];
 
@@ -172,12 +149,16 @@ fn extract_file_name(path: &str) -> String {
 impl From<&PlatformDef> for PlatformPathsType {
     fn from(def: &PlatformDef) -> Self {
         let global_rules_format = if def.rules_single_file_global {
-            def.rules_global.map(|p| RulesFormat::SingleFile { file_name: extract_file_name(p) })
+            def.rules_global.map(|p| RulesFormat::SingleFile {
+                file_name: extract_file_name(p),
+            })
         } else {
             None
         };
         let project_rules_format = if def.rules_single_file_project {
-            def.rules_project.map(|p| RulesFormat::SingleFile { file_name: extract_file_name(p) })
+            def.rules_project.map(|p| RulesFormat::SingleFile {
+                file_name: extract_file_name(p),
+            })
         } else {
             None
         };

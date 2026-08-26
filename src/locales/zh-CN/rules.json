@@ -1,7 +1,7 @@
 {
-  "title": "规则库",
+  "title": "规则",
   "subtitle": "创建和管理规则文件",
-  "searchPlaceholder": "搜索规则...",
+  "searchPlaceholder": "搜索规则…",
   "createRule": "新建规则",
   "editRule": "编辑规则",
   "format": "格式",
@@ -20,6 +20,11 @@
     "global": "全局",
     "project": "项目"
   },
+  "detail": {
+    "localPath": "本地路径",
+    "openInFinder": "在文件管理器中打开",
+    "notDistributed": "尚未分发到本地目标"
+  },
   "create": {
     "title": "新建规则",
     "nameLabel": "规则名称",
@@ -27,11 +32,12 @@
     "namePlaceholder": "输入规则名称",
     "descriptionPlaceholder": "输入规则描述",
     "contentPlaceholder": "编写规则内容...",
+    "contentRequired": "规则内容不能为空",
     "selectFormat": "选择格式",
     "selectPlatform": "选择目标平台"
   },
   "empty": "还没有创建任何规则",
-  "count": "共 {{count}} 条规则",
+  "count": "{{count}} 条规则",
   "ruleFileFilter": "规则文件",
   "importedFrom": "从 {{filename}} 导入",
   "importRules": "导入规则",
@@ -39,5 +45,13 @@
   "willCreateAs": "将创建为: {{name}}",
   "fullscreenEdit": "全屏编辑",
   "exitFullscreen": "退出全屏 (Esc)",
-  "preview": "预览"
+  "preview": "预览",
+  "previewEmpty": "暂无内容",
+  "editor": {
+    "title": "{{format}} 编辑器",
+    "lines": "{{count}} 行",
+    "edit": "编辑",
+    "preview": "预览",
+    "split": "双栏"
+  }
 }

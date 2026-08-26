@@ -1,6 +1,7 @@
+use crate::db::resources_repo;
 use crate::error::AppError;
 use crate::plugins::source::SourcePlugin;
-use crate::types::{Skill, SkillFilter, SkillVersion, Tag};
+use crate::types::{Skill, SkillFilter, Tag};
 
 use rusqlite::params;
 
@@ -21,20 +22,14 @@ pub fn install_skill(
     let local_path = data_dir.join("skills").join(&bundle.meta.id);
 
     // Check if already installed using the canonical skill ID from the bundle
-    let exists: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM skills WHERE id = ?1",
-            params![bundle.meta.id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map(|c| c > 0)?;
+    let exists = resources_repo::kind_exists(conn, &bundle.meta.id, resources_repo::KIND_SKILL)?;
 
     if exists {
-        // Silent overwrite: use UPDATE to preserve skill_tags and scene_skills relationships
+        // Silent overwrite: use UPDATE to preserve resource_tags and scene_items relationships
         // (DELETE would cascade via foreign keys and destroy all tags/scene bindings)
         store_skill_files(&local_path, &bundle)?;
         conn.execute(
-            "UPDATE skills SET name = ?1, description = ?2, source_type = ?3, source_url = ?4, current_ver = ?5, local_path = ?6, metadata = ?7 WHERE id = ?8",
+            "UPDATE resources SET name = ?1, description = ?2, source_type = ?3, source_url = ?4, current_ver = ?5, local_path = ?6, metadata = ?7, updated_at = ?8 WHERE id = ?9 AND kind = 'skill'",
             params![
                 bundle.meta.name,
                 bundle.meta.description,
@@ -43,18 +38,10 @@ pub fn install_skill(
                 bundle.meta.version,
                 local_path.to_string_lossy().to_string(),
                 bundle.meta.metadata,
+                chrono::Utc::now().to_rfc3339(),
                 bundle.meta.id,
             ],
         )?;
-        // Record new version
-        if let Some(ver) = &bundle.meta.version {
-            let fetched_at = chrono::Utc::now().to_rfc3339();
-            conn.execute(
-                "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5)",
-                params![bundle.meta.id, ver, bundle.meta.source_url, Option::<String>::None, fetched_at],
-            )?;
-        }
         return query_skill_by_id(conn, &bundle.meta.id);
     }
 
@@ -63,32 +50,18 @@ pub fn install_skill(
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    // Insert into skills table
-    conn.execute(
-        "INSERT INTO skills (id, name, description, source_type, source_url, current_ver, installed_at, local_path, metadata)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        params![
-            bundle.meta.id,
-            bundle.meta.name,
-            bundle.meta.description,
-            bundle.meta.source_type,
-            bundle.meta.source_url,
-            bundle.meta.version,
-            now,
-            local_path.to_string_lossy().to_string(),
-            bundle.meta.metadata,
-        ],
+    resources_repo::insert_skill_row(
+        conn,
+        &bundle.meta.id,
+        &bundle.meta.name,
+        Some(bundle.meta.description.as_str()),
+        &bundle.meta.source_type,
+        bundle.meta.source_url.as_deref(),
+        bundle.meta.version.as_deref(),
+        &now,
+        &local_path.to_string_lossy(),
+        bundle.meta.metadata.as_deref(),
     )?;
-
-    // Record version
-    if let Some(ver) = &bundle.meta.version {
-        let fetched_at = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "INSERT INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
-             VALUES (?1, ?2, ?3, ?4, ?5)",
-            params![bundle.meta.id, ver, bundle.meta.source_url, Option::<String>::None, fetched_at],
-        )?;
-    }
 
     // Read back the installed skill
     let skill = query_skill_by_id(conn, &bundle.meta.id)?;
@@ -97,17 +70,12 @@ pub fn install_skill(
 
 /// Uninstall a skill: delete files and DB records.
 /// Checks scene references, removes from scenes automatically, and logs affected scenes.
-pub fn uninstall_skill(
-    conn: &rusqlite::Connection,
-    skill_id: &str,
-) -> Result<Skill, AppError> {
+pub fn uninstall_skill(conn: &rusqlite::Connection, skill_id: &str) -> Result<Skill, AppError> {
     let skill = query_skill_by_id(conn, skill_id)?;
 
     // Check scene references: collect affected scene IDs before deletion
     let affected_scenes: Vec<String> = {
-        let mut stmt = conn.prepare(
-            "SELECT scene_id FROM scene_skills WHERE skill_id = ?1",
-        )?;
+        let mut stmt = conn.prepare("SELECT scene_id FROM scene_items WHERE resource_id = ?1")?;
         let rows = stmt.query_map(params![skill_id], |row| row.get(0))?;
         rows.filter_map(|r| r.ok()).collect()
     };
@@ -123,11 +91,18 @@ pub fn uninstall_skill(
         std::fs::remove_dir_all(&local_path)?;
     }
 
-    // Delete DB records (cascading will handle skill_versions, skill_tags, scene_skills)
-    conn.execute("DELETE FROM scene_skills WHERE skill_id = ?1", params![skill_id])?;
-    conn.execute("DELETE FROM skill_tags WHERE skill_id = ?1", params![skill_id])?;
-    conn.execute("DELETE FROM skill_versions WHERE skill_id = ?1", params![skill_id])?;
-    conn.execute("DELETE FROM skills WHERE id = ?1", params![skill_id])?;
+    conn.execute(
+        "DELETE FROM scene_items WHERE resource_id = ?1",
+        params![skill_id],
+    )?;
+    conn.execute(
+        "DELETE FROM resource_tags WHERE resource_id = ?1",
+        params![skill_id],
+    )?;
+    conn.execute(
+        "DELETE FROM resources WHERE id = ?1 AND kind = 'skill'",
+        params![skill_id],
+    )?;
 
     // Update timestamps for affected scenes
     let now = chrono::Utc::now().to_rfc3339();
@@ -169,22 +144,15 @@ pub fn update_skill(
 
     // Update DB record
     conn.execute(
-        "UPDATE skills SET name = ?1, description = ?2, current_ver = ?3, metadata = ?4 WHERE id = ?5",
+        "UPDATE resources SET name = ?1, description = ?2, current_ver = ?3, metadata = ?4, updated_at = ?5 WHERE id = ?6 AND kind = 'skill'",
         params![
             bundle.meta.name,
             bundle.meta.description,
             bundle.meta.version,
             bundle.meta.metadata,
+            chrono::Utc::now().to_rfc3339(),
             skill_id,
         ],
-    )?;
-
-    // Record new version
-    let fetched_at = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "INSERT OR REPLACE INTO skill_versions (skill_id, version, source_ref, checksum, fetched_at)
-         VALUES (?1, ?2, ?3, ?4, ?5)",
-        params![skill_id, new_version, bundle.meta.source_url, Option::<String>::None, fetched_at],
     )?;
 
     query_skill_by_id(conn, skill_id)
@@ -196,33 +164,34 @@ pub fn list_skills(
     filter: &SkillFilter,
 ) -> Result<Vec<Skill>, AppError> {
     let mut sql = String::from(
-        "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
+        "SELECT r.id, r.name, r.description, r.source_type, r.source_url, r.current_ver, r.installed_at, r.local_path, r.metadata, \
          IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
-         FROM skills s \
-         LEFT JOIN skill_tags st ON s.id = st.skill_id \
-         LEFT JOIN tags t ON st.tag_id = t.id \
-         WHERE 1=1",
+         FROM resources r \
+         LEFT JOIN resource_tags rt ON r.id = rt.resource_id \
+         LEFT JOIN tags t ON rt.tag_id = t.id \
+         WHERE r.kind = 'skill'",
     );
     let mut param_values: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
     let mut param_idx = 1;
 
     if let Some(ref source_type) = filter.source_type {
-        sql.push_str(&format!(" AND s.source_type = ?{}", param_idx));
+        sql.push_str(&format!(" AND r.source_type = ?{}", param_idx));
         param_values.push(Box::new(source_type.clone()));
         param_idx += 1;
     }
 
     if let Some(ref tag) = filter.tag {
         sql.push_str(&format!(
-            " AND s.id IN (SELECT skill_id FROM skill_tags WHERE tag_id IN (SELECT id FROM tags WHERE name = ?{} AND tag_type = 'skill'))",
+            " AND r.id IN (SELECT rt2.resource_id FROM resource_tags rt2 WHERE rt2.tag_id IN (SELECT id FROM tags WHERE name = ?{} AND tag_type = 'skill'))",
             param_idx
         ));
         param_values.push(Box::new(tag.clone()));
     }
 
-    sql.push_str(" GROUP BY s.id ORDER BY s.name ASC");
+    sql.push_str(" GROUP BY r.id ORDER BY r.name ASC");
 
-    let params: Vec<&dyn rusqlite::types::ToSql> = param_values.iter().map(|p| p.as_ref()).collect();
+    let params: Vec<&dyn rusqlite::types::ToSql> =
+        param_values.iter().map(|p| p.as_ref()).collect();
 
     let mut stmt = conn.prepare(&sql)?;
     let skills = stmt
@@ -248,20 +217,17 @@ pub fn list_skills(
 }
 
 /// Search skills by name or description.
-pub fn search_skills(
-    conn: &rusqlite::Connection,
-    query: &str,
-) -> Result<Vec<Skill>, AppError> {
+pub fn search_skills(conn: &rusqlite::Connection, query: &str) -> Result<Vec<Skill>, AppError> {
     let pattern = format!("%{}%", query);
     let mut stmt = conn.prepare(
-        "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
+        "SELECT r.id, r.name, r.description, r.source_type, r.source_url, r.current_ver, r.installed_at, r.local_path, r.metadata, \
          IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
-         FROM skills s \
-         LEFT JOIN skill_tags st ON s.id = st.skill_id \
-         LEFT JOIN tags t ON st.tag_id = t.id \
-         WHERE s.name LIKE ?1 OR s.description LIKE ?1 \
-         GROUP BY s.id \
-         ORDER BY s.name ASC",
+         FROM resources r \
+         LEFT JOIN resource_tags rt ON r.id = rt.resource_id \
+         LEFT JOIN tags t ON rt.tag_id = t.id \
+         WHERE r.kind = 'skill' AND (r.name LIKE ?1 OR r.description LIKE ?1) \
+         GROUP BY r.id \
+         ORDER BY r.name ASC",
     )?;
 
     let skills = stmt
@@ -286,35 +252,36 @@ pub fn search_skills(
     Ok(skills)
 }
 
-/// Get version history for a skill.
-pub fn get_skill_versions(
+/// Resolve the managed-copy path of an installed skill.
+///
+/// The path is read from `skills.local_path` (the recorded `~/.skillforge/
+/// skills/{id}` directory) and validated against the filesystem before being
+/// returned: `Some(path)` only when the directory physically exists, `None`
+/// when the DB row still points at a missing directory. No distribution
+/// status is consulted or fabricated — the filesystem is the source of truth
+/// for whether a managed copy can be revealed.
+pub fn managed_copy_path(
     conn: &rusqlite::Connection,
     skill_id: &str,
-) -> Result<Vec<SkillVersion>, AppError> {
-    // Verify skill exists
-    query_skill_by_id(conn, skill_id)?;
+) -> Result<Option<String>, AppError> {
+    let local_path: String = match conn.query_row(
+        "SELECT local_path FROM resources WHERE id = ?1 AND kind = 'skill'",
+        params![skill_id],
+        |row| row.get(0),
+    ) {
+        Ok(local_path) => local_path,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            return Err(AppError::SkillNotFound(skill_id.to_string()))
+        }
+        Err(e) => return Err(e.into()),
+    };
 
-    let mut stmt = conn.prepare(
-        "SELECT skill_id, version, source_ref, checksum, fetched_at
-         FROM skill_versions
-         WHERE skill_id = ?1
-         ORDER BY fetched_at DESC",
-    )?;
-
-    let versions = stmt
-        .query_map(params![skill_id], |row| {
-            Ok(SkillVersion {
-                skill_id: row.get(0)?,
-                version: row.get(1)?,
-                source_ref: row.get(2)?,
-                checksum: row.get(3)?,
-                fetched_at: row.get(4)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(versions)
+    let path = std::path::PathBuf::from(&local_path);
+    if path.exists() {
+        Ok(Some(local_path))
+    } else {
+        Ok(None)
+    }
 }
 
 // ── Internal helpers ───────────────────────────────────────────────
@@ -333,13 +300,13 @@ fn parse_tags_json(json: &str) -> Vec<Tag> {
 
 fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, AppError> {
     conn.query_row(
-        "SELECT s.id, s.name, s.description, s.source_type, s.source_url, s.current_ver, s.installed_at, s.local_path, s.metadata, \
+        "SELECT r.id, r.name, r.description, r.source_type, r.source_url, r.current_ver, r.installed_at, r.local_path, r.metadata, \
          IFNULL(json_group_array(json_object('id', t.id, 'name', t.name, 'color', t.color, 'tag_type', t.tag_type)), '[]') \
-         FROM skills s \
-         LEFT JOIN skill_tags st ON s.id = st.skill_id \
-         LEFT JOIN tags t ON st.tag_id = t.id \
-         WHERE s.id = ?1 \
-         GROUP BY s.id",
+         FROM resources r \
+         LEFT JOIN resource_tags rt ON r.id = rt.resource_id \
+         LEFT JOIN tags t ON rt.tag_id = t.id \
+         WHERE r.id = ?1 AND r.kind = 'skill' \
+         GROUP BY r.id",
         params![id],
         |row| {
             let tags_json: String = row.get(9)?;
@@ -361,6 +328,13 @@ fn query_skill_by_id(conn: &rusqlite::Connection, id: &str) -> Result<Skill, App
 }
 
 /// Store skill files to the local filesystem
+pub fn store_skill_files_public(
+    local_path: &std::path::Path,
+    bundle: &crate::types::SkillBundle,
+) -> Result<(), AppError> {
+    store_skill_files(local_path, bundle)
+}
+
 fn store_skill_files(
     local_path: &std::path::Path,
     bundle: &crate::types::SkillBundle,
@@ -401,7 +375,9 @@ fn store_skill_files(
             let src_subdir = source_dir.join(subdir);
             let dst_subdir = local_path.join(subdir);
             if src_subdir.exists() && src_subdir.is_dir() {
-                if let Err(e) = crate::plugins::platform::copy_dir_recursive(&src_subdir, &dst_subdir) {
+                if let Err(e) =
+                    crate::plugins::platform::copy_dir_recursive(&src_subdir, &dst_subdir)
+                {
                     eprintln!("Warning: Failed to copy subdirectory {}: {}", subdir, e);
                 }
             } else {
@@ -429,6 +405,29 @@ mod tests {
         conn
     }
 
+    /// 测试夹具：向统一资源表插入一行 kind='skill' 投影。
+    fn fixture_skill(
+        conn: &rusqlite::Connection,
+        id: &str,
+        name: &str,
+        description: &str,
+        local_path: &str,
+    ) {
+        resources_repo::insert_skill_row(
+            conn,
+            id,
+            name,
+            Some(description),
+            "local-fs",
+            None,
+            None,
+            &chrono::Utc::now().to_rfc3339(),
+            local_path,
+            None,
+        )
+        .unwrap();
+    }
+
     #[test]
     fn test_list_skills_empty() {
         let conn = setup_db();
@@ -443,11 +442,13 @@ mod tests {
     #[test]
     fn test_search_skills() {
         let conn = setup_db();
-        let now = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["java-springboot", "Java Spring Boot", "Spring Boot best practices", "local-fs", now, "/tmp/skills/java-springboot"],
-        ).unwrap();
+        fixture_skill(
+            &conn,
+            "java-springboot",
+            "Java Spring Boot",
+            "Spring Boot best practices",
+            "/tmp/skills/java-springboot",
+        );
 
         let results = search_skills(&conn, "spring").unwrap();
         assert_eq!(results.len(), 1);
@@ -470,10 +471,13 @@ mod tests {
         let now = chrono::Utc::now().to_rfc3339();
 
         // Insert a skill
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["test-skill", "Test Skill", "A test", "local-fs", now, "/tmp/skillforge-test/test-skill"],
-        ).unwrap();
+        fixture_skill(
+            &conn,
+            "test-skill",
+            "Test Skill",
+            "A test",
+            "/tmp/skillforge-test/test-skill",
+        );
 
         // Create a scene and add the skill to it
         conn.execute(
@@ -481,7 +485,7 @@ mod tests {
             params!["test-scene", "Test Scene", "A test scene", now, now],
         ).unwrap();
         conn.execute(
-            "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, 0)",
+            "INSERT INTO scene_items (scene_id, resource_id, enabled, sort_order) VALUES (?1, ?2, 1, 0)",
             params!["test-scene", "test-skill"],
         ).unwrap();
 
@@ -492,10 +496,10 @@ mod tests {
         let result = uninstall_skill(&conn, "test-skill");
         assert!(result.is_ok());
 
-        // Verify scene_skills reference was removed
+        // Verify scene_items reference was removed
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM scene_skills WHERE skill_id = ?1",
+                "SELECT COUNT(*) FROM scene_items WHERE resource_id = ?1",
                 params!["test-skill"],
                 |row| row.get(0),
             )
@@ -505,7 +509,7 @@ mod tests {
         // Verify skill was removed
         let count: i64 = conn
             .query_row(
-                "SELECT COUNT(*) FROM skills WHERE id = ?1",
+                "SELECT COUNT(*) FROM resources WHERE id = ?1 AND kind = 'skill'",
                 params!["test-skill"],
                 |row| row.get(0),
             )
@@ -519,24 +523,14 @@ mod tests {
     #[test]
     fn test_install_duplicate_skill() {
         let conn = setup_db();
-        let now = chrono::Utc::now().to_rfc3339();
 
         // Insert a skill
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["test-skill", "Test Skill", "A test", "local-fs", now, "/tmp/test"],
-        ).unwrap();
+        fixture_skill(&conn, "test-skill", "Test Skill", "A test", "/tmp/test");
 
         // Try to install the same skill again (using the engine's install_skill would require
         // a source plugin, so we test the duplicate check logic directly)
-        let exists: bool = conn
-            .query_row(
-                "SELECT COUNT(*) FROM skills WHERE id = ?1",
-                params!["test-skill"],
-                |row| row.get::<_, i64>(0),
-            )
-            .map(|c| c > 0)
-            .unwrap();
+        let exists =
+            resources_repo::kind_exists(&conn, "test-skill", resources_repo::KIND_SKILL).unwrap();
         assert!(exists);
 
         // The install_skill function would return DuplicateSkill error
@@ -548,28 +542,37 @@ mod tests {
     #[test]
     fn test_list_skills_with_tags() {
         let conn = setup_db();
-        let now = chrono::Utc::now().to_rfc3339();
 
         // Insert a skill
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["tagged-skill", "Tagged Skill", "A skill with tags", "local-fs", now, "/tmp/test"],
-        ).unwrap();
+        fixture_skill(
+            &conn,
+            "tagged-skill",
+            "Tagged Skill",
+            "A skill with tags",
+            "/tmp/test",
+        );
 
         // Insert a tag
         conn.execute(
             "INSERT INTO tags (name, color, tag_type) VALUES (?1, ?2, 'skill')",
             params!["rust", "#ff6600"],
-        ).unwrap();
-        let tag_id: i64 = conn.query_row("SELECT last_insert_rowid()", [], |r| r.get(0)).unwrap();
+        )
+        .unwrap();
+        let tag_id: i64 = conn
+            .query_row("SELECT last_insert_rowid()", [], |r| r.get(0))
+            .unwrap();
 
         // Associate tag with skill
         conn.execute(
-            "INSERT INTO skill_tags (skill_id, tag_id) VALUES (?1, ?2)",
+            "INSERT INTO resource_tags (resource_id, tag_id) VALUES (?1, ?2)",
             params!["tagged-skill", tag_id],
-        ).unwrap();
+        )
+        .unwrap();
 
-        let filter = SkillFilter { source_type: None, tag: None };
+        let filter = SkillFilter {
+            source_type: None,
+            tag: None,
+        };
         let skills = list_skills(&conn, &filter).unwrap();
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].tags.len(), 1);
@@ -580,17 +583,85 @@ mod tests {
     #[test]
     fn test_list_skills_without_tags() {
         let conn = setup_db();
-        let now = chrono::Utc::now().to_rfc3339();
 
         // Insert a skill without tags
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["untagged-skill", "Untagged Skill", "No tags", "local-fs", now, "/tmp/test"],
-        ).unwrap();
+        fixture_skill(
+            &conn,
+            "untagged-skill",
+            "Untagged Skill",
+            "No tags",
+            "/tmp/test",
+        );
 
-        let filter = SkillFilter { source_type: None, tag: None };
+        let filter = SkillFilter {
+            source_type: None,
+            tag: None,
+        };
         let skills = list_skills(&conn, &filter).unwrap();
         assert_eq!(skills.len(), 1);
         assert!(skills[0].tags.is_empty());
+    }
+
+    #[test]
+    fn test_managed_copy_path_returns_path_when_dir_exists() {
+        let dir = tempfile::tempdir().unwrap();
+        let conn = setup_db();
+        fixture_skill(
+            &conn,
+            "existing-skill",
+            "Existing",
+            "desc",
+            dir.path().to_str().unwrap(),
+        );
+
+        let path = managed_copy_path(&conn, "existing-skill")
+            .expect("query should succeed")
+            .expect("managed copy exists on disk, so a path must be returned");
+        assert_eq!(path, dir.path().to_str().unwrap());
+    }
+
+    #[test]
+    fn test_managed_copy_path_returns_none_when_dir_is_missing() {
+        let conn = setup_db();
+        fixture_skill(
+            &conn,
+            "ghost-skill",
+            "Ghost",
+            "desc",
+            "/tmp/skillforge-test/ghost-skill",
+        );
+
+        let path = managed_copy_path(&conn, "ghost-skill").expect("query should succeed");
+        assert!(
+            path.is_none(),
+            "filesystem-as-truth: a missing managed copy must yield None"
+        );
+    }
+
+    #[test]
+    fn test_managed_copy_path_missing_skill_returns_not_found() {
+        let conn = setup_db();
+        let err = managed_copy_path(&conn, "missing").unwrap_err();
+        assert!(matches!(&err, AppError::SkillNotFound(_)), "got: {err}");
+    }
+
+    #[test]
+    fn test_managed_copy_path_other_db_errors_surface_as_database_error() {
+        // A `resources` table that lacks the `local_path` column makes the SELECT
+        // fail with a genuine SQLite error ("no such column"), NOT
+        // QueryReturnedNoRows. Such failures must surface as AppError::Database
+        // and never be masked as SkillNotFound.
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE resources (
+                id   TEXT PRIMARY KEY,
+                kind TEXT NOT NULL,
+                name TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+
+        let err = managed_copy_path(&conn, "any-id").unwrap_err();
+        assert!(matches!(&err, AppError::Database(_)), "got: {err}");
     }
 }

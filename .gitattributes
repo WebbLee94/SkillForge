@@ -1,0 +1,43 @@
+# 跨平台换行符策略：仓库统一 LF 存储，所有平台检出为 LF
+#
+# 背景：无此文件时，Windows runner 以 core.autocrlf=true 检出会把文本转成 CRLF，
+# 导致 `prettier --check` 报大量格式差异假阳性（macOS/Linux 为 LF 故通过）。
+# 本文件在仓库层强制换行行为，与本地/CI 的 autocrlf 配置解耦。
+#
+# 采用社区标准做法（参考 gitattributes.io / Karatarakis templates）：
+# 全量规则 + 显式二进制标注，而非仅枚举源码扩展名——
+# 后续新增的文件类型无需维护清单即可获得一致行为。
+
+# 默认：所有文本文件入库时归一为 LF（text=auto 由 git 判定文本性），检出统一 LF
+* text=auto eol=lf
+
+# ---- 二进制类型显式标注（binary = -text -diff -merge），防止任何转换 ----
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.icns binary
+*.bmp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.eot  binary
+*.pdf  binary
+*.zip  binary
+*.gz   binary
+*.exe   binary
+*.dll   binary
+*.dylib binary
+*.so    binary
+*.node  binary
+
+# ---- Windows 脚本例外：按平台惯例检出为 CRLF（入库仍归一为 LF）----
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ---- Shell 脚本明确 LF（防编辑器本地配置漂移）----
+*.sh text eol=lf

@@ -1,24 +1,63 @@
 {
   "title": "Settings",
+  "subtitle": "Manage app preferences and Agent platform configuration.",
   "tabs": {
-    "general": "General",
+    "general": "General Settings",
     "platforms": "Agent Platforms"
   },
   "general": {
     "language": { "title": "Language", "desc": "Choose display language" },
     "languageSystem": "Follow System",
-    "dataDir": { "title": "Data Directory", "desc": "SkillForge data storage location" },
-    "version": { "title": "Version", "desc": "Current application version" },
-    "github": { "title": "GitHub", "desc": "View source code and submit feedback" },
-    "distribution": { "title": "Distribution Method", "desc": "Skills use symbolic links (source changes take effect immediately), rules use file copy (ensures reliability for multi-rule merging)." },
+    "darkMode": {
+      "title": "Dark Mode",
+      "desc": "Enable dark mode",
+      "current": "Current: {{mode}}",
+      "modeDark": "Dark",
+      "modeLight": "Light"
+    },
+    "update": {
+      "title": "Update",
+      "desc": "Automatically check for new versions on startup",
+      "checkButton": "Check for Updates",
+      "autoCheckLabel": "Check for updates automatically"
+    },
+    "dataDir": {
+      "title": "Data Directory",
+      "desc": "SkillForge data storage location"
+    },
+    "community": {
+      "title": "Version & Community",
+      "desc": "Release Notes / Feedback"
+    },
+    "distribution": {
+      "desc": "Skills use symbolic links (source changes take effect immediately), rules use file copy (ensures reliability for multi-rule merging)."
+    },
     "dbSizeCalculating": "Calculating..."
   },
   "platforms": {
     "title": "Agent Platform List",
     "addButton": "Add Platform",
-    "columns": { "name": "Name", "status": "Status" },
+    "columns": {
+      "name": "Platform",
+      "status": "Enabled",
+      "capabilities": "Paths & Capabilities"
+    },
+    "status": { "enabled": "Enabled", "disabled": "Disabled" },
+    "countsFormat": "Skills {{skills}} · Rules {{rules}}",
     "actions": { "enable": "Enable", "disable": "Disable" },
     "hint": "Manage registered Agent platforms. Enabling/disabling platforms affects visibility in scene editing and distribution.",
-    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed."
+    "comingSoon": "Platform management will be available in a future version. Currently only built-in platforms can be viewed.",
+    "capLabels": {
+      "skillsGlobal": "Global Skills",
+      "skillsProject": "Project Skills",
+      "rulesGlobal": "Global Rules",
+      "rulesProject": "Project Rules",
+      "openTooltip": "View {{name}} paths & capabilities",
+      "tooltipTitle": "{{name}} · Paths & Capabilities",
+      "notSupported": "Not Supported",
+      "copied": "Copied",
+      "copyPath": "Copy Path",
+      "openInFileManager": "Open in File Manager"
+    }
   }
 }

@@ -1,6 +1,7 @@
-import { memo, useMemo } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Suspense, lazy, memo, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+
+const RuleMarkdownRenderer = lazy(() => import('./RuleMarkdownRenderer.lazy'));
 
 interface RulePreviewPanelProps {
   content: string;
@@ -8,19 +9,24 @@ interface RulePreviewPanelProps {
 }
 
 /** Parse simple YAML into key-value pairs (best-effort, no full YAML parser) */
-function parseYamlPairs(text: string): Array<{ key: string; value: string; indent: number }> {
-  const lines = text.split("\n");
+function parseYamlPairs(
+  text: string
+): Array<{ key: string; value: string; indent: number }> {
+  const lines = text.split('\n');
   const pairs: Array<{ key: string; value: string; indent: number }> = [];
   for (const line of lines) {
     const trimmed = line.trimEnd();
-    if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!trimmed || trimmed.startsWith('#')) continue;
     const match = trimmed.match(/^(\s*)([\w.-]+)\s*:\s*(.*)$/);
     if (match) {
       const indent = match[1].length;
       const key = match[2];
       let value = match[3].trim();
       // Remove surrounding quotes
-      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
         value = value.slice(1, -1);
       }
       pairs.push({ key, value, indent });
@@ -29,8 +35,12 @@ function parseYamlPairs(text: string): Array<{ key: string; value: string; inden
   return pairs;
 }
 
-export const RulePreviewPanel = memo(function RulePreviewPanel({ content, format }: RulePreviewPanelProps) {
-  const isMarkdown = format === "md" || format === "mdc";
+export const RulePreviewPanel = memo(function RulePreviewPanel({
+  content,
+  format,
+}: RulePreviewPanelProps) {
+  const { t } = useTranslation('rules');
+  const isMarkdown = format === 'md' || format === 'mdc';
 
   const yamlPairs = useMemo(() => {
     if (isMarkdown) return [];
@@ -40,7 +50,7 @@ export const RulePreviewPanel = memo(function RulePreviewPanel({ content, format
   if (!content.trim()) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-        暂无内容
+        {t('previewEmpty')}
       </div>
     );
   }
@@ -48,7 +58,9 @@ export const RulePreviewPanel = memo(function RulePreviewPanel({ content, format
   if (isMarkdown) {
     return (
       <div className="prose prose-sm dark:prose-invert max-w-none h-full overflow-y-auto p-4">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        <Suspense fallback={null}>
+          <RuleMarkdownRenderer content={content} />
+        </Suspense>
       </div>
     );
   }
@@ -65,7 +77,9 @@ export const RulePreviewPanel = memo(function RulePreviewPanel({ content, format
           >
             <span className="shrink-0 font-mono text-primary">{pair.key}:</span>
             {pair.value && (
-              <span className="font-mono text-foreground break-all">{pair.value}</span>
+              <span className="font-mono text-foreground break-all">
+                {pair.value}
+              </span>
             )}
           </div>
         ))}

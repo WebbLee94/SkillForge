@@ -4,20 +4,22 @@
     "subtitle": "Skill Forge"
   },
   "nav": {
-    "dashboard": "Dashboard",
-    "skills": "Skill Library",
-    "rules": "Rules Library",
+    "dashboard": "Overview",
+    "skills": "Skills",
+    "rules": "Rules",
     "tags": "Tags",
-    "scenes": "Scene Editor",
-    "globalDistribution": "Global Distribution",
-    "projectDistribution": "Project Distribution",
+    "scenes": "Scenes",
+    "globalDistribution": "Workspace",
+    "projectDistribution": "Projects",
     "settings": "Settings"
   },
   "navGroups": {
     "overview": "Overview",
     "resources": "Resources",
-    "orchestration": "Orchestration",
-    "distribution": "Distribution"
+    "orchestration": "Scenes",
+    "distribution": "Distribution",
+    "system": "System",
+    "settings": "Settings"
   },
   "actions": {
     "add": "Add",
@@ -26,11 +28,11 @@
     "save": "Save",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "install": "Install",
+    "install": "Import",
     "uninstall": "Uninstall",
     "update": "Update",
-    "sync": "Sync",
-    "syncAll": "Sync All",
+    "sync": "Distribute",
+    "syncAll": "Distribute All",
     "search": "Search",
     "import": "Import",
     "create": "Create",
@@ -42,24 +44,27 @@
     "refresh": "Refresh",
     "export": "Export",
     "copy": "Copy",
-    "batchSelect": "Batch Select",
-    "exitSelect": "Exit Select",
+    "batchSelect": "Batch Actions",
+    "exitSelect": "Done",
     "cancelSelect": "Cancel Selection",
     "confirmImport": "Confirm Import",
-    "searchProjects": "Search projects...",
+    "searchProjects": "Search projects…",
     "openInFileManager": "Open in File Manager",
-    "openDir": "Open Directory"
+    "openDir": "Open Directory",
+    "undo": "Undo",
+    "goDistribute": "Distribute",
+    "manage": "Manage"
   },
   "status": {
-    "synced": "Synced",
+    "synced": "Distributed",
     "outdated": "Outdated",
-    "partial": "Partial",
-    "error": "Error",
-    "pending": "Pending",
+    "partial": "Partially distributed",
+    "error": "Distribute failed",
+    "pending": "Not distributed",
     "success": "Success",
     "failed": "Failed",
-    "installed": "Installed",
-    "notInstalled": "Not Installed",
+    "installed": "Imported",
+    "notInstalled": "Not Imported",
     "enabled": "Enabled",
     "disabled": "Disabled",
     "importing": "Importing..."
@@ -78,9 +83,11 @@
     "totalFiles": "{{count}} file(s) total",
     "skillInUse": "Skill is used by {{count}} scene(s)",
     "sceneInUse": "Scene is used by {{count}} project(s)",
-    "syncSuccess": "Sync successful",
-    "syncFailed": "Sync failed",
-    "installSuccess": "Install successful",
+    "referenceLoading": "Counting scene references…",
+    "referenceSummary": "{{referenced}} of them are referenced by {{count}} scene(s)",
+    "syncSuccess": "Distribute successful",
+    "syncFailed": "Distribute failed",
+    "installSuccess": "Import successful",
     "selectedDirectories": "{{count}} directories selected",
     "uninstallSuccess": "Uninstall successful",
     "updateSuccess": "Update successful",
@@ -89,14 +96,122 @@
     "noData": "No data",
     "loading": "Loading...",
     "operationFailed": "Operation failed",
-    "capabilityWarning": "⚠️ {{platforms}} does not support global rules distribution, these platforms will skip rules sync"
+    "noResults": "No resources match the current filter",
+    "clearFilter": "Clear Filter",
+    "loadSkillsFailed": "Failed to load skills",
+    "loadRulesFailed": "Failed to load rules",
+    "syncCompletedWithErrors": "Distribution completed, {{count}} item(s) failed",
+    "syncFailedWithReason": "Distribute failed: {{reason}}",
+    "globalRulesUnsupportedWarning": "Warning: {{platform}} does not support global rules distribution",
+    "loadSyncStatusFailed": "Failed to load distribution status: {{reason}}",
+    "loadSkillsListFailed": "Failed to load skills: {{reason}}",
+    "uninstallFailedWithReason": "Uninstall failed: {{reason}}",
+    "updateFailedWithReason": "Update failed: {{reason}}",
+    "importFailedWithReason": "Import failed: {{reason}}",
+    "loadRulesListFailed": "Failed to load rules: {{reason}}",
+    "createRuleSuccess": "Rule created",
+    "createRuleFailedWithReason": "Failed to create rule: {{reason}}",
+    "saveRuleSuccess": "Rule saved",
+    "saveRuleFailedWithReason": "Failed to save rule: {{reason}}",
+    "deleteRuleSuccess": "Rule deleted",
+    "deleteRuleFailedWithReason": "Failed to delete rule: {{reason}}",
+    "loadTagsListFailed": "Failed to load tags: {{reason}}",
+    "createTagSuccess": "Tag created",
+    "createTagFailedWithReason": "Failed to create tag: {{reason}}",
+    "updateTagSuccess": "Tag updated",
+    "updateTagFailedWithReason": "Failed to update tag: {{reason}}",
+    "deleteTagSuccess": "Tag deleted",
+    "deleteTagFailedWithReason": "Failed to delete tag: {{reason}}",
+    "assignTagSuccess": "Tag assigned",
+    "assignTagFailedWithReason": "Failed to assign tag: {{reason}}",
+    "removeTagSuccess": "Tag removed",
+    "removeTagFailedWithReason": "Failed to remove tag: {{reason}}",
+    "loadScenesListFailed": "Failed to load scenes: {{reason}}",
+    "createSceneSuccess": "Scene created",
+    "createSceneFailedWithReason": "Failed to create scene: {{reason}}",
+    "saveSceneSuccess": "Scene saved",
+    "saveSceneFailedWithReason": "Failed to save scene: {{reason}}",
+    "deleteSceneSuccess": "Scene deleted",
+    "deleteSceneFailedWithReason": "Failed to delete scene: {{reason}}",
+    "loadSceneDetailFailedWithReason": "Failed to load scene detail: {{reason}}",
+    "sceneBaselineUnavailable": "Unable to load scene baseline, save cancelled",
+    "addSkillToSceneSuccess": "Skill added to scene",
+    "addSkillToSceneFailedWithReason": "Failed to add skill to scene: {{reason}}",
+    "removeSkillFromSceneSuccess": "Skill removed from scene",
+    "removeSkillFromSceneFailedWithReason": "Failed to remove skill from scene: {{reason}}",
+    "addRuleToSceneSuccess": "Rule added to scene",
+    "addRuleToSceneFailedWithReason": "Failed to add rule to scene: {{reason}}",
+    "removeRuleFromSceneSuccess": "Rule removed from scene",
+    "removeRuleFromSceneFailedWithReason": "Failed to remove rule from scene: {{reason}}",
+    "loadProjectsListFailed": "Failed to load projects: {{reason}}",
+    "addProjectSuccess": "Project added",
+    "addProjectFailedWithReason": "Failed to add project: {{reason}}",
+    "removeProjectSuccess": "Project removed",
+    "removeProjectFailedWithReason": "Failed to remove project: {{reason}}",
+    "removeProjectsBatchSuccess": "{{count}} projects removed",
+    "removeProjectsBatchFailedWithReason": "Failed to remove projects: {{reason}}",
+    "loadPlatformsListFailed": "Failed to load platforms: {{reason}}",
+    "loadDistributedContentFailedWithReason": "Failed to load distributed content: {{reason}}",
+    "removeDistributedFailedWithReason": "Remove failed: {{reason}}",
+    "loadDashboardStatsFailedWithReason": "Failed to load dashboard stats: {{reason}}",
+    "scanFailedWithReason": "Scan failed: {{reason}}",
+    "previewNoData": "Preview failed: no data returned",
+    "previewFailedWithReason": "Preview failed: {{reason}}",
+    "importScannedSummary": "Import complete: {{skills}} skills, {{rules}} rules",
+    "importSkippedSuffix": " ({{count}} skipped as already existing)",
+    "importErrorsSuffix": " | {{count}} failed: {{detail}}"
+  },
+  "detail": {
+    "source": "Source",
+    "updatedAt": "Updated",
+    "preview": "Preview"
+  },
+  "view": {
+    "group": "Grouped",
+    "list": "List",
+    "collapseAll": "Collapse All",
+    "expandAll": "Expand All",
+    "showMore": "Show more ({{count}})",
+    "expandGroups": "Expand groups",
+    "collapseGroups": "Collapse groups"
+  },
+  "batch": {
+    "guide": "Select resources to act on",
+    "exit": "Exit Selection",
+    "goDistribute": "Distribute",
+    "manageTags": "Manage Selected Tags",
+    "delete": "Delete Selected",
+    "clear": "Clear"
+  },
+  "inspector": {
+    "unsavedTitle": "Unsaved changes",
+    "unsavedMessage": "Save your changes?",
+    "discard": "Discard",
+    "stay": "Stay",
+    "addTag": "Add tag",
+    "removeTagLabel": "Remove tag {{name}}"
+  },
+  "fileTree": {
+    "loading": "Loading...",
+    "empty": "Directory is empty or doesn't exist",
+    "emptyDir": "(empty)"
+  },
+  "watcher": {
+    "changesDetected": "{{count}} file changes detected",
+    "newFiles": "+{{count}} new",
+    "deletedFiles": "-{{count}} deleted",
+    "modifiedFiles": "~{{count}} modified",
+    "importHint": "File changes detected. Go to Overview to review importable skills and rules.",
+    "goToDashboard": "Go to Overview to see importable content",
+    "dismiss": "Dismiss"
   },
   "platforms": {
     "title": "Agent Platforms",
     "enabled": "Enabled",
     "autoBindHint": "System scene auto-binds all enabled platforms",
     "noGlobalRules": "No global rules support",
-    "noProjectRules": "No project rules support"
+    "noProjectRules": "No project rules support",
+    "countTooltip": "{{name}}: {{skills}} skills / {{rules}} rules"
   },
   "tag": {
     "name": "Name",
@@ -114,20 +229,49 @@
     "createNew": "Create",
     "untagged": "Untagged",
     "allTags": "All",
-    "manageTags": "Manage Tags"
+    "manageTags": "Manage Tags",
+    "empty": "No tags available",
+    "createNewWithName": "Create \"{{name}}\"",
+    "collapse": "Show less"
   },
   "dashboard": {
+    "subtitle": "Current overview of resources, scenes, projects, and enabled platforms.",
     "globalDistStatus": "Global Distribution Status",
     "currentScene": "Current Scene",
     "notConfigured": "Not Configured",
     "configureGlobalScene": "Configure global scene first",
-    "skillRuleCount": "Skills / Rules"
+    "skillRuleCount": "Skills / Rules",
+    "stats": {
+      "resources": "Resources",
+      "resourcesSubtitle": "Skills / Rules",
+      "scenes": "Scenes",
+      "scenesSubtitle": "Usable as temporary resource combinations",
+      "projects": "Projects",
+      "projectsSubtitle": "Usable as project distribution targets",
+      "platforms": "Agent Platforms",
+      "platformsSubtitle": "Enabled / Total Count"
+    },
+    "welcome": {
+      "title": "Welcome to SkillForge",
+      "dismiss": "Got it",
+      "step1Title": "One-Click Import",
+      "step1Desc": "Scan enabled platforms for Skills and Rules",
+      "step2Title": "Optional: Combine Scenes",
+      "step2Desc": "Group Skills and Rules into reusable templates",
+      "step3Title": "Enter Distribution Workspace",
+      "step3Desc": "Generate a plan and confirm before writing to targets"
+    },
+    "quickEntry": {
+      "title": "Quick Access",
+      "skillRuleCount": "{{skills}} skills · {{rules}} rules",
+      "chooseTarget": "Choose as Distribution Target"
+    }
   },
   "import": {
     "scanTitle": "One-Click Import",
     "scanTooltip": "Scan all Agent platform global directories to discover unimported skills and rules",
     "firstLaunchTitle": "Content Discovered",
-    "firstLaunchDesc": "Found installed skills and rules across {{count}} Agent platforms. Import them all at once?",
+    "firstLaunchDesc": "Found {{count}} Agent platforms with skills and rules available. Import them all at once?",
     "firstLaunchAction": "Import Now",
     "firstLaunchDismiss": "Later",
     "previewTitle": "Discoverable Skills and Rules",
@@ -138,16 +282,80 @@
     "confirmImport": "Confirm Import ({{count}})",
     "importing": "Importing...",
     "scanning": "Scanning...",
-    "noDiscoverable": "No discoverable skills or rules found"
+    "noDiscoverable": "No importable skills or rules found",
+    "append": "Append",
+    "retry": "Retry",
+    "ignore": "Ignore",
+    "noItems": "No files selected yet",
+    "showMore": "Show more ({{count}})",
+    "dirs": "directories",
+    "files": "files",
+    "status": {
+      "valid": "Importable",
+      "skip": "Skipped",
+      "error": "Error"
+    },
+    "result": {
+      "success": "Succeeded",
+      "failed": "Failed",
+      "skipped": "Skipped"
+    },
+    "reason": {
+      "alreadyExists": "Already exists",
+      "unsupportedFormat": "Unsupported format",
+      "missingSkillMd": "Missing SKILL.md",
+      "invalidPath": "Invalid path",
+      "readFailed": "Read failed"
+    }
+  },
+  "workflow": {
+    "prepareContent": "Prepare Content",
+    "organizeContent": "Organize Content",
+    "distributeContent": "Distribute Content"
+  },
+  "breadcrumb": {
+    "dashboard": "Compact Overview",
+    "globalDistribution": "Workspace",
+    "projectDistribution": "Projects",
+    "scenes": "Reusable Combinations",
+    "skills": "Skills",
+    "rules": "Rules",
+    "settings": "Settings"
+  },
+  "shortcuts": {
+    "title": "Keyboard Shortcuts",
+    "search": "Search resources",
+    "create": "Create resource",
+    "closeDialog": "Close current dialog",
+    "implemented": "Implemented",
+    "notImplemented": "Not implemented",
+    "hint": "Common shortcut reference. Shortcuts not marked \u201cImplemented\u201d are not bound yet and shown for reference only."
+  },
+  "topbar": {
+    "collapse": {
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    },
+    "notImplemented": "This feature is not implemented yet"
   },
   "syncConfirm": {
-    "title": "Sync Confirmation",
+    "title": "Distribution Confirmation",
     "warning": "The following items will be permanently removed from the platform directory:",
     "addSkills": "Add {{count}} skill(s)",
+    "updateSkills": "Update {{count}} skill(s)",
     "removeSkills": "Remove {{count}} skill(s)",
     "addRules": "Add {{count}} rule(s)",
+    "updateRules": "Update {{count}} rule(s)",
     "removeRules": "Remove {{count}} rule(s)",
-    "summary": "Will add {{add}} item(s), remove {{remove}} item(s). This action cannot be undone.",
-    "confirm": "Confirm Sync"
+    "changes": "The following items will be distributed to the platform directory:",
+    "noChanges": "No changes",
+    "summary": "Will add {{add}} item(s), update {{update}} item(s), remove {{remove}} item(s). This action cannot be undone.",
+    "confirm": "Confirm Distribution",
+    "confirmRemoval": "Confirm distribution and remove {{count}} item(s)"
+  },
+  "errors": {
+    "boundaryTitle": "Something went wrong",
+    "boundaryFallback": "An unexpected error occurred. Please try reloading.",
+    "reload": "Reload"
   }
 }

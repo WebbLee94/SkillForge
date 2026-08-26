@@ -13,14 +13,6 @@ export interface Skill {
   sync_status?: SyncStatus;
 }
 
-export interface SkillVersion {
-  skill_id: string;
-  version: string;
-  source_ref: string | null;
-  checksum: string | null;
-  fetched_at: string;
-}
-
 export interface SkillMeta {
   id: string;
   name: string;
@@ -43,7 +35,7 @@ export interface Tag {
   name: string;
   color: string | null;
   category?: string | null;
-  tag_type: "skill" | "rule";
+  tag_type: 'skill' | 'rule';
   count?: number;
 }
 
@@ -51,7 +43,7 @@ export interface CreateTagDTO {
   name: string;
   color: string;
   category?: string;
-  tag_type: "skill" | "rule";
+  tag_type: 'skill' | 'rule';
 }
 
 // ===== Rule =====
@@ -66,13 +58,6 @@ export interface Rule {
   version: number;
   updated_at: string;
   tags?: Tag[];
-}
-
-export interface RuleHistory {
-  rule_id: string;
-  version: number;
-  content: string;
-  changed_at: string;
 }
 
 export interface CreateRuleDTO {
@@ -137,13 +122,19 @@ export interface UpdateSceneDTO {
   icon?: string;
 }
 
+/** 场景编辑器保存时提交的组合草稿：全量有序成员 + 可选元数据变更 */
+export interface SceneCompositionDraft {
+  name?: string;
+  description?: string;
+  skills: { skill_id: string; enabled?: boolean }[];
+  rules: { rule_id: string; enabled?: boolean }[];
+}
+
 // ===== Project =====
 export interface Project {
   id: string;
   name: string;
   path: string;
-  scene_id: string | null;
-  scene_name?: string;
   description: string | null;
   created_at: string;
   updated_at: string;
@@ -152,7 +143,6 @@ export interface Project {
 export interface AddProjectDTO {
   name: string;
   path: string;
-  scene_id?: string;
   description?: string;
 }
 
@@ -178,8 +168,7 @@ export interface PlatformCapabilities {
 }
 
 export type RulesFormat =
-  | { Directory: null }
-  | { SingleFile: { file_name: string } };
+  { Directory: null } | { SingleFile: { file_name: string } };
 
 export interface PlatformInstance {
   platform_id: string;
@@ -197,33 +186,73 @@ export interface PlatformPaths {
 }
 
 // ===== Distribution =====
-export interface Distribution {
-  id: number;
-  scene_id: string;
-  platform_id: string;
-  scope: string;
-  project_id: string | null;
-  project_path: string | null;
-  status: string;
-  synced_at: string | null;
-  checksum: string | null;
+export const DISTRIBUTION_INTENT_MODES = {
+  PRESERVE: 'preserve',
+  ADD_OR_UPDATE: 'add_or_update',
+  REMOVE_SELECTED: 'remove_selected',
+} as const;
+
+export type DistributionIntentMode =
+  (typeof DISTRIBUTION_INTENT_MODES)[keyof typeof DISTRIBUTION_INTENT_MODES];
+
+export interface DistributionIntent {
+  mode: DistributionIntentMode;
+  ids: string[];
 }
 
-export interface SyncLog {
-  id: number;
-  action: string;
-  target_type: string;
-  target_id: string;
-  platform_id: string | null;
-  status: string;
-  message: string | null;
-  created_at: string;
+export interface DistributionSelection {
+  sceneId: string | null;
+  platformIds: string[];
+  scope: 'global' | 'project';
+  projectId?: string;
+  skills: DistributionIntent;
+  rules: DistributionIntent;
+}
+
+/** 33 号 3.3 / DEC-1：独立移除受管内容的请求（仅 RemoveSelected 语义）。 */
+export interface RemoveDistributionSelection {
+  platformIds: string[];
+  scope: 'global' | 'project';
+  projectId?: string;
+  skillIds: string[];
+  ruleIds: string[];
+}
+
+export interface ManagedDistributionState {
+  platforms: ManagedPlatformState[];
+}
+
+export interface ManagedPlatformState {
+  platform_id: string;
+  platform_name: string;
+  scope: string;
+  project_path: string | null;
+  skills: ManagedDistributionEntry[];
+  rules: ManagedDistributionEntry[];
+  local_skills: LocalDistributionEntry[];
+  local_rules: LocalDistributionEntry[];
+}
+
+export interface ManagedDistributionEntry {
+  id: string;
+  path: string;
+}
+
+export interface LocalDistributionEntry {
+  name: string;
+  path: string;
+}
+
+export interface RevealPathResult {
+  revealed_path: string;
+  fallback: boolean;
 }
 
 export interface SyncResult {
   installed: string[];
   updated: string[];
   removed: string[];
+  skipped?: number;
   errors: string[];
 }
 
@@ -259,33 +288,17 @@ export interface AppConfig {
   version: string;
 }
 
-// ===== Global Distribution Status =====
-export interface GlobalDistStatus {
-  scene_id: string | null;
-  scene_name: string | null;
-  skill_count: number;
-  rule_count: number;
-  platforms: PlatformDistInfo[];
-  last_synced_at: string | null;
-}
-
-export interface PlatformDistInfo {
+// ===== Platform Entry Count =====
+export interface PlatformEntryCount {
   platform_id: string;
-  platform_name: string;
-  synced_count: number;
-  total_count: number;
-  last_synced_at: string | null;
-  skills_dir?: string | null;
-  skills_dir_resolved?: string | null;
-  rules_dir?: string | null;
-  scene_skill_count?: number;
-  synced_skill_count?: number;
-  scene_rule_count?: number;
-  synced_rule_count?: number;
+  skills: number;
+  rules: number;
+  dir_exists: boolean;
 }
 
 // ===== Sync Status =====
-export type SyncStatus = "synced" | "outdated" | "partial" | "error" | "pending";
+export type SyncStatus =
+  'synced' | 'outdated' | 'partial' | 'error' | 'pending';
 
 // ===== Import Scan =====
 export interface ScanForImportResult {
@@ -326,17 +339,32 @@ export interface ImportResult {
   errors: string[];
 }
 
-// ===== Sync Preview =====
-export interface SyncPreviewResult {
-  platforms: PlatformSyncPreview[];
-  has_removals: boolean;
-}
-
-export interface PlatformSyncPreview {
+// ===== Distribution Plan (shared type, returned by both preview_sync and sync_scene) =====
+export interface PlatformDistributionPlan {
   platform_id: string;
   platform_name: string;
   skills_to_add: string[];
+  skills_to_update: string[];
   skills_to_remove: string[];
   rules_to_add: string[];
+  rules_to_update: string[];
   rules_to_remove: string[];
+}
+
+export interface DistributionPlan {
+  platforms: PlatformDistributionPlan[];
+  has_removals: boolean;
+}
+
+/** @deprecated Use DistributionPlan instead — kept for existing callers */
+export type SyncPreviewResult = DistributionPlan;
+
+/** @deprecated Use PlatformDistributionPlan instead — kept for existing callers */
+export type PlatformSyncPreview = PlatformDistributionPlan;
+
+export interface FileTreeNode {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  children: FileTreeNode[];
 }

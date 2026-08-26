@@ -1,40 +1,9 @@
 use crate::error::AppError;
-use crate::types::{AppConfig, DashboardStats, Platform, SyncLog};
+use crate::types::{AppConfig, DashboardStats, Platform, RevealPathResult};
 use crate::AppState;
 
+use crate::types::FileTreeNode;
 use rusqlite::params;
-
-// ── Global distribution status types ──────────────────────────────
-
-#[derive(serde::Serialize)]
-pub struct GlobalDistStatus {
-    scene_id: Option<String>,
-    scene_name: Option<String>,
-    skill_count: u32,
-    rule_count: u32,
-    platforms: Vec<PlatformDistInfo>,
-    last_synced_at: Option<String>,
-}
-
-#[derive(serde::Serialize)]
-pub struct PlatformDistInfo {
-    platform_id: String,
-    platform_name: String,
-    synced_count: u32,
-    total_count: u32,
-    last_synced_at: Option<String>,
-    skills_dir: Option<String>,
-    skills_dir_resolved: Option<String>,
-    rules_dir: Option<String>,
-    #[serde(default)]
-    scene_skill_count: u32,
-    #[serde(default)]
-    synced_skill_count: u32,
-    #[serde(default)]
-    scene_rule_count: u32,
-    #[serde(default)]
-    synced_rule_count: u32,
-}
 
 #[tauri::command]
 pub fn get_app_config() -> Result<AppConfig, AppError> {
@@ -50,34 +19,33 @@ pub fn get_app_config() -> Result<AppConfig, AppError> {
 }
 
 #[tauri::command]
-pub fn get_dashboard_stats(
-    state: tauri::State<'_, AppState>,
-) -> Result<DashboardStats, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+pub fn get_dashboard_stats(state: tauri::State<'_, AppState>) -> Result<DashboardStats, AppError> {
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
 
     let skill_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM skills", [], |row| row.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM resources WHERE kind = 'skill'",
+            [],
+            |row| row.get(0),
+        )
         .unwrap_or(0);
 
     let rule_count: i64 = conn
-        .query_row("SELECT COUNT(*) FROM rules", [], |row| row.get(0))
+        .query_row(
+            "SELECT COUNT(*) FROM resources WHERE kind = 'rule'",
+            [],
+            |row| row.get(0),
+        )
         .unwrap_or(0);
 
     let scene_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM scenes",
-            [],
-            |row| row.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM scenes", [], |row| row.get(0))
         .unwrap_or(0);
 
-    let user_scene_count: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM scenes WHERE is_system = 0",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
+    let user_scene_count: i64 = scene_count;
 
     let project_count: i64 = conn
         .query_row("SELECT COUNT(*) FROM projects", [], |row| row.get(0))
@@ -93,45 +61,13 @@ pub fn get_dashboard_stats(
 }
 
 #[tauri::command]
-pub fn get_recent_activity(
-    limit: Option<i64>,
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<SyncLog>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let limit = limit.unwrap_or(50);
-
-    let mut stmt = conn.prepare(
-        "SELECT id, action, target_type, target_id, platform_id, status, message, created_at
-         FROM sync_logs
-         ORDER BY created_at DESC
-         LIMIT ?1",
-    )?;
-
-    let logs = stmt
-        .query_map(params![limit], |row| {
-            Ok(SyncLog {
-                id: row.get(0)?,
-                action: row.get(1)?,
-                target_type: row.get(2)?,
-                target_id: row.get(3)?,
-                platform_id: row.get(4)?,
-                status: row.get(5)?,
-                message: row.get(6)?,
-                created_at: row.get(7)?,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(logs)
-}
-
-#[tauri::command]
 pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let mut stmt = conn.prepare(
-        "SELECT id, name, adapter, enabled, icon FROM platforms ORDER BY name ASC",
-    )?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
+    let mut stmt =
+        conn.prepare("SELECT id, name, adapter, enabled, icon FROM platforms ORDER BY name ASC")?;
     let platforms = stmt
         .query_map([], |row| {
             let id: String = row.get(0)?;
@@ -142,7 +78,7 @@ pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>
 
             // Merge with compile-time constant for paths
             let paths = crate::plugins::platform::definitions::find_platform_def(&id)
-                .map(|def| crate::types::PlatformPaths::from(def))
+                .map(crate::types::PlatformPaths::from)
                 .unwrap_or_else(|| crate::types::PlatformPaths {
                     global_skills_dir: String::new(),
                     project_skills_pattern: String::new(),
@@ -167,181 +103,30 @@ pub fn list_platforms(state: tauri::State<'_, AppState>) -> Result<Vec<Platform>
 }
 
 #[tauri::command]
-pub fn get_global_config(state: tauri::State<'_, AppState>) -> Result<serde_json::Value, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    let value: Option<String> = conn
-        .query_row(
-            "SELECT value FROM app_config WHERE key = 'global_scene_id'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(None);
-    Ok(serde_json::json!({ "global_scene_id": value }))
-}
-
-#[tauri::command]
-pub fn set_global_config(
-    key: String,
-    value: Option<String>,
-    state: tauri::State<'_, AppState>,
-) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-    if let Some(v) = value {
-        conn.execute(
-            "INSERT OR REPLACE INTO app_config (key, value) VALUES (?1, ?2)",
-            rusqlite::params![key, v],
-        )?;
-    } else {
-        conn.execute(
-            "UPDATE app_config SET value = NULL WHERE key = ?1",
-            rusqlite::params![key],
-        )?;
-    }
-    Ok(())
-}
-
-#[tauri::command]
-pub fn get_global_distribution_status(
-    state: tauri::State<'_, AppState>,
-) -> Result<GlobalDistStatus, AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
-
-    // Get global_scene_id
-    let scene_id: Option<String> = conn
-        .query_row(
-            "SELECT value FROM app_config WHERE key = 'global_scene_id'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(None);
-
-    let mut status = GlobalDistStatus {
-        scene_id: None,
-        scene_name: None,
-        skill_count: 0,
-        rule_count: 0,
-        platforms: Vec::new(),
-        last_synced_at: None,
-    };
-
-    if let Some(ref sid) = scene_id {
-        status.scene_id = Some(sid.clone());
-
-        // Get scene name
-        status.scene_name = conn
-            .query_row(
-                "SELECT name FROM scenes WHERE id = ?1",
-                params![sid],
-                |row| row.get(0),
-            )
-            .unwrap_or(None);
-
-        let is_all_skills = sid == "__all_skills__";
-
-        // Count skills: all installed for __all_skills__, scene-bound otherwise
-        status.skill_count = if is_all_skills {
-            conn.query_row("SELECT COUNT(*) FROM skills", [], |row| row.get::<_, u32>(0)).unwrap_or(0)
-        } else {
-            conn.query_row(
-                "SELECT COUNT(*) FROM scene_skills WHERE scene_id = ?1 AND enabled = 1",
-                params![sid],
-                |row| row.get::<_, u32>(0),
-            ).unwrap_or(0)
-        };
-
-        // Count rules: all for __all_skills__, scene-bound otherwise
-        status.rule_count = if is_all_skills {
-            conn.query_row("SELECT COUNT(*) FROM rules", [], |row| row.get::<_, u32>(0)).unwrap_or(0)
-        } else {
-            conn.query_row(
-                "SELECT COUNT(*) FROM scene_rules WHERE scene_id = ?1 AND enabled = 1",
-                params![sid],
-                |row| row.get::<_, u32>(0),
-            ).unwrap_or(0)
-        };
-
-        // Get per-platform status
-        // For __all_skills__ system scene, use all enabled platforms (no scene_platforms records)
-        let mut stmt = conn.prepare(
-            if is_all_skills {
-                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
-                 FROM platforms p
-                 LEFT JOIN (
-                    SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
-                    FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
-                 ) d ON p.id = d.platform_id
-                 WHERE p.enabled != 0
-                 ORDER BY p.name ASC"
-            } else {
-                "SELECT p.id, p.name, COALESCE(d.synced_count, 0), ?2, d.last_synced_at
-                 FROM platforms p
-                 INNER JOIN scene_platforms sp ON sp.platform_id = p.id AND sp.scene_id = ?1
-                 LEFT JOIN (
-                    SELECT platform_id, COUNT(*) as synced_count, MAX(last_synced_at) as last_synced_at
-                    FROM distributions WHERE scene_id = ?1 AND scope = 'global' GROUP BY platform_id
-                 ) d ON p.id = d.platform_id
-                 WHERE p.enabled != 0"
-            },
-        )?;
-        let platforms: Vec<PlatformDistInfo> = stmt
-            .query_map(params![sid, status.skill_count], |row| {
-                let pid: String = row.get(0)?;
-                let (skills_dir, skills_dir_resolved, rules_dir, synced_skill_count, synced_rule_count) = match crate::plugins::platform::create_platform_plugin(&pid) {
-                    Ok(p) => {
-                        let paths = p.default_paths();
-                        let skills_dir_path = crate::plugins::platform::expand_home(&paths.global_skills_dir);
-                        let fs_skill_count = count_subdirs(&skills_dir_path);
-                        let fs_rule_count = paths.global_rules_dir.as_ref()
-                            .map(|d| count_files_in_dir(&crate::plugins::platform::expand_home(d)))
-                            .unwrap_or(0);
-                        (Some(paths.global_skills_dir.clone()), Some(skills_dir_path.to_string_lossy().to_string()), paths.global_rules_dir, fs_skill_count, fs_rule_count)
-                    }
-                    Err(_) => (None, None, None, 0, 0),
-                };
-                Ok(PlatformDistInfo {
-                    platform_id: pid,
-                    platform_name: row.get(1)?,
-                    synced_count: row.get(2)?,
-                    total_count: row.get(3)?,
-                    last_synced_at: row.get(4)?,
-                    skills_dir,
-                    skills_dir_resolved,
-                    rules_dir,
-                    scene_skill_count: status.skill_count,
-                    synced_skill_count,
-                    scene_rule_count: status.rule_count,
-                    synced_rule_count,
-                })
-            })?
-            .filter_map(|r| r.ok())
-            .collect();
-        status.platforms = platforms;
-
-        // Last synced
-        status.last_synced_at = conn
-            .query_row(
-                "SELECT MAX(last_synced_at) FROM distributions WHERE scene_id = ?1 AND scope = 'global'",
-                params![sid],
-                |row| row.get(0),
-            )
-            .unwrap_or(None);
-    }
-
-    Ok(status)
-}
-
-#[tauri::command]
 pub fn toggle_platform_enabled(
     id: String,
     enabled: bool,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), AppError> {
-    let conn = state.db.lock().map_err(|e| AppError::Database(e.to_string()))?;
+    let conn = state
+        .db
+        .lock()
+        .map_err(|e| AppError::Database(e.to_string()))?;
     conn.execute(
         "UPDATE platforms SET enabled = ?1 WHERE id = ?2",
         params![enabled as i32, id],
     )?;
     Ok(())
+}
+
+/// 29 号 2b：在系统文件管理器中揭示目标目录。
+/// - path 可含 ~（Rust 统一展开）；as_skills_dir=true 时推导主目录（skills 子目录 → 父目录）。
+/// - 目标不存在时回退到最近存在祖先（fallback=true）；全部不存在或系统调用失败返回 Err。
+#[tauri::command]
+pub fn reveal_path(path: String, as_skills_dir: bool) -> Result<RevealPathResult, AppError> {
+    crate::fs_reveal::reveal_path_with_opener(&path, as_skills_dir, |p| {
+        tauri_plugin_opener::open_path(p, None::<&str>).map_err(|e| e.to_string())
+    })
 }
 
 #[tauri::command]
@@ -387,42 +172,355 @@ pub fn get_db_size(_state: tauri::State<'_, AppState>) -> Result<String, AppErro
     }
 }
 
-/// Count subdirectories in a directory (non-hidden, one level).
-fn count_subdirs(path: &std::path::Path) -> u32 {
-    if !path.exists() {
-        return 0;
-    }
-    let mut count = 0u32;
-    if let Ok(entries) = std::fs::read_dir(path) {
-        for entry in entries.flatten() {
-            if entry.path().is_dir() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if !name.starts_with('.') {
-                        count += 1;
-                    }
-                }
-            }
-        }
-    }
-    count
+// ── Platform entry count ───────────────────────────────────────────
+
+#[derive(serde::Serialize)]
+pub struct PlatformEntryCount {
+    pub platform_id: String,
+    pub skills: i64,
+    pub rules: i64,
+    pub dir_exists: bool,
 }
 
-/// Count files in a directory (non-hidden, one level).
-fn count_files_in_dir(path: &std::path::Path) -> u32 {
+fn count_entries_fs(
+    skills_dir: &std::path::Path,
+    rules_path: Option<&std::path::Path>,
+    rules_single_file: bool,
+) -> (i64, i64) {
+    let skills = crate::engine::dist_engine::count_fs_subdirs(skills_dir);
+    let rules = match rules_path {
+        Some(p) if rules_single_file => std::fs::read_to_string(p)
+            .ok()
+            .and_then(|content| {
+                crate::engine::rule_distribution::count_managed_rule_blocks(&content).ok()
+            })
+            .unwrap_or(0),
+        Some(p) => crate::engine::dist_engine::count_fs_files(p),
+        None => 0,
+    };
+    (skills, rules)
+}
+
+#[tauri::command]
+pub fn count_platform_entries(
+    platform_id: String,
+    project_path: Option<String>,
+) -> Result<PlatformEntryCount, AppError> {
+    let plugin = crate::plugins::platform::create_platform_plugin(&platform_id)?;
+    let paths = plugin.default_paths();
+
+    let (skills_dir, rules_path, rules_single_file, base_dir) = if let Some(ref pp) = project_path {
+        // Project-scoped: resolve patterns with project path
+        let skills_dir_str = paths.project_skills_pattern.replace("{project}", pp);
+        let skills_dir = std::path::PathBuf::from(&skills_dir_str);
+        let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
+        let rules_path = paths
+            .project_rules_pattern
+            .as_ref()
+            .map(|pattern| {
+                crate::engine::rule_distribution::resolve_project_rules_path(pattern, pp)
+            })
+            .transpose()?;
+        let rules_single_file = matches!(
+            paths.project_rules_format,
+            Some(crate::types::RulesFormat::SingleFile { .. })
+        );
+        (skills_dir, rules_path, rules_single_file, base_dir)
+    } else {
+        let skills_dir = crate::plugins::platform::expand_home(&paths.global_skills_dir);
+        let base_dir = skills_dir.parent().unwrap_or(&skills_dir).to_path_buf();
+        let rules_path = paths
+            .global_rules_dir
+            .as_ref()
+            .map(|p| crate::plugins::platform::expand_home(p));
+        let rules_single_file = matches!(
+            paths.global_rules_format,
+            Some(crate::types::RulesFormat::SingleFile { .. })
+        );
+        (skills_dir, rules_path, rules_single_file, base_dir)
+    };
+
+    let dir_exists = base_dir.is_dir();
+    let (skills, rules) = count_entries_fs(&skills_dir, rules_path.as_deref(), rules_single_file);
+    Ok(PlatformEntryCount {
+        platform_id,
+        skills,
+        rules,
+        dir_exists,
+    })
+}
+
+// ── Watcher commands ──
+
+#[tauri::command]
+pub fn get_watcher_events() -> Result<serde_json::Value, AppError> {
+    let events = crate::engine::fs_watcher::get_pending_events();
+    let result: Vec<serde_json::Value> = events
+        .iter()
+        .map(|(id, event_type, path)| {
+            serde_json::json!({
+                "id": id,
+                "event_type": event_type,
+                "path": path,
+            })
+        })
+        .collect();
+    Ok(serde_json::json!({
+        "unhandled_count": result.len(),
+        "events": result,
+    }))
+}
+
+#[tauri::command]
+pub fn handle_watcher_event(_event_id: i64, _action: i32) -> Result<(), AppError> {
+    crate::engine::fs_watcher::clear_pending_events();
+    Ok(())
+}
+
+// ── File system (distribution) ─────────────────────────────────────
+
+/// 递归读取目录树，max_depth=0 表示仅当前层
+fn read_dir_tree(path: &std::path::Path, max_depth: u32) -> Vec<FileTreeNode> {
+    let mut nodes = Vec::new();
     if !path.exists() {
-        return 0;
+        return nodes;
     }
-    let mut count = 0u32;
     if let Ok(entries) = std::fs::read_dir(path) {
         for entry in entries.flatten() {
-            if entry.path().is_file() {
-                if let Some(name) = entry.file_name().to_str() {
-                    if !name.starts_with('.') {
-                        count += 1;
-                    }
-                }
+            let entry_path = entry.path();
+            let name = entry.file_name().to_string_lossy().to_string();
+            // 跳过隐藏文件/夹
+            if name.starts_with('.') {
+                continue;
+            }
+            if entry_path.is_dir() {
+                let children = if max_depth > 0 {
+                    read_dir_tree(&entry_path, max_depth - 1)
+                } else {
+                    Vec::new()
+                };
+                nodes.push(FileTreeNode {
+                    name,
+                    path: entry_path.to_string_lossy().to_string(),
+                    is_dir: true,
+                    children,
+                });
+            } else {
+                nodes.push(FileTreeNode {
+                    name,
+                    path: entry_path.to_string_lossy().to_string(),
+                    is_dir: false,
+                    children: Vec::new(),
+                });
             }
         }
     }
-    count
+    nodes.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            b.is_dir.cmp(&a.is_dir) // 目录在前
+        } else {
+            a.name.cmp(&b.name)
+        }
+    });
+    nodes
+}
+
+/// 可预览的文本扩展名白名单
+const TEXT_EXTENSIONS: &[&str] = &[
+    "md",
+    "ts",
+    "tsx",
+    "js",
+    "jsx",
+    "json",
+    "xml",
+    "yaml",
+    "yml",
+    "toml",
+    "ini",
+    "cfg",
+    "conf",
+    "rs",
+    "py",
+    "sh",
+    "bash",
+    "zsh",
+    "bat",
+    "ps1",
+    "txt",
+    "env",
+    "gitignore",
+    "editorconfig",
+    "prettierrc",
+    "css",
+    "scss",
+    "less",
+    "html",
+    "sql",
+    "rb",
+    "go",
+    "java",
+    "kt",
+    "vue",
+    "svelte",
+    "astro",
+    "gradle",
+    "properties",
+];
+
+#[tauri::command]
+pub fn list_directory_tree(
+    path: String,
+    max_depth: Option<u32>,
+) -> Result<Vec<FileTreeNode>, AppError> {
+    let p = crate::plugins::platform::expand_home(&path);
+    if !p.exists() {
+        return Ok(Vec::new());
+    }
+    Ok(read_dir_tree(&p, max_depth.unwrap_or(3)))
+}
+
+#[tauri::command]
+pub fn read_file_content(path: String) -> Result<serde_json::Value, AppError> {
+    let p = crate::plugins::platform::expand_home(&path);
+    if !p.exists() || !p.is_file() {
+        return Ok(serde_json::json!({ "content": null, "is_text": false }));
+    }
+
+    // 检查扩展名
+    let ext = p
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+    let is_text = TEXT_EXTENSIONS.contains(&ext.as_str());
+
+    if !is_text {
+        return Ok(serde_json::json!({ "content": null, "is_text": false }));
+    }
+
+    let content =
+        std::fs::read_to_string(p).map_err(|e| AppError::Io(format!("读取文件失败: {}", e)))?;
+
+    Ok(serde_json::json!({ "content": content, "is_text": true }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn count_entries_fs_counts_subdirs_and_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        let rules_dir = tmp.path().join("rules");
+        std::fs::create_dir_all(&skills_dir).unwrap();
+        std::fs::create_dir_all(&rules_dir).unwrap();
+
+        // skills: 3 个可见子目录 + 1 个隐藏子目录 + 1 个文件 → 3
+        for d in ["skill-a", "skill-b", "skill-c"] {
+            std::fs::create_dir(skills_dir.join(d)).unwrap();
+        }
+        std::fs::create_dir(skills_dir.join(".hidden")).unwrap();
+        std::fs::write(skills_dir.join("notes.md"), "x").unwrap();
+
+        // rules: 2 个可见文件 + 1 个隐藏文件 + 1 个子目录 → 2
+        std::fs::write(rules_dir.join("rules-a.md"), "x").unwrap();
+        std::fs::write(rules_dir.join("rules-b.md"), "x").unwrap();
+        std::fs::write(rules_dir.join(".hidden.md"), "x").unwrap();
+        std::fs::create_dir(rules_dir.join("sub")).unwrap();
+
+        let (skills, rules) = count_entries_fs(&skills_dir, Some(&rules_dir), false);
+        assert_eq!(skills, 3);
+        assert_eq!(rules, 2);
+    }
+
+    #[test]
+    fn count_entries_fs_single_file_rules() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        std::fs::create_dir_all(&skills_dir).unwrap();
+
+        let rules_file = tmp.path().join("CLAUDE.md");
+        std::fs::write(&rules_file, "x").unwrap();
+        let (_, rules) = count_entries_fs(&skills_dir, Some(&rules_file), true);
+        assert_eq!(rules, 0);
+
+        let missing = tmp.path().join("missing.md");
+        let (_, rules) = count_entries_fs(&skills_dir, Some(&missing), true);
+        assert_eq!(rules, 0);
+    }
+
+    #[test]
+    fn count_entries_fs_single_file_rules_counts_each_managed_block() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        std::fs::create_dir_all(&skills_dir).unwrap();
+        let rules_file = tmp.path().join("AGENTS.md");
+        std::fs::write(
+            &rules_file,
+            concat!(
+                "<!-- SKILLFORGE:rule:first -->\n",
+                "first<!-- /SKILLFORGE:rule:first -->\n",
+                "<!-- SKILLFORGE:rule:second -->\n",
+                "second<!-- /SKILLFORGE:rule:second -->\n",
+                "<!-- SKILLFORGE:rule:third -->\n",
+                "third<!-- /SKILLFORGE:rule:third -->\n",
+                "<!-- SKILLFORGE:rule:fourth -->\n",
+                "fourth<!-- /SKILLFORGE:rule:fourth -->\n",
+                "<!-- SKILLFORGE:rule:fifth -->\n",
+                "fifth<!-- /SKILLFORGE:rule:fifth -->"
+            ),
+        )
+        .unwrap();
+
+        let (_, rules) = count_entries_fs(&skills_dir, Some(&rules_file), true);
+
+        assert_eq!(rules, 5);
+    }
+
+    #[test]
+    fn count_entries_fs_missing_dirs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (skills, rules) = count_entries_fs(
+            &tmp.path().join("no-skills"),
+            Some(&tmp.path().join("no-rules")),
+            false,
+        );
+        assert_eq!(skills, 0);
+        assert_eq!(rules, 0);
+    }
+
+    #[test]
+    fn count_entries_fs_no_rules_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let skills_dir = tmp.path().join("skills");
+        std::fs::create_dir_all(&skills_dir).unwrap();
+        std::fs::create_dir(skills_dir.join("skill-a")).unwrap();
+
+        let (skills, rules) = count_entries_fs(&skills_dir, None, false);
+        assert_eq!(skills, 1);
+        assert_eq!(rules, 0);
+    }
+
+    #[test]
+    fn project_entry_count_reads_relative_trae_rules_from_project_root() {
+        let project = tempfile::tempdir().expect("create project directory");
+        let trae_dir = project.path().join(".trae");
+        std::fs::create_dir_all(trae_dir.join("skills/example-skill"))
+            .expect("create project skill directory");
+        std::fs::create_dir_all(trae_dir.join("rules")).expect("create project rules directory");
+        std::fs::write(trae_dir.join("rules/first.md"), "first").expect("write first rule");
+        std::fs::write(trae_dir.join("rules/second.md"), "second").expect("write second rule");
+
+        let count = count_platform_entries(
+            "trae".to_string(),
+            Some(project.path().to_string_lossy().into_owned()),
+        )
+        .expect("count project entries");
+
+        assert_eq!(count.skills, 1);
+        assert_eq!(count.rules, 2);
+        assert!(count.dir_exists);
+    }
 }

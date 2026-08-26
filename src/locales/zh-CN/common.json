@@ -4,20 +4,22 @@
     "subtitle": "技能锻造厂"
   },
   "nav": {
-    "dashboard": "看板",
-    "skills": "技能库",
-    "rules": "规则库",
+    "dashboard": "概览",
+    "skills": "技能",
+    "rules": "规则",
     "tags": "标签管理",
-    "scenes": "场景编排",
-    "globalDistribution": "全局分发",
-    "projectDistribution": "项目分发",
+    "scenes": "场景",
+    "globalDistribution": "工作区",
+    "projectDistribution": "项目",
     "settings": "设置"
   },
   "navGroups": {
     "overview": "概览",
     "resources": "资源",
-    "orchestration": "编排",
-    "distribution": "分发"
+    "orchestration": "场景",
+    "distribution": "分发",
+    "system": "系统",
+    "settings": "设置"
   },
   "actions": {
     "add": "添加",
@@ -26,11 +28,11 @@
     "save": "保存",
     "cancel": "取消",
     "confirm": "确认",
-    "install": "安装",
+    "install": "导入",
     "uninstall": "卸载",
     "update": "更新",
-    "sync": "同步",
-    "syncAll": "一键同步全部",
+    "sync": "分发",
+    "syncAll": "一键分发全部",
     "search": "搜索",
     "import": "导入",
     "create": "新建",
@@ -42,23 +44,26 @@
     "refresh": "刷新",
     "export": "导出",
     "copy": "复制",
-    "batchSelect": "批量选择",
-    "exitSelect": "退出选择",
+    "batchSelect": "批量操作",
+    "exitSelect": "完成",
     "cancelSelect": "取消选择",
     "confirmImport": "确认导入",
-    "searchProjects": "搜索项目...",
+    "searchProjects": "搜索项目…",
     "openInFileManager": "在文件管理器中打开",
-    "openDir": "打开目录"
+    "openDir": "打开目录",
+    "undo": "撤销",
+    "goDistribute": "去分发",
+    "manage": "管理"
   },
   "status": {
-    "synced": "已同步",
+    "synced": "已分发",
     "outdated": "需更新",
-    "partial": "部分同步",
-    "error": "同步失败",
-    "pending": "待同步",
+    "partial": "部分已分发",
+    "error": "分发失败",
+    "pending": "未分发",
     "success": "成功",
     "failed": "失败",
-    "installed": "已安装",
+    "installed": "已导入",
     "notInstalled": "未安装",
     "enabled": "已启用",
     "disabled": "已禁用",
@@ -78,9 +83,11 @@
     "totalFiles": "共 {{count}} 个文件",
     "skillInUse": "技能被 {{count}} 个场景使用",
     "sceneInUse": "场景被 {{count}} 个项目使用",
-    "syncSuccess": "同步成功",
-    "syncFailed": "同步失败",
-    "installSuccess": "安装成功",
+    "referenceLoading": "正在统计场景引用…",
+    "referenceSummary": "其中 {{referenced}} 个资源被 {{count}} 个场景引用",
+    "syncSuccess": "分发成功",
+    "syncFailed": "分发失败",
+    "installSuccess": "导入成功",
     "selectedDirectories": "已选择 {{count}} 个目录",
     "uninstallSuccess": "卸载成功",
     "updateSuccess": "更新成功",
@@ -89,14 +96,122 @@
     "noData": "暂无数据",
     "loading": "加载中...",
     "operationFailed": "操作失败",
-    "capabilityWarning": "⚠️ {{platforms}} 不支持全局规则分发，这些平台将跳过规则同步"
+    "noResults": "没有符合当前筛选的资源",
+    "clearFilter": "清除筛选",
+    "loadSkillsFailed": "技能库加载失败",
+    "loadRulesFailed": "规则库加载失败",
+    "syncCompletedWithErrors": "分发完成，{{count}} 项失败",
+    "syncFailedWithReason": "分发失败: {{reason}}",
+    "globalRulesUnsupportedWarning": "警告: {{platform}} 不支持全局规则分发",
+    "loadSyncStatusFailed": "获取分发状态失败: {{reason}}",
+    "loadSkillsListFailed": "获取技能列表失败: {{reason}}",
+    "uninstallFailedWithReason": "卸载失败: {{reason}}",
+    "updateFailedWithReason": "更新失败: {{reason}}",
+    "importFailedWithReason": "导入失败: {{reason}}",
+    "loadRulesListFailed": "获取规则列表失败: {{reason}}",
+    "createRuleSuccess": "创建规则成功",
+    "createRuleFailedWithReason": "创建规则失败: {{reason}}",
+    "saveRuleSuccess": "保存规则成功",
+    "saveRuleFailedWithReason": "保存规则失败: {{reason}}",
+    "deleteRuleSuccess": "删除规则成功",
+    "deleteRuleFailedWithReason": "删除规则失败: {{reason}}",
+    "loadTagsListFailed": "获取标签列表失败: {{reason}}",
+    "createTagSuccess": "创建标签成功",
+    "createTagFailedWithReason": "创建标签失败: {{reason}}",
+    "updateTagSuccess": "更新标签成功",
+    "updateTagFailedWithReason": "更新标签失败: {{reason}}",
+    "deleteTagSuccess": "删除标签成功",
+    "deleteTagFailedWithReason": "删除标签失败: {{reason}}",
+    "assignTagSuccess": "分配标签成功",
+    "assignTagFailedWithReason": "分配标签失败: {{reason}}",
+    "removeTagSuccess": "移除标签成功",
+    "removeTagFailedWithReason": "移除标签失败: {{reason}}",
+    "loadScenesListFailed": "获取场景列表失败: {{reason}}",
+    "createSceneSuccess": "创建场景成功",
+    "createSceneFailedWithReason": "创建场景失败: {{reason}}",
+    "saveSceneSuccess": "保存场景成功",
+    "saveSceneFailedWithReason": "保存场景失败: {{reason}}",
+    "deleteSceneSuccess": "删除场景成功",
+    "deleteSceneFailedWithReason": "删除场景失败: {{reason}}",
+    "loadSceneDetailFailedWithReason": "获取场景详情失败: {{reason}}",
+    "sceneBaselineUnavailable": "无法获取场景基线，已取消保存",
+    "addSkillToSceneSuccess": "添加技能到场景成功",
+    "addSkillToSceneFailedWithReason": "添加技能到场景失败: {{reason}}",
+    "removeSkillFromSceneSuccess": "从场景移除技能成功",
+    "removeSkillFromSceneFailedWithReason": "从场景移除技能失败: {{reason}}",
+    "addRuleToSceneSuccess": "添加规则到场景成功",
+    "addRuleToSceneFailedWithReason": "添加规则到场景失败: {{reason}}",
+    "removeRuleFromSceneSuccess": "从场景移除规则成功",
+    "removeRuleFromSceneFailedWithReason": "从场景移除规则失败: {{reason}}",
+    "loadProjectsListFailed": "获取项目列表失败: {{reason}}",
+    "addProjectSuccess": "添加项目成功",
+    "addProjectFailedWithReason": "添加项目失败: {{reason}}",
+    "removeProjectSuccess": "移除项目成功",
+    "removeProjectFailedWithReason": "移除项目失败: {{reason}}",
+    "removeProjectsBatchSuccess": "批量移除 {{count}} 个项目成功",
+    "removeProjectsBatchFailedWithReason": "批量移除项目失败: {{reason}}",
+    "loadPlatformsListFailed": "获取平台列表失败: {{reason}}",
+    "loadDistributedContentFailedWithReason": "获取已分发内容失败: {{reason}}",
+    "removeDistributedFailedWithReason": "移除失败: {{reason}}",
+    "loadDashboardStatsFailedWithReason": "获取概览统计失败: {{reason}}",
+    "scanFailedWithReason": "扫描失败: {{reason}}",
+    "previewNoData": "预览失败: 未返回数据",
+    "previewFailedWithReason": "预览失败: {{reason}}",
+    "importScannedSummary": "导入完成: {{skills}} 技能, {{rules}} 规则",
+    "importSkippedSuffix": "（跳过 {{count}} 个已存在）",
+    "importErrorsSuffix": " | {{count}} 个失败: {{detail}}"
+  },
+  "detail": {
+    "source": "来源",
+    "updatedAt": "更新时间",
+    "preview": "内容预览"
+  },
+  "view": {
+    "group": "分组",
+    "list": "列表",
+    "collapseAll": "全部折叠",
+    "expandAll": "全部展开",
+    "showMore": "显示更多 ({{count}})",
+    "expandGroups": "展开分组",
+    "collapseGroups": "收起分组"
+  },
+  "batch": {
+    "guide": "勾选资源后操作",
+    "exit": "退出选择",
+    "goDistribute": "去分发",
+    "manageTags": "管理所选标签",
+    "delete": "批量删除",
+    "clear": "清空"
+  },
+  "inspector": {
+    "unsavedTitle": "有未保存的修改",
+    "unsavedMessage": "是否保存修改？",
+    "discard": "放弃",
+    "stay": "取消离开",
+    "addTag": "添加标签",
+    "removeTagLabel": "移除标签 {{name}}"
+  },
+  "fileTree": {
+    "loading": "加载中...",
+    "empty": "目录为空或不存在",
+    "emptyDir": "（空）"
+  },
+  "watcher": {
+    "changesDetected": "检测到 {{count}} 个文件变更",
+    "newFiles": "+{{count}} 新增",
+    "deletedFiles": "-{{count}} 已删除",
+    "modifiedFiles": "~{{count}} 已修改",
+    "importHint": "文件变更通知，前往概览查看可导入的技能和规则",
+    "goToDashboard": "去概览查看可导入内容",
+    "dismiss": "忽略"
   },
   "platforms": {
     "title": "Agent 平台",
     "enabled": "已启用",
     "autoBindHint": "系统场景自动关联所有已启用的 Agent 平台",
     "noGlobalRules": "不支持全局规则",
-    "noProjectRules": "不支持项目规则"
+    "noProjectRules": "不支持项目规则",
+    "countTooltip": "{{name}}: {{skills}} 技能 / {{rules}} 规则"
   },
   "tag": {
     "name": "名称",
@@ -114,20 +229,49 @@
     "createNew": "创建",
     "untagged": "未分类",
     "allTags": "全部",
-    "manageTags": "管理标签"
+    "manageTags": "管理标签",
+    "empty": "无可用标签",
+    "createNewWithName": "创建 \"{{name}}\"",
+    "collapse": "收起"
   },
   "dashboard": {
+    "subtitle": "资源、场景、项目与已开启平台的当前概况。",
     "globalDistStatus": "全局分发状态",
     "currentScene": "当前场景",
     "notConfigured": "未配置",
     "configureGlobalScene": "请先配置全局场景",
-    "skillRuleCount": "技能 / 规则"
+    "skillRuleCount": "技能 / 规则",
+    "stats": {
+      "resources": "资源",
+      "resourcesSubtitle": "技能数 / 规则数",
+      "scenes": "场景数量",
+      "scenesSubtitle": "可作为临时资源组合",
+      "projects": "项目数量",
+      "projectsSubtitle": "可作为项目分发目标",
+      "platforms": "Agent 平台",
+      "platformsSubtitle": "已开启数 / 总数"
+    },
+    "welcome": {
+      "title": "欢迎使用 SkillForge",
+      "dismiss": "知道了",
+      "step1Title": "一键导入",
+      "step1Desc": "扫描已开启平台的 Skills 与 Rules",
+      "step2Title": "可选：组合场景",
+      "step2Desc": "把 Skills 与 Rules 组成可复用模板",
+      "step3Title": "进入分发工作区",
+      "step3Desc": "生成计划，确认后写入目标"
+    },
+    "quickEntry": {
+      "title": "快捷入口",
+      "skillRuleCount": "技能 {{skills}} · 规则 {{rules}}",
+      "chooseTarget": "选择为分发目标"
+    }
   },
   "import": {
     "scanTitle": "一键导入",
     "scanTooltip": "扫描所有 Agent 平台的全局目录，发现尚未导入的技能和规则",
     "firstLaunchTitle": "发现可用内容",
-    "firstLaunchDesc": "检测到你在 {{count}} 个 Agent 平台中有已安装的技能和规则，是否一键导入？",
+    "firstLaunchDesc": "检测到你在 {{count}} 个 Agent 平台中有已导入的技能和规则，是否一键导入？",
     "firstLaunchAction": "立即导入",
     "firstLaunchDismiss": "以后再说",
     "previewTitle": "发现可导入的技能和规则",
@@ -138,16 +282,80 @@
     "confirmImport": "确认导入 ({{count}})",
     "importing": "正在导入...",
     "scanning": "正在扫描...",
-    "noDiscoverable": "未发现可导入的技能或规则"
+    "noDiscoverable": "未发现可导入的技能或规则",
+    "append": "追加选择",
+    "retry": "重试",
+    "ignore": "忽略",
+    "noItems": "尚未选择任何文件",
+    "showMore": "显示更多 ({{count}})",
+    "dirs": "个目录",
+    "files": "个文件",
+    "status": {
+      "valid": "可导入",
+      "skip": "跳过",
+      "error": "错误"
+    },
+    "result": {
+      "success": "成功",
+      "failed": "失败",
+      "skipped": "跳过"
+    },
+    "reason": {
+      "alreadyExists": "已存在",
+      "unsupportedFormat": "格式不支持",
+      "missingSkillMd": "缺少 SKILL.md",
+      "invalidPath": "路径无效",
+      "readFailed": "读取失败"
+    }
+  },
+  "workflow": {
+    "prepareContent": "准备内容",
+    "organizeContent": "组织内容",
+    "distributeContent": "分发内容"
+  },
+  "breadcrumb": {
+    "dashboard": "精简概览",
+    "globalDistribution": "工作区",
+    "projectDistribution": "项目",
+    "scenes": "可复用组合",
+    "skills": "技能",
+    "rules": "规则",
+    "settings": "设置"
+  },
+  "shortcuts": {
+    "title": "快捷键",
+    "search": "搜索资源",
+    "create": "新建资源",
+    "closeDialog": "关闭当前对话框",
+    "implemented": "已实现",
+    "notImplemented": "未实现",
+    "hint": "以下为常用快捷键指引；未标注「已实现」的快捷键暂未绑定，仅作展示。"
+  },
+  "topbar": {
+    "collapse": {
+      "collapse": "折叠侧边栏",
+      "expand": "展开侧边栏"
+    },
+    "notImplemented": "该功能暂未实现"
   },
   "syncConfirm": {
-    "title": "同步确认",
+    "title": "分发确认",
     "warning": "以下内容将从平台目录中永久删除：",
+    "changes": "以下内容将分发到平台目录：",
     "addSkills": "新增 {{count}} 个技能",
+    "updateSkills": "更新 {{count}} 个技能",
     "removeSkills": "移除 {{count}} 个技能",
     "addRules": "新增 {{count}} 条规则",
+    "updateRules": "更新 {{count}} 条规则",
     "removeRules": "移除 {{count}} 条规则",
-    "summary": "将新增 {{add}} 项，移除 {{remove}} 项。此操作不可撤销。",
-    "confirm": "确认同步"
+    "noChanges": "无变更项",
+    "summary": "将新增 {{add}} 项，更新 {{update}} 项，移除 {{remove}} 项。此操作不可撤销。",
+    "confirm": "确认分发",
+    "confirmRemoval": "确认分发并移除 {{count}} 项"
+  },
+  "errors": {
+    "boundaryTitle": "应用出现了错误",
+    "boundaryFallback": "发生了意外错误，请尝试重新加载。",
+    "reload": "重新加载"
   }
 }

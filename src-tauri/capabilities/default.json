@@ -8,6 +8,8 @@
     "opener:default",
     "dialog:default",
     "fs:default",
-    "fs:allow-read-text-file"
+    "fs:allow-read-text-file",
+    "wdio:default",
+    "wdio-webdriver:default"
   ]
 }

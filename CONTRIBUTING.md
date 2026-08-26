@@ -2,6 +2,8 @@
 
 感谢你对 SkillForge 的关注！欢迎提交 Issue 和 Pull Request。
 
+参与项目即表示你同意遵守 [社区行为准则](CODE_OF_CONDUCT.md)。提交安全漏洞请阅读 [安全策略](SECURITY.md)，不要在公开 Issue 中披露。
+
 ## 开发环境搭建
 
 ### 前置条件
@@ -66,3 +68,11 @@ cd src-tauri && cargo test
 
 - 使用 [Feature Request](https://github.com/WebbLee94/SkillForge/issues/new?template=feature_request.md) 模板
 - 描述使用场景和期望效果
+
+## 提交前检查
+
+- 确认变更范围与 Issue 或 Discussion 目标一致
+- 为 Bug 修复增加回归测试，为新功能补充必要测试
+- 不提交用户路径、日志中的敏感信息或本地配置
+- UI 变更附截图，跨平台行为变化说明受影响的平台
+- 使用 [Pull Request 模板](.github/PULL_REQUEST_TEMPLATE.md) 完整填写验证结果

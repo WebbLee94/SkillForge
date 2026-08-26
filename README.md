@@ -1,5 +1,7 @@
 # SkillForge - AI Agent 技能与规则编排工具
 
+[简体中文](./README.md) | [English](./README.en.md)
+
 ![License](https://img.shields.io/github/license/WebbLee94/SkillForge)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue)
 ![Version](https://img.shields.io/github/v/release/WebbLee94/SkillForge?include_prereleases)
@@ -13,7 +15,7 @@
 ![Zustand](https://img.shields.io/badge/Zustand-5-22C55E)
 ![i18next](https://img.shields.io/badge/i18next-26-26A69A)
 
-> 一款桌面应用，用于统一管理 AI Agent 的技能和规则，支持 12 个平台、场景编排和一键分发
+> 一款桌面应用，用于统一管理 AI Agent 的技能和规则，支持 10 个平台、场景编排和一键分发
 
 ---
 
@@ -29,9 +31,9 @@ SkillForge 是一款专为 AI Agent 用户打造的技能管理工具，旨在�
 | 📝 **规则管理** | 创建/编辑/删除规则（.mdc/.md/.yaml），版本历史追溯，双栏预览 |
 | 🏷️ **标签管理** | 内联标签创建与筛选，弹窗式标签管理 |
 | 🎬 **场景编排** | 组合技能与规则，按场景一键切换，平台维度 diff |
-| 🚀 **全局/项目分发** | 将场景分发到 12 个 AI Agent 平台，支持项目级隔离 |
+| 🚀 **全局/项目分发** | 将场景分发到 10 个 AI Agent 平台，支持项目级隔离 |
 | 🧠 **平台能力感知** | 自动检测平台分发能力，不支持时显示警告 |
-| 🌐 **多平台支持** | Claude Code / OpenCode / Cursor / Windsurf / Trae / CodeBuddy 等 12 个平台 |
+| 🌐 **多平台支持** | Claude Code / OpenCode / Cursor / Trae / CodeBuddy / Codex / Hermes / OpenClaw 等 10 个平台 |
 
 ## 📸 界面预览
 
@@ -41,15 +43,15 @@ SkillForge 是一款专为 AI Agent 用户打造的技能管理工具，旨在�
 
 ## 🛠️ 技术栈
 
-| 层 | 技术 | 图标 |
-|---|---|:---:|
-| 桌面框架 | Tauri v2 | 🖥️ |
-| 前端 | React 19 + TypeScript | ⚛️ |
-| 状态管理 | Zustand | 🧠 |
-| 样式 | Tailwind CSS v4 | 🎨 |
-| 后端 | Rust | 🦀 |
-| 数据库 | SQLite | 📊 |
-| 国际化 | i18next | 🌐 |
+| 层 | 技术 |
+|---|---|
+| 桌面框架 | Tauri v2 |
+| 前端 | React 19 + TypeScript |
+| 状态管理 | Zustand |
+| 样式 | Tailwind CSS v4 |
+| 后端 | Rust |
+| 数据库 | SQLite |
+| 国际化 | i18next |
 
 ## 🚀 快速开始
 
@@ -81,14 +83,18 @@ npm run tauri build
 ```
 SkillForge/
 ├── src/                      # 前端源码
+│   ├── app/                  # 应用壳层（侧边栏/顶栏等）
 │   ├── pages/                # 页面组件
 │   │   ├── Dashboard.tsx     # 看板
 │   │   ├── SkillLibrary.tsx  # 技能库
 │   │   ├── RulesManager.tsx  # 规则管理
 │   │   ├── SceneEditor.tsx   # 场景编排
 │   │   ├── GlobalDistribution.tsx  # 全局分发
-│   │   └── ProjectDistribution.tsx # 项目分发
+│   │   ├── ProjectDistribution.tsx # 项目分发
+│   │   └── Settings.tsx      # 设置
+│   ├── domains/              # 领域模块（技能/规则/场景/分发等）
 │   ├── components/           # 通用组件
+│   ├── hooks/                # 自定义 Hooks
 │   ├── stores/               # Zustand 状态管理
 │   ├── lib/                  # 工具函数与 IPC 封装
 │   └── locales/              # i18n 翻译文件
@@ -97,8 +103,8 @@ SkillForge/
 │       ├── commands/         # IPC 命令处理
 │       ├── engine/           # 业务引擎
 │       ├── db/               # 数据库 Schema 与迁移
-│       └── plugins/          # 平台适配器（12 个）
-└── docs/                     # 设计文档
+│       ├── plugins/          # 平台适配器（10 个）
+│       └── domain/ application/ ports/ adapters/  # 领域模型与端口适配层
 ```
 
 ## 🏗️ 架构概览
@@ -109,8 +115,8 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
                                                       ▼
                                               ~/.skillforge/  ← SQLite DB + 技能/规则存储
                                                       │
-                                                      ▼ (symlink, bidirectional sync)
-                              claude-code/ opencode/ cursor/ trae/ windsurf/ ... (12 平台)
+                                                      ▼ (symlink, one-way push distribution)
+                              claude-code/ opencode/ cursor/ trae/ codebuddy/ codex/ hermes/ openclaw/ ... (10 平台)
 ```
 
 ## 📋 开发命令
@@ -120,7 +126,9 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
 | `npm run dev` | 前端热重载（Vite，端口 1420） |
 | `npm run tauri dev` | 完整 Tauri 开发（前端+桌面窗口） |
 | `npm run tauri build` | 生产构建（输出 .app/.dmg/.exe） |
-| `npm run build` | 仅前端构建 |
+| `npm run build` | 仅前端构建（tsc + Vite） |
+| `npm test` | 前端单元/组件测试（Vitest） |
+| `npm run test:e2e` | 桌面 E2E 测试（WebdriverIO + tauri-driver） |
 | `cargo test` | Rust 后端测试（在 src-tauri/ 目录下） |
 
 ## 🤝 参与贡献
@@ -133,6 +141,8 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. 开启 Pull Request
 
+提交前请阅读 [贡献指南](CONTRIBUTING.md)、[社区行为准则](CODE_OF_CONDUCT.md) 和 [治理说明](GOVERNANCE.md)。安全漏洞请遵循 [安全策略](SECURITY.md)，不要公开创建 Issue。
+
 ## 🙏 致谢
 
 本项目设计参考了 [skills-manager](https://github.com/xingkongliang/skills-manager)，感谢 [@xingkongliang](https://github.com/xingkongliang) 的开源贡献。
@@ -140,6 +150,12 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
 ## 📄 许可证
 
 本项目采用 [MIT License](LICENSE) 开源协议。
+
+## 🔗 社区与支持
+
+- [问题反馈](https://github.com/WebbLee94/SkillForge/issues)
+- [功能讨论](https://github.com/WebbLee94/SkillForge/discussions)
+- [获取帮助](SUPPORT.md)
 
 ## 👤 作者信息
 

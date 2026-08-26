@@ -1,5 +1,5 @@
-use crate::error::AppError;
 use crate::engine::parser;
+use crate::error::AppError;
 use crate::types::{SkillBundle, SkillMeta, ValidationResult, VersionInfo};
 
 use super::SourcePlugin;
@@ -112,9 +112,8 @@ impl SourcePlugin for GitRepoSource {
         }
 
         let skill_md_path = skill_dir.join("SKILL.md");
-        let content = std::fs::read_to_string(&skill_md_path).map_err(|e| {
-            AppError::Source(format!("读取 SKILL.md 失败: {}", e))
-        })?;
+        let content = std::fs::read_to_string(&skill_md_path)
+            .map_err(|e| AppError::Source(format!("读取 SKILL.md 失败: {}", e)))?;
 
         let mut bundle = parser::parse_skill_md(&content)?;
         bundle.meta.source_type = "git-repo".to_string();
@@ -124,10 +123,11 @@ impl SourcePlugin for GitRepoSource {
         let known_subdirs = ["references", "scripts", "rules", "assets", "examples"];
         for subdir in &known_subdirs {
             let subdir_path = skill_dir.join(subdir);
-            if subdir_path.exists() && subdir_path.is_dir() {
-                if !bundle.subdirs.contains(&subdir.to_string()) {
-                    bundle.subdirs.push(subdir.to_string());
-                }
+            if subdir_path.exists()
+                && subdir_path.is_dir()
+                && !bundle.subdirs.contains(&subdir.to_string())
+            {
+                bundle.subdirs.push(subdir.to_string());
             }
         }
 

@@ -1,20 +1,21 @@
 use crate::error::AppError;
 use crate::types::{
-    CreateSceneDTO, Scene, SceneDetail, SceneRuleEntry, SceneSkillEntry,
-    UpdateSceneDTO, ValidationResult,
+    CreateSceneDTO, Scene, SceneDetail, SceneRuleEntry, SceneSkillEntry, UpdateSceneDTO,
+    ValidationResult,
 };
 
 use rusqlite::params;
 
 /// Create a new scene with associated skills and rules.
-pub fn create_scene(
-    conn: &rusqlite::Connection,
-    data: &CreateSceneDTO,
-) -> Result<Scene, AppError> {
+///
+/// 完整保存以事务方式原子提交：任一子步骤失败（技能/规则不存在、约束冲突等）
+/// 整体回滚，不残留半初始化的场景行或成员关联。
+pub fn create_scene(conn: &rusqlite::Connection, data: &CreateSceneDTO) -> Result<Scene, AppError> {
     let id = slugify(&data.name);
+    let tx = conn.unchecked_transaction()?;
 
     // Check for duplicate
-    let exists: bool = conn
+    let exists: bool = tx
         .query_row(
             "SELECT COUNT(*) FROM scenes WHERE id = ?1",
             params![id],
@@ -23,15 +24,12 @@ pub fn create_scene(
         .map(|c| c > 0)?;
 
     if exists {
-        return Err(AppError::Validation(format!(
-            "场景标识 '{}' 已存在",
-            id
-        )));
+        return Err(AppError::Validation(format!("场景标识 '{}' 已存在", id)));
     }
 
     let now = chrono::Utc::now().to_rfc3339();
 
-    conn.execute(
+    tx.execute(
         "INSERT INTO scenes (id, name, description, icon, is_template, is_system, created_at, updated_at)
          VALUES (?1, ?2, ?3, ?4, 0, 0, ?5, ?6)",
         params![id, data.name, data.description, data.icon, now, now],
@@ -41,20 +39,18 @@ pub fn create_scene(
     if let Some(ref skill_ids) = data.skill_ids {
         for (idx, skill_id) in skill_ids.iter().enumerate() {
             // Verify skill exists
-            let skill_exists: bool = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM skills WHERE id = ?1",
-                    params![skill_id],
-                    |row| row.get::<_, i64>(0),
-                )
-                .map(|c| c > 0)?;
+            let skill_exists = crate::db::resources_repo::kind_exists(
+                &tx,
+                skill_id,
+                crate::db::resources_repo::KIND_SKILL,
+            )?;
 
             if !skill_exists {
                 return Err(AppError::SkillNotFound(skill_id.clone()));
             }
 
-            conn.execute(
-                "INSERT INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
+            tx.execute(
+                "INSERT INTO scene_items (scene_id, resource_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
                 params![id, skill_id, idx as i32],
             )?;
         }
@@ -63,24 +59,24 @@ pub fn create_scene(
     // Add rules to scene
     if let Some(ref rule_ids) = data.rule_ids {
         for (idx, rule_id) in rule_ids.iter().enumerate() {
-            let rule_exists: bool = conn
-                .query_row(
-                    "SELECT COUNT(*) FROM rules WHERE id = ?1",
-                    params![rule_id],
-                    |row| row.get::<_, i64>(0),
-                )
-                .map(|c| c > 0)?;
+            let rule_exists = crate::db::resources_repo::kind_exists(
+                &tx,
+                rule_id,
+                crate::db::resources_repo::KIND_RULE,
+            )?;
 
             if !rule_exists {
                 return Err(AppError::RuleNotFound(rule_id.clone()));
             }
 
-            conn.execute(
-                "INSERT INTO scene_rules (scene_id, rule_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
+            tx.execute(
+                "INSERT INTO scene_items (scene_id, resource_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
                 params![id, rule_id, idx as i32],
             )?;
         }
     }
+
+    tx.commit()?;
 
     query_scene_by_id(conn, &id)
 }
@@ -92,12 +88,6 @@ pub fn update_scene(
     data: &UpdateSceneDTO,
 ) -> Result<(), AppError> {
     let _scene = query_scene_by_id(conn, id)?;
-
-    if id == "__all_skills__" {
-        return Err(AppError::Validation(
-            "无法修改系统场景 '__all_skills__'".to_string(),
-        ));
-    }
 
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -125,56 +115,26 @@ pub fn update_scene(
 
 /// Delete a scene. Blocks if the scene is in use by projects or global distribution.
 /// Returns SceneInUse error with project count and names.
+///
+/// 三表删除（scene_skills / scene_rules / scenes）以事务方式原子提交：
+/// 任一步骤失败整体回滚，避免留下无主关联或半删除状态。
 pub fn delete_scene(conn: &rusqlite::Connection, id: &str) -> Result<(), AppError> {
-    if id == "__all_skills__" {
-        return Err(AppError::Validation(
-            "无法删除系统场景 '__all_skills__'".to_string(),
-        ));
-    }
-
     let scene = query_scene_by_id(conn, id)?;
 
     // Block deletion of system scenes
     if scene.is_system {
-        return Err(AppError::Validation(
-            "无法删除系统场景".to_string(),
-        ));
+        return Err(AppError::Validation("无法删除系统场景".to_string()));
     }
 
-    // Check global distribution reference
-    let global_scene_id: Option<String> = conn
-        .query_row(
-            "SELECT value FROM app_config WHERE key = 'global_scene_id'",
-            [],
-            |row| row.get(0),
-        )
-        .unwrap_or(None);
+    // 全局分发不再绑定 scene（v6：app_config / projects.scene_id 已移除）
 
-    if global_scene_id.as_deref() == Some(id) {
-        return Err(AppError::Validation(
-            "该场景正被全局分发使用，请先切换".to_string(),
-        ));
-    }
-
-    // Check project references: collect project names for error message
-    let project_count: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM projects WHERE scene_id = ?1",
-            params![id],
-            |row| row.get(0),
-        )
-        .unwrap_or(0);
-
-    if project_count > 0 {
-        return Err(AppError::SceneInUse(project_count));
-    }
+    let tx = conn.unchecked_transaction()?;
 
     // Delete associations (cascading should handle this, but be explicit)
-    conn.execute("DELETE FROM scene_skills WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM scene_rules WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM scene_platforms WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM distributions WHERE scene_id = ?1", params![id])?;
-    conn.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
+    tx.execute("DELETE FROM scene_items WHERE scene_id = ?1", params![id])?;
+    tx.execute("DELETE FROM scenes WHERE id = ?1", params![id])?;
+
+    tx.commit()?;
 
     Ok(())
 }
@@ -185,33 +145,82 @@ pub fn add_skill_to_scene(
     scene_id: &str,
     skill_id: &str,
 ) -> Result<(), AppError> {
+    add_resource_to_scene(
+        conn,
+        scene_id,
+        skill_id,
+        crate::db::resources_repo::KIND_SKILL,
+    )
+}
+
+/// Remove a skill from a scene.
+pub fn remove_skill_from_scene(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+    skill_id: &str,
+) -> Result<(), AppError> {
+    remove_resource_from_scene(conn, scene_id, skill_id)
+}
+
+/// Add a rule to a scene.
+pub fn add_rule_to_scene(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+    rule_id: &str,
+) -> Result<(), AppError> {
+    add_resource_to_scene(
+        conn,
+        scene_id,
+        rule_id,
+        crate::db::resources_repo::KIND_RULE,
+    )
+}
+
+/// Remove a rule from a scene.
+pub fn remove_rule_from_scene(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+    rule_id: &str,
+) -> Result<(), AppError> {
+    remove_resource_from_scene(conn, scene_id, rule_id)
+}
+
+/// Add a resource of the given kind to a scene.
+///
+/// 排序语义保持与拆分表一致：skill / rule 成员各自独立递增
+/// （MAX 仅在同类成员上取值，经 JOIN kind 过滤）。
+fn add_resource_to_scene(
+    conn: &rusqlite::Connection,
+    scene_id: &str,
+    resource_id: &str,
+    kind: &str,
+) -> Result<(), AppError> {
     let _scene = query_scene_by_id(conn, scene_id)?;
 
-    // Verify skill exists
-    let skill_exists: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM skills WHERE id = ?1",
-            params![skill_id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map(|c| c > 0)?;
-
-    if !skill_exists {
-        return Err(AppError::SkillNotFound(skill_id.to_string()));
+    // Verify resource exists with the expected kind
+    let exists = crate::db::resources_repo::kind_exists(conn, resource_id, kind)?;
+    if !exists {
+        return Err(if kind == crate::db::resources_repo::KIND_SKILL {
+            AppError::SkillNotFound(resource_id.to_string())
+        } else {
+            AppError::RuleNotFound(resource_id.to_string())
+        });
     }
 
-    // Get next sort order
+    // Get next sort order within this kind's members
     let max_order: i32 = conn
         .query_row(
-            "SELECT COALESCE(MAX(sort_order), -1) FROM scene_skills WHERE scene_id = ?1",
-            params![scene_id],
+            "SELECT COALESCE(MAX(si.sort_order), -1) FROM scene_items si \
+             JOIN resources r ON si.resource_id = r.id \
+             WHERE si.scene_id = ?1 AND r.kind = ?2",
+            params![scene_id, kind],
             |row| row.get(0),
         )
         .unwrap_or(-1);
 
     conn.execute(
-        "INSERT OR IGNORE INTO scene_skills (scene_id, skill_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
-        params![scene_id, skill_id, max_order + 1],
+        "INSERT OR IGNORE INTO scene_items (scene_id, resource_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
+        params![scene_id, resource_id, max_order + 1],
     )?;
 
     // Update scene timestamp
@@ -224,17 +233,17 @@ pub fn add_skill_to_scene(
     Ok(())
 }
 
-/// Remove a skill from a scene.
-pub fn remove_skill_from_scene(
+/// Remove a resource from a scene (kind-agnostic; ids are globally unique).
+fn remove_resource_from_scene(
     conn: &rusqlite::Connection,
     scene_id: &str,
-    skill_id: &str,
+    resource_id: &str,
 ) -> Result<(), AppError> {
     let _scene = query_scene_by_id(conn, scene_id)?;
 
     conn.execute(
-        "DELETE FROM scene_skills WHERE scene_id = ?1 AND skill_id = ?2",
-        params![scene_id, skill_id],
+        "DELETE FROM scene_items WHERE scene_id = ?1 AND resource_id = ?2",
+        params![scene_id, resource_id],
     )?;
 
     let now = chrono::Utc::now().to_rfc3339();
@@ -246,78 +255,52 @@ pub fn remove_skill_from_scene(
     Ok(())
 }
 
-/// Add a rule to a scene.
-pub fn add_rule_to_scene(
+/// Toggle a Scene member's enabled state (`member_type` ∈ `"skill" | "rule"`).
+///
+/// 保留成员行（不删除），仅更新 enabled 与场景 updated_at，切换以事务方式原子提交。
+/// 未知 `member_type` 返回 `AppError::Validation`；场景不存在返回 `AppError::SceneNotFound`。
+pub fn set_scene_member_enabled(
     conn: &rusqlite::Connection,
     scene_id: &str,
-    rule_id: &str,
+    member_type: &str,
+    member_id: &str,
+    enabled: bool,
 ) -> Result<(), AppError> {
     let _scene = query_scene_by_id(conn, scene_id)?;
 
-    // Verify rule exists
-    let rule_exists: bool = conn
-        .query_row(
-            "SELECT COUNT(*) FROM rules WHERE id = ?1",
-            params![rule_id],
-            |row| row.get::<_, i64>(0),
-        )
-        .map(|c| c > 0)?;
-
-    if !rule_exists {
-        return Err(AppError::RuleNotFound(rule_id.to_string()));
-    }
-
-    // Get next sort order
-    let max_order: i32 = conn
-        .query_row(
-            "SELECT COALESCE(MAX(sort_order), -1) FROM scene_rules WHERE scene_id = ?1",
-            params![scene_id],
-            |row| row.get(0),
-        )
-        .unwrap_or(-1);
-
-    conn.execute(
-        "INSERT OR IGNORE INTO scene_rules (scene_id, rule_id, enabled, sort_order) VALUES (?1, ?2, 1, ?3)",
-        params![scene_id, rule_id, max_order + 1],
+    let tx = conn.unchecked_transaction()?;
+    let enabled = if enabled { 1 } else { 0 };
+    let kind = match member_type {
+        "skill" => crate::db::resources_repo::KIND_SKILL,
+        "rule" => crate::db::resources_repo::KIND_RULE,
+        _ => {
+            return Err(AppError::Validation(
+                "member_type 必须为 skill 或 rule".to_string(),
+            ));
+        }
+    };
+    tx.execute(
+        "UPDATE scene_items SET enabled = ?1 \
+         WHERE scene_id = ?2 AND resource_id = ?3 \
+           AND resource_id IN (SELECT id FROM resources WHERE kind = ?4)",
+        params![enabled, scene_id, member_id, kind],
     )?;
-
     let now = chrono::Utc::now().to_rfc3339();
-    conn.execute(
+    tx.execute(
         "UPDATE scenes SET updated_at = ?1 WHERE id = ?2",
         params![now, scene_id],
     )?;
+    tx.commit()?;
 
     Ok(())
 }
 
-/// Remove a rule from a scene.
-pub fn remove_rule_from_scene(
-    conn: &rusqlite::Connection,
-    scene_id: &str,
-    rule_id: &str,
-) -> Result<(), AppError> {
-    let _scene = query_scene_by_id(conn, scene_id)?;
-
-    conn.execute(
-        "DELETE FROM scene_rules WHERE scene_id = ?1 AND rule_id = ?2",
-        params![scene_id, rule_id],
-    )?;
-
-    let now = chrono::Utc::now().to_rfc3339();
-    conn.execute(
-        "UPDATE scenes SET updated_at = ?1 WHERE id = ?2",
-        params![now, scene_id],
-    )?;
-
-    Ok(())
-}
-
-/// List all scenes. The __all_skills__ scene appears first.
+/// List all scenes.
 pub fn list_scenes(conn: &rusqlite::Connection) -> Result<Vec<Scene>, AppError> {
     let mut stmt = conn.prepare(
         "SELECT id, name, description, icon, is_template, is_system, created_at, updated_at
          FROM scenes
-         ORDER BY CASE WHEN id = '__all_skills__' THEN 0 ELSE 1 END, name ASC",
+         ORDER BY name ASC",
     )?;
 
     let scenes = stmt
@@ -340,25 +323,11 @@ pub fn list_scenes(conn: &rusqlite::Connection) -> Result<Vec<Scene>, AppError> 
 }
 
 /// Get detailed scene information including associated skills and rules.
-pub fn get_scene_detail(
-    conn: &rusqlite::Connection,
-    id: &str,
-) -> Result<SceneDetail, AppError> {
+pub fn get_scene_detail(conn: &rusqlite::Connection, id: &str) -> Result<SceneDetail, AppError> {
     let scene = query_scene_by_id(conn, id)?;
 
-    let skills = if id == "__all_skills__" {
-        // Virtual scene: return all installed skills
-        get_all_skills_as_entries(conn)?
-    } else {
-        get_scene_skill_entries(conn, id)?
-    };
-
-    let rules = if id == "__all_skills__" {
-        // Virtual scene: return all rules
-        get_all_rules_as_entries(conn)?
-    } else {
-        get_scene_rule_entries(conn, id)?
-    };
+    let skills = get_scene_skill_entries(conn, id)?;
+    let rules = get_scene_rule_entries(conn, id)?;
 
     Ok(SceneDetail {
         scene,
@@ -368,36 +337,28 @@ pub fn get_scene_detail(
 }
 
 /// Validate a scene: check all skills are installed, no version conflicts.
-pub fn validate_scene(
-    conn: &rusqlite::Connection,
-    id: &str,
-) -> Result<ValidationResult, AppError> {
+pub fn validate_scene(conn: &rusqlite::Connection, id: &str) -> Result<ValidationResult, AppError> {
     let _scene = query_scene_by_id(conn, id)?;
     let mut errors = Vec::new();
 
     // Get scene skills
-    let skill_ids: Vec<String> = if id == "__all_skills__" {
-        conn.prepare("SELECT id FROM skills")?
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect()
-    } else {
-        conn.prepare("SELECT skill_id FROM scene_skills WHERE scene_id = ?1 AND enabled = 1")?
-            .query_map(params![id], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect()
-    };
+    let skill_ids: Vec<String> = conn
+        .prepare(
+            "SELECT si.resource_id FROM scene_items si \
+             JOIN resources r ON si.resource_id = r.id \
+             WHERE si.scene_id = ?1 AND si.enabled = 1 AND r.kind = 'skill'",
+        )?
+        .query_map(params![id], |row| row.get(0))?
+        .filter_map(|r| r.ok())
+        .collect();
 
     // Check each skill is installed
     for skill_id in &skill_ids {
-        let installed: bool = conn
-            .query_row(
-                "SELECT COUNT(*) FROM skills WHERE id = ?1",
-                params![skill_id],
-                |row| row.get::<_, i64>(0),
-            )
-            .map(|c| c > 0)
-            .unwrap_or(false);
+        let installed = crate::db::resources_repo::kind_exists(
+            conn,
+            skill_id,
+            crate::db::resources_repo::KIND_SKILL,
+        )?;
 
         if !installed {
             errors.push(format!("技能 '{}' 未安装", skill_id));
@@ -410,69 +371,49 @@ pub fn validate_scene(
     })
 }
 
-/// Get the virtual __all_skills__ scene detail.
-pub fn get_all_skills_scene(conn: &rusqlite::Connection) -> Result<SceneDetail, AppError> {
-    get_scene_detail(conn, "__all_skills__")
-}
-
-/// Get platform IDs associated with a scene.
-/// Only returns platforms that are enabled (p.enabled != 0).
-/// For `__all_skills__` system scene, returns all enabled platforms.
+/// Get all enabled platform IDs.
+/// After scene_platforms removal, this returns all enabled platforms directly.
 pub fn get_scene_platforms(
     conn: &rusqlite::Connection,
-    scene_id: &str,
+    _scene_id: &str,
 ) -> Result<Vec<String>, AppError> {
-    // Special handling for __all_skills__ system scene
-    if scene_id == "__all_skills__" {
-        let mut stmt = conn.prepare(
-            "SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC",
-        )?;
-        let platform_ids: Vec<String> = stmt
-            .query_map([], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect();
-        return Ok(platform_ids);
-    }
-
-    let _scene = query_scene_by_id(conn, scene_id)?;
-
-    let mut stmt = conn.prepare(
-        "SELECT sp.platform_id FROM scene_platforms sp
-         INNER JOIN platforms p ON sp.platform_id = p.id
-         WHERE sp.scene_id = ?1 AND p.enabled != 0",
-    )?;
-
+    let mut stmt = conn.prepare("SELECT id FROM platforms WHERE enabled != 0 ORDER BY name ASC")?;
     let platform_ids: Vec<String> = stmt
-        .query_map(params![scene_id], |row| row.get(0))?
+        .query_map([], |row| row.get(0))?
         .filter_map(|r| r.ok())
         .collect();
-
     Ok(platform_ids)
 }
 
-/// Set (replace) platform associations for a scene.
-pub fn set_scene_platforms(
+/// Count how many scenes reference a skill (for accurate delete confirmation).
+pub fn count_skill_scene_references(
     conn: &rusqlite::Connection,
-    scene_id: &str,
-    platform_ids: &[String],
-) -> Result<(), AppError> {
-    let _scene = query_scene_by_id(conn, scene_id)?;
+    skill_id: &str,
+) -> Result<i32, AppError> {
+    count_kind_scene_references(conn, skill_id, crate::db::resources_repo::KIND_SKILL)
+}
 
-    // Clear existing associations
-    conn.execute(
-        "DELETE FROM scene_platforms WHERE scene_id = ?1",
-        params![scene_id],
+/// Count how many scenes reference a rule (for accurate delete confirmation).
+pub fn count_rule_scene_references(
+    conn: &rusqlite::Connection,
+    rule_id: &str,
+) -> Result<i32, AppError> {
+    count_kind_scene_references(conn, rule_id, crate::db::resources_repo::KIND_RULE)
+}
+
+fn count_kind_scene_references(
+    conn: &rusqlite::Connection,
+    resource_id: &str,
+    kind: &str,
+) -> Result<i32, AppError> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM scene_items si \
+         JOIN resources r ON si.resource_id = r.id \
+         WHERE si.resource_id = ?1 AND r.kind = ?2",
+        params![resource_id, kind],
+        |row| row.get(0),
     )?;
-
-    // Insert new associations
-    for platform_id in platform_ids {
-        conn.execute(
-            "INSERT OR IGNORE INTO scene_platforms (scene_id, platform_id) VALUES (?1, ?2)",
-            params![scene_id, platform_id],
-        )?;
-    }
-
-    Ok(())
+    Ok(count as i32)
 }
 
 // ── Internal helpers ───────────────────────────────────────────────
@@ -503,11 +444,11 @@ fn get_scene_skill_entries(
     scene_id: &str,
 ) -> Result<Vec<SceneSkillEntry>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT ss.skill_id, s.name, ss.version, ss.enabled, ss.sort_order, ss.config
-         FROM scene_skills ss
-         LEFT JOIN skills s ON ss.skill_id = s.id
-         WHERE ss.scene_id = ?1
-         ORDER BY ss.sort_order ASC",
+        "SELECT si.resource_id, r.name, si.enabled, si.sort_order
+         FROM scene_items si
+         LEFT JOIN resources r ON si.resource_id = r.id
+         WHERE si.scene_id = ?1 AND r.kind = 'skill'
+         ORDER BY si.sort_order ASC",
     )?;
 
     let entries = stmt
@@ -515,10 +456,10 @@ fn get_scene_skill_entries(
             Ok(SceneSkillEntry {
                 skill_id: row.get(0)?,
                 skill_name: row.get(1).unwrap_or_default(),
-                version: row.get(2)?,
-                enabled: row.get::<_, i32>(3)? != 0,
-                sort_order: row.get(4)?,
-                config: row.get(5)?,
+                version: None,
+                enabled: row.get::<_, i32>(2)? != 0,
+                sort_order: row.get(3)?,
+                config: None,
             })
         })?
         .filter_map(|r| r.ok())
@@ -532,11 +473,11 @@ fn get_scene_rule_entries(
     scene_id: &str,
 ) -> Result<Vec<SceneRuleEntry>, AppError> {
     let mut stmt = conn.prepare(
-        "SELECT sr.rule_id, r.name, sr.enabled, sr.sort_order
-         FROM scene_rules sr
-         LEFT JOIN rules r ON sr.rule_id = r.id
-         WHERE sr.scene_id = ?1
-         ORDER BY sr.sort_order ASC",
+        "SELECT si.resource_id, r.name, si.enabled, si.sort_order
+         FROM scene_items si
+         LEFT JOIN resources r ON si.resource_id = r.id
+         WHERE si.scene_id = ?1 AND r.kind = 'rule'
+         ORDER BY si.sort_order ASC",
     )?;
 
     let entries = stmt
@@ -554,61 +495,11 @@ fn get_scene_rule_entries(
     Ok(entries)
 }
 
-fn get_all_skills_as_entries(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<SceneSkillEntry>, AppError> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, current_ver FROM skills ORDER BY name ASC",
-    )?;
-
-    let entries = stmt
-        .query_map([], |row| {
-            Ok(SceneSkillEntry {
-                skill_id: row.get(0)?,
-                skill_name: row.get(1)?,
-                version: row.get(2)?,
-                enabled: true,
-                sort_order: 0,
-                config: None,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(entries)
-}
-
-fn get_all_rules_as_entries(
-    conn: &rusqlite::Connection,
-) -> Result<Vec<SceneRuleEntry>, AppError> {
-    let mut stmt = conn.prepare("SELECT id, name FROM rules ORDER BY name ASC")?;
-
-    let entries = stmt
-        .query_map([], |row| {
-            Ok(SceneRuleEntry {
-                rule_id: row.get(0)?,
-                rule_name: row.get(1)?,
-                enabled: true,
-                sort_order: 0,
-            })
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    Ok(entries)
-}
-
 /// Convert a name to a URL-safe slug (kebab-case)
 fn slugify(name: &str) -> String {
     name.to_lowercase()
         .chars()
-        .map(|c| {
-            if c.is_alphanumeric() {
-                c
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())
@@ -643,31 +534,10 @@ mod tests {
     }
 
     #[test]
-    fn test_list_scenes() {
+    fn test_list_scenes_empty_db_has_no_system_scenes() {
         let conn = setup_db();
         let scenes = list_scenes(&conn).unwrap();
-        // __all_skills__ is built-in
-        assert_eq!(scenes.len(), 1);
-        assert_eq!(scenes[0].id, "__all_skills__");
-    }
-
-    #[test]
-    fn test_delete_system_scene_blocked() {
-        let conn = setup_db();
-        let result = delete_scene(&conn, "__all_skills__");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_update_system_scene_blocked() {
-        let conn = setup_db();
-        let dto = UpdateSceneDTO {
-            name: Some("New Name".to_string()),
-            description: None,
-            icon: None,
-        };
-        let result = update_scene(&conn, "__all_skills__", &dto);
-        assert!(result.is_err());
+        assert_eq!(scenes.len(), 0);
     }
 
     #[test]
@@ -675,11 +545,19 @@ mod tests {
         let conn = setup_db();
 
         // Insert a skill first
-        let now = chrono::Utc::now().to_rfc3339();
-        conn.execute(
-            "INSERT INTO skills (id, name, description, source_type, installed_at, local_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            rusqlite::params!["test-skill", "Test Skill", "A test", "local-fs", now, "/tmp/test"],
-        ).unwrap();
+        crate::db::resources_repo::insert_skill_row(
+            &conn,
+            "test-skill",
+            "Test Skill",
+            Some("A test"),
+            "local-fs",
+            None,
+            None,
+            &chrono::Utc::now().to_rfc3339(),
+            "/tmp/test",
+            None,
+        )
+        .unwrap();
 
         // Create a scene
         let dto = CreateSceneDTO {
@@ -734,20 +612,9 @@ mod tests {
             params!["test-scene", "Test Scene", "A test scene", now, now],
         ).unwrap();
 
-        // Create a project that uses the scene
-        conn.execute(
-            "INSERT INTO projects (id, name, path, scene_id, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params!["test-project", "Test Project", "/tmp/test-project", "test-scene", now, now],
-        ).unwrap();
-
-        // Deleting the scene should fail with SceneInUse
+        // v6：projects 不再绑定 scene_id，删除场景不受项目引用影响
         let result = delete_scene(&conn, "test-scene");
-        assert!(result.is_err());
-
-        match result.unwrap_err() {
-            AppError::SceneInUse(count) => assert_eq!(count, 1),
-            other => panic!("Expected SceneInUse error, got: {:?}", other),
-        }
+        assert!(result.is_ok());
     }
 
     #[test]

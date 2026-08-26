@@ -23,6 +23,7 @@ node_modules
 
 # npm
 dist/
+coverage/
 dist-ssr
 *.local
 
@@ -30,14 +31,16 @@ dist-ssr
 .trae/
 
 # opencode
+.omo/
 .sisyphus/
 .superpowers/
 
 # custom
+docs
 docs/
-AGENTS.md
 .worktrees/
 
 # Rust / frontend build output (binaries are published via GitHub Releases)
 src-tauri/target/
-releases/
+releases/AGENTS.md
+AGENTS.md
