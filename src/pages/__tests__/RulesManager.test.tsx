@@ -956,8 +956,11 @@ describe('RulesManager — 资源 IPC 集成（受管副本 reveal / 批量删�
     await waitFor(() => {
       expect(screen.getByTestId('rule-local-path-row')).toBeDefined();
     });
-    const row = screen.getByTestId('rule-local-path-row');
-    expect(row).toHaveTextContent('/u/.skillforge/rules/r1.md');
+    const row = await screen.findByTestId('rule-local-path-row');
+    // managedCopyPath 为异步加载：行元素两种状态都渲染，必须等路径真正出现
+    await waitFor(() => {
+      expect(row).toHaveTextContent('/u/.skillforge/rules/r1.md');
+    });
     const revealBtn = within(row).getByRole('button');
     // 33 号 P6：本地路径 reveal 按钮使用全局 .action-reveal 类，行容器为 group
     expect(row.className).toContain('group');
