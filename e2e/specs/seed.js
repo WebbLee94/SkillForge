@@ -57,3 +57,70 @@ export async function ensureSeedSkill() {
   }
   return SEED_SKILL_ID;
 }
+
+/**
+ * E2E 种子规则：让依赖规则列表非空的用例（如 Rule 详情 Inspector）自足。
+ * create_rule 由后端生成 id，因此以 name 幂等判定；format 仅支持 md/mdc/yaml。
+ */
+export const SEED_RULE_NAME = 'e2e-seed-rule';
+
+export async function ensureSeedRule() {
+  const rules = await invokeTauriCommand(({ core }) =>
+    core.invoke('list_rules')
+  );
+  let existing = Array.isArray(rules)
+    ? rules.find((r) => r.name === SEED_RULE_NAME)
+    : null;
+  if (!existing) {
+    existing = await invokeTauriCommand(
+      ({ core }, arg) => core.invoke('create_rule', arg),
+      {
+        data: {
+          name: SEED_RULE_NAME,
+          description: 'SkillForge E2E seed rule',
+          format: 'md',
+          content: [
+            '# e2e-seed-rule',
+            '',
+            'Deterministic fixture created by the E2E suite.',
+            '',
+          ].join('\n'),
+          platform: null,
+          scope: null,
+        },
+      }
+    );
+  }
+  return existing.id;
+}
+
+/**
+ * E2E 种子场景：让依赖场景列表非空的用例（Scene 详情、配置内容抽屉）自足。
+ * 创建时直接携带种子技能与种子规则作为成员，保证详情页内容完整。
+ */
+export const SEED_SCENE_NAME = 'E2E Seed 场景';
+
+export async function ensureSeedScene() {
+  const skillId = await ensureSeedSkill();
+  const ruleId = await ensureSeedRule();
+  const scenes = await invokeTauriCommand(({ core }) =>
+    core.invoke('list_scenes')
+  );
+  if (
+    !Array.isArray(scenes) ||
+    !scenes.some((s) => s.name === SEED_SCENE_NAME)
+  ) {
+    await invokeTauriCommand(
+      ({ core }, arg) => core.invoke('create_scene', arg),
+      {
+        data: {
+          name: SEED_SCENE_NAME,
+          description: 'SkillForge E2E seed scene',
+          icon: null,
+          skill_ids: [skillId],
+          rule_ids: [ruleId],
+        },
+      }
+    );
+  }
+}

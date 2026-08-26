@@ -89,7 +89,12 @@ export const config = {
     'tauri-service:service': 'error',
   },
   bail: 0,
-  baseUrl: 'http://localhost:1420',
+  // baseUrl 必须是应用自身的本地协议 origin（macOS: tauri://localhost，
+  // Windows/Linux: http://tauri.localhost），不能指向 Vite dev server：
+  // browser.url('/') 导航到 http://origin 会被 Tauri 判为远程上下文，
+  // 自定义命令全部拒绝并报「not allowed. Plugin not found」。
+  baseUrl:
+    process.platform === 'darwin' ? 'tauri://localhost' : 'http://tauri.localhost',
   waitforTimeout: 20000,
   connectionRetryTimeout: 120000,
   connectionRetryCount: 3,

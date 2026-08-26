@@ -18,6 +18,11 @@ import settingsEn from '../locales/en-US/settings.json';
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
 function resolveInitLanguage(): string {
+  // E2E 构建钉版 zh-CN：CI 宿主 locale 为 en-US 时 navigator.language 检测
+  // 会把界面渲染成英文，导致全部中文文案断言失败。生产构建不含此分支。
+  if (import.meta.env.VITE_E2E === 'true') {
+    return 'zh-CN';
+  }
   try {
     const stored = localStorage.getItem(LANG_STORAGE_KEY);
     if (!stored || stored === 'system') {

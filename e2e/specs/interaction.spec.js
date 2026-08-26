@@ -1,6 +1,6 @@
 import { expect } from '@wdio/globals';
 import { invokeTauriCommand } from './tauri.js';
-import { ensureSeedSkill, SEED_SKILL_ID } from './seed.js';
+import { ensureSeedRule, ensureSeedScene, ensureSeedSkill, SEED_SKILL_ID } from './seed.js';
 
 describe('SkillForge 桌面应用交互测试', () => {
   before(async () => {
@@ -122,6 +122,7 @@ describe('SkillForge 视觉对齐关键路径（Task 8 补强）', () => {
   });
 
   it('Scene 详情读取态四要素齐备，提供分发、配置和删除操作', async () => {
+    await ensureSeedScene();
     const scenesNav = await browser.$('//button[contains(., "场景")]');
     await scenesNav.waitForExist({ timeout: 10000 });
     await scenesNav.click();
@@ -550,6 +551,7 @@ describe('SkillForge 29 号整改关键路径（Task 15 补强）', () => {
   });
 
   it('场景「配置内容」为右侧抽屉 + 半透明遮罩', async () => {
+    await ensureSeedScene();
     const scenesNav = await browser.$('//button[contains(., "场景")]');
     await scenesNav.waitForExist({ timeout: 10000 });
     await scenesNav.click();
@@ -871,6 +873,7 @@ describe('SkillForge 33 号 A 批整改关键路径（Task 13 补强）', () => 
   });
 
   it('Inspector 无底部 reveal 按钮；Rule 详情含本地路径行', async () => {
+    await ensureSeedRule();
     // 技能详情
     const skillsNav = await browser.$('//button[contains(., "技能")]');
     await skillsNav.waitForExist({ timeout: 10000 });
