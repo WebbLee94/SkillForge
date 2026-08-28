@@ -33,6 +33,8 @@ SkillForge is a skill management tool built for AI Agent users. It solves the pa
 | 🎬 **Scene Orchestration** | Combine Skills and Rules into Scenes, switch per Scene in one click, platform-level diff |
 | 🚀 **Global/Project Distribution** | Distribute Scenes to 10 AI Agent platforms with project-level isolation |
 | 🧠 **Platform Capability Awareness** | Auto-detect each platform's Distribution capabilities and warn when unsupported |
+| 🌍 **Multilingual UI** | Follows system or browser language by default, so Chinese macOS users see Chinese UI automatically |
+| ⬆️ **App Updates** | The Settings page can check for new versions, download them, and relaunch automatically |
 | 🌐 **Multi-Platform Support** | Claude Code / OpenCode / Cursor / Trae / CodeBuddy / Codex / Hermes / OpenClaw and more — 10 platforms in total |
 
 ## 📸 Screenshots
