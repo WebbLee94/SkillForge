@@ -21,10 +21,6 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
-    env:
-      APPLE_ID: ${{ secrets.APPLE_ID }}
-      APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -43,6 +39,7 @@ jobs:
       - name: Run ESLint
         run: npm run lint
       - name: Import Apple signing certificate
+        if: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' }}
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -57,17 +54,34 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
           security find-identity -v -p codesigning build.keychain
       - name: Export signing identity
+        if: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' }}
         run: |
           CERT_INFO=$(security find-identity -v -p codesigning build.keychain | grep "Apple Development" | head -1)
           CERT_ID=$(echo "$CERT_INFO" | awk -F'"' '{print $2}')
           echo "CERT_ID=$CERT_ID" >> "$GITHUB_ENV"
           echo "Using signing identity: $CERT_ID"
-      - name: Build Tauri app
+      - name: Build Tauri app (signed)
+        if: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.KEYCHAIN_PASSWORD != '' && secrets.APPLE_ID != '' && secrets.APPLE_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
+        with:
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
+          releaseDraft: false
+          prerelease: false
+      - name: Build Tauri app (ad-hoc fallback)
+        if: ${{ secrets.APPLE_CERTIFICATE == '' || secrets.APPLE_CERTIFICATE_PASSWORD == '' || secrets.KEYCHAIN_PASSWORD == '' || secrets.APPLE_ID == '' || secrets.APPLE_PASSWORD == '' || secrets.APPLE_TEAM_ID == '' }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
