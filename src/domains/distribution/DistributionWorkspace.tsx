@@ -738,18 +738,6 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
     }
   }, [managedOpen]);
 
-  useEffect(() => {
-    if (!managedOpen) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        closeManagedPanel();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [managedOpen, closeManagedPanel]);
-
   const managedPlatform = managedState?.platforms.find(
     (item) =>
       item.platform_id === platformId &&
@@ -1134,6 +1122,12 @@ export const DistributionWorkspace = memo(function DistributionWorkspace({
                     className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col border-l border-border bg-card shadow-2xl"
                     ref={drawerRef}
                     tabIndex={-1}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Escape') {
+                        e.stopPropagation();
+                        closeManagedPanel();
+                      }
+                    }}
                   >
                     {/* Header */}
                     <div className="border-b border-border px-4 py-3">
