@@ -1,0 +1,1070 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkillForge | AI Agent Skills & Rules Orchestration</title>
+    <meta
+      name="description"
+      content="SkillForge 是面向 AI Coding Agent 的技能与规则编排工具，支持多平台分发、场景编排与项目级隔离。"
+    />
+    <style>
+      :root {
+        --bg: #f4efe5;
+        --bg-2: #efe6d5;
+        --panel: rgba(255, 252, 247, 0.82);
+        --panel-strong: rgba(255, 255, 255, 0.92);
+        --text: #162033;
+        --muted: #5d697a;
+        --soft: rgba(22, 32, 51, 0.08);
+        --line: rgba(22, 32, 51, 0.12);
+        --line-strong: rgba(22, 32, 51, 0.2);
+        --accent: #0f766e;
+        --accent-2: #4f46e5;
+        --accent-3: #b45309;
+        --accent-4: #be185d;
+        --shadow: 0 22px 70px rgba(28, 39, 56, 0.08);
+        --shadow-strong: 0 30px 70px rgba(28, 39, 56, 0.14);
+        --radius-xl: 30px;
+        --radius-lg: 22px;
+        --radius-md: 16px;
+        --radius-sm: 12px;
+        --maxw: 1240px;
+      }
+
+      [data-lang='en-US'] {
+        --accent: #1f6feb;
+        --accent-2: #7c3aed;
+        --accent-3: #c2410c;
+        --accent-4: #0f766e;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 24%),
+          radial-gradient(circle at 82% 18%, rgba(79, 70, 229, 0.08), transparent 22%),
+          radial-gradient(circle at 18% 80%, rgba(190, 24, 93, 0.06), transparent 24%),
+          linear-gradient(180deg, #faf6ee 0%, #f4efe5 50%, #efe6d5 100%);
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', sans-serif;
+        line-height: 1.65;
+        text-rendering: optimizeLegibility;
+      }
+
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(22, 32, 51, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(22, 32, 51, 0.03) 1px, transparent 1px);
+        background-size: 34px 34px;
+        opacity: 0.34;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.88));
+      }
+
+      h1, h2, h3, p { margin: 0; }
+
+      .wrap {
+        position: relative;
+        max-width: var(--maxw);
+        margin: 0 auto;
+        padding: 20px 18px 68px;
+      }
+
+      .nav {
+        position: sticky;
+        top: 12px;
+        z-index: 30;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 12px 16px;
+        margin-bottom: 26px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(255, 252, 246, 0.9);
+        backdrop-filter: blur(16px);
+        box-shadow: var(--shadow);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 13px;
+        background: linear-gradient(145deg, rgba(15, 118, 110, 0.98), rgba(79, 70, 229, 0.96));
+        box-shadow: 0 12px 22px rgba(15, 118, 110, 0.2);
+        flex: none;
+      }
+
+      .brand-copy { min-width: 0; }
+      .brand-copy strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.1;
+        letter-spacing: -0.01em;
+      }
+      .brand-copy small {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .nav-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+      }
+
+      .nav-links a,
+      .lang-toggle button,
+      .btn,
+      .chip,
+      .tag {
+        border: 1px solid var(--line);
+        color: var(--text);
+        text-decoration: none;
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 999px;
+      }
+
+      .nav-links a,
+      .lang-toggle button {
+        padding: 8px 12px;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .lang-toggle {
+        display: flex;
+        gap: 8px;
+        flex: none;
+      }
+
+      .lang-toggle button[aria-pressed='true'] {
+        border-color: rgba(15, 118, 110, 0.32);
+        background: rgba(15, 118, 110, 0.08);
+        color: var(--accent);
+        font-weight: 700;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.88fr) minmax(420px, 1.12fr);
+        gap: 22px;
+        align-items: center;
+        padding: 18px 0 8px;
+      }
+
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(15, 118, 110, 0.18);
+        background: rgba(15, 118, 110, 0.06);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      h1 {
+        margin-top: 16px;
+        font-size: clamp(36px, 4.6vw, 64px);
+        line-height: 1.03;
+        letter-spacing: -0.055em;
+        max-width: 13ch;
+      }
+
+      .hero p.lead {
+        margin-top: 16px;
+        max-width: 48rem;
+        color: var(--muted);
+        font-size: clamp(14px, 1.3vw, 18px);
+      }
+
+      .hero-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 22px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 15px;
+        font-size: 13px;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(28, 39, 56, 0.06);
+      }
+
+      .btn.primary {
+        border-color: transparent;
+        background: linear-gradient(135deg, rgba(15, 118, 110, 0.96), rgba(79, 70, 229, 0.92));
+        color: white;
+      }
+
+      .btn.ghost { background: rgba(255, 255, 255, 0.74); }
+
+      .hero-side {
+        display: grid;
+        gap: 12px;
+      }
+
+      .hero-shell {
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow-strong);
+        overflow: hidden;
+      }
+
+      .hero-surface {
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .surface-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 10px;
+      }
+
+      .surface-top h2 {
+        font-size: 18px;
+        line-height: 1.15;
+        letter-spacing: -0.03em;
+      }
+
+      .surface-top p {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .hero-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .metric {
+        padding: 10px 11px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 16px;
+        letter-spacing: -0.03em;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .hero-flow {
+        padding: 14px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.86)),
+          radial-gradient(circle at 10% 10%, rgba(15, 118, 110, 0.08), transparent 26%);
+      }
+
+      .flow-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .flow-step {
+        position: relative;
+        min-height: 92px;
+        padding: 12px 12px 14px;
+        border-radius: 15px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.78);
+      }
+
+      .flow-step::after {
+        content: '→';
+        position: absolute;
+        top: 34px;
+        right: -14px;
+        color: rgba(22, 32, 51, 0.42);
+        font-size: 18px;
+      }
+
+      .flow-step:last-child::after { content: ''; }
+
+      .flow-step b {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: rgba(15, 118, 110, 0.1);
+        color: var(--accent);
+        font-size: 12px;
+      }
+
+      .flow-step p {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .panel-grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px;
+        margin-top: 26px;
+      }
+
+      section.card {
+        border-radius: var(--radius-xl);
+        border: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .card-inner { padding: 22px; }
+
+      .section-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .section-head h2 {
+        font-size: clamp(22px, 2.2vw, 32px);
+        line-height: 1.08;
+        letter-spacing: -0.04em;
+      }
+
+      .section-head p {
+        max-width: 56ch;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .kbd {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.76);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .start-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .start-card,
+      .link-card,
+      .contrib-card,
+      .story-card,
+      .diagram-card {
+        border-radius: 20px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.76);
+        padding: 18px;
+      }
+
+      .start-card h3,
+      .link-card h3,
+      .contrib-card h3,
+      .story-card h3,
+      .diagram-card h3 {
+        font-size: 18px;
+        line-height: 1.18;
+        letter-spacing: -0.03em;
+      }
+
+      .start-card p,
+      .link-card p,
+      .contrib-card p,
+      .story-card p,
+      .diagram-card p {
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .code-list {
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 10px;
+      }
+
+      .code-list li {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 10px;
+        align-items: start;
+        padding: 11px 12px;
+        border-radius: 14px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+      }
+
+      .code-list code {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 92px;
+        padding: 5px 8px;
+        border-radius: 10px;
+        background: rgba(15, 118, 110, 0.08);
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .code-list span {
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .link-grid,
+      .contrib-grid,
+      .story-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .tag-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        padding: 7px 10px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #263043;
+      }
+
+      .diagram-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .diagram-box {
+        margin-top: 14px;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 255, 255, 0.74));
+        overflow: hidden;
+      }
+
+      .diagram-box svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .diagram-caption {
+        padding: 0 2px;
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .links-panel {
+        display: grid;
+        gap: 12px;
+      }
+
+      .link-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 13px 14px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        color: var(--text);
+      }
+
+      .link-item strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .link-item span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .link-item em {
+        flex: none;
+        font-style: normal;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .footer {
+        margin-top: 22px;
+        padding: 16px 4px 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.7;
+      }
+
+      .footer strong {
+        color: var(--text);
+      }
+
+      .grid-span-7 { grid-column: span 7; }
+      .grid-span-5 { grid-column: span 5; }
+      .grid-span-6 { grid-column: span 6; }
+      .grid-span-12 { grid-column: span 12; }
+
+      [data-lang='en-US'] [data-i18n='zh'] { display: none; }
+      [data-lang='zh-CN'] [data-i18n='en'] { display: none; }
+
+      [data-lang='en-US'] .nav-links a,
+      [data-lang='en-US'] .start-card p,
+      [data-lang='en-US'] .link-item span,
+      [data-lang='en-US'] .section-head p,
+      [data-lang='en-US'] .hero p.lead,
+      [data-lang='en-US'] .metric span,
+      [data-lang='en-US'] .surface-top p,
+      [data-lang='en-US'] .diagram-caption,
+      [data-lang='en-US'] .footer,
+      [data-lang='en-US'] .code-list span,
+      [data-lang='en-US'] .story-card p,
+      [data-lang='en-US'] .contrib-card p,
+      [data-lang='en-US'] .link-card p {
+        letter-spacing: 0.01em;
+      }
+
+      @media (max-width: 1080px) {
+        .hero,
+        .start-grid,
+        .link-grid,
+        .contrib-grid,
+        .story-grid,
+        .diagram-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .grid-span-7,
+        .grid-span-5,
+        .grid-span-6,
+        .grid-span-12 { grid-column: span 1; }
+
+        .flow-grid { grid-template-columns: 1fr 1fr; }
+      }
+
+      @media (max-width: 720px) {
+        .wrap { padding-inline: 14px; }
+        .nav { align-items: flex-start; flex-direction: column; }
+        .nav-links { justify-content: flex-start; }
+        .lang-toggle { width: 100%; }
+        .lang-toggle button { flex: 1; }
+        h1 { max-width: 100%; }
+        .hero-metrics { grid-template-columns: 1fr; }
+        .flow-grid { grid-template-columns: 1fr; }
+        .flow-step::after { content: '↓'; top: auto; right: 16px; bottom: -16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap" id="page" data-lang="zh-CN">
+      <header class="nav" aria-label="主导航 / Primary navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div class="brand-copy">
+            <strong>SkillForge</strong>
+            <small data-i18n="zh">AI Agent 技能与规则编排中控台</small>
+            <small data-i18n="en">AI Agent skills & rules orchestration console</small>
+          </div>
+        </div>
+
+        <nav class="nav-links" aria-label="页面锚点 / Section anchors">
+          <a href="#start" data-i18n="zh">快速开始</a>
+          <a href="#start" data-i18n="en">Quick Start</a>
+          <a href="#links" data-i18n="zh">项目链接</a>
+          <a href="#links" data-i18n="en">Project Links</a>
+          <a href="#contribute" data-i18n="zh">贡献方式</a>
+          <a href="#contribute" data-i18n="en">Contribute</a>
+          <a href="#flow" data-i18n="zh">流程图示</a>
+          <a href="#flow" data-i18n="en">Flow</a>
+        </nav>
+
+        <div class="lang-toggle" role="group" aria-label="语言切换 / Language switcher">
+          <button type="button" data-set-lang="zh-CN" aria-pressed="true">中文</button>
+          <button type="button" data-set-lang="en-US" aria-pressed="false">EN</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div>
+            <span class="eyebrow" data-i18n="zh">开源 · 桌面端 · 多平台</span>
+            <span class="eyebrow" data-i18n="en">Open source · Desktop · Multi-platform</span>
+
+            <h1>SkillForge</h1>
+
+            <p class="lead" data-i18n="zh">统一管理多 AI Agent 的技能、规则与分发。</p>
+            <p class="lead" data-i18n="en">Manage skills, rules, and distribution across multiple agents.</p>
+
+            <div class="hero-actions">
+              <a class="btn primary" href="#start" data-i18n="zh">查看快速开始</a>
+              <a class="btn primary" href="#start" data-i18n="en">See Quick Start</a>
+              <a class="btn ghost" href="#links" data-i18n="zh">打开项目链接</a>
+              <a class="btn ghost" href="#links" data-i18n="en">Open Project Links</a>
+              <a class="btn ghost" href="#contribute" data-i18n="zh">查看贡献方式</a>
+              <a class="btn ghost" href="#contribute" data-i18n="en">How to Contribute</a>
+            </div>
+          </div>
+
+          <div class="hero-side">
+            <div class="hero-shell">
+              <div class="hero-surface">
+                <div class="surface-top">
+                  <div>
+                    <h2 data-i18n="zh">快速了解</h2>
+                    <h2 data-i18n="en">At a glance</h2>
+                    <p data-i18n="zh">多 AI Agent 技能、规则与分发。</p>
+                    <p data-i18n="en">Skills, rules, distribution across agents.</p>
+                  </div>
+                </div>
+
+                <div class="hero-metrics" aria-label="项目摘要 / Project summary">
+                  <div class="metric">
+                    <strong>01</strong>
+                    <span data-i18n="zh">统一入口</span>
+                    <span data-i18n="en">Single control plane</span>
+                  </div>
+                  <div class="metric">
+                    <strong>02</strong>
+                    <span data-i18n="zh">多平台分发</span>
+                    <span data-i18n="en">Multi-platform delivery</span>
+                  </div>
+                  <div class="metric">
+                    <strong>03</strong>
+                    <span data-i18n="zh">项目级隔离</span>
+                    <span data-i18n="en">Project-level isolation</span>
+                  </div>
+                </div>
+
+                <div class="hero-flow" aria-label="概览流程 / Overview flow">
+                  <div class="flow-grid">
+                    <div class="flow-step">
+                      <b>1 · <span data-i18n="zh">配置</span><span data-i18n="en">Config</span></b>
+                      <p data-i18n="zh">配置技能、规则与场景。</p>
+                      <p data-i18n="en">Set up skills, rules, and scenes.</p>
+                    </div>
+                    <div class="flow-step">
+                      <b>2 · <span data-i18n="zh">编排</span><span data-i18n="en">Orchestrate</span></b>
+                      <p data-i18n="zh">组织任务与流程。</p>
+                      <p data-i18n="en">Organize tasks and flows.</p>
+                    </div>
+                    <div class="flow-step">
+                      <b>3 · <span data-i18n="zh">分发</span><span data-i18n="en">Distribute</span></b>
+                      <p data-i18n="zh">同步到不同平台和项目。</p>
+                      <p data-i18n="en">Sync across platforms and projects.</p>
+                    </div>
+                    <div class="flow-step">
+                      <b>4 · <span data-i18n="zh">反馈</span><span data-i18n="en">Feedback</span></b>
+                      <p data-i18n="zh">持续优化。</p>
+                      <p data-i18n="en">Keep improving.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card grid-span-12" id="platforms">
+          <div class="card-inner">
+            <div class="section-head">
+              <div>
+                <h2 data-i18n="zh">支持平台</h2>
+                <h2 data-i18n="en">Supported Platforms</h2>
+                <p data-i18n="zh">多平台同时支持。</p>
+                <p data-i18n="en">Support across popular agent tools.</p>
+              </div>
+            </div>
+
+            <div class="tag-list" aria-label="Supported platforms">
+              <span class="tag">Claude Code</span>
+              <span class="tag">OpenCode</span>
+              <span class="tag">Cursor</span>
+              <span class="tag">Trae</span>
+              <span class="tag">Trae CN</span>
+              <span class="tag">CodeBuddy</span>
+              <span class="tag">CodeBuddy CN</span>
+              <span class="tag">Codex</span>
+              <span class="tag">Hermes Agent</span>
+              <span class="tag">OpenClaw</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="panel-grid">
+          <section class="card grid-span-12" id="start">
+            <div class="card-inner">
+              <div class="section-head">
+                <div>
+                  <h2 data-i18n="zh">快速开始</h2>
+                  <h2 data-i18n="en">Quick Start</h2>
+                  <p data-i18n="zh">面向使用者与贡献者。</p>
+                  <p data-i18n="en">For users and contributors.</p>
+                </div>
+              </div>
+
+              <div class="start-grid">
+                <div class="start-card">
+                  <h3 data-i18n="zh">给首次使用者</h3>
+                  <h3 data-i18n="en">For first-time users</h3>
+                  <p data-i18n="zh">安装、打开、开始。</p>
+                  <p data-i18n="en">Install, open, start.</p>
+                  <ul class="code-list">
+                    <li><code data-i18n="zh">下载安装</code><code data-i18n="en">Install</code><span data-i18n="zh">从安装包或本地构建启动。</span><span data-i18n="en">Launch from installer or local build.</span></li>
+                    <li><code data-i18n="zh">打开项目</code><code data-i18n="en">Open project</code><span data-i18n="zh">导入技能或规则。</span><span data-i18n="en">Import skills or rules.</span></li>
+                    <li><code data-i18n="zh">开始编排</code><code data-i18n="en">Start orchestration</code><span data-i18n="zh">按项目运行。</span><span data-i18n="en">Run in a project.</span></li>
+                  </ul>
+                </div>
+
+                <div class="start-card">
+                  <h3 data-i18n="zh">给开发者与贡献者</h3>
+                  <h3 data-i18n="en">For developers and contributors</h3>
+                  <p data-i18n="zh">开发、测试、PR。</p>
+                  <p data-i18n="en">Develop, test, PR.</p>
+                  <ul class="code-list">
+                    <li><code>npm run tauri dev</code><span data-i18n="zh">启动桌面开发环境。</span><span data-i18n="en">Start desktop dev.</span></li>
+                    <li><code>npm test -- --run</code><span data-i18n="zh">运行前端测试。</span><span data-i18n="en">Run frontend tests.</span></li>
+                    <li><code>cargo test</code><span data-i18n="zh">运行 Rust 测试。</span><span data-i18n="en">Run Rust tests.</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card grid-span-7" id="links">
+            <div class="card-inner">
+              <div class="section-head">
+                <div>
+                  <h2 data-i18n="zh">项目链接</h2>
+                  <h2 data-i18n="en">Project Links</h2>
+                  <p data-i18n="zh">GitHub / Issues / Discussions / Releases。</p>
+                  <p data-i18n="en">GitHub / issues / discussions / releases.</p>
+                </div>
+              </div>
+
+              <div class="links-panel">
+                <a class="link-item" href="https://github.com/WebbLee94/SkillForge" target="_blank" rel="noreferrer">
+                  <div>
+                    <strong data-i18n="zh">GitHub 仓库</strong>
+                    <strong data-i18n="en">GitHub repository</strong>
+                    <span data-i18n="zh">查看源码与分支。</span>
+                    <span data-i18n="en">Browse source and branches.</span>
+                  </div>
+                  <em>→</em>
+                </a>
+                <a class="link-item" href="https://github.com/WebbLee94/SkillForge/issues" target="_blank" rel="noreferrer">
+                  <div>
+                    <strong data-i18n="zh">Issues</strong>
+                    <strong data-i18n="en">Issues</strong>
+                    <span data-i18n="zh">提交 bug 与需求。</span>
+                    <span data-i18n="en">Report bugs and requests.</span>
+                  </div>
+                  <em>→</em>
+                </a>
+                <a class="link-item" href="https://github.com/WebbLee94/SkillForge/discussions" target="_blank" rel="noreferrer">
+                  <div>
+                    <strong data-i18n="zh">Discussions</strong>
+                    <strong data-i18n="en">Discussions</strong>
+                    <span data-i18n="zh">参与讨论。</span>
+                    <span data-i18n="en">Join discussions.</span>
+                  </div>
+                  <em>→</em>
+                </a>
+                <a class="link-item" href="https://github.com/WebbLee94/SkillForge/releases" target="_blank" rel="noreferrer">
+                  <div>
+                    <strong data-i18n="zh">Releases</strong>
+                    <strong data-i18n="en">Releases</strong>
+                    <span data-i18n="zh">查看发布。</span>
+                    <span data-i18n="en">View releases.</span>
+                  </div>
+                  <em>→</em>
+                </a>
+              </div>
+            </div>
+          </section>
+
+          <section class="card grid-span-5" id="contribute">
+            <div class="card-inner">
+              <div class="section-head">
+                <div>
+                  <h2 data-i18n="zh">贡献方式</h2>
+                  <h2 data-i18n="en">How to Contribute</h2>
+                  <p data-i18n="zh">Fork、测试、PR。</p>
+                  <p data-i18n="en">Fork, test, PR.</p>
+                </div>
+              </div>
+
+              <div class="contrib-grid" style="grid-template-columns: 1fr;">
+                <div class="contrib-card">
+                  <h3 data-i18n="zh">1. Fork & 分支</h3>
+                  <h3 data-i18n="en">1. Fork & branch</h3>
+                  <p data-i18n="zh">从主仓库 fork 一份，创建明确命名的 feature 分支。</p>
+                  <p data-i18n="en">Fork the repo and create a clearly named feature branch.</p>
+                </div>
+                <div class="contrib-card">
+                  <h3 data-i18n="zh">2. 跑测试</h3>
+                  <h3 data-i18n="en">2. Run tests</h3>
+                  <p data-i18n="zh">提交前先确认前端、Rust 与关键路径测试都通过。</p>
+                  <p data-i18n="en">Make sure frontend, Rust, and key path tests pass before you submit.</p>
+                </div>
+                <div class="contrib-card">
+                  <h3 data-i18n="zh">3. 提交 PR</h3>
+                  <h3 data-i18n="en">3. Open a PR</h3>
+                  <p data-i18n="zh">说明变更背景、影响范围、测试结果和后续建议。</p>
+                  <p data-i18n="en">Describe the rationale, scope, test results, and follow-up suggestions.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card grid-span-12" id="flow">
+            <div class="card-inner">
+              <div class="section-head">
+                <div>
+                  <h2 data-i18n="zh">流程图示</h2>
+                  <h2 data-i18n="en">Flow Diagrams</h2>
+                  <p data-i18n="zh">查看从设置到反馈的流程。</p>
+                  <p data-i18n="en">See the flow from setup to feedback.</p>
+                </div>
+              </div>
+
+              <div class="diagram-grid">
+                <div class="diagram-card">
+                  <h3 data-i18n="zh">工作流图</h3>
+                  <h3 data-i18n="en">Workflow diagram</h3>
+                  <p data-i18n="zh">配置、编排、分发、反馈。</p>
+                  <p data-i18n="en">Setup, orchestrate, distribute, feedback.</p>
+                  <div class="diagram-box" role="img" aria-label="工作流图">
+                    <svg viewBox="0 0 740 240" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <linearGradient id="g1" x1="0%" x2="100%" y1="0%" y2="100%">
+                          <stop offset="0%" stop-color="#0f766e" />
+                          <stop offset="100%" stop-color="#4f46e5" />
+                        </linearGradient>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="5" orient="auto" markerUnits="strokeWidth">
+                          <path d="M0,0 L10,5 L0,10 z" fill="#0f766e" />
+                        </marker>
+                      </defs>
+                      <rect width="740" height="240" rx="24" fill="#fefcf8" />
+                      <path d="M126 120 H211" stroke="url(#g1)" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" />
+                      <path d="M297 120 H382" stroke="url(#g1)" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" />
+                      <path d="M468 120 H553" stroke="url(#g1)" stroke-width="4" stroke-linecap="round" marker-end="url(#arrow)" />
+                      <path d="M597 120 C646 120 646 184 563 184 C476 184 436 62 126 62" stroke="#0f766e" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="10 10" marker-end="url(#arrow)" />
+                      <g fill="#ffffff" stroke="#d7dbe5" stroke-width="2">
+                        <rect x="40" y="74" width="86" height="92" rx="20" />
+                        <rect x="211" y="74" width="86" height="92" rx="20" />
+                        <rect x="382" y="74" width="86" height="92" rx="20" />
+                        <rect x="553" y="74" width="142" height="92" rx="20" />
+                      </g>
+                      <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="15" font-weight="700" fill="#162033">
+                        <text x="83" y="113" text-anchor="middle">配置</text>
+                        <text x="254" y="113" text-anchor="middle">编排</text>
+                        <text x="425" y="113" text-anchor="middle">分发</text>
+                        <text x="624" y="108" text-anchor="middle">反馈</text>
+                      </g>
+                      <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#5d697a">
+                        <text x="83" y="137" text-anchor="middle">skills + rules</text>
+                        <text x="254" y="137" text-anchor="middle">flows</text>
+                        <text x="425" y="137" text-anchor="middle">targets</text>
+                        <text x="624" y="132" text-anchor="middle">feedback</text>
+                      </g>
+                    </svg>
+                  </div>
+                  <div class="diagram-caption" data-i18n="zh">配置 → 编排 → 分发 → 反馈。</div>
+                  <div class="diagram-caption" data-i18n="en">Setup → orchestrate → distribute → feedback.</div>
+                </div>
+
+                <div class="diagram-card">
+                  <h3 data-i18n="zh">系统图</h3>
+                  <h3 data-i18n="en">System diagram</h3>
+                  <p data-i18n="zh">桌面 UI、IPC、Rust、SQLite。</p>
+                  <p data-i18n="en">Desktop UI, IPC, Rust, SQLite.</p>
+                  <div class="diagram-box" role="img" aria-label="系统架构图">
+                    <svg viewBox="0 0 740 240" xmlns="http://www.w3.org/2000/svg">
+                      <rect width="740" height="240" rx="24" fill="#fefcf8" />
+                      <g fill="#ffffff" stroke="#d7dbe5" stroke-width="2">
+                        <rect x="38" y="66" width="130" height="108" rx="20" />
+                        <rect x="210" y="66" width="130" height="108" rx="20" />
+                        <rect x="382" y="66" width="130" height="108" rx="20" />
+                        <rect x="554" y="66" width="148" height="108" rx="20" />
+                      </g>
+                      <path d="M168 120 H210" stroke="#0f766e" stroke-width="4" stroke-linecap="round" />
+                      <path d="M340 120 H382" stroke="#4f46e5" stroke-width="4" stroke-linecap="round" />
+                      <path d="M512 120 H554" stroke="#b45309" stroke-width="4" stroke-linecap="round" />
+                      <g font-family="ui-sans-serif, system-ui, sans-serif" fill="#162033">
+                        <text x="103" y="114" text-anchor="middle" font-size="15" font-weight="700">React UI</text>
+                        <text x="103" y="138" text-anchor="middle" font-size="12" fill="#5d697a">settings · rules · views</text>
+                        <text x="275" y="114" text-anchor="middle" font-size="15" font-weight="700">IPC Layer</text>
+                        <text x="275" y="138" text-anchor="middle" font-size="12" fill="#5d697a">commands · locale</text>
+                        <text x="447" y="114" text-anchor="middle" font-size="15" font-weight="700">Rust Core</text>
+                        <text x="447" y="138" text-anchor="middle" font-size="12" fill="#5d697a">commands · storage</text>
+                        <text x="628" y="114" text-anchor="middle" font-size="15" font-weight="700">SQLite / platform</text>
+                        <text x="628" y="138" text-anchor="middle" font-size="12" fill="#5d697a">state · integration</text>
+                      </g>
+                    </svg>
+                  </div>
+                  <div class="diagram-caption" data-i18n="zh">UI → IPC → Rust → SQLite。</div>
+                  <div class="diagram-caption" data-i18n="en">UI → IPC → Rust → SQLite.</div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card grid-span-12">
+            <div class="card-inner">
+              <div class="section-head">
+                <div>
+                  <h2 data-i18n="zh">面向用户与贡献者</h2>
+                  <h2 data-i18n="en">For users and contributors</h2>
+                  <p data-i18n="zh">快速理解、快速上手、快速参与。</p>
+                  <p data-i18n="en">Understand quickly, start quickly, contribute quickly.</p>
+                </div>
+              </div>
+
+              <div class="story-grid">
+                <div class="story-card">
+                  <h3 data-i18n="zh">使用</h3>
+                  <h3 data-i18n="en">Use it</h3>
+                  <p data-i18n="zh">安装、打开、开始使用。</p>
+                  <p data-i18n="en">Install, open, start using.</p>
+                  <div class="tag-list">
+                    <span class="tag" data-i18n="zh">开始</span>
+                    <span class="tag" data-i18n="en">Start</span>
+                    <span class="tag" data-i18n="zh">理解</span>
+                    <span class="tag" data-i18n="en">Understand</span>
+                    <span class="tag" data-i18n="zh">操作</span>
+                    <span class="tag" data-i18n="en">Do</span>
+                  </div>
+                </div>
+                <div class="story-card">
+                  <h3 data-i18n="zh">贡献</h3>
+                  <h3 data-i18n="en">Contribute</h3>
+                  <p data-i18n="zh">Fork、测试、提交 PR。</p>
+                  <p data-i18n="en">Fork, test, PR.</p>
+                  <div class="tag-list">
+                    <span class="tag" data-i18n="zh">Fork</span>
+                    <span class="tag" data-i18n="en">Fork</span>
+                    <span class="tag" data-i18n="zh">测试</span>
+                    <span class="tag" data-i18n="en">Test</span>
+                    <span class="tag" data-i18n="zh">PR</span>
+                    <span class="tag" data-i18n="en">PR</span>
+                  </div>
+                </div>
+                <div class="story-card">
+                  <h3 data-i18n="zh">社区</h3>
+                  <h3 data-i18n="en">Community</h3>
+                  <p data-i18n="zh">项目链接、讨论、发布。</p>
+                  <p data-i18n="en">Project links, discussions, releases.</p>
+                  <div class="tag-list">
+                    <span class="tag" data-i18n="zh">链接</span>
+                    <span class="tag" data-i18n="en">Links</span>
+                    <span class="tag" data-i18n="zh">讨论</span>
+                    <span class="tag" data-i18n="en">Discuss</span>
+                    <span class="tag" data-i18n="zh">发布</span>
+                    <span class="tag" data-i18n="en">Release</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer class="footer" aria-label="版权信息 / Copyright notice">
+        <p>© 2026 Webb Lee. SkillForge.</p>
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        const page = document.getElementById('page');
+        const buttons = document.querySelectorAll('[data-set-lang]');
+        const applyLanguage = (lang) => {
+          page.setAttribute('data-lang', lang);
+          buttons.forEach((button) => {
+            const active = button.getAttribute('data-set-lang') === lang;
+            button.setAttribute('aria-pressed', String(active));
+          });
+        };
+
+        buttons.forEach((button) => {
+          button.addEventListener('click', () => applyLanguage(button.getAttribute('data-set-lang')));
+        });
+
+        const saved = localStorage.getItem('skillforge-intro-lang');
+        if (saved === 'zh-CN' || saved === 'en-US') {
+          applyLanguage(saved);
+        }
+
+        window.addEventListener('beforeunload', () => {
+          localStorage.setItem('skillforge-intro-lang', page.getAttribute('data-lang') || 'zh-CN');
+        });
+      })();
+    </script>
+  </body>
+</html>
