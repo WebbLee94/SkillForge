@@ -30,7 +30,7 @@ type SettingsTab = 'general' | 'platforms';
 const GITHUB_URL = 'https://github.com/WebbLee94/SkillForge';
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
-function resolveSystemLanguage(): string {
+async function resolveSystemLanguage(): Promise<string> {
   return getSystemLanguageForSettings();
 }
 
@@ -196,12 +196,12 @@ export function Settings() {
   }, [platforms]);
 
   const handleLanguageChange = useCallback(
-    (lng: string) => {
+    async (lng: string) => {
       localStorage.setItem(LANG_STORAGE_KEY, lng);
       if (lng === 'system') {
-        i18n.changeLanguage(resolveSystemLanguage());
+        await i18n.changeLanguage(await resolveSystemLanguage());
       } else {
-        i18n.changeLanguage(lng);
+        await i18n.changeLanguage(lng);
       }
     },
     [i18n]
