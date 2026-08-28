@@ -3593,8 +3593,8 @@ describe('DistributionWorkspace', () => {
 
       // 重新打开 → Escape 关闭
       fireEvent.click(screen.getByRole('button', { name: /查看|收起/ }));
-      await screen.findByTestId('ws-managed-drawer');
-      fireEvent.keyDown(document, { key: 'Escape' });
+      const reopenedDrawer = await screen.findByTestId('ws-managed-drawer');
+      fireEvent.keyDown(reopenedDrawer, { key: 'Escape' });
       await waitFor(() =>
         expect(screen.queryByTestId('ws-managed-drawer')).toBeNull()
       );
