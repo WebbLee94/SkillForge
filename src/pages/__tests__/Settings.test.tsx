@@ -12,6 +12,12 @@ import { setTheme, THEME_STORAGE_KEY } from '../../hooks/useTheme';
 import { SELECT_CLASSES } from '../../lib/ui-tokens';
 
 vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/plugin-updater', () => ({
+  check: vi.fn(),
+}));
+vi.mock('@tauri-apps/plugin-process', () => ({
+  relaunch: vi.fn(),
+}));
 
 /** 仅新增 key 提供可读翻译；既有 key 保持原样返回（兼容既有断言）。 */
 const tMap: Record<string, string> = {
@@ -23,6 +29,10 @@ const tMap: Record<string, string> = {
   'settings:general.darkMode.modeDark': '深色',
   'settings:general.darkMode.modeLight': '浅色',
   'settings:general.update.checkButton': '检查更新',
+  'settings:general.update.latest': '当前已是最新版本',
+  'settings:general.update.installing': '已开始安装更新，稍后将自动重启',
+  'settings:general.update.failed': '检查更新失败：{{reason}}',
+  'settings:general.update.availablePrompt': '发现新版本 {{version}}，是否立即下载并安装？',
   'settings:platforms.countsFormat': '技能 {{skills}} · 规则 {{rules}}',
   'settings:platforms.capLabels.openTooltip': '查看 {{name}} 的路径与能力',
   'settings:platforms.capLabels.tooltipTitle': '{{name}} · 路径与能力',
@@ -49,6 +59,10 @@ vi.mock('react-i18next', () => ({
       interpolate(tMap[key] ?? key, options),
     i18n: { language: 'zh-CN', changeLanguage: vi.fn() },
   }),
+}));
+
+vi.mock('../../lib/i18n', () => ({
+  getSystemLanguageForSettings: vi.fn().mockResolvedValue('zh-CN'),
 }));
 
 /* Ensure localStorage in jsdom */
@@ -187,6 +201,60 @@ describe('Settings', () => {
     for (const token of SELECT_CLASSES.split(' ')) {
       expect(settingsSelect.className).toContain(token);
     }
+  });
+
+  it('检查更新按钮调用 updater 并在无更新时给出提示', async () => {
+    await seedRoutes({
+      get_app_config: {
+        data_dir: '/u/test/.skillforge',
+        db_path: '/u/test/.skillforge/db.sqlite',
+        version: '1.0.0',
+      },
+      get_db_size: '2.3 MB',
+    });
+
+    const { check } = await import('@tauri-apps/plugin-updater');
+    (check as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      available: false,
+    });
+
+    render(<Settings />);
+
+    await waitFor(() => expect(screen.getByText('settings:title')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: '检查更新' }));
+
+    await waitFor(() => {
+      expect(check).toHaveBeenCalled();
+    });
+  });
+
+  it('跟随系统时优先使用浏览器语言初始化为中文', async () => {
+    await seedRoutes({
+      get_app_config: {
+        data_dir: '/u/test/.skillforge',
+        db_path: '/u/test/.skillforge/db.sqlite',
+        version: '1.0.0',
+      },
+      get_db_size: '2.3 MB',
+    });
+
+    Object.defineProperty(window.navigator, 'languages', {
+      configurable: true,
+      value: ['zh-CN', 'en-US'],
+    });
+    Object.defineProperty(window.navigator, 'language', {
+      configurable: true,
+      value: 'zh-CN',
+    });
+    localStorage.setItem('skillforge-lang', 'system');
+
+    render(<Settings />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('settings-lang')).toHaveValue('system');
+    });
+
+    expect(screen.getByText('settings:title')).toBeDefined();
   });
 
   it('switches to platforms tab and shows platform list', async () => {
@@ -460,7 +528,7 @@ describe('Settings', () => {
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
   });
 
-  it('shows a placeholder toast for the manual check-for-updates action', async () => {
+  it('shows a latest-version toast for the manual check-for-updates action', async () => {
     await seedRoutes({
       get_app_config: {
         data_dir: '/d/.skillforge',
@@ -473,12 +541,23 @@ describe('Settings', () => {
     await waitFor(() =>
       expect(screen.getByText('settings:title')).toBeDefined()
     );
+
+    const { check } = await import('@tauri-apps/plugin-updater');
+    (check as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+      available: false,
+    });
+
     fireEvent.click(
       screen.getByRole('button', { name: /检查更新|check for updates/i })
     );
-    expect(
-      useAppStore.getState().toasts.some((t) => t.message === '该功能暂未实现')
-    ).toBe(true);
+
+    await waitFor(() => {
+      expect(
+        useAppStore.getState().toasts.some(
+          (t) => t.message === '当前已是最新版本'
+        )
+      ).toBe(true);
+    });
   });
 
   it('renders settings as two top tab chips without a 200px left rail', async () => {

@@ -20,7 +20,11 @@
       "title": "Update",
       "desc": "Automatically check for new versions on startup",
       "checkButton": "Check for Updates",
-      "autoCheckLabel": "Check for updates automatically"
+      "autoCheckLabel": "Check for updates automatically",
+      "latest": "You are already on the latest version",
+      "installing": "Update installation started. The app will relaunch soon.",
+      "failed": "Update check failed: {{reason}}",
+      "availablePrompt": "Version {{version}} is available. Download and install it now?"
     },
     "dataDir": {
       "title": "Data Directory",

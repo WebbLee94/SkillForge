@@ -11,10 +11,19 @@ import { ipc } from '../lib/ipc';
 import { getSystemLanguageForSettings } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { SELECT_CLASSES } from '../lib/ui-tokens';
-import { ExternalLink, Database, FolderOpen, Sun, Moon } from 'lucide-react';
+import {
+  ExternalLink,
+  Database,
+  FolderOpen,
+  Sun,
+  Moon,
+  RefreshCw,
+} from 'lucide-react';
 import { revealItemInDir } from '@tauri-apps/plugin-opener';
 import { useAppStore } from '../stores/appStore';
 import { useTheme } from '../hooks/useTheme';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 const PlatformsPanel = lazy(
   () => import('../domains/settings/PlatformsPanel.lazy')
 );
@@ -59,6 +68,7 @@ export function Settings() {
   const [countsMap, setCountsMap] = useState<
     Record<string, PlatformEntryCount>
   >({});
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [tooltipPlatformId, setTooltipPlatformId] = useState<string | null>(
     null
   );
@@ -228,6 +238,38 @@ export function Settings() {
     [addToast, t]
   );
 
+  const handleCheckUpdate = useCallback(async () => {
+    if (checkingUpdate) return;
+
+    setCheckingUpdate(true);
+    try {
+      const update = await check();
+      if (!update?.available) {
+        addToast(t('settings:general.update.latest'), 'success');
+        return;
+      }
+
+      const shouldInstall = window.confirm(
+        t('settings:general.update.availablePrompt', {
+          version: update.version,
+        })
+      );
+
+      if (!shouldInstall) {
+        return;
+      }
+
+      await update.downloadAndInstall();
+      addToast(t('settings:general.update.installing'), 'success');
+      await relaunch();
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      addToast(t('settings:general.update.failed', { reason }), 'error');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  }, [addToast, checkingUpdate, t]);
+
   const handleShowTooltip = useCallback((platformId: string) => {
     setTooltipPlatformId(platformId);
   }, []);
@@ -395,9 +437,11 @@ export function Settings() {
                     {`v${version}`}
                   </span>
                   <button
-                    className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent"
-                    onClick={() => addToast(t('topbar.notImplemented'), 'info')}
+                    className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => void handleCheckUpdate()}
+                    disabled={checkingUpdate}
                   >
+                    <RefreshCw className={cn('h-3.5 w-3.5', checkingUpdate && 'animate-spin')} />
                     {t('settings:general.update.checkButton')}
                   </button>
                 </div>

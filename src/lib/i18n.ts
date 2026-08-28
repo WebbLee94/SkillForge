@@ -33,17 +33,31 @@ function getStoredLanguage(): string | null {
   }
 }
 
+function getBrowserLanguage(): string | null {
+  const languages = navigator.languages;
+  if (Array.isArray(languages) && languages.length > 0) {
+    return languages[0] ?? null;
+  }
+
+  return navigator.language ?? null;
+}
+
 export async function resolveSystemLanguage(): Promise<string> {
   const stored = getStoredLanguage();
   if (stored && stored !== 'system') {
     return normalizeLanguageTag(stored);
   }
 
+  const browserLanguage = getBrowserLanguage();
+  if (browserLanguage) {
+    return normalizeLanguageTag(browserLanguage);
+  }
+
   try {
     const systemLocale = await ipc.getSystemLocale();
     return normalizeLanguageTag(systemLocale);
   } catch {
-    return normalizeLanguageTag(navigator.language);
+    return normalizeLanguageTag(browserLanguage);
   }
 }
 

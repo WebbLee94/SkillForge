@@ -20,7 +20,11 @@
       "title": "更新",
       "desc": "每次启动时自动检查新版本",
       "checkButton": "检查更新",
-      "autoCheckLabel": "自动检查更新"
+      "autoCheckLabel": "自动检查更新",
+      "latest": "当前已是最新版本",
+      "installing": "已开始安装更新，稍后将自动重启",
+      "failed": "检查更新失败：{{reason}}",
+      "availablePrompt": "发现新版本 {{version}}，是否立即下载并安装？"
     },
     "dataDir": { "title": "数据目录", "desc": "SkillForge 数据存储位置" },
     "community": {
