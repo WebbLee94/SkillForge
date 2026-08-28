@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom/client';
 import './index.css';
-import './lib/i18n';
+import { initI18n } from './lib/i18n';
 
 import App from './App';
 
@@ -16,6 +16,8 @@ if (import.meta.env.VITE_E2E === 'true') {
   });
 }
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <App />
-);
+const root = ReactDOM.createRoot(document.getElementById('root') as HTMLElement);
+
+await initI18n();
+
+root.render(<App />);

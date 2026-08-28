@@ -61,7 +61,7 @@ SkillForge 是一款专为 AI Agent 用户打造的技能管理工具，旨在�
 - **Rust** (via rustup)
 - **Xcode Command Line Tools** (macOS) / **Build Tools for Visual Studio** (Windows)
 
-### 安装步骤
+### 常用命令
 
 ```bash
 # 1. 克隆项目
@@ -71,12 +71,34 @@ cd SkillForge
 # 2. 安装依赖
 npm install
 
-# 3. 启动开发模式
+# 3. 启动前端开发模式
+npm run dev
+
+# 4. 启动完整 Tauri 开发模式
 npm run tauri dev
 
-# 4. 生产构建
+# 5. 生产构建
 npm run tauri build
+
+# 6. 仅前端构建
+npm run build
+
+# 7. 前端测试
+npm test
+
+# 8. Rust 后端测试（在 src-tauri/ 目录下）
+cargo test
+
+# 9. 桌面 E2E 测试
+npm run test:e2e
 ```
+
+## 🔗 项目链接
+
+- [GitHub 仓库](https://github.com/WebbLee94/SkillForge)
+- [Issue 反馈](https://github.com/WebbLee94/SkillForge/issues)
+- [功能讨论](https://github.com/WebbLee94/SkillForge/discussions)
+- [获取帮助](SUPPORT.md)
 
 ## 📁 项目结构
 
@@ -118,18 +140,6 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
                                                       ▼ (symlink, one-way push distribution)
                               claude-code/ opencode/ cursor/ trae/ codebuddy/ codex/ hermes/ openclaw/ ... (10 平台)
 ```
-
-## 📋 开发命令
-
-| 命令 | 描述 |
-|------|------|
-| `npm run dev` | 前端热重载（Vite，端口 1420） |
-| `npm run tauri dev` | 完整 Tauri 开发（前端+桌面窗口） |
-| `npm run tauri build` | 生产构建（输出 .app/.dmg/.exe） |
-| `npm run build` | 仅前端构建（tsc + Vite） |
-| `npm test` | 前端单元/组件测试（Vitest） |
-| `npm run test:e2e` | 桌面 E2E 测试（WebdriverIO + tauri-driver） |
-| `cargo test` | Rust 后端测试（在 src-tauri/ 目录下） |
 
 ## 🤝 参与贡献
 

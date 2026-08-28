@@ -9,7 +9,8 @@ const LANG_STORAGE_KEY = 'skillforge-lang';
  */
 async function importI18nWithMocks(
   storageValue: string | null,
-  browserLang: string
+  browserLang: string,
+  systemLocale: string | null = 'zh-CN'
 ) {
   vi.resetModules();
 
@@ -50,11 +51,18 @@ async function importI18nWithMocks(
   // Mock i18next default export — capture init call
   const initMock = vi.fn().mockReturnThis();
   const useMock = vi.fn().mockReturnThis();
+  const changeLanguageMock = vi.fn().mockResolvedValue(undefined);
   vi.doMock('i18next', () => ({
-    default: { use: useMock, init: initMock },
+    default: { use: useMock, init: initMock, changeLanguage: changeLanguageMock },
   }));
   vi.doMock('react-i18next', () => ({
     initReactI18next: {},
+  }));
+
+  vi.doMock('../ipc', () => ({
+    ipc: {
+      getSystemLocale: vi.fn(async () => systemLocale),
+    },
   }));
 
   // Mock all locale JSON files to avoid import errors
@@ -71,9 +79,10 @@ async function importI18nWithMocks(
   vi.doMock('../locales/en-US/distribution.json', () => ({}));
   vi.doMock('../locales/en-US/settings.json', () => ({}));
 
-  await import('../i18n');
+  const mod = await import('../i18n');
+  await mod.initI18n();
 
-  return { initMock, useMock };
+  return { initMock, useMock, changeLanguageMock, mod };
 }
 
 describe('i18n initialization', () => {
@@ -89,45 +98,33 @@ describe('i18n initialization', () => {
   });
 
   it('uses stored en-US value from localStorage', async () => {
-    const { initMock } = await importI18nWithMocks('en-US', 'zh-CN');
-    expect(initMock).toHaveBeenCalledWith(
-      expect.objectContaining({ lng: 'en-US' })
-    );
+    const { changeLanguageMock } = await importI18nWithMocks('en-US', 'zh-CN');
+    expect(changeLanguageMock).toHaveBeenCalledWith('en-US');
   });
 
-  it('falls back to navigator.language when stored value is "system"', async () => {
-    const { initMock } = await importI18nWithMocks('system', 'zh-CN');
-    expect(initMock).toHaveBeenCalledWith(
-      expect.objectContaining({ lng: 'zh-CN' })
-    );
+  it('falls back to system locale when stored value is "system"', async () => {
+    const { changeLanguageMock } = await importI18nWithMocks('system', 'en-US', 'zh-CN');
+    expect(changeLanguageMock).toHaveBeenCalledWith('zh-CN');
   });
 
-  it('falls back to en-US when browser language is not zh-*', async () => {
-    const { initMock } = await importI18nWithMocks('system', 'fr-FR');
-    expect(initMock).toHaveBeenCalledWith(
-      expect.objectContaining({ lng: 'en-US' })
-    );
+  it('falls back to en-US when system locale is not zh-*', async () => {
+    const { changeLanguageMock } = await importI18nWithMocks('system', 'fr-FR', 'fr-FR');
+    expect(changeLanguageMock).toHaveBeenCalledWith('en-US');
   });
 
-  it('uses zh-CN when no stored value and browser is zh-CN', async () => {
-    const { initMock } = await importI18nWithMocks(null, 'zh-CN');
-    expect(initMock).toHaveBeenCalledWith(
-      expect.objectContaining({ lng: 'zh-CN' })
-    );
+  it('uses zh-CN when no stored value and system locale is zh-CN', async () => {
+    const { changeLanguageMock } = await importI18nWithMocks(null, 'en-US', 'zh-CN');
+    expect(changeLanguageMock).toHaveBeenCalledWith('zh-CN');
   });
 
-  it('uses zh-CN for zh-TW browser language (zh-* prefix)', async () => {
-    const { initMock } = await importI18nWithMocks('system', 'zh-TW');
-    expect(initMock).toHaveBeenCalledWith(
-      expect.objectContaining({ lng: 'zh-CN' })
-    );
+  it('uses zh-CN for zh-TW system locale (zh-* prefix)', async () => {
+    const { changeLanguageMock } = await importI18nWithMocks('system', 'en-US', 'zh-TW');
+    expect(changeLanguageMock).toHaveBeenCalledWith('zh-CN');
   });
 
-  it('uses en-US when no stored value and browser is en-US', async () => {
-    const { initMock } = await importI18nWithMocks(null, 'en-US');
-    expect(initMock).toHaveBeenCalledWith(
-      expect.objectContaining({ lng: 'en-US' })
-    );
+  it('uses en-US when no stored value and system locale is en-US', async () => {
+    const { changeLanguageMock } = await importI18nWithMocks(null, 'zh-CN', 'en-US');
+    expect(changeLanguageMock).toHaveBeenCalledWith('en-US');
   });
 
   it('calls use(initReactI18next) before init', async () => {

@@ -15,54 +15,94 @@ import scenesEn from '../locales/en-US/scenes.json';
 import distributionEn from '../locales/en-US/distribution.json';
 import settingsEn from '../locales/en-US/settings.json';
 
+import { ipc } from './ipc';
+
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
-function resolveInitLanguage(): string {
-  // E2E 构建钉版 zh-CN：CI 宿主 locale 为 en-US 时 navigator.language 检测
-  // 会把界面渲染成英文，导致全部中文文案断言失败。生产构建不含此分支。
-  if (import.meta.env.VITE_E2E === 'true') {
-    return 'zh-CN';
-  }
+function normalizeLanguageTag(language: string | null | undefined): string {
+  const lowered = (language ?? '').trim().toLowerCase();
+  if (lowered.startsWith('zh')) return 'zh-CN';
+  return 'en-US';
+}
+
+function getStoredLanguage(): string | null {
   try {
-    const stored = localStorage.getItem(LANG_STORAGE_KEY);
-    if (!stored || stored === 'system') {
-      const browserLang = navigator.language || 'zh-CN';
-      return browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
-    }
-    return stored;
+    return localStorage.getItem(LANG_STORAGE_KEY);
   } catch {
-    const browserLang = navigator.language || 'zh-CN';
-    return browserLang.startsWith('zh') ? 'zh-CN' : 'en-US';
+    return null;
   }
 }
 
-i18n.use(initReactI18next);
-i18n.init({
-  resources: {
-    'zh-CN': {
-      common: commonZh,
-      skills: skillsZh,
-      rules: rulesZh,
-      scenes: scenesZh,
-      distribution: distributionZh,
-      settings: settingsZh,
+export async function resolveSystemLanguage(): Promise<string> {
+  const stored = getStoredLanguage();
+  if (stored && stored !== 'system') {
+    return normalizeLanguageTag(stored);
+  }
+
+  try {
+    const systemLocale = await ipc.getSystemLocale();
+    return normalizeLanguageTag(systemLocale);
+  } catch {
+    return normalizeLanguageTag(navigator.language);
+  }
+}
+
+function configureI18n() {
+  if (i18n.isInitialized) return i18n;
+
+  i18n.use(initReactI18next);
+  i18n.init({
+    resources: {
+      'zh-CN': {
+        common: commonZh,
+        skills: skillsZh,
+        rules: rulesZh,
+        scenes: scenesZh,
+        distribution: distributionZh,
+        settings: settingsZh,
+      },
+      'en-US': {
+        common: commonEn,
+        skills: skillsEn,
+        rules: rulesEn,
+        scenes: scenesEn,
+        distribution: distributionEn,
+        settings: settingsEn,
+      },
     },
-    'en-US': {
-      common: commonEn,
-      skills: skillsEn,
-      rules: rulesEn,
-      scenes: scenesEn,
-      distribution: distributionEn,
-      settings: settingsEn,
+    lng: 'zh-CN',
+    fallbackLng: 'en-US',
+    defaultNS: 'common',
+    ns: ['common', 'skills', 'rules', 'scenes', 'distribution', 'settings'],
+    interpolation: {
+      escapeValue: false,
     },
-  },
-  lng: resolveInitLanguage(),
-  fallbackLng: 'en-US',
-  defaultNS: 'common',
-  ns: ['common', 'skills', 'rules', 'scenes', 'distribution', 'settings'],
-  interpolation: {
-    escapeValue: false,
-  },
-});
+  });
+
+  return i18n;
+}
+
+configureI18n();
+
+export async function initI18n() {
+  const stored = getStoredLanguage();
+  if (stored && stored !== 'system') {
+    const normalized = normalizeLanguageTag(stored);
+    if (i18n.language !== normalized) {
+      await i18n.changeLanguage(normalized);
+    }
+    return i18n;
+  }
+
+  const resolved = await resolveSystemLanguage();
+  if (i18n.language !== resolved) {
+    await i18n.changeLanguage(resolved);
+  }
+  return i18n;
+}
+
+export function getSystemLanguageForSettings() {
+  return resolveSystemLanguage();
+}
 
 export default i18n;

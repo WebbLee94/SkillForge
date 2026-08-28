@@ -1,61 +1,42 @@
 # Changelog
 
-## v1.0.0 (待发布) 🎉 首个公开发布版本
+## v1.0.0 (2026-08-28) 🎉 首个公开发布版本
 
-### 🆕 新增
+> SkillForge 的首个公开发布版本，用于统一管理 AI Agent 的技能与规则，支持 10 个平台、场景编排与一键分发。
 
-- **外部变更感知（文件监控）**：文件监控引擎实时感知所有已启用 Agent 平台的外部技能/规则变更（辅助能力，非核心承诺范围——核心仍为 Skills/Rules 分发）
-- **自写回声抑制**：dist_engine 写操作自动静音 watcher，避免假阳性事件
-- **三态同步状态**：看板支持已同步🟢 / 已缺失🔴 / 有更新🟡 三种状态
-- **变更通知栏**：检测到外部变更时自动弹出通知，支持一键导入/忽略
-- **自动更新检测**：Git 来源的技能定时检查新版本（默认 6h）
+### 核心功能
 
-### 📦 依赖
+- **技能库管理**：安装/卸载/更新技能，支持本地文件与 Git 仓库来源
+- **规则管理**：创建/编辑/删除规则（.mdc/.md/.yaml），支持版本历史追溯与双栏预览
+- **标签管理**：支持内联标签创建、筛选与弹窗管理
+- **场景编排**：组合技能与规则，按场景一键切换，并支持平台维度 diff
+- **全局/项目分发**：将场景分发到 10 个 AI Agent 平台，支持项目级隔离
+- **平台能力感知**：自动检测平台分发能力，不支持时给出提示
+- **外部变更感知**：文件监控引擎感知已启用平台上的外部技能/规则变更
+- **自动更新检测**：Git 来源技能定时检查新版本
 
-- 新增 `notify` 6.x（跨平台文件系统监控）
-- 新增 `hex` 0.4（哈希编码）
-- 新增 `walkdir` 2.x（目录遍历）
-- 新增 `log` 0.4（日志门面）
+### 平台支持
 
-### 🧪 质量与测试
+Claude Code / OpenCode / Cursor / Trae / CodeBuddy / Codex / Hermes / OpenClaw / Antigravity / Windsurf（共 10 个）
 
-- **Vitest 覆盖率门禁 ≥60%**：配置 Vitest 覆盖率阈值，确保前端核心模块最小覆盖，防止未测试代码合入
-- **ESLint flat config + typescript-eslint**：从旧式 `.eslintrc` 迁移至 ESLint flat config，统一前端代码规范
-- **前端 Zustand Store 测试**：覆盖分发状态管理的完整链路，验证同步状态机运转正确
-- **Rust 集成测试**：覆盖完整分发链路（watcher → dist_engine → platform 写入），验证端到端正确性
+### 架构与质量
 
-### 🔧 改进
+- **统一资源模型**：数据库存储层从 skills/rules 六表合并为 resources/resource_tags/scene_items 三表
+- **场景保存原子化**：场景及其成员关系以数据库事务整体提交
+- **分发预览识别内容变更**：已分发资源正文变化时可正确归入待更新列表
+- **文件监控链路清理**：外部变更事件统一走内存通知链路
+- **Vitest / Rust / E2E**：前端 860 用例、Rust 333 用例、桌面 E2E 4 个 spec，均已通过
 
-- 技能列表不再将已缺失的技能显示为"未分发"
-- **P0/P1 发布前修复**：修复 5 个 TypeScript 类型错误、2 个 clippy 告警
-- **i18n 硬编码迁移**：51 处硬编码中文替换为 i18n `t()` 调用，补齐国际化覆盖
-- **Emoji 替换为 lucide 图标**：移除 UI 中所有 Emoji 字符，统一使用 `@radix-ui/react-icons`（lucide）
-- **Dashboard 统计卡片配色修复**：统计数据卡片颜色值对齐设计规范
-- **清理失效 i18n 键**：移除 19 个未引用的死键，减少产物体积
-- **统一资源模型**（架构重构）：数据库存储层从 skills/rules 六表合并为 resources/resource_tags/scene_items 三表——标签与场景成员关系随之简化，为未来扩展新资源类型预留容器；对用户的可见变化为技能库/规则管理页数据源不变、标签系统按资源类型隔离（技能标签与规则标签各自独立）、场景编排支持技能与规则的混合成员
-- **分发预览可识别"内容有更新"的资源**（硬化批）：预览结果新增内容级 Update 分类——已分发资源的正文发生变化时（即使名称与位置不变），预览会正确归入待更新列表，不再被遗漏
-- **场景保存原子化**（硬化批）：场景及其成员关系以数据库事务整体提交，任一步骤失败即整体回滚，不再产生半保存的中间状态
-- **文件监控链路清理**（硬化批）：移除文件监控中已废弃的数据库写入路径，外部变更事件统一走内存通知链路
+### 工程基础
 
-### 🛠 工具链
+- **i18n 覆盖**：中文 / 英文双语支持，6 个 namespace
+- **CSP 安全策略**：限制默认资源来源
+- **CI 门禁**：三平台构建、测试、lint 与发布校验已启用
+- **Windows 安装器**：NSIS 与安装钩子已配置
 
-- **coverage/ 目录加入 .gitignore**：避免覆盖率报告文件和产物被版本控制追踪
-- **CI build.yml 增加 ESLint 检查 + 覆盖率报告**：PR 自动执行前端 lint 和覆盖率检查
-- **CI release.yml 增加测试门禁**：版本发布前自动运行测试套件，测试失败阻断发布流程
+### 备注
 
-### 🧪 E2E 测试框架（2026-08-11）
-
-- **桌面 E2E 测试框架落地**：WebdriverIO + @wdio/tauri-service，macOS embedded driver（内嵌 WebDriver，端口 4445），驱动真实 Tauri 窗口 + Rust IPC，不依赖 computer-use/accessibility bridge
-- **E2E 陈旧进程守卫**（硬化批）：运行 E2E 前自动清理残留的 Vite dev server / WebDriver 进程，避免端口占用导致的启动失败
-- **桌面 E2E 共 4 个 spec**：smoke（冒烟）/ interaction（交互）/ distribution-workflow（首次分发完整流程：预览→取消→确认→执行→幂等→重启状态保持）/ stats-grid-responsive（看板统计网格响应式）
-- **CI 三平台 e2e 矩阵**（`.github/workflows/e2e.yml`）：macOS（embedded）+ Windows/Linux（external + tauri-driver + xvfb），验证跨平台冒烟
-- **README 入口修正**：平台数 12→10、双向同步→单向分发、docs 路径指向 SkillForge-docs 独立仓库、补充测试命令
-
-### 📊 测试口径（统一为当前实测，2026-08-24）
-
-- 前端 Vitest：60 文件 / 860 用例
-- Rust 后端：332 用例（206 lib 单元 + 126 集成，`cargo test` 实测）
-- 桌面 E2E：4 spec（smoke / interaction / distribution-workflow / stats-grid-responsive）
+- 本版本是对外首发版本，历史内测版本内容已不作为用户主叙事
 
 ## v0.0.2 (2026-06-10) 内部测试版
 

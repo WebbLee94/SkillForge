@@ -14,7 +14,9 @@ vi.mock('../App', () => ({
   default: () => null,
 }));
 
-vi.mock('../lib/i18n', () => ({}));
+vi.mock('../lib/i18n', () => ({
+  initI18n: vi.fn(async () => undefined),
+}));
 
 /* =================================================== */
 /*  Tests                                              */

@@ -44,9 +44,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
-          releaseName: SkillForge ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
 
   build-windows:
@@ -76,9 +76,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
-          releaseName: SkillForge ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
 
   build-linux:
@@ -112,7 +112,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
-          releaseName: SkillForge ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseBody: "See [CHANGELOG.md](https://github.com/WebbLee94/SkillForge/blob/release/CHANGELOG.md) for details."
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
