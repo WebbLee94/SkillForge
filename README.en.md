@@ -53,7 +53,7 @@ SkillForge is a skill management tool built for AI Agent users. It solves the pa
 | Database | SQLite |
 | Internationalization | i18next |
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -61,7 +61,7 @@ SkillForge is a skill management tool built for AI Agent users. It solves the pa
 - **Rust** (via rustup)
 - **Xcode Command Line Tools** (macOS) / **Build Tools for Visual Studio** (Windows)
 
-### Installation
+### Common Commands
 
 ```bash
 # 1. Clone the repository
@@ -71,12 +71,33 @@ cd SkillForge
 # 2. Install dependencies
 npm install
 
-# 3. Start development mode
+npm run dev
+
+# 3. Start the full Tauri dev environment
 npm run tauri dev
 
 # 4. Production build
 npm run tauri build
+
+# 5. Frontend-only build
+npm run build
+
+# 6. Frontend tests
+npm test
+
+# 7. Rust backend tests (inside src-tauri/)
+cargo test
+
+# 8. Desktop E2E tests
+npm run test:e2e
 ```
+
+## 🔗 Project Links
+
+- [GitHub repository](https://github.com/WebbLee94/SkillForge)
+- [Issue tracker](https://github.com/WebbLee94/SkillForge/issues)
+- [Feature discussions](https://github.com/WebbLee94/SkillForge/discussions)
+- [Get help](SUPPORT.md)
 
 ## 📁 Project Structure
 
@@ -118,18 +139,6 @@ Frontend (React 19 + Zustand) ──[IPC invoke]──> Rust Backend (rusqlite +
                                                       ▼ (symlink, one-way push distribution)
                               claude-code/ opencode/ cursor/ trae/ codebuddy/ codex/ hermes/ openclaw/ ... (10 platforms)
 ```
-
-## 📋 Development Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Frontend hot reload (Vite, port 1420) |
-| `npm run tauri dev` | Full Tauri development (frontend + desktop window) |
-| `npm run tauri build` | Production build (.app/.dmg/.exe) |
-| `npm run build` | Frontend-only build (tsc + Vite) |
-| `npm test` | Frontend unit/component tests (Vitest) |
-| `npm run test:e2e` | Desktop E2E tests (WebdriverIO + tauri-driver) |
-| `cargo test` | Rust backend tests (run inside src-tauri/) |
 
 ## 🤝 Contributing
 
