@@ -8,6 +8,7 @@
   "general": {
     "language": { "title": "Language", "desc": "Choose display language" },
     "languageSystem": "Follow System",
+    "languageSystemBrowser": "Follow System",
     "darkMode": {
       "title": "Dark Mode",
       "desc": "Enable dark mode",

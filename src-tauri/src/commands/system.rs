@@ -6,6 +6,17 @@ use crate::types::FileTreeNode;
 use rusqlite::params;
 
 #[tauri::command]
+pub fn get_system_locale() -> Result<String, AppError> {
+    let locale = std::env::var("LANG")
+        .ok()
+        .and_then(|value| value.split('.').next().map(|s| s.to_string()))
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "en_US".to_string());
+
+    Ok(locale.replace('_', "-"))
+}
+
+#[tauri::command]
 pub fn get_app_config() -> Result<AppConfig, AppError> {
     let data_dir = dirs::home_dir()
         .ok_or_else(|| AppError::Io("无法找到用户主目录".to_string()))?

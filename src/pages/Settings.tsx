@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ipc } from '../lib/ipc';
+import { getSystemLanguageForSettings } from '../lib/i18n';
 import { cn } from '../lib/utils';
 import { SELECT_CLASSES } from '../lib/ui-tokens';
 import { ExternalLink, Database, FolderOpen, Sun, Moon } from 'lucide-react';
@@ -30,9 +31,7 @@ const GITHUB_URL = 'https://github.com/WebbLee94/SkillForge';
 const LANG_STORAGE_KEY = 'skillforge-lang';
 
 function resolveSystemLanguage(): string {
-  const browserLang = navigator.language || 'zh-CN';
-  if (browserLang.startsWith('zh')) return 'zh-CN';
-  return 'en-US';
+  return getSystemLanguageForSettings();
 }
 
 function getStoredLanguage(): string {
@@ -93,7 +92,6 @@ export function Settings() {
     };
   }, []);
 
-  // Resolve the effective language for the <select> value
   const effectiveLang = (() => {
     const stored = getStoredLanguage();
     if (stored === 'system') return 'system';
@@ -319,7 +317,7 @@ export function Settings() {
                   className={cn(SELECT_CLASSES, 'w-36')}
                 >
                   <option value="system">
-                    {t('settings:general.languageSystem')}
+                    {t('settings:general.languageSystemBrowser')}
                   </option>
                   <option value="zh-CN">简体中文</option>
                   <option value="en-US">English</option>

@@ -147,6 +147,7 @@ export const ipc = {
   revealPath: (path: string, asSkillsDir: boolean) =>
     invoke<RevealPathResult>('reveal_path', { path, asSkillsDir }),
   getAppConfig: () => invoke<AppConfig>('get_app_config'),
+  getSystemLocale: () => invoke<string>('get_system_locale'),
   getDashboardStats: () => invoke<DashboardStats>('get_dashboard_stats'),
   listPlatforms: () => invoke<Platform[]>('list_platforms'),
   togglePlatformEnabled: (id: string, enabled: boolean) =>
