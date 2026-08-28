@@ -48,17 +48,20 @@ export async function resolveSystemLanguage(): Promise<string> {
     return normalizeLanguageTag(stored);
   }
 
+  try {
+    const systemLocale = await ipc.getSystemLocale();
+    if (systemLocale) {
+      return normalizeLanguageTag(systemLocale);
+    }
+  } catch {
+  }
+
   const browserLanguage = getBrowserLanguage();
   if (browserLanguage) {
     return normalizeLanguageTag(browserLanguage);
   }
 
-  try {
-    const systemLocale = await ipc.getSystemLocale();
-    return normalizeLanguageTag(systemLocale);
-  } catch {
-    return normalizeLanguageTag(browserLanguage);
-  }
+  return normalizeLanguageTag(null);
 }
 
 function configureI18n() {
