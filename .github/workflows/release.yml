@@ -44,27 +44,9 @@ jobs:
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "UPDATER_KEY_PATH=" >> "$GITHUB_ENV"
-            exit 0
-          fi
-
-          UPDATER_KEY_PATH="$RUNNER_TEMP/skillforge-updater.key"
-          case "$TAURI_SIGNING_PRIVATE_KEY" in
-            untrusted\ comment:*)
-              printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$UPDATER_KEY_PATH"
-              ;;
-            *)
-              printf 'untrusted comment: SkillForge updater key\n%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$UPDATER_KEY_PATH"
-              ;;
-          esac
-
-          echo "UPDATER_KEY_PATH=$UPDATER_KEY_PATH" >> "$GITHUB_ENV"
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
-            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" >> "$GITHUB_ENV"
-          fi
+          node scripts/normalize-updater-key.mjs "$RUNNER_TEMP/skillforge-updater.key"
+          echo "UPDATER_KEY_PATH=$RUNNER_TEMP/skillforge-updater.key" >> "$GITHUB_ENV"
       - name: Import Apple signing certificate
         if: ${{ env.SIGNING_ENABLED == 'true' }}
         env:
@@ -99,7 +81,7 @@ jobs:
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ env.CERT_ID }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.UPDATER_KEY_PATH }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
@@ -112,7 +94,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.UPDATER_KEY_PATH }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
@@ -145,33 +127,15 @@ jobs:
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "UPDATER_KEY_PATH=" >> "$GITHUB_ENV"
-            exit 0
-          fi
-
-          UPDATER_KEY_PATH="$RUNNER_TEMP/skillforge-updater.key"
-          case "$TAURI_SIGNING_PRIVATE_KEY" in
-            untrusted\ comment:*)
-              printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$UPDATER_KEY_PATH"
-              ;;
-            *)
-              printf 'untrusted comment: SkillForge updater key\n%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$UPDATER_KEY_PATH"
-              ;;
-          esac
-
-          echo "UPDATER_KEY_PATH=$UPDATER_KEY_PATH" >> "$GITHUB_ENV"
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
-            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" >> "$GITHUB_ENV"
-          fi
+          node scripts/normalize-updater-key.mjs "$RUNNER_TEMP/skillforge-updater.key"
+          echo "UPDATER_KEY_PATH=$RUNNER_TEMP/skillforge-updater.key" >> "$GITHUB_ENV"
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.UPDATER_KEY_PATH }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
@@ -208,33 +172,15 @@ jobs:
         shell: bash
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "UPDATER_KEY_PATH=" >> "$GITHUB_ENV"
-            exit 0
-          fi
-
-          UPDATER_KEY_PATH="$RUNNER_TEMP/skillforge-updater.key"
-          case "$TAURI_SIGNING_PRIVATE_KEY" in
-            untrusted\ comment:*)
-              printf '%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$UPDATER_KEY_PATH"
-              ;;
-            *)
-              printf 'untrusted comment: SkillForge updater key\n%s\n' "$TAURI_SIGNING_PRIVATE_KEY" > "$UPDATER_KEY_PATH"
-              ;;
-          esac
-
-          echo "UPDATER_KEY_PATH=$UPDATER_KEY_PATH" >> "$GITHUB_ENV"
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" ]; then
-            echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$TAURI_SIGNING_PRIVATE_KEY_PASSWORD" >> "$GITHUB_ENV"
-          fi
+          node scripts/normalize-updater-key.mjs "$RUNNER_TEMP/skillforge-updater.key"
+          echo "UPDATER_KEY_PATH=$RUNNER_TEMP/skillforge-updater.key" >> "$GITHUB_ENV"
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ env.UPDATER_KEY_PATH }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ env.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
           releaseName: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
