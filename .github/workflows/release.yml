@@ -19,6 +19,7 @@ concurrency:
 jobs:
   build-macos:
     runs-on: macos-latest
+    environment: updater-release
     permissions:
       contents: write
     env:
@@ -110,6 +111,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    environment: updater-release
     permissions:
       contents: write
     steps:
@@ -157,6 +159,7 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    environment: updater-release
     permissions:
       contents: write
     steps:
