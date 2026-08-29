@@ -112,6 +112,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect updater secret
+        id: updater
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -123,11 +135,13 @@ jobs:
           path: artifacts
 
       - name: Generate latest.json
+        if: steps.updater.outputs.enabled == 'true'
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/generate-latest-json.mjs "${{ github.ref_name }}" artifacts
 
-      - name: Create Release
+      - name: Create Release (with updater manifest)
+        if: steps.updater.outputs.enabled == 'true'
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
@@ -145,5 +159,26 @@ jobs:
             artifacts/**/*.tar.gz
             artifacts/**/*.sig
             latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release (bundles only)
+        if: steps.updater.outputs.enabled != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.dmg
+            artifacts/**/*.app
+            artifacts/**/*.exe
+            artifacts/**/*.msi
+            artifacts/**/*.zip
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*.tar.gz
+            artifacts/**/*.sig
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
