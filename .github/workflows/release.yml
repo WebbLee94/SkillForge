@@ -19,6 +19,7 @@ concurrency:
 jobs:
   build-macos:
     runs-on: macos-latest
+    environment: updater-release
     permissions:
       contents: write
     env:
@@ -45,6 +46,12 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::notice::TAURI_SIGNING_PRIVATE_KEY is empty; skipping updater key preparation"
+            echo "UPDATER_KEY_PATH=" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           node scripts/normalize-updater-key.mjs "$RUNNER_TEMP/skillforge-updater.key"
           echo "UPDATER_KEY_PATH=$RUNNER_TEMP/skillforge-updater.key" >> "$GITHUB_ENV"
       - name: Import Apple signing certificate
@@ -104,6 +111,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    environment: updater-release
     permissions:
       contents: write
     steps:
@@ -128,6 +136,12 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::notice::TAURI_SIGNING_PRIVATE_KEY is empty; skipping updater key preparation"
+            echo "UPDATER_KEY_PATH=" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           node scripts/normalize-updater-key.mjs "$RUNNER_TEMP/skillforge-updater.key"
           echo "UPDATER_KEY_PATH=$RUNNER_TEMP/skillforge-updater.key" >> "$GITHUB_ENV"
       - name: Build Tauri app
@@ -145,6 +159,7 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    environment: updater-release
     permissions:
       contents: write
     steps:
@@ -173,6 +188,12 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "::notice::TAURI_SIGNING_PRIVATE_KEY is empty; skipping updater key preparation"
+            echo "UPDATER_KEY_PATH=" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           node scripts/normalize-updater-key.mjs "$RUNNER_TEMP/skillforge-updater.key"
           echo "UPDATER_KEY_PATH=$RUNNER_TEMP/skillforge-updater.key" >> "$GITHUB_ENV"
       - name: Build Tauri app
